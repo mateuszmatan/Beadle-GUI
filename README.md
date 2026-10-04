@@ -29,7 +29,7 @@ grafana/    the DORA dashboard and the provisioning of the local Grafana
 tools/      seed-influx-demo.py writes demo pipeline metrics to a local InfluxDB
 ```
 
-The domain, in `backend/src/main/java/com/bbh/dso/portal`:
+The domain, in `backend/src/main/java/com/bbh/itss/dso/portal`:
 
 | Package      | Holds                                                                                          |
 |--------------|-------------------------------------------------------------------------------------------------|

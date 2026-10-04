@@ -1,4 +1,4 @@
-package com.bbh.dso.portal.catalog;
+package com.bbh.itss.dso.portal.catalog;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
