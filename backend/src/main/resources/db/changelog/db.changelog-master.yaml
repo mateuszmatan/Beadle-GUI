@@ -1,22 +1,10 @@
-# The portal's schema as Liquibase changesets. Every change exists twice: for Oracle, which also runs on H2 in
-# Oracle mode for local work and tests, and for MySQL. Each changeset names its databases, so Liquibase runs
-# only the version that matches the database it is connected to.
 databaseChangeLog:
   - include:
       file: oracle/001-catalog.sql
       relativeToChangelogFile: true
   - include:
-      file: mysql/001-catalog.sql
-      relativeToChangelogFile: true
-  - include:
       file: oracle/002-pipelines.sql
       relativeToChangelogFile: true
   - include:
-      file: mysql/002-pipelines.sql
-      relativeToChangelogFile: true
-  - include:
       file: oracle/003-global-settings.sql
-      relativeToChangelogFile: true
-  - include:
-      file: mysql/003-global-settings.sql
       relativeToChangelogFile: true

@@ -1,12 +1,8 @@
 --liquibase formatted sql
 
--- The settings every pipeline shares, which services cannot override: one row, created by the portal at start-up
--- with BBH's current values.
-
 --changeset dso-portal:003-global-settings dbms:oracle,h2
 CREATE TABLE DSO_GLOBAL_SETTINGS (
     ID                              NUMBER(19)      NOT NULL,
-    -- tools and platform
     JENKINS_URL                     VARCHAR2(500),
     JENKINS_LIBRARY                 VARCHAR2(200)   NOT NULL,
     ASOC_URL                        VARCHAR2(500)   NOT NULL,
@@ -25,7 +21,6 @@ CREATE TABLE DSO_GLOBAL_SETTINGS (
     INFLUX_WRITE_URL                VARCHAR2(1000),
     INFLUX_CREDENTIALS_ID           VARCHAR2(200),
     IOS_BUILD_AGENT                 VARCHAR2(255),
-    -- deployment defaults
     UCD_SITE_NAME                   VARCHAR2(200)   NOT NULL,
     UCD_DEPLOY_PROCESS              VARCHAR2(200)   NOT NULL,
     RD_HOST                         VARCHAR2(255)   NOT NULL,
@@ -33,7 +28,6 @@ CREATE TABLE DSO_GLOBAL_SETTINGS (
     SSH_USER                        VARCHAR2(100)   NOT NULL,
     DEPLOY_SCRIPT                   VARCHAR2(500)   NOT NULL,
     VERSION_FILE                    VARCHAR2(500)   NOT NULL,
-    -- scan policy (the severity limits are in DSO_GLOBAL_SEVERITY_LIMIT)
     COVERAGE_MIN_LINE               NUMBER(10)      NOT NULL,
     SAST_PREPARE_TIMEOUT_MIN        NUMBER(10)      NOT NULL,
     SAST_POLL_TIMEOUT_MIN           NUMBER(10)      NOT NULL,
@@ -47,11 +41,9 @@ CREATE TABLE DSO_GLOBAL_SETTINGS (
     DAST_REPORT_INTERVAL_SEC        NUMBER(10)      NOT NULL,
     SONAR_WAIT_FOR_QUALITY_GATE     NUMBER(1)       NOT NULL,
     SONAR_QUALITY_GATE_TIMEOUT_MIN  NUMBER(10)      NOT NULL,
-    -- release gate
     RELEASE_GATE_SCANNERS           VARCHAR2(100),
     RELEASE_GATE_REQUIRE_COVERAGE   NUMBER(1)       NOT NULL,
     RELEASE_GATE_STATE_FILE         VARCHAR2(200)   NOT NULL,
-    -- defaults a service may override
     DEFAULT_BUILD_TOOL              VARCHAR2(20)    NOT NULL,
     DEFAULT_DEPLOY_TARGET           VARCHAR2(20)    NOT NULL,
     DEFAULT_SOURCE_DIR              VARCHAR2(500)   NOT NULL,
