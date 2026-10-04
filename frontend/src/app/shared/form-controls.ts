@@ -1,22 +1,22 @@
-import { AbstractControl, FormControl, FormGroup, ValidatorFn, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormArray,
+  FormControl,
+  FormGroup,
+  ValidatorFn,
+  Validators,
+} from '@angular/forms';
 import { FieldProblem } from '../core/models';
-
-/**
- * Building blocks of the portal's reactive forms: controls for the kinds of values the API takes, the
- * conversions between their text form and the API's lists, and the validators that repeat the API's rules.
- */
 
 export const HTTP_URL = /^https?:\/\/\S+$/;
 export const HOST_NAME = /^[A-Za-z0-9.-]*$/;
 
-/** A text control; null and undefined start it empty. */
 export const text = (value: string | null | undefined = '', ...validators: ValidatorFn[]) =>
   new FormControl(value ?? '', { nonNullable: true, validators });
 
 export const flag = (value: boolean | null | undefined, fallback = false) =>
   new FormControl(value ?? fallback, { nonNullable: true });
 
-/** A whole number between min and max, or empty. */
 export const integer = (
   value: number | null | undefined,
   min: number,
@@ -27,23 +27,21 @@ export const integer = (
     validators: [wholeNumber, Validators.min(min), Validators.max(max), ...validators],
   });
 
-/** The trimmed text, or null when it is blank. */
 export function optional(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
 }
 
-/** One value per line, trimmed, without blank lines and, unless told otherwise, without repeats. */
 export function lines(value: string | null | undefined, distinct = true): string[] {
   return split(value, /\n/, distinct);
 }
 
-/** Values separated by spaces or commas, such as Gradle tasks or Bitbucket reviewers. */
 export function words(value: string | null | undefined, distinct = true): string[] {
   return split(value, /[\s,]+/, distinct);
 }
 
-export const joinLines = (values: readonly string[] | null | undefined) => (values ?? []).join('\n');
+export const joinLines = (values: readonly string[] | null | undefined) =>
+  (values ?? []).join('\n');
 
 export const joinWords = (values: readonly string[] | null | undefined, separator = ' ') =>
   (values ?? []).join(separator);
@@ -54,16 +52,13 @@ export const wholeNumber: ValidatorFn = (control) =>
     : { integer: true };
 
 export function maxLines(max: number, distinct = true): ValidatorFn {
-  return (control) =>
-    lines(control.value, distinct).length > max ? { maxLines: { max } } : null;
+  return (control) => (lines(control.value, distinct).length > max ? { maxLines: { max } } : null);
 }
 
 export function maxWords(max: number, distinct = true): ValidatorFn {
-  return (control) =>
-    words(control.value, distinct).length > max ? { maxItems: { max } } : null;
+  return (control) => (words(control.value, distinct).length > max ? { maxItems: { max } } : null);
 }
 
-/** Every value of a list entered as text must match the pattern; the error names the first that does not. */
 export function eachItem(
   parse: (value: string) => string[],
   pattern: RegExp,
@@ -75,11 +70,6 @@ export function eachItem(
   };
 }
 
-/**
- * Required while the sibling values meet the condition. The siblings are read from their controls, since the
- * group's value is updated only after a changed control has notified its listeners. With a message the error
- * is that message instead of a plain "Required".
- */
 export function requiredWhen(
   condition: (siblings: Record<string, unknown>) => boolean,
   message?: string,
@@ -90,10 +80,6 @@ export function requiredWhen(
   };
 }
 
-/**
- * Makes the target required while the condition holds, checked again whenever a source changes. The target
- * then carries {@link Validators.required} itself, so its form field shows the required marker.
- */
 export function requireWhile(
   target: AbstractControl,
   condition: () => boolean,
@@ -117,17 +103,12 @@ function emptyError(control: AbstractControl, message?: string) {
   return error && message ? { rule: message } : error;
 }
 
-/**
- * Checks the targets again whenever the source changes. The targets are updated without events, so a source
- * that contains a target does not notify itself again; the source's own change notifies the form afterwards.
- */
 export function revalidateOnChange(source: AbstractControl, ...targets: AbstractControl[]): void {
   source.valueChanges.subscribe(() =>
     targets.forEach((target) => target.updateValueAndValidity({ emitEvent: false })),
   );
 }
 
-/** Enables or disables a control, which takes it out of the form's validity, without events. */
 export function setEnabled(control: AbstractControl, enabled: boolean): void {
   if (enabled && control.disabled) {
     control.enable({ emitEvent: false });
@@ -136,31 +117,55 @@ export function setEnabled(control: AbstractControl, enabled: boolean): void {
   }
 }
 
-/**
- * Shows each field problem the API reported on its control, for example {@code services[2].build.javaPath};
- * returns the problems that match no control so they can be listed separately.
- */
 export function applyFieldProblems(
   form: AbstractControl,
   problems: FieldProblem[],
 ): FieldProblem[] {
   const unmatched: FieldProblem[] = [];
+  const messages = new Map<AbstractControl, string[]>();
   for (const problem of problems) {
     const control = controlAt(form, problem.field);
     if (control) {
-      control.setErrors({ ...control.errors, server: problem.message });
-      control.markAsTouched();
+      messages.set(control, [...(messages.get(control) ?? []), problem.message]);
     } else {
       unmatched.push(problem);
     }
   }
+  messages.forEach((list, control) => showServerError(control, [...new Set(list)].join('; ')));
   return unmatched;
 }
 
-/**
- * The control a field path names, or the nearest one above it, for example a list element's list. Paths index
- * lists by number and maps by key, as in {@code services[0].testJobs[1].job} or {@code limits[SAST].maxHigh}.
- */
+const serverValidators = new WeakMap<AbstractControl, ValidatorFn>();
+
+function showServerError(control: AbstractControl, message: string): void {
+  const previous = serverValidators.get(control);
+  if (previous) {
+    control.removeValidators(previous);
+  }
+  const scope = control.parent ?? control;
+  const own = snapshot(control.getRawValue());
+  const around = snapshot(scope.getRawValue());
+  const validator: ValidatorFn = (c) =>
+    snapshot(c.getRawValue()) === own && snapshot(scope.getRawValue()) === around
+      ? { server: message }
+      : null;
+  serverValidators.set(control, validator);
+  control.addValidators(validator);
+  control.updateValueAndValidity();
+  control.markAsTouched();
+}
+
+function snapshot(value: unknown): string {
+  return JSON.stringify(value) ?? '';
+}
+
+export function revalidateAll(control: AbstractControl): void {
+  if (control instanceof FormGroup || control instanceof FormArray) {
+    Object.values(control.controls).forEach((child: AbstractControl) => revalidateAll(child));
+  }
+  control.updateValueAndValidity({ onlySelf: true, emitEvent: false });
+}
+
 export function controlAt(form: AbstractControl, field: string): AbstractControl | null {
   const path = field.split('.').flatMap((segment) => {
     const match = /^([\w-]+)((?:\[[^\]]+])+)$/.exec(segment);

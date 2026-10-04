@@ -3,9 +3,6 @@
 @use '@fontsource-variable/source-serif-4';
 @use 'material-icons/iconfont/outlined.css';
 
-/*
- * The look of the BBH web site: navy, white and fine grey rules, serif headings and square corners only.
- */
 html {
   color-scheme: light;
   @include mat.theme(
@@ -22,7 +19,6 @@ html {
     )
   );
 
-  // BBH navy as the primary colour of every Material component.
   --mat-sys-primary: #0c2340;
   --mat-sys-on-primary: #ffffff;
   --mat-sys-primary-container: #e3e8f0;
@@ -31,7 +27,6 @@ html {
   --mat-sys-on-secondary-container: #0c2340;
   --mat-sys-surface-tint: transparent;
 
-  // Square corners on every Material component.
   --mat-sys-corner-extra-small: 0;
   --mat-sys-corner-small: 0;
   --mat-sys-corner-medium: 0;
@@ -60,7 +55,6 @@ html {
   --dso-code-fg: #e2e8f0;
 }
 
-/* Only rectangles and squares: no element of the portal, Material's own included, has rounded corners. */
 *,
 *::before,
 *::after {
@@ -104,7 +98,6 @@ h3 {
   color: var(--dso-navy);
 }
 
-/* Button labels as on the BBH site: small capitals with generous spacing. */
 .mat-mdc-button-base:not(.mat-mdc-icon-button) {
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -250,7 +243,6 @@ table.mat-mdc-table {
   --mat-snack-bar-supporting-text-color: #fff;
 }
 
-/* Forms: a header column on the left and a 12-column grid of fields on the right. */
 .form-block {
   display: grid;
   grid-template-columns: 220px 1fr;
@@ -312,7 +304,6 @@ table.mat-mdc-table {
   }
 }
 
-/* Sub-sections, notes and list editors inside forms. */
 .sub-heading {
   display: flex;
   align-items: baseline;
@@ -426,7 +417,6 @@ table.mat-mdc-table {
   color: var(--dso-danger);
 }
 
-/* A value the evidence or the pipeline did not record. */
 .not-recorded {
   color: var(--dso-muted);
   font-style: italic;

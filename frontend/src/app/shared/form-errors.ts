@@ -1,6 +1,5 @@
 import { AbstractControl } from '@angular/forms';
 
-/** The message to show under a form field: the API's own message first, then the validator's. */
 export function errorText(
   control: AbstractControl | null | undefined,
   patternMessage = 'Invalid format',
