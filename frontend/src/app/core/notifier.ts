@@ -11,6 +11,9 @@ export class Notifier {
   }
 
   error(error: unknown): void {
-    this.snackBar.open(errorMessage(error), 'Close', { duration: 10000, panelClass: 'snack-error' });
+    this.snackBar.open(errorMessage(error), 'Close', {
+      duration: 10000,
+      panelClass: 'snack-error',
+    });
   }
 }

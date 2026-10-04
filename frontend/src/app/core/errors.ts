@@ -18,7 +18,11 @@ export function errorMessage(error: unknown): string {
 
 /** Field level problems of a 400 response, as listed under errors in the problem detail. */
 export function fieldProblems(error: unknown): FieldProblem[] {
-  if (error instanceof HttpErrorResponse && error.status === 400 && Array.isArray(error.error?.errors)) {
+  if (
+    error instanceof HttpErrorResponse &&
+    error.status === 400 &&
+    Array.isArray(error.error?.errors)
+  ) {
     return error.error.errors as FieldProblem[];
   }
   return [];

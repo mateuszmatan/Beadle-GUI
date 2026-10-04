@@ -60,3 +60,19 @@ export class RelativeTimePipe implements PipeTransform {
     return formatRelative(iso);
   }
 }
+
+/** A pipeline key with only its first and last characters visible, to tell keys apart without showing them. */
+export function maskKey(key: string): string {
+  if (key.length <= 12) {
+    return '•'.repeat(key.length);
+  }
+  const hidden = key.slice(8, -4).replace(/[^-]/g, '•');
+  return key.slice(0, 8) + hidden + key.slice(-4);
+}
+
+@Pipe({ name: 'maskKey' })
+export class MaskKeyPipe implements PipeTransform {
+  transform(key: string): string {
+    return maskKey(key);
+  }
+}

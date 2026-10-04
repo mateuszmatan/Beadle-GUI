@@ -1,37 +1,70 @@
 @use '@angular/material' as mat;
 @use '@fontsource-variable/inter';
+@use '@fontsource-variable/source-serif-4';
 @use 'material-icons/iconfont/outlined.css';
 
+/*
+ * The look of the BBH web site: navy, white and fine grey rules, serif headings and square corners only.
+ */
 html {
   color-scheme: light;
-  @include mat.theme((
-    color: (
-      primary: mat.$azure-palette,
-      tertiary: mat.$violet-palette,
-    ),
-    typography: (
-      plain-family: 'Inter Variable, Roboto, Helvetica Neue, sans-serif',
-      brand-family: 'Inter Variable, Roboto, Helvetica Neue, sans-serif',
-    ),
-    density: 0,
-  ));
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$blue-palette,
+        tertiary: mat.$azure-palette,
+      ),
+      typography: (
+        plain-family: 'Inter Variable, Helvetica Neue, Arial, sans-serif',
+        brand-family: "'Source Serif 4 Variable', Georgia, 'Times New Roman', serif",
+      ),
+      density: 0,
+    )
+  );
 
-  --dso-surface: #f6f7fb;
+  // BBH navy as the primary colour of every Material component.
+  --mat-sys-primary: #0c2340;
+  --mat-sys-on-primary: #ffffff;
+  --mat-sys-primary-container: #e3e8f0;
+  --mat-sys-on-primary-container: #0c2340;
+  --mat-sys-secondary-container: #e3e8f0;
+  --mat-sys-on-secondary-container: #0c2340;
+  --mat-sys-surface-tint: transparent;
+
+  // Square corners on every Material component.
+  --mat-sys-corner-extra-small: 0;
+  --mat-sys-corner-small: 0;
+  --mat-sys-corner-medium: 0;
+  --mat-sys-corner-large: 0;
+  --mat-sys-corner-extra-large: 0;
+  --mat-sys-corner-full: 0;
+
+  --dso-navy: #0c2340;
+  --dso-navy-light: #1d3a63;
+  --dso-serif: 'Source Serif 4 Variable', Georgia, 'Times New Roman', serif;
+  --dso-surface: #f4f5f7;
   --dso-card: #ffffff;
-  --dso-border: #e3e6ef;
-  --dso-muted: #5f6577;
-  --dso-success: #1e8e3e;
-  --dso-success-bg: #e6f4ea;
-  --dso-warning: #b06000;
-  --dso-warning-bg: #fef3e0;
-  --dso-danger: #c5221f;
-  --dso-danger-bg: #fce8e6;
-  --dso-neutral: #5f6368;
-  --dso-neutral-bg: #eef0f3;
-  --dso-info: #1a5fb4;
-  --dso-info-bg: #e8f0fe;
-  --dso-code-bg: #0f172a;
+  --dso-border: #d9dee6;
+  --dso-muted: #5b6475;
+  --dso-success: #1b7a3a;
+  --dso-success-bg: #e7f3eb;
+  --dso-warning: #9a5b00;
+  --dso-warning-bg: #fbf1e1;
+  --dso-danger: #b3261e;
+  --dso-danger-bg: #f9e7e6;
+  --dso-neutral: #5b6370;
+  --dso-neutral-bg: #eceef2;
+  --dso-info: #0c2340;
+  --dso-info-bg: #e3e8f0;
+  --dso-code-bg: #0c1a2e;
   --dso-code-fg: #e2e8f0;
+}
+
+/* Only rectangles and squares: no element of the portal, Material's own included, has rounded corners. */
+*,
+*::before,
+*::after {
+  border-radius: 0 !important;
 }
 
 html,
@@ -61,7 +94,22 @@ a {
 .page {
   max-width: 1360px;
   margin: 0 auto;
-  padding: 24px 32px 48px;
+  padding: 32px 40px 56px;
+}
+
+h2,
+h3 {
+  font-family: var(--dso-serif);
+  font-weight: 500;
+  color: var(--dso-navy);
+}
+
+/* Button labels as on the BBH site: small capitals with generous spacing. */
+.mat-mdc-button-base:not(.mat-mdc-icon-button) {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12.5px;
+  font-weight: 600;
 }
 
 .page-header {
@@ -69,12 +117,17 @@ a {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--dso-border);
 
   h1 {
     margin: 0;
-    font: var(--mat-sys-headline-small);
-    font-weight: 600;
+    font-family: var(--dso-serif);
+    font-size: 30px;
+    font-weight: 450;
+    line-height: 1.2;
+    color: var(--dso-navy);
   }
 
   p {
@@ -82,11 +135,27 @@ a {
     color: var(--dso-muted);
   }
 
+  > div:first-child {
+    min-width: 0;
+  }
+
   .actions {
     display: flex;
+    flex-shrink: 0;
+    align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
     justify-content: flex-end;
+  }
+}
+
+@media (max-width: 1100px) {
+  .page-header {
+    flex-direction: column;
+
+    .actions {
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
   }
 }
 
@@ -117,7 +186,6 @@ a {
 .card {
   background: var(--dso-card);
   border: 1px solid var(--dso-border);
-  border-radius: 12px;
 }
 
 .empty-state {
@@ -143,7 +211,6 @@ a {
   gap: 12px;
   align-items: flex-start;
   padding: 12px 16px;
-  border-radius: 10px;
   margin-bottom: 16px;
   background: var(--dso-warning-bg);
   color: var(--dso-warning);
@@ -166,11 +233,81 @@ table.mat-mdc-table {
   cursor: pointer;
 
   &:hover {
-    background: #f3f6fd;
+    background: #f1f4f8;
   }
+}
+
+.mat-mdc-header-cell {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dso-muted);
 }
 
 .snack-error {
   --mat-snack-bar-container-color: #8c1d18;
   --mat-snack-bar-supporting-text-color: #fff;
+}
+
+/* Forms: a header column on the left and a 12-column grid of fields on the right. */
+.form-block {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 24px;
+  padding: 20px 0;
+  border-top: 1px solid var(--dso-border);
+
+  &:first-child {
+    border-top: none;
+    padding-top: 4px;
+  }
+
+  header {
+    h3 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 4px;
+      font-size: 14px;
+      font-weight: 600;
+
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        color: var(--mat-sys-primary);
+      }
+    }
+
+    p {
+      margin: 0;
+      font-size: 12.5px;
+      color: var(--dso-muted);
+    }
+  }
+}
+
+.form-fields {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px 16px;
+  align-items: start;
+}
+
+@for $i from 1 through 12 {
+  .span-#{$i} {
+    grid-column: span $i;
+  }
+}
+
+@media (max-width: 1100px) {
+  .form-block {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .form-fields > * {
+    grid-column: span 12;
+  }
 }
