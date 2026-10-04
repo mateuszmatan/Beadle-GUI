@@ -15,6 +15,9 @@ export function errorText(
   if (errors['required']) {
     return 'Required';
   }
+  if (errors['rule']) {
+    return errors['rule'];
+  }
   if (errors['pattern']) {
     return patternMessage;
   }
@@ -26,6 +29,21 @@ export function errorText(
   }
   if (errors['maxLines']) {
     return `At most ${errors['maxLines'].max} lines`;
+  }
+  if (errors['maxItems']) {
+    return `At most ${errors['maxItems'].max} entries`;
+  }
+  if (errors['item']) {
+    return `${errors['item'].message}: ${errors['item'].value}`;
+  }
+  if (errors['integer']) {
+    return 'Enter a whole number';
+  }
+  if (errors['min']) {
+    return `At least ${errors['min'].min}`;
+  }
+  if (errors['max']) {
+    return `At most ${errors['max'].max}`;
   }
   return 'Invalid value';
 }
