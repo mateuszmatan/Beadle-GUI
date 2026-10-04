@@ -1,7 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { FieldProblem } from './models';
 
-/** Human readable message of a failed request, taken from the problem detail the API returns. */
 export function errorMessage(error: unknown): string {
   if (error instanceof HttpErrorResponse) {
     if (error.status === 0) {
@@ -16,7 +15,6 @@ export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** Field level problems of a 400 response, as listed under errors in the problem detail. */
 export function fieldProblems(error: unknown): FieldProblem[] {
   if (
     error instanceof HttpErrorResponse &&

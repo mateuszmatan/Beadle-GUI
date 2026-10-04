@@ -1,6 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
-/** Seconds as a short duration: 45s, 12m 5s, 3h 20m, 2d 4h. */
 export function formatDuration(seconds: number | null | undefined): string {
   if (seconds === null || seconds === undefined || Number.isNaN(seconds)) {
     return '–';
@@ -24,7 +23,6 @@ export function formatDuration(seconds: number | null | undefined): string {
   return rest ? `${days}d ${rest}h` : `${days}d`;
 }
 
-/** Time since an ISO instant: just now, 5 min ago, 3 hours ago, 2 days ago. */
 export function formatRelative(iso: string | null | undefined, now: number = Date.now()): string {
   if (!iso) {
     return '–';
@@ -61,7 +59,6 @@ export class RelativeTimePipe implements PipeTransform {
   }
 }
 
-/** A pipeline key with only its first and last characters visible, to tell keys apart without showing them. */
 export function maskKey(key: string): string {
   if (key.length <= 12) {
     return '•'.repeat(key.length);
