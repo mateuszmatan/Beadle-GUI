@@ -32,6 +32,9 @@ export function errorText(
   if (errors['maxItems']) {
     return `At most ${errors['maxItems'].max} entries`;
   }
+  if (errors['columnLength']) {
+    return `Too long: at most ${errors['columnLength'].max} characters in total`;
+  }
   if (errors['item']) {
     return `${errors['item'].message}: ${errors['item'].value}`;
   }

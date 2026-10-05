@@ -609,6 +609,10 @@ input[type='number'] {
   margin: 2px 0 8px;
   color: var(--dso-muted);
   font-size: 12px;
+
+  &.missing {
+    color: var(--dso-danger);
+  }
 }
 
 .list-error {

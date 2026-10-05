@@ -3,6 +3,7 @@ import {
   applyFieldProblems,
   controlAt,
   eachItem,
+  fitsColumn,
   flag,
   integer,
   joinLines,
@@ -12,6 +13,7 @@ import {
   maxWords,
   optional,
   requireWhile,
+  requiredRule,
   requiredWhen,
   revalidateAll,
   setEnabled,
@@ -47,6 +49,25 @@ describe('validators', () => {
   it('names the first item that does not match', () => {
     const control = text('A=1\nnope\nalso no', eachItem(lines, /=/, 'Write NAME=value'));
     expect(control.errors).toEqual({ item: { value: 'nope', message: 'Write NAME=value' } });
+  });
+
+  it('requires a value with a message of its own, for text and lists alike', () => {
+    expect(text('', requiredRule('Name the module')).errors).toEqual({ rule: 'Name the module' });
+    expect(text('core', requiredRule('Name the module')).valid).toBe(true);
+    expect(new FormArray([], requiredRule('Add a component')).errors).toEqual({
+      rule: 'Add a component',
+    });
+  });
+
+  it('checks that the joined items fit their column, counting UTF-8 bytes', () => {
+    const control = text('', fitsColumn(lines, '\n', 10));
+    control.setValue('abcd\nefgh');
+    expect(control.valid).toBe(true);
+    control.setValue('abcd\nefghij');
+    expect(control.errors).toEqual({ columnLength: { max: 10 } });
+    control.setValue('ąbcd\nefghi');
+    expect(control.hasError('columnLength')).toBe(true);
+    expect(text('a, b, a', fitsColumn(words, ',', 3)).valid).toBe(true);
   });
 
   it('accepts only whole numbers within the range', () => {

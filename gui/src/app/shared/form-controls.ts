@@ -70,6 +70,23 @@ export function eachItem(
   };
 }
 
+export function requiredRule(message: string): ValidatorFn {
+  return (control) => emptyError(control, message);
+}
+
+const utf8 = new TextEncoder();
+
+export function fitsColumn(
+  parse: (value: string) => string[],
+  separator: string,
+  max: number,
+): ValidatorFn {
+  return (control) =>
+    utf8.encode(parse(control.value ?? '').join(separator)).length > max
+      ? { columnLength: { max } }
+      : null;
+}
+
 export function requiredWhen(
   condition: (siblings: Record<string, unknown>) => boolean,
   message?: string,
