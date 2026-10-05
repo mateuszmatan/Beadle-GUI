@@ -43,7 +43,7 @@ The domain, in `backend/src/main/java/com/bbh/itss/dso/portal`:
 | Package      | Holds                                                                                          |
 |--------------|-------------------------------------------------------------------------------------------------|
 | `catalog`    | `Product` and its `ServiceDefinition`s; each section of a service's `config.yaml` entry is an embeddable value object (`BuildSettings`, `DeploymentSettings`, `AppScanSettings`, ...) |
-| `pipeline`   | `Pipeline` per service and type (full, security, extended, SAST) and its `PipelineKey` history; key changes run under a row lock, so a pipeline never has two active keys |
+| `pipeline`   | `Pipeline` per service and type (full, security, extended, SAST) and its `PipelineKey` history; a service starts with a full pipeline on the `linux-agent` label when it is created; key changes run under a row lock, so a pipeline never has two active keys |
 | `settings`   | the global settings, a single row with its severity limits, edited in the Global Settings tab   |
 | `dsoconfig`  | renders the configuration a pipeline gets for its key and publishes it to `DSO_PIPELINE_CONFIG` whenever a product, a pipeline or the global settings change |
 | `monitoring` | reads the runs from InfluxDB (Flux over HTTP), computes the DORA metrics and builds the Grafana panel links |
@@ -165,11 +165,11 @@ project tag plus the pipeline type suffix: none for full, `security`, `extended`
 | Method and path | Purpose |
 |-----------------|---------|
 | `GET /api/products?search=` | products with service and pipeline counts |
-| `POST /api/products`, `GET`/`PUT`/`DELETE /api/products/{id}` | a product with its complete list of services; `PUT` carries the `version` it was read at |
+| `POST /api/products`, `GET`/`PUT`/`DELETE /api/products/{id}` | a product with its complete list of services; `PUT` carries the `version` it was read at; every service the save creates gets a full pipeline with an active key |
 | `GET /api/products/{id}/pipelines` | each service of a product with its pipelines |
 | `POST /api/services/{id}/pipelines` | add a pipeline; it starts with an active key |
 | `GET`/`PUT`/`DELETE /api/pipelines/{id}` | a pipeline with its key history; the type cannot change |
-| `POST /api/pipelines/{id}/keys` | issue a new key, invalidating the active one |
+| `POST /api/pipelines/{id}/keys` | issue a new key, invalidating the active one; on a pipeline whose key was invalidated this is the Regenerate button, and the invalidated keys stay refused |
 | `POST /api/pipelines/{id}/keys/revoke` | invalidate the active key, with a reason |
 | `GET /api/monitoring/status`, `/products`, `/products/{id}`, `/pipelines/{id}?range=30d` | monitoring data |
 | `GET /api/evidence/products/{id}` | the change evidence of a product's pipelines |
