@@ -127,6 +127,7 @@ npm start          # http://localhost:4200, /api is proxied to the backend on po
 | `INFLUX_URL`, `INFLUX_TOKEN` | empty | InfluxDB the pipelines write to; empty switches monitoring off |
 | `INFLUX_ORG`, `INFLUX_BUCKET` | `DevSecOps`, `DORA-metrics` | where the metrics are |
 | `GRAFANA_URL`, `GRAFANA_ORG_ID` | empty, `1` | Grafana whose panels are embedded; empty hides them |
+| `GRAFANA_DATASOURCE_UID` | `dso-influxdb` | InfluxDB datasource the embedded panels read; the links also pass `INFLUX_BUCKET` |
 | `DSO_DEMO_DATA` | `true` with `local` | create sample products when the database has none |
 
 The BBH tool servers and every other setting shared by all pipelines are not configured here: they are
