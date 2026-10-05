@@ -168,7 +168,15 @@ abstract class GuiSpecification extends Specification {
     }
 
     Locator stat(String label) {
-        page.locator('.stats .stat').filter(new Locator.FilterOptions().setHas(page.locator("span:text-is('${label}')"))).locator('strong')
+        holding(page.locator('.stats .stat'), "span:text-is('${label}')").locator('strong')
+    }
+
+    Locator holding(Locator scope, String selector) {
+        scope.filter(new Locator.FilterOptions().setHas(page.locator(selector)))
+    }
+
+    Locator holdingText(Locator scope, String text) {
+        scope.filter(new Locator.FilterOptions().setHasText(text))
     }
 
     Locator link(String name, boolean exact = false) {
