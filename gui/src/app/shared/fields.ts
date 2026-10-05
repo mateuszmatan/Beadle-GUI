@@ -38,6 +38,14 @@ export const VM_OPENSHIFT: FieldOption[] = [
   { value: 'OPENSHIFT', label: 'OpenShift' },
 ];
 
+const ESCAPED: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;' };
+
+export function chips(text: string): string {
+  return text
+    .replace(/[&<>]/g, (character) => ESCAPED[character])
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+
 export function fallback(value: string | number | null | undefined, lead = 'left empty: '): string {
   return value === null || value === undefined || value === '' ? '' : `${lead}${value}`;
 }
@@ -65,15 +73,11 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
     @for (field of fields(); track field.key) {
       @let control = controlOf(field);
       @if (field.kind === 'check') {
-        <mat-checkbox [class]="'span-' + (field.span ?? 12)" [formControl]="control"
-          >{{ field.label }}
-          @if (field.code) {
-            (<code>{{ field.code }}</code
-            >)
-          }
+        <mat-checkbox [class]="span(field, 12)" [formControl]="control">
+          <span [innerHTML]="label(field)"></span>
         </mat-checkbox>
       } @else {
-        <mat-form-field [class]="'span-' + (field.span ?? 6)">
+        <mat-form-field [class]="span(field, 6)">
           <mat-label>{{ field.label }}</mat-label>
           @switch (field.kind) {
             @case ('area') {
@@ -117,12 +121,7 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
             }
           }
           @if (field.code || field.hint) {
-            <mat-hint>
-              @if (field.code) {
-                <code>{{ field.code }}</code>
-              }
-              {{ suffix(field) }}</mat-hint
-            >
+            <mat-hint [innerHTML]="hint(field)"></mat-hint>
           }
           <mat-error>{{ errorText(control, field.error) }}</mat-error>
         </mat-form-field>
@@ -132,9 +131,6 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
   styles: `
     :host {
       display: contents;
-    }
-    mat-checkbox code {
-      font-size: 11.5px;
     }
   `,
 })
@@ -148,7 +144,20 @@ export class Fields {
     return this.group().get(field.key) as FormControl;
   }
 
-  protected suffix(field: Field): string {
-    return field.hint ? `${field.code ? ' · ' : ''}${field.hint}` : '';
+  protected span(field: Field, fallback: number): string {
+    const span = field.span ?? fallback;
+    return span ? `span-${span}` : '';
+  }
+
+  protected label(field: Field): string {
+    return field.code
+      ? `${chips(field.label)} (${chips('`' + field.code + '`')})`
+      : chips(field.label);
+  }
+
+  protected hint(field: Field): string {
+    const code = field.code ? chips(`\`${field.code}\``) : '';
+    const hint = field.hint ? chips(field.hint) : '';
+    return code && hint ? `${code} · ${hint}` : code || hint;
   }
 }

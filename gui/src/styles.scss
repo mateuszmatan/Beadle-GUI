@@ -258,9 +258,19 @@ h3 {
   display: none;
 }
 
+mat-checkbox code {
+  font-size: 11.5px;
+}
+
 .mat-mdc-form-field-hint code,
 .mat-mdc-form-field-hint-wrapper code {
   font-size: 10.5px;
+  padding: 0 3px;
+  background: var(--dso-neutral-bg);
+}
+
+.settings code {
+  font-size: 11px;
   padding: 0 3px;
   background: var(--dso-neutral-bg);
 }
