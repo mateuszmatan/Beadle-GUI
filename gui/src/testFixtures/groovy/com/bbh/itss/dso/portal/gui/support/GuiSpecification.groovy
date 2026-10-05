@@ -5,6 +5,7 @@ import com.microsoft.playwright.BrowserContext
 import com.microsoft.playwright.BrowserType
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.Playwright
+import com.microsoft.playwright.Route
 import com.microsoft.playwright.options.LoadState
 import spock.lang.Shared
 import spock.lang.Specification
@@ -12,6 +13,8 @@ import spock.lang.Specification
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.function.Consumer
+import java.util.function.Predicate
 
 abstract class GuiSpecification extends Specification {
 
@@ -54,6 +57,9 @@ abstract class GuiSpecification extends Specification {
                 .setViewportSize(viewportWidth(), viewportHeight())
                 .setLocale('en-US')
                 .setTimezoneId('UTC'))
+        if (!remoteBaseUrl()) {
+            isolateFromOtherHosts()
+        }
         page = context.newPage()
         page.onConsoleMessage { message ->
             if (message.type() == 'error') {
@@ -85,6 +91,13 @@ abstract class GuiSpecification extends Specification {
         browser?.close()
         playwright?.close()
         server?.close()
+    }
+
+    void isolateFromOtherHosts() {
+        def origin = server.url
+        context.route({ String address -> !address.startsWith(origin) } as Predicate<String>, { Route route ->
+            route.fulfill(new Route.FulfillOptions().setStatus(200).setContentType('text/html').setBody(''))
+        } as Consumer<Route>)
     }
 
     int viewportWidth() {
