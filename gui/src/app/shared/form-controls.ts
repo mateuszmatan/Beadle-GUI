@@ -134,6 +134,18 @@ export function setEnabled(control: AbstractControl, enabled: boolean): void {
   }
 }
 
+export function passesValidators(control: AbstractControl): boolean {
+  if (control.validator?.(control)) {
+    return false;
+  }
+  if (control instanceof FormGroup || control instanceof FormArray) {
+    return Object.values(control.controls).every((child: AbstractControl) =>
+      passesValidators(child),
+    );
+  }
+  return true;
+}
+
 export function applyFieldProblems(
   form: AbstractControl,
   problems: FieldProblem[],

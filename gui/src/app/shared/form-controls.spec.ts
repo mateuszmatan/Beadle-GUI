@@ -1,5 +1,6 @@
 import { FormArray, FormGroup, Validators } from '@angular/forms';
 import {
+  HTTP_URL,
   applyFieldProblems,
   controlAt,
   eachItem,
@@ -12,6 +13,7 @@ import {
   maxLines,
   maxWords,
   optional,
+  passesValidators,
   requireWhile,
   requiredRule,
   requiredWhen,
@@ -115,6 +117,22 @@ describe('validators', () => {
     expect(control.disabled).toBe(true);
     setEnabled(control, true);
     expect(control.enabled).toBe(true);
+  });
+
+  it('tells whether a disabled control and its children hold values their validators accept', () => {
+    const group = new FormGroup({
+      url: text('https://jenkins.bbh.com', Validators.pattern(HTTP_URL)),
+      items: new FormArray([text('a')], requiredRule('Add one')),
+    });
+    group.disable();
+    expect(passesValidators(group)).toBe(true);
+
+    group.controls.url.setValue('jenkins.bbh.com');
+    expect(passesValidators(group)).toBe(false);
+    expect(passesValidators(group.controls.items)).toBe(true);
+
+    group.controls.items.clear();
+    expect(passesValidators(group.controls.items)).toBe(false);
   });
 });
 
