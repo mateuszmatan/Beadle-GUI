@@ -193,6 +193,17 @@ function snapshot(value: unknown): string {
   return JSON.stringify(value) ?? '';
 }
 
+export type Sent<T> = { [K in keyof T]: string extends T[K] ? string : Exclude<T[K], null> };
+
+export function sent<T extends object>(value: T): Sent<T> {
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      typeof item === 'string' ? optional(item) : item,
+    ]),
+  ) as Sent<T>;
+}
+
 export function addItem<T extends AbstractControl>(array: FormArray<T>, item: T): void {
   array.push(item);
   revalidateAll(item);

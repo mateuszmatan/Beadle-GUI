@@ -38,6 +38,40 @@ export const VM_OPENSHIFT: FieldOption[] = [
   { value: 'OPENSHIFT', label: 'OpenShift' },
 ];
 
+type More = Partial<Field>;
+
+const of = (key: string, label: string, code: string, span: number, more: More): Field => ({
+  key,
+  label,
+  span,
+  ...(code ? { code } : {}),
+  ...more,
+});
+
+export const line = (key: string, label: string, code = '', span = 6, more: More = {}) =>
+  of(key, label, code, span, more);
+
+export const mono = (key: string, label: string, code = '', span = 6, more: More = {}) =>
+  of(key, label, code, span, { mono: true, ...more });
+
+export const area = (key: string, label: string, code = '', span = 6, more: More = {}) =>
+  of(key, label, code, span, { kind: 'area', ...more });
+
+export const check = (key: string, label: string, code = '', span = 12, more: More = {}) =>
+  of(key, label, code, span, { kind: 'check', ...more });
+
+export const count = (key: string, label: string, code = '', span = 6, more: More = {}) =>
+  of(key, label, code, span, { kind: 'number', ...more });
+
+export const choice = (
+  key: string,
+  label: string,
+  options: readonly FieldOption[],
+  code = '',
+  span = 6,
+  more: More = {},
+) => of(key, label, code, span, { kind: 'select', options, ...more });
+
 const ESCAPED: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;' };
 
 export function chips(text: string): string {
