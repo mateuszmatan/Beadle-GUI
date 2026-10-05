@@ -936,17 +936,17 @@ input[type='number'] {
   align-items: center;
   gap: 6px 8px;
   min-height: 34px;
+}
 
-  .index {
-    display: grid;
-    place-items: center;
-    width: 20px;
-    height: 20px;
-    background: var(--dso-info-bg);
-    color: var(--dso-info);
-    font-size: 11px;
-    font-weight: 700;
-  }
+.index {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  background: var(--dso-info-bg);
+  color: var(--dso-info);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .list-empty {
