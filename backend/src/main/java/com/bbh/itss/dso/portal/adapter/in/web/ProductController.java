@@ -1,7 +1,7 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
-import com.bbh.itss.dso.portal.application.catalog.port.in.ManageProductsUseCase;
-import com.bbh.itss.dso.portal.application.catalog.port.in.QueryProductsUseCase;
+import com.bbh.itss.dso.portal.application.catalog.port.in.ProductSummaryView;
+import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,34 +23,32 @@ import java.util.List;
 @RequestMapping("/api/products")
 public class ProductController {
 
-    private final QueryProductsUseCase queries;
-    private final ManageProductsUseCase products;
+    private final ProductsUseCase products;
 
-    public ProductController(QueryProductsUseCase queries, ManageProductsUseCase products) {
-        this.queries = queries;
+    public ProductController(ProductsUseCase products) {
         this.products = products;
     }
 
     @GetMapping
-    public List<ProductSummaryResponse> list(@RequestParam(required = false) String search) {
-        return queries.list(search).stream().map(ProductSummaryResponse::from).toList();
+    public List<ProductSummaryView> list(@RequestParam(required = false) String search) {
+        return products.list(search);
     }
 
     @GetMapping("/{id}")
-    public ProductResponse get(@PathVariable long id) {
-        return ProductResponse.from(queries.get(id));
+    public ProductDto get(@PathVariable long id) {
+        return ProductDto.from(products.get(id));
     }
 
     @PostMapping
-    public ResponseEntity<ProductResponse> create(@Valid @RequestBody ProductRequest request) {
-        ProductResponse created = ProductResponse.from(products.create(request.toCommand()));
+    public ResponseEntity<ProductDto> create(@Valid @RequestBody ProductDto request) {
+        ProductDto created = ProductDto.from(products.create(request.toCommand()));
         return ResponseEntity.created(ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
                 .buildAndExpand(created.id()).toUri()).body(created);
     }
 
     @PutMapping("/{id}")
-    public ProductResponse update(@PathVariable long id, @Valid @RequestBody ProductRequest request) {
-        return ProductResponse.from(products.update(id, request.toCommand()));
+    public ProductDto update(@PathVariable long id, @Valid @RequestBody ProductDto request) {
+        return ProductDto.from(products.update(id, request.toCommand()));
     }
 
     @DeleteMapping("/{id}")
@@ -58,4 +56,5 @@ public class ProductController {
     public void delete(@PathVariable long id) {
         products.delete(id);
     }
+
 }
