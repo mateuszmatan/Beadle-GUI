@@ -8,44 +8,21 @@ export function errorText(
   if (!errors) {
     return '';
   }
-  if (errors['server']) {
-    return errors['server'];
-  }
-  if (errors['required']) {
-    return 'Required';
-  }
-  if (errors['rule']) {
-    return errors['rule'];
-  }
-  if (errors['pattern']) {
-    return patternMessage;
-  }
-  if (errors['email']) {
-    return 'Enter an e-mail address';
-  }
-  if (errors['maxlength']) {
-    return `At most ${errors['maxlength'].requiredLength} characters`;
-  }
-  if (errors['maxLines']) {
-    return `At most ${errors['maxLines'].max} lines`;
-  }
-  if (errors['maxItems']) {
-    return `At most ${errors['maxItems'].max} entries`;
-  }
-  if (errors['columnLength']) {
-    return `Too long: at most ${errors['columnLength'].max} characters in total`;
-  }
-  if (errors['item']) {
-    return `${errors['item'].message}: ${errors['item'].value}`;
-  }
-  if (errors['integer']) {
-    return 'Enter a whole number';
-  }
-  if (errors['min']) {
-    return `At least ${errors['min'].min}`;
-  }
-  if (errors['max']) {
-    return `At most ${errors['max'].max}`;
-  }
-  return 'Invalid value';
+  const messages: Record<string, string> = {
+    server: errors['server'],
+    required: 'Required',
+    rule: errors['rule'],
+    pattern: patternMessage,
+    email: 'Enter an e-mail address',
+    maxlength: `At most ${errors['maxlength']?.requiredLength} characters`,
+    maxLines: `At most ${errors['maxLines']?.max} lines`,
+    maxItems: `At most ${errors['maxItems']?.max} entries`,
+    columnLength: `Too long: at most ${errors['columnLength']?.max} characters in total`,
+    item: `${errors['item']?.message}: ${errors['item']?.value}`,
+    integer: 'Enter a whole number',
+    min: `At least ${errors['min']?.min}`,
+    max: `At most ${errors['max']?.max}`,
+  };
+  const reason = Object.keys(messages).find((key) => errors[key] !== undefined);
+  return reason ? messages[reason] : 'Invalid value';
 }
