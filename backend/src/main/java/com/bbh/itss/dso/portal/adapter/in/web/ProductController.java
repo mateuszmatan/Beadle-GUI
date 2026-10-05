@@ -1,8 +1,7 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
-import com.bbh.itss.dso.portal.adapter.RecordMapper;
-import com.bbh.itss.dso.portal.application.catalog.port.in.ManageProductsUseCase;
-import com.bbh.itss.dso.portal.application.catalog.port.in.QueryProductsUseCase;
+import com.bbh.itss.dso.portal.application.catalog.port.in.ProductSummaryView;
+import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,29 +17,26 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.time.Instant;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/products")
 public class ProductController {
 
-    private final QueryProductsUseCase queries;
-    private final ManageProductsUseCase products;
+    private final ProductsUseCase products;
 
-    public ProductController(QueryProductsUseCase queries, ManageProductsUseCase products) {
-        this.queries = queries;
+    public ProductController(ProductsUseCase products) {
         this.products = products;
     }
 
     @GetMapping
-    public List<ProductSummaryResponse> list(@RequestParam(required = false) String search) {
-        return queries.list(search).stream().map(view -> RecordMapper.map(view, ProductSummaryResponse.class)).toList();
+    public List<ProductSummaryView> list(@RequestParam(required = false) String search) {
+        return products.list(search);
     }
 
     @GetMapping("/{id}")
     public ProductDto get(@PathVariable long id) {
-        return ProductDto.from(queries.get(id));
+        return ProductDto.from(products.get(id));
     }
 
     @PostMapping
@@ -61,8 +57,4 @@ public class ProductController {
         products.delete(id);
     }
 
-    public record ProductSummaryResponse(Long id, String code, String name, String description, String ownerTeam,
-                                         long serviceCount, long pipelineCount, long activePipelineCount,
-                                         Instant updatedAt) {
-    }
 }
