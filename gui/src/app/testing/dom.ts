@@ -19,9 +19,3 @@ export function checkboxOf(root: ParentNode, label: string): HTMLInputElement {
   );
   return box?.querySelector<HTMLInputElement>('input')!;
 }
-
-export function buttonOf(root: ParentNode, label: string): HTMLButtonElement {
-  return [...root.querySelectorAll<HTMLButtonElement>('button')].find(
-    (button) => text(button) === label,
-  )!;
-}
