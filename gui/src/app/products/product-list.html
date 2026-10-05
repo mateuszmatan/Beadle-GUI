@@ -36,8 +36,8 @@
     } @else if (products.hasValue()) {
       @if (products.value().length === 0) {
         <div class="empty-state">
-          @if (search.value) {
-            <h3>No product matches "{{ search.value }}"</h3>
+          @if (query()) {
+            <h3>No product matches "{{ query() }}"</h3>
             <p>Try another name, code or team.</p>
           } @else {
             <h3>No products yet</h3>
