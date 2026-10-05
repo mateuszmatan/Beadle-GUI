@@ -1,0 +1,29 @@
+--liquibase formatted sql
+
+--changeset dso-portal:006-revoke-replaced-keys dbms:oracle,h2
+UPDATE DSO_PIPELINE_KEY k
+   SET STATUS = 'REVOKED',
+       REVOKE_REASON = 'Replaced by a new key',
+       REVOKED_AT = (SELECT MIN(n.ISSUED_AT)
+                       FROM DSO_PIPELINE_KEY n
+                      WHERE n.PIPELINE_ID = k.PIPELINE_ID
+                        AND n.STATUS = 'ACTIVE'
+                        AND (n.ISSUED_AT > k.ISSUED_AT OR (n.ISSUED_AT = k.ISSUED_AT AND n.ID > k.ID)))
+ WHERE k.STATUS = 'ACTIVE'
+   AND EXISTS (SELECT 1
+                 FROM DSO_PIPELINE_KEY n
+                WHERE n.PIPELINE_ID = k.PIPELINE_ID
+                  AND n.STATUS = 'ACTIVE'
+                  AND (n.ISSUED_AT > k.ISSUED_AT OR (n.ISSUED_AT = k.ISSUED_AT AND n.ID > k.ID)));
+--rollback empty
+
+--changeset dso-portal:006-one-active-key dbms:oracle
+CREATE UNIQUE INDEX UX_DSO_PIPELINE_KEY_ACTIVE ON DSO_PIPELINE_KEY (CASE WHEN STATUS = 'ACTIVE' THEN PIPELINE_ID END);
+--rollback DROP INDEX UX_DSO_PIPELINE_KEY_ACTIVE;
+
+--changeset dso-portal:006-one-active-key-h2 dbms:h2
+ALTER TABLE DSO_PIPELINE_KEY ADD COLUMN ACTIVE_PIPELINE_ID NUMBER(19)
+    GENERATED ALWAYS AS (CASE WHEN STATUS = 'ACTIVE' THEN PIPELINE_ID END);
+ALTER TABLE DSO_PIPELINE_KEY ADD CONSTRAINT UX_DSO_PIPELINE_KEY_ACTIVE UNIQUE (ACTIVE_PIPELINE_ID);
+--rollback ALTER TABLE DSO_PIPELINE_KEY DROP CONSTRAINT UX_DSO_PIPELINE_KEY_ACTIVE;
+--rollback ALTER TABLE DSO_PIPELINE_KEY DROP COLUMN ACTIVE_PIPELINE_ID;

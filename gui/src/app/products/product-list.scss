@@ -1,0 +1,77 @@
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px 12px;
+}
+
+.search {
+  flex: 1 1 240px;
+  max-width: 420px;
+}
+
+.count {
+  font-size: 12px;
+}
+
+.product {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.description {
+  display: -webkit-box;
+  max-width: 560px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  font-size: 12px;
+}
+
+td.mat-mdc-cell {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+.number {
+  text-align: right;
+  padding-right: 24px;
+}
+
+.pipelines {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.revoked {
+  color: var(--dso-danger);
+  font-size: 12px;
+}
+
+.mat-column-pipelines,
+.mat-column-updatedAt,
+.mat-column-services {
+  white-space: nowrap;
+}
+
+.mat-column-ownerTeam {
+  min-width: 110px;
+}
+
+.mat-column-product {
+  min-width: 200px;
+}
+
+@media (max-width: 700px) {
+  .mat-column-updatedAt {
+    display: none;
+  }
+
+  .number {
+    padding-right: 12px;
+  }
+}
