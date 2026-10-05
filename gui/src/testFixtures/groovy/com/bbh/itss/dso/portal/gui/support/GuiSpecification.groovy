@@ -235,8 +235,4 @@ abstract class GuiSpecification extends Specification {
     static Path reportsDir() {
         Paths.get(System.getProperty('gui.reports', 'build/reports/gui'))
     }
-
-    static double performanceFactor() {
-        (System.getProperty('performance.factor') ?: '1') as double
-    }
 }
