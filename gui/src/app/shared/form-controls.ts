@@ -193,6 +193,12 @@ function snapshot(value: unknown): string {
   return JSON.stringify(value) ?? '';
 }
 
+export function addItem<T extends AbstractControl>(array: FormArray<T>, item: T): void {
+  array.push(item);
+  revalidateAll(item);
+  array.updateValueAndValidity({ emitEvent: false });
+}
+
 export function revalidateAll(control: AbstractControl): void {
   if (control instanceof FormGroup || control instanceof FormArray) {
     Object.values(control.controls).forEach((child: AbstractControl) => revalidateAll(child));
