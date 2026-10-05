@@ -159,6 +159,18 @@ abstract class GuiSpecification extends Specification {
         page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName(name).setExact(exact))
     }
 
+    Locator buttonIn(Locator scope, String name, boolean exact = true) {
+        scope.getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName(name).setExact(exact))
+    }
+
+    Locator dialogButton(String name) {
+        buttonIn(dialog(), name)
+    }
+
+    Locator stat(String label) {
+        page.locator('.stats .stat').filter(new Locator.FilterOptions().setHas(page.locator("span:text-is('${label}')"))).locator('strong')
+    }
+
     Locator link(String name, boolean exact = false) {
         page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName(name).setExact(exact))
     }

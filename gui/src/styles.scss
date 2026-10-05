@@ -258,9 +258,20 @@ h3 {
   display: none;
 }
 
+mat-checkbox code {
+  font-size: 11.5px;
+}
+
 .mat-mdc-form-field-hint code,
 .mat-mdc-form-field-hint-wrapper code {
   font-size: 10.5px;
+  padding: 0 3px;
+  background: var(--dso-neutral-bg);
+}
+
+.settings code,
+.pane-header code {
+  font-size: 11px;
   padding: 0 3px;
   background: var(--dso-neutral-bg);
 }
@@ -332,6 +343,74 @@ h3 {
 
   .sep {
     color: var(--dso-border);
+  }
+}
+
+.code,
+.count,
+.tag {
+  padding: 0 6px;
+  background: var(--dso-neutral-bg);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.count,
+.tag {
+  color: var(--dso-neutral);
+  font-family: 'Inter Variable', sans-serif;
+  font-weight: 600;
+}
+
+.tag.new {
+  background: var(--dso-success-bg);
+  color: var(--dso-success);
+}
+
+.tag.error {
+  background: var(--dso-danger-bg);
+  color: var(--dso-danger);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.stat {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--dso-border);
+  border-left: 3px solid var(--dso-navy);
+  background: var(--dso-card);
+
+  strong {
+    font-family: var(--dso-serif);
+    font-size: 20px;
+    font-weight: 500;
+    line-height: 1.2;
+    color: var(--dso-navy);
+  }
+
+  span {
+    font-size: 12px;
+    color: var(--dso-muted);
+  }
+
+  &.success {
+    border-left-color: var(--dso-success);
+  }
+
+  &.danger {
+    border-left-color: var(--dso-danger);
+  }
+
+  &.neutral {
+    border-left-color: var(--dso-neutral);
   }
 }
 
@@ -457,7 +536,7 @@ table.mat-mdc-table {
   padding-top: 6px;
 }
 
-.form-fields > mat-checkbox {
+.form-fields mat-checkbox {
   margin-top: 4px;
 }
 
@@ -468,6 +547,10 @@ table.mat-mdc-table {
 }
 
 @media (max-width: 1100px) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .form-block {
     grid-template-columns: minmax(0, 1fr);
     gap: 4px;
@@ -557,16 +640,6 @@ input[type='number'] {
     font-size: 14px;
     font-weight: 500;
     color: var(--dso-navy);
-  }
-
-  .count {
-    padding: 0 6px;
-    background: var(--dso-neutral-bg);
-    color: var(--dso-neutral);
-    font-family: 'Inter Variable', sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 18px;
   }
 
   .hint {
