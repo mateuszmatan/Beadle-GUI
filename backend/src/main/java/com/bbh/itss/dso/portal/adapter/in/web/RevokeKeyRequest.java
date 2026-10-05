@@ -1,4 +1,4 @@
-package com.bbh.itss.dso.portal.pipeline;
+package com.bbh.itss.dso.portal.adapter.in.web;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

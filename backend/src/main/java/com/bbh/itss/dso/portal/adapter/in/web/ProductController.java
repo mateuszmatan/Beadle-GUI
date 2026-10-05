@@ -1,5 +1,7 @@
-package com.bbh.itss.dso.portal.catalog;
+package com.bbh.itss.dso.portal.adapter.in.web;
 
+import com.bbh.itss.dso.portal.application.catalog.port.in.ManageProductsUseCase;
+import com.bbh.itss.dso.portal.application.catalog.port.in.QueryProductsUseCase;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,37 +23,39 @@ import java.util.List;
 @RequestMapping("/api/products")
 public class ProductController {
 
-    private final ProductCatalogService catalog;
+    private final QueryProductsUseCase queries;
+    private final ManageProductsUseCase products;
 
-    public ProductController(ProductCatalogService catalog) {
-        this.catalog = catalog;
+    public ProductController(QueryProductsUseCase queries, ManageProductsUseCase products) {
+        this.queries = queries;
+        this.products = products;
     }
 
     @GetMapping
-    public List<ProductSummary> list(@RequestParam(required = false) String search) {
-        return catalog.list(search);
+    public List<ProductSummaryResponse> list(@RequestParam(required = false) String search) {
+        return queries.list(search).stream().map(ProductSummaryResponse::from).toList();
     }
 
     @GetMapping("/{id}")
-    public ProductResponse get(@PathVariable Long id) {
-        return catalog.get(id);
+    public ProductResponse get(@PathVariable long id) {
+        return ProductResponse.from(queries.get(id));
     }
 
     @PostMapping
     public ResponseEntity<ProductResponse> create(@Valid @RequestBody ProductRequest request) {
-        ProductResponse created = catalog.create(request);
+        ProductResponse created = ProductResponse.from(products.create(request.toCommand()));
         return ResponseEntity.created(ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
                 .buildAndExpand(created.id()).toUri()).body(created);
     }
 
     @PutMapping("/{id}")
-    public ProductResponse update(@PathVariable Long id, @Valid @RequestBody ProductRequest request) {
-        return catalog.update(id, request);
+    public ProductResponse update(@PathVariable long id, @Valid @RequestBody ProductRequest request) {
+        return ProductResponse.from(products.update(id, request.toCommand()));
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable Long id) {
-        catalog.delete(id);
+    public void delete(@PathVariable long id) {
+        products.delete(id);
     }
 }
