@@ -100,18 +100,6 @@ class StubApi {
         matching ? matching.last() : null
     }
 
-    RecordedRequest awaitRequest(String method, String pathPattern, int count = 1, long timeoutMillis = 10000) {
-        def deadline = System.currentTimeMillis() + timeoutMillis
-        while (requests(method, pathPattern).size() < count) {
-            if (System.currentTimeMillis() > deadline) {
-                throw new AssertionError("Expected $count $method request(s) to $pathPattern within ${timeoutMillis} ms, " +
-                        "got ${requests(method, pathPattern).size()}; all requests: ${requests().collect { "$it.method $it.path" }}")
-            }
-            Thread.sleep(20)
-        }
-        requests(method, pathPattern)[count - 1]
-    }
-
     void clearRequests() {
         recorded.clear()
     }

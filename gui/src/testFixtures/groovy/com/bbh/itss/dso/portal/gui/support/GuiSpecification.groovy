@@ -7,6 +7,7 @@ import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.Playwright
 import com.microsoft.playwright.Route
+import com.microsoft.playwright.TimeoutError
 import com.microsoft.playwright.options.AriaRole
 import com.microsoft.playwright.options.LoadState
 import spock.lang.Shared
@@ -15,6 +16,7 @@ import spock.lang.Specification
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.function.BooleanSupplier
 import java.util.function.Consumer
 import java.util.function.Predicate
 
@@ -183,6 +185,17 @@ abstract class GuiSpecification extends Specification {
 
     List<String> copiedTexts() {
         page.evaluate('() => window.dsoCopiedTexts ?? []') as List<String>
+    }
+
+    RecordedRequest awaitRequest(String method, String pathPattern, int count = 1) {
+        try {
+            page.waitForCondition({ api.requests(method, pathPattern).size() >= count } as BooleanSupplier)
+        } catch (TimeoutError ignored) {
+            throw new AssertionError("Expected $count $method request(s) to $pathPattern, got " +
+                    "${api.requests(method, pathPattern).size()}; the gui sent " +
+                    "${api.requests().collect { "$it.method $it.path" }}")
+        }
+        api.requests(method, pathPattern)[count - 1]
     }
 
     List<String> ownErrors() {
