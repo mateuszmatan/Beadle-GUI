@@ -149,29 +149,34 @@ export function passesValidators(control: AbstractControl): boolean {
 export function applyFieldProblems(
   form: AbstractControl,
   problems: FieldProblem[],
+  scopeOf: (field: string) => AbstractControl | null = () => null,
 ): FieldProblem[] {
   const unmatched: FieldProblem[] = [];
-  const messages = new Map<AbstractControl, string[]>();
+  const messages = new Map<AbstractControl, { list: string[]; scope: AbstractControl | null }>();
   for (const problem of problems) {
     const control = controlAt(form, problem.field);
     if (control) {
-      messages.set(control, [...(messages.get(control) ?? []), problem.message]);
+      const entry = messages.get(control) ?? { list: [], scope: null };
+      entry.list.push(problem.message);
+      entry.scope ??= scopeOf(problem.field);
+      messages.set(control, entry);
     } else {
       unmatched.push(problem);
     }
   }
-  messages.forEach((list, control) => showServerError(control, [...new Set(list)].join('; ')));
+  messages.forEach(({ list, scope }, control) =>
+    showServerError(control, [...new Set(list)].join('; '), scope ?? control.parent ?? control),
+  );
   return unmatched;
 }
 
 const serverValidators = new WeakMap<AbstractControl, ValidatorFn>();
 
-function showServerError(control: AbstractControl, message: string): void {
+function showServerError(control: AbstractControl, message: string, scope: AbstractControl): void {
   const previous = serverValidators.get(control);
   if (previous) {
     control.removeValidators(previous);
   }
-  const scope = control.parent ?? control;
   const own = snapshot(control.getRawValue());
   const around = snapshot(scope.getRawValue());
   const validator: ValidatorFn = (c) =>
