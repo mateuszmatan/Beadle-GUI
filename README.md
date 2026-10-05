@@ -175,8 +175,10 @@ project tag plus the pipeline type suffix: none for full, `security`, `extended`
 | `GET /api/evidence/products/{id}` | the change evidence of a product's pipelines |
 | `GET`/`PUT /api/settings` | the global settings; `PUT` carries the `version` it was read at |
 
-Errors are RFC 9457 problem details; validation errors list the failing fields, for example
-`services[2].build.javaPath`.
+Errors are RFC 9457 problem details, including the ones the framework raises for an unknown path, a method
+or content type an endpoint does not serve and a body that cannot be read; validation errors list the
+failing fields, for example `services[2].build.javaPath`. A problem detail never carries a class, package
+or method name.
 
 ## Tests
 
