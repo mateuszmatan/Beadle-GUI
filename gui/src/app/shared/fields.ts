@@ -21,6 +21,8 @@ export interface Field {
   placeholder?: string;
   error?: string;
   mono?: boolean;
+  type?: string;
+  maxLength?: number;
   options?: readonly FieldOption[];
   multiple?: boolean;
   min?: number;
@@ -151,6 +153,8 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
                 [formControl]="control"
                 [class.mono]="field.mono"
                 [placeholder]="field.placeholder ?? ''"
+                [attr.type]="field.type"
+                [attr.maxlength]="field.maxLength"
               />
             }
           }
