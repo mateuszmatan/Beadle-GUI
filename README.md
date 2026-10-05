@@ -7,7 +7,7 @@ A web portal to onboard products to DevSecOps and to watch their pipelines.
   today; give each service its own pipelines, each with a unique key that can be invalidated and reissued,
   and link each pipeline to its Jenkins job.
 - **DevSecOps Pipeline Monitoring**: every product with the status of its pipelines, and per pipeline its
-  DORA metrics, daily activity, latest runs, the Jenkins job and the Grafana panels, all read from the
+  DORA metrics, daily activity, latest runs, the Jenkins job and the Grafana dashboard link, all read from the
   InfluxDB the pipelines write to.
 - **DevSecOps Change Evidence**: a read-only view of a product for ServiceNow change requests. Per
   pipeline, on one screen: product and service, unit test coverage, smoke, regression and performance
@@ -46,7 +46,7 @@ The domain, in `backend/src/main/java/com/bbh/itss/dso/portal`:
 | `pipeline`   | `Pipeline` per service and type (full, security, extended, SAST) and its `PipelineKey` history; a service starts with a full pipeline on the `linux-agent` label when it is created; key changes run under a row lock, so a pipeline never has two active keys |
 | `settings`   | the global settings, a single row with its severity limits, edited in the Global Settings tab   |
 | `dsoconfig`  | renders the configuration a pipeline gets for its key and publishes it to `DSO_PIPELINE_CONFIG` whenever a product, a pipeline or the global settings change |
-| `monitoring` | reads the runs from InfluxDB (Flux over HTTP), computes the DORA metrics and builds the Grafana panel links |
+| `monitoring` | reads the runs from InfluxDB (Flux over HTTP), computes the DORA metrics and links the Grafana dashboards |
 | `evidence`   | reads what the latest run of each pipeline recorded in InfluxDB and builds the links to its reports |
 | `demo`       | sample products and pipelines for local runs                                                   |
 | `web`        | serves the Angular app for its page paths                                                      |
@@ -100,14 +100,14 @@ Start InfluxDB and Grafana, point the portal at them and write demo metrics for 
 
 ```bash
 docker compose up -d influxdb grafana
-INFLUX_URL=http://localhost:8086 INFLUX_TOKEN=dso-local-token GRAFANA_URL=http://localhost:3000 \
+INFLUX_URL=http://localhost:8086 INFLUX_TOKEN=dso-local-token \
+  GRAFANA_DASHBOARD_URL=http://localhost:3000/d/dso-portal-dora/dso-portal-dora \
   java -jar target/dso-portal-backend-0.1.0-SNAPSHOT.jar
 python3 tools/seed-influx-demo.py --portal http://localhost:8080 --days 30
 ```
 
-Grafana must allow embedding (`GF_SECURITY_ALLOW_EMBEDDING=true`) and let portal users see the dashboard
-(anonymous viewer locally, single sign-on in BBH). The dashboard to import is
-`grafana/dashboards/dso-portal-dora.json`.
+Grafana must let portal users see the dashboard (anonymous viewer locally, single sign-on in BBH). The
+dashboard to import is `grafana/dashboards/dso-portal-dora.json`.
 
 ### Frontend development
 
@@ -126,15 +126,13 @@ npm start          # http://localhost:4200, /api is proxied to the backend on po
 | `PORT` | `8080` | HTTP port |
 | `INFLUX_URL`, `INFLUX_TOKEN` | empty | InfluxDB the pipelines write to; empty switches monitoring off |
 | `INFLUX_ORG`, `INFLUX_BUCKET` | `DevSecOps`, `DORA-metrics` | where the metrics are |
-| `GRAFANA_URL`, `GRAFANA_ORG_ID` | empty, `1` | Grafana whose panels are embedded; empty hides them |
-| `GRAFANA_DATASOURCE_UID` | `dso-influxdb` | InfluxDB datasource the embedded panels read; the links also pass `INFLUX_BUCKET` |
+| `GRAFANA_DASHBOARD_URL` | empty | link to the pipeline dashboard; the portal adds `var-project` and the time range; empty hides the links |
+| `GRAFANA_SECURITY_DASHBOARD_URL` | empty | link to the security dashboard for `SECURITY` and `SAST` pipelines; empty uses the pipeline dashboard |
 | `DSO_DEMO_DATA` | `true` with `local` | create sample products when the database has none |
 
 The BBH tool servers and every other setting shared by all pipelines are not configured here: they are
 stored in the database and edited in the DevSecOps Global Settings tab. The Jenkins URL set there turns a
 pipeline's job path, such as `DevSecOps/TARA/app-full`, into a link.
-
-The Grafana dashboard UID, slug, theme and panels are set under `dso.grafana` in `application.yml`.
 
 ## DevSecOps integration
 
