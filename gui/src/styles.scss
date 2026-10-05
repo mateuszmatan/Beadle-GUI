@@ -163,6 +163,12 @@ html {
   --dso-neutral-bg: #eceef2;
   --dso-info: #0c2340;
   --dso-info-bg: #e3e8f0;
+  --dso-run-success: #34a853;
+  --dso-run-unstable: #f9ab00;
+  --dso-run-failure: #d93025;
+  --dso-run-idle: #9aa0a6;
+  --dso-run-none: #dadce0;
+  --dso-run-disabled: repeating-linear-gradient(135deg, #f28b82 0 4px, #fce8e6 4px 8px);
   --dso-code-bg: #0c1a2e;
   --dso-code-fg: #e2e8f0;
   --dso-gutter: 24px;
@@ -445,6 +451,37 @@ mat-checkbox code {
   &.low {
     background: #fce8e6;
     color: #c5221f;
+  }
+}
+
+.swatch {
+  &.success,
+  &.passed {
+    background: var(--dso-run-success);
+  }
+
+  &.unstable,
+  &.warned {
+    background: var(--dso-run-unstable);
+  }
+
+  &.failure,
+  &.failed {
+    background: var(--dso-run-failure);
+  }
+
+  &.aborted,
+  &.not_built {
+    background: var(--dso-run-idle);
+  }
+
+  &.no_data,
+  &.skipped {
+    background: var(--dso-run-none);
+  }
+
+  &.disabled {
+    background: var(--dso-run-disabled);
   }
 }
 
