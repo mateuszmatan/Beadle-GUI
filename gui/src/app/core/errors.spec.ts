@@ -10,6 +10,27 @@ describe('errorMessage', () => {
     expect(errorMessage(error)).toBe('Product code CERT is already used by CertScanner');
   });
 
+  it('reads the detail of a problem a text endpoint returned as a string', () => {
+    const error = new HttpErrorResponse({
+      status: 404,
+      statusText: '',
+      error: JSON.stringify({ title: 'Not Found', detail: 'Pipeline 12 was not found' }),
+    });
+    expect(errorMessage(error)).toBe('Pipeline 12 was not found');
+  });
+
+  it('names the status when the body is no problem and the reason phrase is empty', () => {
+    expect(errorMessage(new HttpErrorResponse({ status: 404, error: 'not json' }))).toBe(
+      'The request failed with status 404',
+    );
+    expect(
+      errorMessage(new HttpErrorResponse({ status: 500, statusText: ' ', error: '[1]' })),
+    ).toBe('The request failed with status 500');
+    expect(
+      errorMessage(new HttpErrorResponse({ status: 500, error: JSON.stringify({ detail: ' ' }) })),
+    ).toBe('The request failed with status 500');
+  });
+
   it('explains a request that never reached the API', () => {
     expect(errorMessage(new HttpErrorResponse({ status: 0 }))).toBe(
       'The portal API cannot be reached.',
@@ -34,6 +55,14 @@ describe('fieldProblems', () => {
     expect(fieldProblems(new HttpErrorResponse({ status: 400, error: { errors } }))).toEqual(
       errors,
     );
+  });
+
+  it('reads the field problems of a 400 response given as text', () => {
+    const errors = [{ field: 'name', message: 'must not be blank' }];
+    expect(
+      fieldProblems(new HttpErrorResponse({ status: 400, error: JSON.stringify({ errors }) })),
+    ).toEqual(errors);
+    expect(fieldProblems(new HttpErrorResponse({ status: 400, error: '{broken' }))).toEqual([]);
   });
 
   it('is empty for other responses', () => {
