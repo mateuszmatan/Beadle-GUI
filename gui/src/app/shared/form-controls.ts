@@ -70,6 +70,23 @@ export function eachItem(
   };
 }
 
+export function requiredRule(message: string): ValidatorFn {
+  return (control) => emptyError(control, message);
+}
+
+const utf8 = new TextEncoder();
+
+export function fitsColumn(
+  parse: (value: string) => string[],
+  separator: string,
+  max: number,
+): ValidatorFn {
+  return (control) =>
+    utf8.encode(parse(control.value ?? '').join(separator)).length > max
+      ? { columnLength: { max } }
+      : null;
+}
+
 export function requiredWhen(
   condition: (siblings: Record<string, unknown>) => boolean,
   message?: string,
@@ -117,32 +134,49 @@ export function setEnabled(control: AbstractControl, enabled: boolean): void {
   }
 }
 
+export function passesValidators(control: AbstractControl): boolean {
+  if (control.validator?.(control)) {
+    return false;
+  }
+  if (control instanceof FormGroup || control instanceof FormArray) {
+    return Object.values(control.controls).every((child: AbstractControl) =>
+      passesValidators(child),
+    );
+  }
+  return true;
+}
+
 export function applyFieldProblems(
   form: AbstractControl,
   problems: FieldProblem[],
+  scopeOf: (field: string) => AbstractControl | null = () => null,
 ): FieldProblem[] {
   const unmatched: FieldProblem[] = [];
-  const messages = new Map<AbstractControl, string[]>();
+  const messages = new Map<AbstractControl, { list: string[]; scope: AbstractControl | null }>();
   for (const problem of problems) {
     const control = controlAt(form, problem.field);
     if (control) {
-      messages.set(control, [...(messages.get(control) ?? []), problem.message]);
+      const entry = messages.get(control) ?? { list: [], scope: null };
+      entry.list.push(problem.message);
+      entry.scope ??= scopeOf(problem.field);
+      messages.set(control, entry);
     } else {
       unmatched.push(problem);
     }
   }
-  messages.forEach((list, control) => showServerError(control, [...new Set(list)].join('; ')));
+  messages.forEach(({ list, scope }, control) =>
+    showServerError(control, [...new Set(list)].join('; '), scope ?? control.parent ?? control),
+  );
   return unmatched;
 }
 
 const serverValidators = new WeakMap<AbstractControl, ValidatorFn>();
 
-function showServerError(control: AbstractControl, message: string): void {
+function showServerError(control: AbstractControl, message: string, scope: AbstractControl): void {
   const previous = serverValidators.get(control);
   if (previous) {
     control.removeValidators(previous);
   }
-  const scope = control.parent ?? control;
   const own = snapshot(control.getRawValue());
   const around = snapshot(scope.getRawValue());
   const validator: ValidatorFn = (c) =>

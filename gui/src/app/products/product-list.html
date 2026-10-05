@@ -1,18 +1,17 @@
 <div class="page">
   <header class="page-header">
     <div>
-      <h1>DevSecOps Product Management</h1>
-      <p>Products onboarded to DevSecOps with their services, pipelines and pipeline keys.</p>
+      <h1>{{ section.heading }}</h1>
+      <p class="page-description">{{ section.description }}</p>
     </div>
     <div class="actions">
-      <a mat-flat-button routerLink="/products/new"><mat-icon>add</mat-icon>Add product</a>
+      <a mat-flat-button routerLink="/products/new">Add product</a>
     </div>
   </header>
 
   <section class="card">
     <div class="toolbar">
       <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
-        <mat-icon matPrefix>search</mat-icon>
         <input
           matInput
           [formControl]="search"
@@ -33,87 +32,86 @@
     }
 
     @if (products.error(); as error) {
-      <div class="banner">
-        <mat-icon>error_outline</mat-icon><span>{{ errorMessage(error) }}</span>
-      </div>
+      <div class="banner">{{ errorMessage(error) }}</div>
     } @else if (products.hasValue()) {
       @if (products.value().length === 0) {
         <div class="empty-state">
-          <mat-icon>inventory_2</mat-icon>
           @if (search.value) {
             <h3>No product matches "{{ search.value }}"</h3>
             <p>Try another name, code or team.</p>
           } @else {
             <h3>No products yet</h3>
             <p>Add the first product and define its services to give them DevSecOps pipelines.</p>
-            <a mat-flat-button routerLink="/products/new"><mat-icon>add</mat-icon>Add product</a>
+            <a mat-flat-button routerLink="/products/new">Add product</a>
           }
         </div>
       } @else {
-        <table mat-table [dataSource]="products.value()">
-          <ng-container matColumnDef="product">
-            <th mat-header-cell *matHeaderCellDef>Product</th>
-            <td mat-cell *matCellDef="let product">
-              <div class="product">
-                <a
-                  class="name"
-                  [routerLink]="['/products', product.id]"
-                  (click)="$event.stopPropagation()"
-                  >{{ product.name }}</a
-                >
-                <span class="code mono">{{ product.code }}</span>
-              </div>
-              @if (product.description) {
-                <div class="description muted">{{ product.description }}</div>
-              }
-            </td>
-          </ng-container>
+        <div class="table-scroll">
+          <table mat-table [dataSource]="products.value()">
+            <ng-container matColumnDef="product">
+              <th mat-header-cell *matHeaderCellDef>Product</th>
+              <td mat-cell *matCellDef="let product">
+                <div class="product">
+                  <a
+                    class="name"
+                    [routerLink]="['/products', product.id]"
+                    (click)="$event.stopPropagation()"
+                    >{{ product.name }}</a
+                  >
+                  <span class="code mono">{{ product.code }}</span>
+                </div>
+                @if (product.description) {
+                  <div class="description muted">{{ product.description }}</div>
+                }
+              </td>
+            </ng-container>
 
-          <ng-container matColumnDef="ownerTeam">
-            <th mat-header-cell *matHeaderCellDef>Owner team</th>
-            <td mat-cell *matCellDef="let product">{{ product.ownerTeam ?? '–' }}</td>
-          </ng-container>
+            <ng-container matColumnDef="ownerTeam">
+              <th mat-header-cell *matHeaderCellDef>Owner team</th>
+              <td mat-cell *matCellDef="let product">{{ product.ownerTeam ?? '–' }}</td>
+            </ng-container>
 
-          <ng-container matColumnDef="services">
-            <th mat-header-cell *matHeaderCellDef class="number">Services</th>
-            <td mat-cell *matCellDef="let product" class="number">{{ product.serviceCount }}</td>
-          </ng-container>
+            <ng-container matColumnDef="services">
+              <th mat-header-cell *matHeaderCellDef class="number">Services</th>
+              <td mat-cell *matCellDef="let product" class="number">{{ product.serviceCount }}</td>
+            </ng-container>
 
-          <ng-container matColumnDef="pipelines">
-            <th mat-header-cell *matHeaderCellDef>Pipelines</th>
-            <td mat-cell *matCellDef="let product">
-              @if (product.pipelineCount === 0) {
-                <span class="muted">None yet</span>
-              } @else {
-                <span class="pipelines">
-                  <strong>{{ product.pipelineCount }}</strong>
-                  <span class="muted">· {{ product.activePipelineCount }} active</span>
-                  @if (product.pipelineCount > product.activePipelineCount) {
-                    <span class="revoked" title="Pipelines whose key is invalidated">
-                      <mat-icon>key_off</mat-icon
-                      >{{ product.pipelineCount - product.activePipelineCount }}
-                    </span>
-                  }
-                </span>
-              }
-            </td>
-          </ng-container>
+            <ng-container matColumnDef="pipelines">
+              <th mat-header-cell *matHeaderCellDef>Pipelines</th>
+              <td mat-cell *matCellDef="let product">
+                @if (product.pipelineCount === 0) {
+                  <span class="muted">None yet</span>
+                } @else {
+                  <span class="pipelines">
+                    <strong>{{ product.pipelineCount }}</strong>
+                    <span class="muted">· {{ product.activePipelineCount }} active</span>
+                    @if (product.pipelineCount > product.activePipelineCount) {
+                      <span class="revoked" title="Pipelines whose key is invalidated"
+                        >·
+                        {{ product.pipelineCount - product.activePipelineCount }} invalidated</span
+                      >
+                    }
+                  </span>
+                }
+              </td>
+            </ng-container>
 
-          <ng-container matColumnDef="updatedAt">
-            <th mat-header-cell *matHeaderCellDef>Last change</th>
-            <td mat-cell *matCellDef="let product" class="muted">
-              {{ product.updatedAt | relative }}
-            </td>
-          </ng-container>
+            <ng-container matColumnDef="updatedAt">
+              <th mat-header-cell *matHeaderCellDef>Last change</th>
+              <td mat-cell *matCellDef="let product" class="muted">
+                {{ product.updatedAt | relative }}
+              </td>
+            </ng-container>
 
-          <tr mat-header-row *matHeaderRowDef="columns"></tr>
-          <tr
-            mat-row
-            *matRowDef="let product; columns: columns"
-            class="clickable"
-            (click)="open(product)"
-          ></tr>
-        </table>
+            <tr mat-header-row *matHeaderRowDef="columns"></tr>
+            <tr
+              mat-row
+              *matRowDef="let product; columns: columns"
+              class="clickable"
+              (click)="open(product)"
+            ></tr>
+          </table>
+        </div>
       }
     }
   </section>

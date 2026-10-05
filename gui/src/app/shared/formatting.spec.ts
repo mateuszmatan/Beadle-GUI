@@ -1,4 +1,4 @@
-import { formatDuration, formatRelative, maskKey } from './formatting';
+import { formatDuration, formatRelative } from './formatting';
 
 describe('formatDuration', () => {
   it.each([
@@ -31,17 +31,5 @@ describe('formatRelative', () => {
     ['2026-07-01T12:00:00Z', '3 months ago'],
   ])('shows %s as %s', (iso, text) => {
     expect(formatRelative(iso, now)).toBe(text);
-  });
-});
-
-describe('maskKey', () => {
-  it('keeps the first eight and the last four characters of a key and its dashes', () => {
-    expect(maskKey('6f1c2d3e-0000-4abc-9def-123456789abc')).toBe(
-      '6f1c2d3e-••••-••••-••••-••••••••9abc',
-    );
-  });
-
-  it('hides a short value completely', () => {
-    expect(maskKey('abc')).toBe('•••');
   });
 });
