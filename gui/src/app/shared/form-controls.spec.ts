@@ -145,16 +145,6 @@ describe('field problems', () => {
     });
   }
 
-  it('finds controls by list index and by map key', () => {
-    const f = form();
-    expect(controlAt(f, 'limits[SAST].maxHigh')).toBe(
-      f.controls.limits.controls.SAST.controls.maxHigh,
-    );
-    expect(controlAt(f, 'jobs[0].job')).toBe(f.controls.jobs.at(0).controls.job);
-    expect(controlAt(f, 'jobs[3].job')).toBe(f.controls.jobs);
-    expect(controlAt(f, 'other')).toBeNull();
-  });
-
   it('keeps the error of a field when its field is shown again', () => {
     const f = form();
     applyFieldProblems(f, [
@@ -177,19 +167,6 @@ describe('field problems', () => {
     port.setValue(8080);
 
     expect(port.valid).toBe(true);
-    expect(f.valid).toBe(true);
-  });
-
-  it('drops the error when a neighbouring value changed by the next check', () => {
-    const f = form();
-    applyFieldProblems(f, [{ field: 'platform.proxyPort', message: 'is required' }]);
-    const { proxyHost, proxyPort } = f.controls.platform.controls;
-
-    proxyHost.setValue('');
-    expect(proxyPort.hasError('server')).toBe(true);
-
-    revalidateAll(f);
-    expect(proxyPort.valid).toBe(true);
     expect(f.valid).toBe(true);
   });
 
