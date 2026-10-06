@@ -111,6 +111,12 @@ ArchUnit tests keep the domain and the use cases free of Spring, JPA and Jackson
 | `GET /api/products/{id}/config` | every service of a product as one `config.yaml` |
 | `GET /api/settings/config` | the part of every configuration that comes from the global settings |
 
+Every key the library reads per service is a setting of the service. A service may name its own Nexus IQ server and
+credentials, SonarQube server, InfluxDB write URL and credentials, and AppScan secret (a Secret text credentials ID);
+left empty, the configuration carries the global setting or, for the AppScan secret, the product's. One Nexus IQ
+application is written as `tools.nexusIq.application: <name>`; several are written as a map of applications, each
+entry with its scan patterns, stage and the effective server and credentials.
+
 ### The library's database account
 
 The library reads its configuration straight from the Oracle database, one key at a time, through the function
