@@ -26,7 +26,7 @@ abstract class GuiSpecification extends Specification {
     static final int HEIGHT = 1000
 
     static final Map<String, List<String>> MENUS = [
-            'Beadle'              : ['Overview'],
+            'Beadle'              : ['Overview', 'Product Onboarding'],
             'DevSecOps Management': ['Product Management', 'Pipeline Monitoring', 'Change Evidence', 'Global Settings']]
 
     static final String CLIPBOARD_RECORDER = '''

@@ -1,7 +1,14 @@
 # BBH DevSecOps Management Portal
 
-A web portal to onboard products to DevSecOps and to watch their pipelines.
+A web portal to onboard products to DevSecOps and to watch their pipelines. Its header has two menus: **Beadle**,
+where new features land, and **DevSecOps Management**, with the four pages below.
 
+- **Product Onboarding** (Beadle): a wizard for product managers who do not know DevSecOps. Five steps, each with at
+  most three choices: pick the Static scan, Security or Full pipeline, then a new product or one already in the
+  portal, then its services (name, AppScan application, Gradle or Maven, virtual machines or OpenShift), check and
+  save. Every service gets a pipeline of the chosen type with its own key, and the last step lists what to do next
+  in order, with the Jenkinsfile of each service ready to copy. Everything else comes from BBH defaults and the
+  Global Settings, and can be fine-tuned in Product Management.
 - **DevSecOps Product Management**: add a product with all of its services and every setting the DevSecOps library
   ([DSOEnhanced](https://github.com/mateuszmatan/DSOEnhanced)) reads from `config.yaml` today. Every new service
   gets a full pipeline with its own key; keys can be invalidated, regenerated and linked to a Jenkins job, and each
@@ -45,9 +52,10 @@ Needs Java 21. The Gradle wrapper downloads Gradle, and the build downloads its 
 java -jar backend/build/libs/dso-portal-0.1.0-SNAPSHOT.jar
 ```
 
-Open http://localhost:8080. Without a profile the portal runs with `local`: an embedded H2 database in Oracle mode
-in `./data`, with demo products on the first start. Every feature works on it. `./gradlew :backend:bootRun` does the
-same without building the jar (the database then lives in `backend/data`).
+Open http://localhost:8080, or http://localhost:8080/beadle/onboarding for the onboarding wizard. Without a profile
+the portal runs with `local`: an embedded H2 database in Oracle mode in `./data`, with demo products on the first
+start. Every feature works on it. `./gradlew :backend:bootRun` does the same without building the jar (the database
+then lives in `backend/data`).
 
 To see metrics, point the portal at your InfluxDB and Grafana:
 
@@ -229,7 +237,7 @@ secrets.
 | Method and path | Purpose |
 |-----------------|---------|
 | `GET /api/products?search=` | products with service and pipeline counts |
-| `POST /api/products`, `GET`/`PUT`/`DELETE /api/products/{id}` | a product with its complete list of services; `PUT` carries the `version` it was read at; every service the save creates gets a full pipeline with an active key |
+| `POST /api/products`, `GET`/`PUT`/`DELETE /api/products/{id}` | a product with its complete list of services; `PUT` carries the `version` it was read at; every service the save creates gets a full pipeline with an active key, or with `?pipelineType=SAST\|SECURITY\|FULL` every service of the product without a pipeline of that type gets one |
 | `GET /api/products/{id}/pipelines` | each service of a product with its pipelines |
 | `POST /api/services/{id}/pipelines` | add a pipeline; it starts with an active key |
 | `GET`/`PUT`/`DELETE /api/pipelines/{id}` | a pipeline with its key history |
