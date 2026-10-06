@@ -15,8 +15,8 @@ A web portal to onboard products to DevSecOps and to watch their pipelines.
 - **DevSecOps Global Settings**: the settings every pipeline shares and no service can override. They replace the
   library's `defaults.yaml`.
 
-No `config.yaml` remains in the product repositories. Once the library reads from the portal, a service needs only
-the generic Jenkinsfile and its pipeline key:
+No `config.yaml` remains in the product repositories. The portal-integrated library reads each pipeline's
+configuration from the portal by its key, so a service needs only the generic Jenkinsfile and its pipeline key:
 
 ```groovy
 @Library('DevSecOpsJenkinsLibrary') _
@@ -183,6 +183,39 @@ A SonarQube policy status wins over the quality gate. A run without `build_evide
 portal integration) keeps the links the portal builds: the HCL AppScan scans of the application, the SonarQube
 dashboard of the project and the Nexus IQ server, and the Jenkins build pages.
 
+## Accepted differences from config.yaml
+
+Moving the configuration into the portal changes these behaviours of the library on purpose:
+
+1. Configuration lives in the portal, not in the repository: no per-branch, per-PR or per-commit configuration; a
+   replay of an old build uses today's portal values; release and develop jobs of one service share one pipeline per
+   type. The console, the report header and `build_evidence` record the key hint, `renderedAt` and the sha256 hint.
+2. Failures before `pipeline {}` leave no report, `release-gate.json` or InfluxDB point; `build_duration` and the DORA
+   duration include the bootstrap read.
+3. The archived run-state file is `pipeline-config.yaml`, not `config.yaml`; the first extended run after cutover needs
+   one security build made by the new library.
+4. The extended pipeline uses its own key's projects plus the security run's run-time tags, not the security run's
+   whole `config.yaml` copy.
+5. Keys the portal does not model are gone from `getCFG()` (custom keys a team added to `config.yaml`);
+   `tests.<suite>.defaults`, bare-string test jobs and `urls` are expanded by migration into jobs; `jobs[].auth` maps
+   other than credentials IDs, OpenShift `appName`/`imageNamespace`/`cluster`/`credentialsId` (only the unused
+   nexusDelivery API reads them) and the keys the library no longer reads are not modelled.
+6. Selecting projects through `PROJECT_NAMES`/`PROJECT_NAME` without keys is gone; the keys decide.
+7. Texts that named `config.yaml`/`defaults.yaml` now name the portal, also where they reach the report,
+   `release-gate.json` and InfluxDB. A Jenkinsfile `securityPipeline` in a full, security or SAST pipeline is ignored,
+   which shows the Nexus IQ and SonarQube summary rows it used to hide.
+8. Nexus IQ report links appear for every service, because the IQ server URL is global (GoldenFix stays governed by
+   its own per-service switch).
+9. Every build depends on the portal database at start; the `DSO_PORTAL_AGENT` label needs a route to it, Nexus
+   access and a JDK 11+.
+
+## Preconditions before wider use
+
+This change does not bring BBH single sign-on with roles, an audit trail of who changed what, or a history table of
+the rendered configuration (`CONFIG_JSON`); the owner decides on them later. Until they exist the portal must not be
+reachable outside the test network, because a portal edit now steers every build and pipeline keys are bearer
+secrets.
+
 ## REST API
 
 | Method and path | Purpose |
@@ -225,9 +258,7 @@ detail, including its development server.
 
 ## Known gaps
 
-- The portal has no sign-in yet. Pipeline keys are bearer secrets, so put it behind BBH single sign-on before it is
-  used beyond a local machine.
-- DSOEnhanced does not read its configuration from the portal yet.
+- The portal has no sign-in yet; see the preconditions above.
 - The change evidence of runs made by a library older than the portal integration has no unit test counts, artifact
   version, SonarQube quality gate, report links or configuration hint, so its links are built from the global settings
   and the Jenkins build number.
