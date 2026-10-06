@@ -31,12 +31,26 @@
   @if (products.error() ?? departments.error(); as error) {
     <div class="banner">{{ errorMessage(error) }}</div>
   } @else if (groups(); as shown) {
+    @if (empty()) {
+      <section class="card empty-state">
+        @if (query()) {
+          <h3>No product matches "{{ query() }}"</h3>
+          <p>Try another name, code, team or department.</p>
+        } @else {
+          <h3>No products yet</h3>
+          <p>Add the first product and define its services to give them DevSecOps pipelines.</p>
+          <a mat-flat-button routerLink="/products/new">Add product</a>
+        }
+      </section>
+    }
     @for (group of shown; track group.department?.id) {
       <section class="card department">
         <header class="department-header">
           <div class="department-title">
             <h2>{{ group.name }}</h2>
-            <span class="tally">{{ tally(group) }}</span>
+            @if (group.department || !query()) {
+              <span class="tally">{{ tally(group) }}</span>
+            }
           </div>
           @if (group.department; as department) {
             <div class="department-actions">
@@ -46,16 +60,17 @@
               <button mat-button type="button" (click)="renameDepartment(department)">
                 Rename
               </button>
-              <button
-                mat-button
-                type="button"
-                class="danger"
-                [disabled]="department.productCount > 0"
-                [attr.title]="deleteHint(department)"
-                (click)="deleteDepartment(department)"
-              >
-                Delete
-              </button>
+              <span class="delete" [attr.title]="deleteHint(department)">
+                <button
+                  mat-button
+                  type="button"
+                  class="danger"
+                  [disabled]="department.productCount > 0"
+                  (click)="deleteDepartment(department)"
+                >
+                  Delete
+                </button>
+              </span>
             </div>
           } @else {
             <p class="muted hint">Edit these products to choose their department.</p>
@@ -134,17 +149,6 @@
               ></tr>
             </table>
           </div>
-        }
-      </section>
-    } @empty {
-      <section class="card empty-state">
-        @if (query()) {
-          <h3>No product matches "{{ query() }}"</h3>
-          <p>Try another name, code, team or department.</p>
-        } @else {
-          <h3>No products yet</h3>
-          <p>Add the first product and define its services to give them DevSecOps pipelines.</p>
-          <a mat-flat-button routerLink="/products/new">Add product</a>
         }
       </section>
     }
