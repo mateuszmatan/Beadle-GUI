@@ -25,7 +25,8 @@ devSecOpsPipeline(pipelineKey: '6f1c2d3e-0000-4abc-9def-123456789abc')
 ```
 
 A run that builds several services of one product passes the keys of their pipelines of that type, the primary service
-first; the product page offers this Jenkinsfile in the menu of a pipeline:
+first; the product page offers this Jenkinsfile in the menu of a pipeline. Extended pipelines join only when they name
+the same security pipeline, since the run reads the security run state of the primary's only:
 
 ```groovy
 devSecOpsPipeline(pipelineKeys: ['6f1c2d3e-0000-4abc-9def-123456789abc', 'a1b2c3d4-0000-4abc-9def-123456789abc'])
