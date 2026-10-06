@@ -111,15 +111,39 @@ ArchUnit tests keep the domain and the use cases free of Spring, JPA and Jackson
 | `GET /api/products/{id}/config` | every service of a product as one `config.yaml` |
 | `GET /api/settings/config` | the part of every configuration that comes from the global settings |
 
-The library can also read its configuration straight from the database, with an account that may only read the
-view `DSO_LIBRARY_CONFIG_V` (`PIPELINE_KEY`, `KEY_STATUS`, `REVOKE_REASON`, `CONFIG_JSON`, `RENDERED_AT`).
-`CONFIG_JSON` is empty once the key is invalidated. On Oracle:
+### The library's database account
 
-```sql
-CREATE USER DSO_LIBRARY IDENTIFIED BY "...";
-GRANT CREATE SESSION TO DSO_LIBRARY;
-GRANT SELECT ON DSO_PORTAL.DSO_LIBRARY_CONFIG_V TO DSO_LIBRARY;
+The library reads its configuration straight from the Oracle database, one key at a time, through the function
+`DSO_PORTAL.DSO_LIBRARY_CONFIG(p_key)` that Liquibase creates (Oracle only; H2 has only the view below). The
+function returns NULL for a key the portal never issued. Otherwise it returns one JSON object without JSON nulls:
+`keyStatus` (`ACTIVE` or `REVOKED`), `revokeReason`, `renderedAt` (UTC, ISO-8601 with `Z`) and `config`, the published
+configuration, present only while the key is active. The key is matched trimmed and in lower case. Reading through the
+function does not touch the key's last use; only the REST endpoint records it.
+
+A DBA creates the reader account once:
+
+```bash
+sqlplus <dba user>@//<host>:1521/<service> @deploy/db/dso-library-reader.sql
 ```
+
+The script asks for the reader's password (or takes it from `DEFINE reader_password = ...`) and creates:
+
+- the profile `DSO_LIBRARY_PROFILE`, which never locks the account after failed logins, so one wrong Jenkins
+  credential cannot stop every pipeline; failed logins are audited instead (audit policy
+  `DSO_LIBRARY_LOGON_FAILURES`), and the password life time follows the BBH default profile;
+- the user `DSO_LIBRARY` with `CREATE SESSION` and `EXECUTE` on the function, nothing else.
+
+Why a function and not a grant on the view: with `EXECUTE` alone the account cannot list keys, cannot read the view
+or any table and cannot lock a row or a table. It learns only the document of a key it already holds. The script
+assumes the schema `DSO_PORTAL`; for another schema change its `GRANT EXECUTE` line and set `DSO_PORTAL_DB_SCHEMA` in
+Jenkins.
+
+Rotate the reader's password together with the Jenkins credential that holds it (`dso-portal-db-reader`). Turn on
+Oracle native network encryption (or TCPS) for the listener, and let only the Jenkins agents of the
+`DSO_PORTAL_AGENT` label reach it, with a listener access control list (valid node checking).
+
+The view `DSO_LIBRARY_CONFIG_V` (`PIPELINE_KEY`, `KEY_STATUS`, `REVOKE_REASON`, `CONFIG_JSON`, `RENDERED_AT`) stays
+for the portal's own use; grant nothing on it.
 
 A pipeline's metrics are matched by the InfluxDB tags the library writes: `project` (the service's metrics project
 plus the pipeline type suffix: none for full, `security`, `extended`, `sast`) and `env`.
