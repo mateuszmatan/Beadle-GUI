@@ -38,6 +38,9 @@ class StubApi {
                 [it.code, it.name, it.ownerTeam].any { value -> value?.toString()?.toLowerCase()?.contains(search) }
             } : products)
         }
+        get('/api/products/code-suggestion') { RecordedRequest request ->
+            StubResponse.json([code: request.params().name.toUpperCase().replaceAll(/[^A-Z0-9]/, '')])
+        }
         get('/api/products/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("product-${ids[0]}.json", "Product ${ids[0]} does not exist") }
         get('/api/products/(\\d+)/pipelines') { RecordedRequest request, List<String> ids -> fixtureOr404("product-${ids[0]}-pipelines.json", "Product ${ids[0]} does not exist") }
         get('/api/products/(\\d+)/config') { RecordedRequest request, List<String> ids -> yamlOr404("product-${ids[0]}-config.yaml", "Product ${ids[0]} does not exist") }

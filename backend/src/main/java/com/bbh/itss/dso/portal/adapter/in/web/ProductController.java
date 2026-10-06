@@ -34,6 +34,11 @@ public class ProductController {
         return products.list(search);
     }
 
+    @GetMapping("/code-suggestion")
+    public CodeSuggestion suggestCode(@RequestParam String name) {
+        return new CodeSuggestion(products.suggestCode(name));
+    }
+
     @GetMapping("/{id}")
     public ProductDto get(@PathVariable long id) {
         return ProductDto.from(products.get(id));
@@ -57,4 +62,6 @@ public class ProductController {
         products.delete(id);
     }
 
+    public record CodeSuggestion(String code) {
+    }
 }
