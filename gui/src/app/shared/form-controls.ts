@@ -19,6 +19,8 @@ export const SHELL_SAFE_URL_ERROR =
   'An http or https URL with letters, digits and . _ / + @ : = , ~ % - only';
 export const POWERSHELL_PATH = /^[A-Za-z0-9._/\\-]*$/;
 export const POWERSHELL_PATH_ERROR = 'Letters, digits and . _ / \\ - only';
+export const IMAGE_TAG = /^[A-Za-z0-9._:/@+-]*$/;
+export const IMAGE_TAG_ERROR = 'Letters, digits and . _ : / @ + - only';
 export const INT_MIN = -2_147_483_648;
 export const INT_MAX = 2_147_483_647;
 
