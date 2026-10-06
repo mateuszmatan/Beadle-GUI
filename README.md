@@ -12,7 +12,10 @@ where new features land, and **DevSecOps Management**, with the four pages below
 - **DevSecOps Product Management**: add a product with all of its services and every setting the DevSecOps library
   ([DSOEnhanced](https://github.com/mateuszmatan/DSOEnhanced)) reads from `config.yaml` today. Every new service
   gets a full pipeline with its own key; keys can be invalidated, regenerated and linked to a Jenkins job, and each
-  service names the Bitbucket repository where DSOEnhanced raises its GoldenFix pull requests.
+  service names the Bitbucket repository where DSOEnhanced raises its GoldenFix pull requests. Products live in
+  departments, and each department shows how many DevSecOps pipelines it has for how many products. The five BBH
+  departments (AI Lab, Capital Partners, Corporate Technology, Custody and Fund Services) come with the database; a
+  product saved before departments existed shows as "Not in a department" until it is edited, which means choosing one.
 - **DevSecOps Pipeline Monitoring**: every product with the status of its pipelines, and per pipeline its DORA
   metrics, daily activity, latest runs, the Jenkins job and your DSOEnhanced Grafana dashboard, all read from the
   InfluxDB the pipelines write to.
@@ -215,8 +218,10 @@ secrets.
 
 | Method and path | Purpose |
 |-----------------|---------|
-| `GET /api/products?search=` | products with service and pipeline counts |
-| `POST /api/products`, `GET`/`PUT`/`DELETE /api/products/{id}` | a product with its complete list of services; `PUT` carries the `version` it was read at; every service the save creates gets a full pipeline with an active key, or with `?pipelineType=SAST\|SECURITY\|FULL` every service of the product without a pipeline of that type gets one |
+| `GET /api/departments` | departments by name, each with the number of its products, their services, their DevSecOps pipelines and the pipelines with an active key |
+| `POST /api/departments`, `PUT`/`DELETE /api/departments/{id}` | add, rename or delete a department; `PUT` carries the `version` it was read at; a department that still has products is not deleted (409) |
+| `GET /api/products?search=` | products with their department, service and pipeline counts; the search also matches the department name |
+| `POST /api/products`, `GET`/`PUT`/`DELETE /api/products/{id}` | a product in its department (`departmentId`, required on every save) with its complete list of services; `PUT` carries the `version` it was read at; every service the save creates gets a full pipeline with an active key, or with `?pipelineType=SAST\|SECURITY\|FULL` every service of the product without a pipeline of that type gets one |
 | `GET /api/products/{id}/pipelines` | each service of a product with its pipelines |
 | `POST /api/services/{id}/pipelines` | add a pipeline; it starts with an active key |
 | `GET`/`PUT`/`DELETE /api/pipelines/{id}` | a pipeline with its key history |
