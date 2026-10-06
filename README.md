@@ -23,6 +23,17 @@ the generic Jenkinsfile and its pipeline key:
 devSecOpsPipeline(pipelineKey: '6f1c2d3e-0000-4abc-9def-123456789abc')
 ```
 
+A run that builds several services of one product passes the keys of their pipelines of that type, the primary service
+first; the product page offers this Jenkinsfile in the menu of a pipeline:
+
+```groovy
+devSecOpsPipeline(pipelineKeys: ['6f1c2d3e-0000-4abc-9def-123456789abc', 'a1b2c3d4-0000-4abc-9def-123456789abc'])
+```
+
+During the cutover, pin the portal-integrated library version (for example `DevSecOpsJenkinsLibrary@DSOwithMgmtPortal`)
+in the Global Settings' shared library (`platform.jenkinsLibrary`, the name the generated Jenkinsfiles load) and in
+the `@Library` line of every migrated job, until every job carries a key.
+
 ## Running it locally
 
 Needs Java 21. The Gradle wrapper downloads Gradle, and the build downloads its own Node.js for the GUI.
