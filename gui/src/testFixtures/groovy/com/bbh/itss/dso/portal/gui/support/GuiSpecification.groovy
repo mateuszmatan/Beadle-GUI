@@ -25,6 +25,10 @@ abstract class GuiSpecification extends Specification {
     static final int WIDTH = 1440
     static final int HEIGHT = 1000
 
+    static final Map<String, List<String>> MENUS = [
+            'Beadle'              : ['Overview'],
+            'DevSecOps Management': ['Product Management', 'Pipeline Monitoring', 'Change Evidence', 'Global Settings']]
+
     static final String CLIPBOARD_RECORDER = '''
         window.dsoCopiedTexts = [];
         const execCommand = Document.prototype.execCommand;
@@ -183,8 +187,13 @@ abstract class GuiSpecification extends Specification {
         page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName(name).setExact(exact))
     }
 
+    Locator menuButton(String name) {
+        page.locator('nav.menu').getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName(name).setExact(true))
+    }
+
     Locator menuLink(String label) {
-        page.locator('nav.menu').getByRole(AriaRole.LINK, new Locator.GetByRoleOptions().setName(label).setExact(true))
+        menuButton(MENUS.find { it.value.contains(label) }.key).click()
+        page.locator('.mat-mdc-menu-panel').getByRole(AriaRole.MENUITEM, new Locator.GetByRoleOptions().setName(label).setExact(true))
     }
 
     Locator field(String label) {
