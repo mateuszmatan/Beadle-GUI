@@ -130,39 +130,19 @@ left empty, the configuration carries the global setting or, for the AppScan sec
 application is written as `tools.nexusIq.application: <name>`; several are written as a map of applications, each
 entry with its scan patterns, stage and the effective server and credentials.
 
-### The library's database account
+### How the library reads its configuration
 
-The library reads its configuration straight from the Oracle database, one key at a time, through the function
-`DSO_PORTAL.DSO_LIBRARY_CONFIG(p_key)` that Liquibase creates (Oracle only; H2 has only the view below). The
-function returns NULL for a key the portal never issued. Otherwise it returns one JSON object without JSON nulls:
-`keyStatus` (`ACTIVE` or `REVOKED`), `revokeReason`, `renderedAt` (UTC, ISO-8601 with `Z`) and `config`, the published
-configuration, present only while the key is active. The key is matched trimmed and in lower case. Reading through the
-function does not touch the key's last use; only the REST endpoint records it.
+The library reads each pipeline's configuration from this portal over HTTPS, with one
+`GET /api/dso/config/<key>?format=json` per key, sent with `curl` from a Jenkins agent before the pipeline starts.
+The portal renders the configuration from its database at that moment and records the key's last use. Jenkins needs
+only the portal's address, the global environment variable `DSO_PORTAL_URL` (for example
+`https://dso-portal.apps.bbh.com`); it holds no database account, no credentials and no driver, and only the portal
+reaches its database.
 
-A DBA creates the reader account once:
-
-```bash
-sqlplus <dba user>@//<host>:1521/<service> @deploy/db/dso-library-reader.sql
-```
-
-The script asks for the reader's password (or takes it from `DEFINE reader_password = ...`) and creates:
-
-- the profile `DSO_LIBRARY_PROFILE`, which never locks the account after failed logins, so one wrong Jenkins
-  credential cannot stop every pipeline; failed logins are audited instead (audit policy
-  `DSO_LIBRARY_LOGON_FAILURES`), and the password life time follows the BBH default profile;
-- the user `DSO_LIBRARY` with `CREATE SESSION` and `EXECUTE` on the function, nothing else.
-
-Why a function and not a grant on the view: with `EXECUTE` alone the account cannot list keys, cannot read the view
-or any table and cannot lock a row or a table. It learns only the document of a key it already holds. The script
-assumes the schema `DSO_PORTAL`; for another schema change its `GRANT EXECUTE` line and set `DSO_PORTAL_DB_SCHEMA` in
-Jenkins.
-
-Rotate the reader's password together with the Jenkins credential that holds it (`dso-portal-db-reader`). Turn on
-Oracle native network encryption (or TCPS) for the listener, and let only the Jenkins agents of the
-`DSO_PORTAL_AGENT` label reach it, with a listener access control list (valid node checking).
-
-The view `DSO_LIBRARY_CONFIG_V` (`PIPELINE_KEY`, `KEY_STATUS`, `REVOKE_REASON`, `CONFIG_JSON`, `RENDERED_AT`) stays
-for the portal's own use; grant nothing on it.
+The key is the only check. Whoever holds a key reads the configuration of that one pipeline, which names Jenkins
+credentials IDs and no passwords, much as anyone who could read a product repository could read its `config.yaml`.
+Keys are random UUIDs, the API lists none of them by this request, and an invalidated key is refused with 403 at once.
+When the portal moves behind BBH SSO, `/api/dso/config/**` stays outside the sign-in.
 
 A pipeline's metrics are matched by the InfluxDB tags the library writes: `project` (the service's metrics project
 plus the pipeline type suffix: none for full, `security`, `extended`, `sast`) and `env`.
@@ -214,13 +194,12 @@ Moving the configuration into the portal changes these behaviours of the library
    which shows the Nexus IQ and SonarQube summary rows it used to hide.
 8. Nexus IQ report links appear for every service, because the IQ server URL is global (GoldenFix stays governed by
    its own per-service switch).
-9. Every build depends on the portal database at start; the `DSO_PORTAL_AGENT` label needs a route to it, Nexus
-   access and a JDK 11+.
+9. Every build depends on the portal at start; the agents of the `DSO_PORTAL_AGENT` label need HTTPS access to it.
 
 ## Preconditions before wider use
 
-This change does not bring BBH single sign-on with roles, an audit trail of who changed what, or a history table of
-the rendered configuration (`CONFIG_JSON`); the owner decides on them later. Until they exist the portal must not be
+This change does not bring BBH single sign-on with roles, an audit trail of who changed what, or a history of the
+rendered configuration; the owner decides on them later. Until they exist the portal must not be
 reachable outside the test network, because a portal edit now steers every build and pipeline keys are bearer
 secrets.
 
