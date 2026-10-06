@@ -12,6 +12,11 @@ export const HTTP_URL = /^https?:\/\/\S+$/;
 export const HOST_NAME = /^[A-Za-z0-9.-]*$/;
 export const SHELL_SAFE = /^[A-Za-z0-9._/*+@:=,~-]*$/;
 export const SHELL_SAFE_ERROR = 'Letters, digits and . _ / * + @ : = , ~ - only';
+export const SHELL_SAFE_URL = /^https?:\/\/[A-Za-z0-9._/+@:=,~%-]+$/;
+export const SHELL_SAFE_URL_ERROR =
+  'An http or https URL with letters, digits and . _ / + @ : = , ~ % - only';
+export const POWERSHELL_PATH = /^[A-Za-z0-9._/\\-]*$/;
+export const POWERSHELL_PATH_ERROR = 'Letters, digits and . _ / \\ - only';
 export const INT_MIN = -2_147_483_648;
 export const INT_MAX = 2_147_483_647;
 
