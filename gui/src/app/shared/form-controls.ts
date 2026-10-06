@@ -10,9 +10,19 @@ import { FieldProblem } from '../core/models';
 
 export const HTTP_URL = /^https?:\/\/\S+$/;
 export const HOST_NAME = /^[A-Za-z0-9.-]*$/;
+export const SHELL_SAFE = /^[A-Za-z0-9._/*+@:=,~-]*$/;
+export const SHELL_SAFE_ERROR = 'Letters, digits and . _ / * + @ : = , ~ - only';
+export const INT_MIN = -2_147_483_648;
+export const INT_MAX = 2_147_483_647;
 
 export const text = (value: string | null | undefined = '', ...validators: ValidatorFn[]) =>
   new FormControl(value ?? '', { nonNullable: true, validators });
+
+export const shellSafe = (
+  value: string | null | undefined,
+  maxLength: number,
+  ...validators: ValidatorFn[]
+) => text(value, Validators.pattern(SHELL_SAFE), Validators.maxLength(maxLength), ...validators);
 
 export const flag = (value: boolean | null | undefined, fallback = false) =>
   new FormControl(value ?? fallback, { nonNullable: true });
@@ -38,6 +48,10 @@ export function lines(value: string | null | undefined, distinct = true): string
 
 export function words(value: string | null | undefined, distinct = true): string[] {
   return split(value, /[\s,]+/, distinct);
+}
+
+export function commaItems(value: string | null | undefined): string[] {
+  return split(value, /[,\n]/, true);
 }
 
 export const joinLines = (values: readonly string[] | null | undefined) =>
