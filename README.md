@@ -166,6 +166,11 @@ for the portal's own use; grant nothing on it.
 A pipeline's metrics are matched by the InfluxDB tags the library writes: `project` (the service's metrics project
 plus the pipeline type suffix: none for full, `security`, `extended`, `sast`) and `env`.
 
+Several services may share one metrics project and env. Under a shared tag a `pipeline_run` belongs to the pipeline
+whose Jenkins job (or a branch of it) recorded it in the `job` field; a pipeline without a Jenkins job shows no run,
+and a run of one job building several services belongs to each of them. DORA metrics and the Grafana dashboard stay
+per tag. Concurrent runs under one tag can still mix the points the library writes without a `module` tag.
+
 ### Change evidence
 
 The Change Evidence page reads the points of a pipeline's latest run, per service (`module` tag):
@@ -181,7 +186,9 @@ The Change Evidence page reads the points of a pipeline's latest run, per servic
 
 A SonarQube policy status wins over the quality gate. A run without `build_evidence` (a library older than the
 portal integration) keeps the links the portal builds: the HCL AppScan scans of the application, the SonarQube
-dashboard of the project and the Nexus IQ server, and the Jenkins build pages.
+dashboard of the project and the Nexus IQ server, and the Jenkins build pages. A point without a `module` tag (an
+older library) counts for the service only when it is the run's only point of its kind; a point of another module
+never does.
 
 ## Accepted differences from config.yaml
 
