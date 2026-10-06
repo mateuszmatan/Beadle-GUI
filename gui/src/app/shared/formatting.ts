@@ -23,6 +23,10 @@ export function formatDuration(seconds: number | null | undefined): string {
   return rest ? `${days}d ${rest}h` : `${days}d`;
 }
 
+export function counted(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`;
+}
+
 export function formatRelative(iso: string | null | undefined, now: number = Date.now()): string {
   if (!iso) {
     return '–';
