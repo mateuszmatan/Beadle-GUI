@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.adapter.in.web;
 
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductSummaryView;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
+import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -45,15 +46,17 @@ public class ProductController {
     }
 
     @PostMapping
-    public ResponseEntity<ProductDto> create(@Valid @RequestBody ProductDto request) {
-        ProductDto created = ProductDto.from(products.create(request.toCommand()));
+    public ResponseEntity<ProductDto> create(@Valid @RequestBody ProductDto request,
+                                             @RequestParam(required = false) PipelineType pipelineType) {
+        ProductDto created = ProductDto.from(products.create(request.toCommand(pipelineType)));
         return ResponseEntity.created(ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
                 .buildAndExpand(created.id()).toUri()).body(created);
     }
 
     @PutMapping("/{id}")
-    public ProductDto update(@PathVariable long id, @Valid @RequestBody ProductDto request) {
-        return ProductDto.from(products.update(id, request.toCommand()));
+    public ProductDto update(@PathVariable long id, @Valid @RequestBody ProductDto request,
+                             @RequestParam(required = false) PipelineType pipelineType) {
+        return ProductDto.from(products.update(id, request.toCommand(pipelineType)));
     }
 
     @DeleteMapping("/{id}")
