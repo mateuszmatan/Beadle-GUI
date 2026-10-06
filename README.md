@@ -10,7 +10,8 @@ A web portal to onboard products to DevSecOps and to watch their pipelines.
   metrics, daily activity, latest runs, the Jenkins job and your DSOEnhanced Grafana dashboard, all read from the
   InfluxDB the pipelines write to.
 - **DevSecOps Change Evidence**: a read-only view of a product for ServiceNow change requests: per pipeline the
-  test, SAST, DAST, SonarQube and Nexus IQ results, the release gate and the Jenkins build that produced them.
+  unit, smoke, regression and performance tests, the SAST, DAST, SonarQube and Nexus IQ results, the release gate and
+  the Jenkins build that produced them, with its artifact version and the portal configuration it ran with.
 - **DevSecOps Global Settings**: the settings every pipeline shares and no service can override. They replace the
   library's `defaults.yaml`.
 
@@ -165,6 +166,23 @@ for the portal's own use; grant nothing on it.
 A pipeline's metrics are matched by the InfluxDB tags the library writes: `project` (the service's metrics project
 plus the pipeline type suffix: none for full, `security`, `extended`, `sast`) and `env`.
 
+### Change evidence
+
+The Change Evidence page reads the points of a pipeline's latest run, per service (`module` tag):
+
+- `test_execution` with `suite=unit` gives the unit test row (total, passed, failed, skipped, duration); the smoke,
+  regression and performance rows come from the suites the remote test jobs record, and the status of the stage that
+  ran a suite wins over its counts;
+- `build_evidence` gives the artifact version, the SonarQube quality gate (`OK`, `WARN`, `ERROR`; `NONE` reads as not
+  recorded), the SAST, DAST, Nexus IQ and SonarQube report links, and when the portal rendered the configuration the
+  build read with its sha256 hint;
+- `security_findings`, `policy_status`, `vulnerabilities`, `code_coverage`, `release_gate` and `stage_event` give the
+  scans, coverage, release gate and stages as before.
+
+A SonarQube policy status wins over the quality gate. A run without `build_evidence` (a library older than the
+portal integration) keeps the links the portal builds: the HCL AppScan scans of the application, the SonarQube
+dashboard of the project and the Nexus IQ server, and the Jenkins build pages.
+
 ## REST API
 
 | Method and path | Purpose |
@@ -210,6 +228,6 @@ detail, including its development server.
 - The portal has no sign-in yet. Pipeline keys are bearer secrets, so put it behind BBH single sign-on before it is
   used beyond a local machine.
 - DSOEnhanced does not read its configuration from the portal yet.
-- The change evidence shows what the library records in InfluxDB today. It records no unit test counts, artifact
-  version, SonarQube quality gate or report links, so links are built from the global settings and the Jenkins
-  build number.
+- The change evidence of runs made by a library older than the portal integration has no unit test counts, artifact
+  version, SonarQube quality gate, report links or configuration hint, so its links are built from the global settings
+  and the Jenkins build number.
