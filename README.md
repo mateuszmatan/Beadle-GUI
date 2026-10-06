@@ -10,18 +10,31 @@ A web portal to onboard products to DevSecOps and to watch their pipelines.
   metrics, daily activity, latest runs, the Jenkins job and your DSOEnhanced Grafana dashboard, all read from the
   InfluxDB the pipelines write to.
 - **DevSecOps Change Evidence**: a read-only view of a product for ServiceNow change requests: per pipeline the
-  test, SAST, DAST, SonarQube and Nexus IQ results, the release gate and the Jenkins build that produced them.
+  unit, smoke, regression and performance tests, the SAST, DAST, SonarQube and Nexus IQ results, the release gate and
+  the Jenkins build that produced them, with its artifact version and the portal configuration it ran with.
 - **DevSecOps Global Settings**: the settings every pipeline shares and no service can override. They replace the
   library's `defaults.yaml`.
 
-No `config.yaml` remains in the product repositories. Once the library reads from the portal, a service needs only
-the generic Jenkinsfile and its pipeline key:
+No `config.yaml` remains in the product repositories. The portal-integrated library reads each pipeline's
+configuration from the portal by its key, so a service needs only the generic Jenkinsfile and its pipeline key:
 
 ```groovy
 @Library('DevSecOpsJenkinsLibrary') _
 
 devSecOpsPipeline(pipelineKey: '6f1c2d3e-0000-4abc-9def-123456789abc')
 ```
+
+A run that builds several services of one product passes the keys of their pipelines of that type, the primary service
+first; the product page offers this Jenkinsfile in the menu of a pipeline. Extended pipelines join only when they name
+the same security pipeline, since the run reads the security run state of the primary's only:
+
+```groovy
+devSecOpsPipeline(pipelineKeys: ['6f1c2d3e-0000-4abc-9def-123456789abc', 'a1b2c3d4-0000-4abc-9def-123456789abc'])
+```
+
+During the cutover, pin the portal-integrated library version (for example `DevSecOpsJenkinsLibrary@DSOwithMgmtPortal`)
+in the Global Settings' shared library (`platform.jenkinsLibrary`, the name the generated Jenkinsfiles load) and in
+the `@Library` line of every migrated job, until every job carries a key.
 
 ## Running it locally
 
@@ -111,18 +124,105 @@ ArchUnit tests keep the domain and the use cases free of Spring, JPA and Jackson
 | `GET /api/products/{id}/config` | every service of a product as one `config.yaml` |
 | `GET /api/settings/config` | the part of every configuration that comes from the global settings |
 
-The library can also read its configuration straight from the database, with an account that may only read the
-view `DSO_LIBRARY_CONFIG_V` (`PIPELINE_KEY`, `KEY_STATUS`, `REVOKE_REASON`, `CONFIG_JSON`, `RENDERED_AT`).
-`CONFIG_JSON` is empty once the key is invalidated. On Oracle:
+Every key the library reads per service is a setting of the service. A service may name its own Nexus IQ server and
+credentials, SonarQube server, InfluxDB write URL and credentials, and AppScan secret (a Secret text credentials ID);
+left empty, the configuration carries the global setting or, for the AppScan secret, the product's. One Nexus IQ
+application is written as `tools.nexusIq.application: <name>`; several are written as a map of applications, each
+entry with its scan patterns, stage and the effective server and credentials.
 
-```sql
-CREATE USER DSO_LIBRARY IDENTIFIED BY "...";
-GRANT CREATE SESSION TO DSO_LIBRARY;
-GRANT SELECT ON DSO_PORTAL.DSO_LIBRARY_CONFIG_V TO DSO_LIBRARY;
+### The library's database account
+
+The library reads its configuration straight from the Oracle database, one key at a time, through the function
+`DSO_PORTAL.DSO_LIBRARY_CONFIG(p_key)` that Liquibase creates (Oracle only; H2 has only the view below). The
+function returns NULL for a key the portal never issued. Otherwise it returns one JSON object without JSON nulls:
+`keyStatus` (`ACTIVE` or `REVOKED`), `revokeReason`, `renderedAt` (UTC, ISO-8601 with `Z`) and `config`, the published
+configuration, present only while the key is active. The key is matched trimmed and in lower case. Reading through the
+function does not touch the key's last use; only the REST endpoint records it.
+
+A DBA creates the reader account once:
+
+```bash
+sqlplus <dba user>@//<host>:1521/<service> @deploy/db/dso-library-reader.sql
 ```
+
+The script asks for the reader's password (or takes it from `DEFINE reader_password = ...`) and creates:
+
+- the profile `DSO_LIBRARY_PROFILE`, which never locks the account after failed logins, so one wrong Jenkins
+  credential cannot stop every pipeline; failed logins are audited instead (audit policy
+  `DSO_LIBRARY_LOGON_FAILURES`), and the password life time follows the BBH default profile;
+- the user `DSO_LIBRARY` with `CREATE SESSION` and `EXECUTE` on the function, nothing else.
+
+Why a function and not a grant on the view: with `EXECUTE` alone the account cannot list keys, cannot read the view
+or any table and cannot lock a row or a table. It learns only the document of a key it already holds. The script
+assumes the schema `DSO_PORTAL`; for another schema change its `GRANT EXECUTE` line and set `DSO_PORTAL_DB_SCHEMA` in
+Jenkins.
+
+Rotate the reader's password together with the Jenkins credential that holds it (`dso-portal-db-reader`). Turn on
+Oracle native network encryption (or TCPS) for the listener, and let only the Jenkins agents of the
+`DSO_PORTAL_AGENT` label reach it, with a listener access control list (valid node checking).
+
+The view `DSO_LIBRARY_CONFIG_V` (`PIPELINE_KEY`, `KEY_STATUS`, `REVOKE_REASON`, `CONFIG_JSON`, `RENDERED_AT`) stays
+for the portal's own use; grant nothing on it.
 
 A pipeline's metrics are matched by the InfluxDB tags the library writes: `project` (the service's metrics project
 plus the pipeline type suffix: none for full, `security`, `extended`, `sast`) and `env`.
+
+Several services may share one metrics project and env. Under a shared tag a `pipeline_run` belongs to the pipeline
+whose Jenkins job (or a branch of it) recorded it in the `job` field; a pipeline without a Jenkins job shows no run,
+and a run of one job building several services belongs to each of them. DORA metrics and the Grafana dashboard stay
+per tag. Concurrent runs under one tag can still mix the points the library writes without a `module` tag.
+
+### Change evidence
+
+The Change Evidence page reads the points of a pipeline's latest run, per service (`module` tag):
+
+- `test_execution` with `suite=unit` gives the unit test row (total, passed, failed, skipped, duration); the smoke,
+  regression and performance rows come from the suites the remote test jobs record, and the status of the stage that
+  ran a suite wins over its counts;
+- `build_evidence` gives the artifact version, the SonarQube quality gate (`OK`, `WARN`, `ERROR`; `NONE` reads as not
+  recorded), the SAST, DAST, Nexus IQ and SonarQube report links, and when the portal rendered the configuration the
+  build read with its sha256 hint;
+- `security_findings`, `policy_status`, `vulnerabilities`, `code_coverage`, `release_gate` and `stage_event` give the
+  scans, coverage, release gate and stages as before.
+
+A SonarQube policy status wins over the quality gate. A run without `build_evidence` (a library older than the
+portal integration) keeps the links the portal builds: the HCL AppScan scans of the application, the SonarQube
+dashboard of the project and the Nexus IQ server, and the Jenkins build pages. A point without a `module` tag (an
+older library) counts for the service only when it is the run's only point of its kind; a point of another module
+never does.
+
+## Accepted differences from config.yaml
+
+Moving the configuration into the portal changes these behaviours of the library on purpose:
+
+1. Configuration lives in the portal, not in the repository: no per-branch, per-PR or per-commit configuration; a
+   replay of an old build uses today's portal values; release and develop jobs of one service share one pipeline per
+   type. The console, the report header and `build_evidence` record the key hint, `renderedAt` and the sha256 hint.
+2. Failures before `pipeline {}` leave no report, `release-gate.json` or InfluxDB point; `build_duration` and the DORA
+   duration include the bootstrap read.
+3. The archived run-state file is `pipeline-config.yaml`, not `config.yaml`; the first extended run after cutover needs
+   one security build made by the new library.
+4. The extended pipeline uses its own key's projects plus the security run's run-time tags, not the security run's
+   whole `config.yaml` copy.
+5. Keys the portal does not model are gone from `getCFG()` (custom keys a team added to `config.yaml`);
+   `tests.<suite>.defaults`, bare-string test jobs and `urls` are expanded by migration into jobs; `jobs[].auth` maps
+   other than credentials IDs, OpenShift `appName`/`imageNamespace`/`cluster`/`credentialsId` (only the unused
+   nexusDelivery API reads them) and the keys the library no longer reads are not modelled.
+6. Selecting projects through `PROJECT_NAMES`/`PROJECT_NAME` without keys is gone; the keys decide.
+7. Texts that named `config.yaml`/`defaults.yaml` now name the portal, also where they reach the report,
+   `release-gate.json` and InfluxDB. A Jenkinsfile `securityPipeline` in a full, security or SAST pipeline is ignored,
+   which shows the Nexus IQ and SonarQube summary rows it used to hide.
+8. Nexus IQ report links appear for every service, because the IQ server URL is global (GoldenFix stays governed by
+   its own per-service switch).
+9. Every build depends on the portal database at start; the `DSO_PORTAL_AGENT` label needs a route to it, Nexus
+   access and a JDK 11+.
+
+## Preconditions before wider use
+
+This change does not bring BBH single sign-on with roles, an audit trail of who changed what, or a history table of
+the rendered configuration (`CONFIG_JSON`); the owner decides on them later. Until they exist the portal must not be
+reachable outside the test network, because a portal edit now steers every build and pipeline keys are bearer
+secrets.
 
 ## REST API
 
@@ -166,9 +266,7 @@ detail, including its development server.
 
 ## Known gaps
 
-- The portal has no sign-in yet. Pipeline keys are bearer secrets, so put it behind BBH single sign-on before it is
-  used beyond a local machine.
-- DSOEnhanced does not read its configuration from the portal yet.
-- The change evidence shows what the library records in InfluxDB today. It records no unit test counts, artifact
-  version, SonarQube quality gate or report links, so links are built from the global settings and the Jenkins
-  build number.
+- The portal has no sign-in yet; see the preconditions above.
+- The change evidence of runs made by a library older than the portal integration has no unit test counts, artifact
+  version, SonarQube quality gate, report links or configuration hint, so its links are built from the global settings
+  and the Jenkins build number.
