@@ -29,8 +29,12 @@ describe('production changes', () => {
   it('lists the raised changes with their product, window, risk and tasks', async () => {
     const fixture = TestBed.createComponent(ProductionChanges);
     await settle(fixture);
-    http.expectOne('/api/changes/integrations').flush({ jiraConnected: true, serviceNowConnected: false });
-    http.expectOne('/api/changes').flush([productionChange(), productionChange({ id: 8, number: 'CHG0012346' })]);
+    http
+      .expectOne('/api/changes/integrations')
+      .flush({ jiraConnected: true, serviceNowConnected: false });
+    http
+      .expectOne('/api/changes')
+      .flush([productionChange(), productionChange({ id: 8, number: 'CHG0012346' })]);
     await settle(fixture);
     const page = fixture.nativeElement as HTMLElement;
     const cells = [...page.querySelectorAll('tbody tr:first-child td')].map(text);
@@ -45,13 +49,17 @@ describe('production changes', () => {
     ]);
     expect(page.querySelectorAll('tbody tr')).toHaveLength(2);
     expect(text(page.querySelector('dso-integration-note'))).not.toContain('Jira is not connected');
-    expect(text(page.querySelector('dso-integration-note'))).toContain('ServiceNow is not connected');
+    expect(text(page.querySelector('dso-integration-note'))).toContain(
+      'ServiceNow is not connected',
+    );
   });
 
   it('invites to raise the first change when there is none', async () => {
     const fixture = TestBed.createComponent(ProductionChanges);
     await settle(fixture);
-    http.expectOne('/api/changes/integrations').flush({ jiraConnected: true, serviceNowConnected: true });
+    http
+      .expectOne('/api/changes/integrations')
+      .flush({ jiraConnected: true, serviceNowConnected: true });
     http.expectOne('/api/changes').flush([]);
     await settle(fixture);
     const page = fixture.nativeElement as HTMLElement;

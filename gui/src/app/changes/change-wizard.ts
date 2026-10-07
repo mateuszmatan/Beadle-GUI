@@ -24,6 +24,7 @@ import { errorMessage, fieldProblems } from '../core/errors';
 import { CHANGES } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { NOT_IN_A_DEPARTMENT, byDepartment } from '../products/departments';
+import { fitsColumn } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
 import {
@@ -45,7 +46,6 @@ import {
   presetWindow,
   recentDays,
   storiesFollowing,
-  storiesText,
   toggled,
   windowProblem,
   windowText,
@@ -81,9 +81,9 @@ export class ChangeWizard implements HasUnsavedChanges {
   protected readonly steps = STEPS;
   protected readonly windows = WINDOWS;
   protected readonly errorText = errorText;
+  protected readonly errorMessage = errorMessage;
   protected readonly windowText = windowText;
   protected readonly counted = counted;
-  protected readonly storiesText = storiesText;
   protected readonly typeLabel = (value: string) => labelOf(TYPES, value);
   protected readonly riskLabel = (value: string) => labelOf(RISKS, value);
   protected readonly impactLabel = (value: string) => labelOf(IMPACTS, value);
@@ -111,10 +111,9 @@ export class ChangeWizard implements HasUnsavedChanges {
       ),
     { initialValue: [] },
   );
-  private readonly catalogue = toSignal(
-    this.productsApi.list().pipe(catchError(() => of([]))),
-    { initialValue: [] },
-  );
+  private readonly catalogue = toSignal(this.productsApi.list().pipe(catchError(() => of([]))), {
+    initialValue: [],
+  });
   protected readonly groups = computed(() =>
     byDepartment(this.departments(), this.catalogue()).filter((group) => group.products.length),
   );
@@ -202,11 +201,11 @@ export class ChangeWizard implements HasUnsavedChanges {
 
   protected readonly shortDescription = new FormControl('', {
     nonNullable: true,
-    validators: [Validators.required, Validators.maxLength(160)],
+    validators: [Validators.required, fitsColumn((value) => [value], '', 160)],
   });
   protected readonly description = new FormControl('', {
     nonNullable: true,
-    validators: [Validators.required, Validators.maxLength(4000)],
+    validators: [Validators.required, fitsColumn((value) => [value], '', 4000)],
   });
   protected readonly preview = signal<ProductionChange | null>(null);
   protected readonly previewing = signal(false);
@@ -234,6 +233,15 @@ export class ChangeWizard implements HasUnsavedChanges {
       this.serviceIds.set(product?.services.map((service) => service.id) ?? []);
     });
     effect(() => {
+      const loaded = this.epics.hasValue() ? this.epics.value() : null;
+      untracked(() => {
+        const gone = loaded
+          ? this.epicKeys().filter((key) => !loaded.some((e) => e.key === key))
+          : [];
+        gone.forEach((key) => this.toggleEpic(key, false));
+      });
+    });
+    effect(() => {
       const loaded = this.stories.hasValue() ? this.stories.value() : null;
       untracked(() => {
         if (loaded && this.epicKeys().length) {
@@ -249,7 +257,7 @@ export class ChangeWizard implements HasUnsavedChanges {
   }
 
   protected canRevisit(index: number): boolean {
-    return index < this.step() && !this.raised() && !this.raising();
+    return index < this.step() && !this.raised() && !this.raising() && !this.previewing();
   }
 
   protected goTo(index: number): void {
@@ -292,6 +300,9 @@ export class ChangeWizard implements HasUnsavedChanges {
         }
         return this.serviceIds().length ? null : 'Choose at least one service';
       case 1:
+        if (!this.epicDates() || !this.storyDates() || this.epics.error() || this.stories.error()) {
+          return 'Choose dates the epics and stories can be loaded for';
+        }
         return this.epicKeys().length ? null : 'Choose at least one epic';
       case 2:
         return this.windowChoice() === null
@@ -307,7 +318,9 @@ export class ChangeWizard implements HasUnsavedChanges {
   }
 
   protected toggleService(id: number, on: boolean): void {
-    this.serviceIds.update((ids) => (on ? [...new Set([...ids, id])] : ids.filter((i) => i !== id)));
+    this.serviceIds.update((ids) =>
+      on ? [...new Set([...ids, id])] : ids.filter((i) => i !== id),
+    );
   }
 
   protected toggleEpic(key: string, on: boolean): void {
@@ -332,7 +345,9 @@ export class ChangeWizard implements HasUnsavedChanges {
 
   protected chooseWindow(choice: WindowChoice | null): void {
     this.windowChoice.set(choice);
-    const preset = choice ? presetWindow(choice === 'custom' ? 'weekend' : choice, new Date()) : null;
+    const preset = choice
+      ? presetWindow(choice === 'custom' ? 'weekend' : choice, new Date())
+      : null;
     if (choice === 'custom' && preset && !this.customStart.value) {
       this.customStart.setValue(localInput(preset.start));
       this.customEnd.setValue(localInput(preset.end));
@@ -359,9 +374,7 @@ export class ChangeWizard implements HasUnsavedChanges {
     to.setValue(range.to);
     const fromValue = toSignal(from.valueChanges, { initialValue: range.from });
     const toValue = toSignal(to.valueChanges, { initialValue: range.to });
-    return computed(() =>
-      fromValue() && toValue() ? { from: fromValue(), to: toValue() } : null,
-    );
+    return computed(() => (fromValue() && toValue() ? { from: fromValue(), to: toValue() } : null));
   }
 
   private loadedStories(): JiraIssue[] {

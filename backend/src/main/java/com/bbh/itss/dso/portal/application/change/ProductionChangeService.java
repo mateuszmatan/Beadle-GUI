@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.application.change;
 
 import com.bbh.itss.dso.portal.application.ReadOnly;
 import com.bbh.itss.dso.portal.application.UseCase;
+import com.bbh.itss.dso.portal.application.WithoutTransaction;
 import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentView;
 import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentsUseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
@@ -23,6 +24,8 @@ import com.bbh.itss.dso.portal.domain.change.JiraIssue;
 import com.bbh.itss.dso.portal.domain.change.ProductionChange;
 import com.bbh.itss.dso.portal.domain.shared.ConflictException;
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
+import com.bbh.itss.dso.portal.domain.shared.StoredList;
+import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.time.Clock;
@@ -75,25 +78,26 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     @Override
-    @ReadOnly
+    @WithoutTransaction
     public List<JiraIssue> epics(long productId, DateRange updated) {
         return jira.epics(templateOf(products.get(productId)).jiraProjectKey(), updated);
     }
 
     @Override
-    @ReadOnly
+    @WithoutTransaction
     public List<JiraIssue> stories(long productId, List<String> epicKeys, DateRange updated) {
         String project = templateOf(products.get(productId)).jiraProjectKey();
         return epicKeys.isEmpty() ? List.of() : jira.stories(project, epicKeys, updated);
     }
 
     @Override
-    @ReadOnly
+    @WithoutTransaction
     public ProductionChange preview(ChangeCommand command) {
         return draft(command);
     }
 
     @Override
+    @WithoutTransaction
     public ProductionChange raise(ChangeCommand command) {
         ProductionChange draft = draft(command);
         RaisedChange raised = serviceNow.raise(draft);
@@ -120,11 +124,21 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         List<JiraIssue> stories = chosen(command.storyKeys(), found, "storyKeys", project, problems);
         stories.stream().filter(story -> !command.epicKeys().contains(story.epicKey())).forEach(story ->
                 problems.add("storyKeys", story.key() + " is not a story of the chosen epics"));
+        StoredList.LINES_1000.check(problems, "epicKeys", command.epicKeys());
+        StoredList.LINES_4000.check(problems, "storyKeys", command.storyKeys());
+        fits(problems, "shortDescription", command.shortDescription(), ProductionChange.SHORT_DESCRIPTION_MAX);
+        fits(problems, "description", command.description(), ProductionChange.DESCRIPTION_MAX);
         ChangeWindow window = new ChangeWindow(command.start(), command.end());
         window.check(clock.instant(), problems);
         problems.throwIfAny();
         return ProductionChange.draft(product, departmentOf(product), services, template, window, epics, stories,
                 command.shortDescription(), command.description());
+    }
+
+    private static void fits(ValidationProblems problems, String field, String text, int maxBytes) {
+        if (text != null && Text.bytes(text.trim()) > maxBytes) {
+            problems.add(field, "is too long: it may take at most " + maxBytes + " bytes");
+        }
     }
 
     private static List<JiraIssue> chosen(List<String> keys, Map<String, JiraIssue> found, String field,

@@ -2,12 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import {
-  changeProfile,
-  epic,
-  productionChange,
-  story,
-} from '../testing/change-fixtures';
+import { changeProfile, epic, productionChange, story } from '../testing/change-fixtures';
 import { text } from '../testing/dom';
 import { department, product, productSummary, service } from '../testing/fixtures';
 import { ChangeWizard } from './change-wizard';
@@ -29,13 +24,19 @@ describe('ChangeWizard', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ChangeWizard);
     fixture.detectChanges();
-    http.expectOne('/api/departments').flush([department(), department({ id: 5, name: 'Fund Services' })]);
     http
-      .expectOne('/api/products')
-      .flush([
-        productSummary(),
-        productSummary({ id: 2, name: 'Payments Hub', code: 'PAY', departmentId: null, departmentName: null }),
-      ]);
+      .expectOne('/api/departments')
+      .flush([department(), department({ id: 5, name: 'Fund Services' })]);
+    http.expectOne('/api/products').flush([
+      productSummary(),
+      productSummary({
+        id: 2,
+        name: 'Payments Hub',
+        code: 'PAY',
+        departmentId: null,
+        departmentName: null,
+      }),
+    ]);
     http
       .expectOne('/api/changes/integrations')
       .flush({ jiraConnected: false, serviceNowConnected: false });
@@ -62,7 +63,9 @@ describe('ChangeWizard', () => {
     await settle();
     http
       .expectOne('/api/products/1')
-      .flush(product({ services: [service(), service({ id: 11, name: 'api', description: null })] }));
+      .flush(
+        product({ services: [service(), service({ id: 11, name: 'api', description: null })] }),
+      );
     http.expectOne('/api/products/1/change-profile').flush(profile);
     await settle();
   }
@@ -76,21 +79,35 @@ describe('ChangeWizard', () => {
     await settle();
     http
       .expectOne((request) => request.url === storiesUrl)
-      .flush([story('CERT-2', 'E-mail the owner', 'CERT-1'), story('CERT-3', 'Teams alert', 'CERT-1')]);
+      .flush([
+        story('CERT-2', 'E-mail the owner', 'CERT-1'),
+        story('CERT-3', 'Teams alert', 'CERT-1'),
+      ]);
     await settle();
   }
 
   it('says that Jira and ServiceNow are demo ones and lists the products of the chosen department', async () => {
-    expect(text(page().querySelector('dso-integration-note'))).toContain('Jira is not connected yet');
-    expect(wizard()['groups']().map((group) => group.name)).toEqual([
-      'Corporate Technology',
-      'Not in a department',
-    ]);
+    expect(text(page().querySelector('dso-integration-note'))).toContain(
+      'Jira is not connected yet',
+    );
+    expect(
+      wizard()
+        ['groups']()
+        .map((group) => group.name),
+    ).toEqual(['Corporate Technology', 'Not in a department']);
 
     wizard()['departmentId'].setValue(null);
-    expect(wizard()['productsInDepartment']().map((p) => p.name)).toEqual(['Payments Hub']);
+    expect(
+      wizard()
+        ['productsInDepartment']()
+        .map((p) => p.name),
+    ).toEqual(['Payments Hub']);
     wizard()['departmentId'].setValue(3);
-    expect(wizard()['productsInDepartment']().map((p) => p.name)).toEqual(['CertScanner']);
+    expect(
+      wizard()
+        ['productsInDepartment']()
+        .map((p) => p.name),
+    ).toEqual(['CertScanner']);
 
     await next();
     expect(text(page().querySelector('.choice-error'))).toBe('Choose the product');
@@ -104,7 +121,9 @@ describe('ChangeWizard', () => {
     );
     await next();
     expect(wizard()['step']()).toBe(0);
-    expect(wizard()['stepProblem']()).toBe('The product needs its ServiceNow change template first');
+    expect(wizard()['stepProblem']()).toBe(
+      'The product needs its ServiceNow change template first',
+    );
     expect(wizard().hasUnsavedChanges()).toBe(false);
   });
 
@@ -143,7 +162,9 @@ describe('ChangeWizard', () => {
     preview.flush(productionChange({ id: null, number: null, createdAt: null }));
     await settle();
     expect(wizard()['shortDescription'].value).toBe('CertScanner release: Expiry alerts');
-    expect(text(page().querySelector('.tasks'))).toContain('Deploy gui of CertScanner to production');
+    expect(text(page().querySelector('.tasks'))).toContain(
+      'Deploy gui of CertScanner to production',
+    );
     wizard()['shortDescription'].setValue('CertScanner 2.4');
 
     expect(wizard()['nextLabel']()).toBe('Raise the change in ServiceNow');
@@ -176,6 +197,10 @@ describe('ChangeWizard', () => {
     http.expectOne('/api/changes/preview').flush(productionChange({ id: null, number: null }));
     await settle();
     wizard()['description'].setValue('Mine');
+    wizard()['shortDescription'].setValue('é'.repeat(81));
+    expect(wizard()['shortDescription'].hasError('columnLength')).toBe(true);
+    wizard()['shortDescription'].setValue('é'.repeat(80));
+    expect(wizard()['shortDescription'].valid).toBe(true);
 
     wizard()['back']();
     await next();
@@ -213,7 +238,10 @@ describe('ChangeWizard', () => {
     await settle();
     http
       .expectOne((request) => request.url === storiesUrl)
-      .flush([story('CERT-2', 'E-mail the owner', 'CERT-1'), story('CERT-6', 'Record it', 'CERT-5')]);
+      .flush([
+        story('CERT-2', 'E-mail the owner', 'CERT-1'),
+        story('CERT-6', 'Record it', 'CERT-5'),
+      ]);
     await settle();
     expect(wizard()['epicKeys']()).toEqual(['CERT-1', 'CERT-5']);
     expect(wizard()['storyKeys']()).toEqual(['CERT-2', 'CERT-6']);
@@ -231,6 +259,30 @@ describe('ChangeWizard', () => {
     expect(wizard()['epicKeys']()).toEqual([]);
     expect(wizard()['storyKeys']()).toEqual([]);
     expect(wizard()['issueText'](epic('CERT-1', 'A'))).toBe('Done · updated 2026-09-20');
+  });
+
+  it('drops the epics a narrower range leaves out and holds the step while issues cannot be loaded', async () => {
+    await chooseCertScanner();
+    await next();
+    await scope();
+
+    wizard()['epicFrom'].setValue('2026-10-01');
+    await settle();
+    http.expectOne((request) => request.url === epicsUrl).flush([epic('CERT-5', 'Audit trail')]);
+    await settle();
+    expect(wizard()['epicKeys']()).toEqual([]);
+    expect(wizard()['storyKeys']()).toEqual([]);
+
+    wizard()['toggleEpic']('CERT-5', true);
+    await settle();
+    http
+      .expectOne((request) => request.url === storiesUrl)
+      .flush({ detail: 'from must not be after to' }, { status: 400, statusText: 'Bad Request' });
+    await settle();
+    expect([...page().querySelectorAll('.choice-error')].map((error) => text(error))).toContain(
+      'The stories could not be loaded: from must not be after to',
+    );
+    expect(wizard()['stepProblem']()).toBe('Choose dates the epics and stories can be loaded for');
   });
 
   it('takes a window the user types and refuses one that ends before it starts', async () => {

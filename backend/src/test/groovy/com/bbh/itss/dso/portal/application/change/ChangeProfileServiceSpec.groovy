@@ -82,6 +82,6 @@ class ChangeProfileServiceSpec extends Specification {
         0 * profiles.save(_)
 
         where:
-        version << [1L, 3L]
+        version << [1L, 3L, null]
     }
 }

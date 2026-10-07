@@ -109,6 +109,8 @@ class ProductionChangeServiceSpec extends Specification {
         'a window ending first'     | [end: START]                                      || [end: 'must be after the start']
         'a window over seven days'  | [end: START.plusSeconds(8 * 86400)]               || [end: 'a change window may last at most 7 days']
         'a change without a window' | [start: null, end: null]                          || [start: 'choose when the change starts', end: 'choose when the change ends']
+        'a short description over 160 bytes' | [shortDescription: 'é' * 81]          || [shortDescription: 'is too long: it may take at most 160 bytes']
+        'a description over 4000 bytes' | [description: 'ł' * 2001]                   || [description: 'is too long: it may take at most 4000 bytes']
     }
 
     def "a product without a ServiceNow change template cannot raise changes or read Jira"() {

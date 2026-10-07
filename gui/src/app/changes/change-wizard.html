@@ -55,11 +55,15 @@
             <mat-label>Product</mat-label>
             <mat-select [formControl]="productId">
               @for (product of productsInDepartment(); track product.id) {
-                <mat-option [value]="product.id">{{ product.name }} ({{ product.code }})</mat-option>
+                <mat-option [value]="product.id"
+                  >{{ product.name }} ({{ product.code }})</mat-option
+                >
               }
             </mat-select>
             @if (departmentId.dirty) {
-              <mat-hint>{{ counted(productsInDepartment().length, 'product') }} in the department</mat-hint>
+              <mat-hint
+                >{{ counted(productsInDepartment().length, 'product') }} in the department</mat-hint
+              >
             }
           </mat-form-field>
         </div>
@@ -133,7 +137,7 @@
           <mat-progress-bar mode="indeterminate" />
         }
         @if (epics.error(); as error) {
-          <p class="choice-error">The epics could not be loaded: {{ error.message }}</p>
+          <p class="choice-error">The epics could not be loaded: {{ errorMessage(error) }}</p>
         }
         @if (epics.hasValue()) {
           @if (epics.value().length) {
@@ -172,6 +176,9 @@
         </div>
         @if (stories.isLoading()) {
           <mat-progress-bar mode="indeterminate" />
+        }
+        @if (stories.error(); as error) {
+          <p class="choice-error">The stories could not be loaded: {{ errorMessage(error) }}</p>
         }
         @for (group of storyGroups(); track group.key) {
           <div class="story-group">
@@ -257,8 +264,9 @@
             <dd>{{ windowText(draft.window.start, draft.window.end) }}</dd>
             <dt>Type, risk and impact</dt>
             <dd>
-              {{ typeLabel(draft.template.type) }} change · {{ riskLabel(draft.template.risk) }} risk
-              · {{ impactLabel(draft.template.impact) }} impact
+              {{ typeLabel(draft.template.type) }} change ·
+              {{ riskLabel(draft.template.risk) }} risk ·
+              {{ impactLabel(draft.template.impact) }} impact
             </dd>
             <dt>Configuration item</dt>
             <dd>{{ draft.template.configurationItem }}</dd>
@@ -268,7 +276,8 @@
             <dd>{{ draft.template.approvers.join(', ') }}</dd>
             <dt>Jira scope</dt>
             <dd>
-              {{ counted(draft.epicKeys.length, 'epic') }} and {{ storiesText(draft.storyKeys.length) }}
+              {{ counted(draft.epicKeys.length, 'epic') }} and
+              {{ counted(draft.storyKeys.length, 'story', 'stories') }}
             </dd>
           </dl>
           <h3>Change tasks</h3>
@@ -354,7 +363,9 @@
         <button mat-flat-button type="button" (click)="restart()">Raise another change</button>
       } @else {
         @if (step() > 0) {
-          <button mat-button type="button" [disabled]="raising()" (click)="back()">Back</button>
+          <button mat-button type="button" [disabled]="raising() || previewing()" (click)="back()">
+            Back
+          </button>
         }
         <span class="spacer"></span>
         <button

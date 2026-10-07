@@ -7,7 +7,6 @@ import {
   presetWindow,
   recentDays,
   storiesFollowing,
-  storiesText,
   toggled,
   windowProblem,
   windowText,
@@ -45,7 +44,10 @@ describe('change model', () => {
     expect(fromLocalInput('')).toBeNull();
     expect(fromLocalInput('not a date')).toBeNull();
     expect(recentDays(at('2026-10-07T09:30:00'))).toEqual({ from: '2026-07-09', to: '2026-10-07' });
-    expect(recentDays(at('2026-10-07T09:30:00'), 7)).toEqual({ from: '2026-09-30', to: '2026-10-07' });
+    expect(recentDays(at('2026-10-07T09:30:00'), 7)).toEqual({
+      from: '2026-09-30',
+      to: '2026-10-07',
+    });
   });
 
   it('says what is wrong with a change window', () => {
@@ -79,15 +81,16 @@ describe('change model', () => {
 
     expect(storiesFollowing(loaded, [], new Set())).toEqual(['CERT-2', 'CERT-3']);
     expect(storiesFollowing(loaded, ['CERT-3'], new Set(['CERT-2', 'CERT-3']))).toEqual(['CERT-3']);
-    expect(storiesText(1)).toBe('1 story');
-    expect(storiesText(0)).toBe('0 stories');
     expect(toggled(['A'], 'B', true)).toEqual(['A', 'B']);
     expect(toggled(['A', 'B'], 'B', true)).toEqual(['A', 'B']);
     expect(toggled(['A', 'B'], 'A', false)).toEqual(['B']);
   });
 
   it('asks for a change with the chosen services, Jira keys and window', () => {
-    const window = { start: new Date('2026-10-10T06:00:00Z'), end: new Date('2026-10-10T10:00:00Z') };
+    const window = {
+      start: new Date('2026-10-10T06:00:00Z'),
+      end: new Date('2026-10-10T10:00:00Z'),
+    };
 
     expect(changeRequest(1, [10, 11], [epic('CERT-1', 'A').key], ['CERT-2'], window)).toEqual({
       productId: 1,
