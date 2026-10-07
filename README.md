@@ -49,7 +49,7 @@ the same security pipeline, since the run reads the security run state of the pr
 devSecOpsPipeline(pipelineKeys: ['6f1c2d3e-0000-4abc-9def-123456789abc', 'a1b2c3d4-0000-4abc-9def-123456789abc'])
 ```
 
-During the cutover, pin the portal-integrated library version (for example `DevSecOpsJenkinsLibrary@DSOwithMgmtPortal`)
+During the cutover, pin the portal-integrated library version (for example `DevSecOpsJenkinsLibrary@main`)
 in the Global Settings' shared library (`platform.jenkinsLibrary`, the name the generated Jenkinsfiles load) and in
 the `@Library` line of every migrated job, until every job carries a key.
 
