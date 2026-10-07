@@ -257,6 +257,7 @@ class BeadleAdminSpec extends EditorSpecification {
 
         when:
         input(dialog(), 'What it does').fill('Certificate scanner API')
+        dialogButton('Next').click()
         dialogButton('Save service').click()
 
         then:
