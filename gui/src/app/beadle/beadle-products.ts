@@ -1,4 +1,3 @@
-import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
@@ -10,6 +9,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, filter, map } from 'rxjs';
+import { ChangesApi } from '../changes/change-api';
 import { DepartmentsApi, ProductsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { Product, ProductSummary } from '../core/models';
@@ -18,13 +18,6 @@ import { beadleProduct } from '../core/sections';
 import { DepartmentGroup, byDepartment } from '../products/departments';
 import { RelativeTimePipe, counted } from '../shared/formatting';
 import { ProductDialog, ProductDialogData } from './product-dialog';
-
-export interface StoredDefaults {
-  productId: number;
-  productName: string;
-  version: number;
-  updatedAt: string;
-}
 
 function tally(group: DepartmentGroup): string {
   const { productCount, serviceCount } = group.department ?? {
@@ -53,7 +46,7 @@ function tally(group: DepartmentGroup): string {
 export class BeadleProducts {
   private readonly api = inject(ProductsApi);
   private readonly departmentsApi = inject(DepartmentsApi);
-  private readonly http = inject(HttpClient);
+  private readonly changesApi = inject(ChangesApi);
   private readonly dialog = inject(MatDialog);
   private readonly notifier = inject(Notifier);
   private readonly router = inject(Router);
@@ -76,7 +69,7 @@ export class BeadleProducts {
   });
   protected readonly departments = rxResource({ stream: () => this.departmentsApi.list() });
   protected readonly defaults = rxResource({
-    stream: () => this.http.get<StoredDefaults[]>('/api/change-profiles'),
+    stream: () => this.changesApi.profiles(),
   });
   protected readonly stored = computed(
     () =>

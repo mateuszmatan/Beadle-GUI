@@ -7,7 +7,8 @@ import { of } from 'rxjs';
 import { Department, ProductSummary } from '../core/models';
 import { buttonOf, text } from '../testing/dom';
 import { department, product, productSummary } from '../testing/fixtures';
-import { BeadleProducts, StoredDefaults } from './beadle-products';
+import { ChangeProfileSummary } from '../changes/change-api';
+import { BeadleProducts } from './beadle-products';
 import { ProductDialog } from './product-dialog';
 
 describe('BeadleProducts', () => {
@@ -30,7 +31,7 @@ describe('BeadleProducts', () => {
     departmentName: 'Fund Services',
     serviceCount: 4,
   });
-  const saved: StoredDefaults = {
+  const saved: ChangeProfileSummary = {
     productId: 1,
     productName: 'CertScanner',
     version: 2,
@@ -64,7 +65,7 @@ describe('BeadleProducts', () => {
   async function load(
     products: ProductSummary[] = [productSummary(), payments],
     departments: Department[] = [department(), fundServices],
-    defaults: StoredDefaults[] | null = [saved],
+    defaults: ChangeProfileSummary[] | null = [saved],
   ) {
     fixture.detectChanges();
     http.expectOne('/api/products').flush(products);

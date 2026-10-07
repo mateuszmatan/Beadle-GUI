@@ -55,8 +55,8 @@ import { ProductAdmin } from './product-admin';
         <div>
           <h1>{{ productName() }}</h1>
           <p>
-            The product, its services and the ServiceNow defaults of its production changes. The
-            app owner who raises a change sees the defaults filled in and can change any of them.
+            The product, its services and the ServiceNow defaults of its production changes. The app
+            owner who raises a change sees the defaults filled in and can change any of them.
           </p>
         </div>
       </header>
