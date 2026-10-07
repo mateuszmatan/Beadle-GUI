@@ -1,0 +1,112 @@
+<section class="card toolbar">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
+    <input
+      matInput
+      [formControl]="search"
+      placeholder="Search by name, code, team, department or description"
+      aria-label="Search products"
+    />
+  </mat-form-field>
+  @if (groups()) {
+    <span class="muted count">{{ total() }}</span>
+  }
+  <span class="spacer"></span>
+  <button mat-flat-button type="button" (click)="add()">Add product</button>
+</section>
+
+@if (products.isLoading() || departments.isLoading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+@if (products.error() ?? departments.error(); as error) {
+  <div class="banner">{{ errorMessage(error) }}</div>
+} @else if (groups(); as shown) {
+  @if (empty()) {
+    <section class="card empty-state">
+      @if (query()) {
+        <h3>No product matches "{{ query() }}"</h3>
+        <p>Try another name, code, team or department.</p>
+      } @else {
+        <h3>No products yet</h3>
+        <p>Add the first product, then its services and the defaults of its ServiceNow changes.</p>
+        <button mat-flat-button type="button" (click)="add()">Add product</button>
+      }
+    </section>
+  }
+  @for (group of shown; track group.department?.id) {
+    <section class="card department">
+      <header class="department-header">
+        <div class="department-title">
+          <h2>{{ group.name }}</h2>
+          @if (group.department || !query()) {
+            <span class="tally">{{ tally(group) }}</span>
+          }
+        </div>
+        @if (group.department; as department) {
+          <button mat-button type="button" (click)="add(department.id)">Add product</button>
+        } @else {
+          <p class="muted hint">Change these products to choose their department.</p>
+        }
+      </header>
+
+      @if (group.products.length === 0) {
+        <p class="muted no-products">No products in {{ group.name }} yet.</p>
+      } @else {
+        <div class="table-scroll">
+          <table mat-table [dataSource]="group.products">
+            <ng-container matColumnDef="product">
+              <th mat-header-cell *matHeaderCellDef>Product</th>
+              <td mat-cell *matCellDef="let product">
+                <div class="product">
+                  <a
+                    class="name quiet-link"
+                    [routerLink]="beadleProduct(product.id)"
+                    (click)="$event.stopPropagation()"
+                    >{{ product.name }}</a
+                  >
+                  <span class="code mono">{{ product.code }}</span>
+                </div>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="ownerTeam">
+              <th mat-header-cell *matHeaderCellDef>Owner team</th>
+              <td mat-cell *matCellDef="let product">{{ product.ownerTeam ?? '–' }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="services">
+              <th mat-header-cell *matHeaderCellDef class="number">Services</th>
+              <td mat-cell *matCellDef="let product" class="number">
+                {{ product.serviceCount }}
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="defaults">
+              <th mat-header-cell *matHeaderCellDef>ServiceNow defaults</th>
+              <td mat-cell *matCellDef="let product">
+                @if (defaults.error(); as error) {
+                  <span class="muted" [title]="errorMessage(error)">Unknown</span>
+                } @else if (defaults.hasValue()) {
+                  @if (stored().get(product.id); as saved) {
+                    <span class="saved">Saved</span>
+                    <span class="muted"> · {{ saved.updatedAt | relative }}</span>
+                  } @else {
+                    <span class="muted">Suggested values</span>
+                  }
+                }
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="columns"></tr>
+            <tr
+              mat-row
+              *matRowDef="let product; columns: columns"
+              class="clickable"
+              (click)="open(product)"
+            ></tr>
+          </table>
+        </div>
+      }
+    </section>
+  }
+}

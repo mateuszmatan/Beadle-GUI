@@ -1,0 +1,106 @@
+<section class="card toolbar">
+  @if (departments.hasValue()) {
+    <span class="muted count">{{ summary() }}</span>
+  }
+  <span class="spacer"></span>
+  <button mat-flat-button type="button" (click)="add()">Add department</button>
+</section>
+
+@if (chart().length) {
+  <section class="card chart">
+    <header class="card-header">
+      <h2>DevSecOps pipelines by department</h2>
+      <div class="legend">
+        <span><i class="swatch active"></i>Active</span>
+        <span><i class="swatch disabled"></i>Key invalidated</span>
+      </div>
+    </header>
+    <dso-bar-chart [rows]="chart()" />
+  </section>
+}
+
+@if (departments.isLoading()) {
+  <mat-progress-bar mode="indeterminate" />
+}
+
+@if (departments.error(); as error) {
+  <div class="banner">{{ errorMessage(error) }}</div>
+} @else if (departments.hasValue()) {
+  @if (departments.value().length === 0) {
+    <section class="card empty-state">
+      <h3>No departments yet</h3>
+      <p>Add the first department, then add its products.</p>
+    </section>
+  } @else {
+    <section class="card">
+      <div class="table-scroll">
+        <table mat-table [dataSource]="departments.value()">
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>Department</th>
+            <td mat-cell *matCellDef="let department" class="name">{{ department.name }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="products">
+            <th mat-header-cell *matHeaderCellDef class="number">Products</th>
+            <td mat-cell *matCellDef="let department" class="number">
+              {{ department.productCount }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="services">
+            <th mat-header-cell *matHeaderCellDef class="number">Services</th>
+            <td mat-cell *matCellDef="let department" class="number">
+              {{ department.serviceCount }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="pipelines">
+            <th mat-header-cell *matHeaderCellDef>DevSecOps pipelines</th>
+            <td mat-cell *matCellDef="let department">
+              @if (department.pipelineCount === 0) {
+                <span class="muted">None yet</span>
+              } @else {
+                <span class="pipelines">
+                  <strong>{{ department.pipelineCount }}</strong>
+                  <span class="muted"> · {{ department.activePipelineCount }} active</span>
+                  @if (invalidated(department); as count) {
+                    <span class="revoked"> · {{ count }} invalidated</span>
+                  }
+                </span>
+              }
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let department" class="actions">
+              <button
+                mat-button
+                type="button"
+                [attr.aria-label]="'Rename ' + department.name"
+                (click)="rename(department)"
+              >
+                Rename
+              </button>
+              <span class="delete" [attr.title]="deleteHint(department)">
+                <button
+                  mat-button
+                  type="button"
+                  class="danger"
+                  [attr.aria-label]="'Delete ' + department.name"
+                  [disabled]="department.productCount > 0"
+                  (click)="delete(department)"
+                >
+                  Delete
+                </button>
+              </span>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="columns()"></tr>
+          <tr mat-row *matRowDef="let department; columns: columns()"></tr>
+        </table>
+      </div>
+    </section>
+  }
+}

@@ -2,7 +2,11 @@ package com.bbh.itss.dso.portal.application.change.port.in;
 
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
 
+import java.util.List;
+
 public interface ChangeProfilesUseCase {
+
+    List<ChangeProfileSummary> list();
 
     ChangeProfileView get(long productId);
 

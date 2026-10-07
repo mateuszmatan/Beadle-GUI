@@ -1,36 +1,54 @@
 # BBH DevSecOps Management Portal
 
-A web portal to onboard products to DevSecOps and to watch their pipelines. Its header has two menus: **Beadle**,
-where new features land, and **DevSecOps Management**, with the four pages below.
+A web portal to onboard products to DevSecOps and to watch their pipelines. Its header has two menus:
+**DevSecOps Management** and **Beadle**, where new features land.
 
-- **Product Onboarding** (Beadle): a wizard for product managers who do not know DevSecOps. Five steps, each with at
-  most three choices: pick the Static scan, Security or Full pipeline, then a new product or one already in the
-  portal, then its services (name, AppScan application, Gradle or Maven, virtual machines or OpenShift), check and
-  save. Every service gets a pipeline of the chosen type with its own key, and the last step lists what to do next
-  in order, with the Jenkinsfile of each service ready to copy. Everything else comes from BBH defaults and the
-  Global Settings, and can be fine-tuned in Product Management.
-- **Production Change** (Beadle): raises a ServiceNow (ProTech) change for a production release. Choose the
-  department, the product and the services you deploy, the Jira epics and their stories (each list filtered by the
-  dates they were last updated) and the change window. The portal writes the short description and the description
-  from Jira, lets you edit them, and raises one change (CHG) with one change task (CTASK) per service. See
-  [ServiceNow production changes](#servicenow-production-changes).
-- **DevSecOps Product Management**: add a product with all of its services and every setting the DevSecOps library
-  ([DSOEnhanced](https://github.com/mateuszmatan/DSOEnhanced)) reads from `config.yaml` today. Every new service
-  gets a full pipeline with its own key; keys can be invalidated, regenerated and linked to a Jenkins job, and each
-  service names the Bitbucket repository where DSOEnhanced raises its GoldenFix pull requests. Products live in
-  departments, and each department shows how many DevSecOps pipelines it has for how many products. The five BBH
-  departments (AI Lab, Capital Partners, Corporate Technology, Custody and Fund Services) come with the database; a
-  product saved before departments existed shows as "Not in a department" until it is edited, which means choosing one.
-  A chart on top compares the active and invalidated pipelines of every department.
-- **DevSecOps Pipeline Monitoring**: the DORA metrics and daily runs of all pipelines over the last 30 days, a chart
-  of pipeline status per department, every product with the status of its pipelines grouped by department, and per
-  pipeline its DORA metrics, daily activity, latest runs, the Jenkins job and your DSOEnhanced Grafana dashboard, all
-  read from the InfluxDB the pipelines write to.
-- **DevSecOps Change Evidence**: a read-only view of a product for ServiceNow change requests: per pipeline the
-  unit, smoke, regression and performance tests, the SAST, DAST, SonarQube and Nexus IQ results, the release gate and
-  the Jenkins build that produced them, with its artifact version and the portal configuration it ran with.
-- **DevSecOps Global Settings**: the settings every pipeline shares and no service can override. They replace the
-  library's `defaults.yaml`.
+DevSecOps Management:
+
+- **Self-service**: a step-by-step wizard for app owners who do not know DevSecOps. It sets up a new product or
+  changes one already in the portal: choose the department and the product, then the Static scan, Security or Full
+  pipeline (for a product in the portal the step shows which pipelines each service has today and how many services
+  already have each one), then the services: add new ones (name, AppScan application, Gradle or Maven, virtual
+  machines or OpenShift), change the existing ones (including their build tool and where they run) or remove them.
+  The review lists what is added, changed and removed, which services gain the pipeline and which pipelines a removal
+  deletes; the last step lists what to do next in order, with the Jenkinsfile of each service ready to copy.
+  Everything else comes from the BBH library defaults and can be fine-tuned in DevSecOps Admin.
+- **Pipeline Monitoring**: the DORA metrics and daily runs of all pipelines over the last 30 days, a chart of pipeline
+  status per department, every product with the status of its pipelines grouped by department, and per pipeline its
+  DORA metrics, daily activity, latest runs, the Jenkins job and your DSOEnhanced Grafana dashboard, all read from the
+  InfluxDB the pipelines write to.
+- **Change Evidence**: a read-only view of a product for ServiceNow change requests: per pipeline the unit, smoke,
+  regression and performance tests, the SAST, DAST, SonarQube and Nexus IQ results, the release gate and the Jenkins
+  build that produced them, with its artifact version and the portal configuration it ran with.
+- **Admin**, for the portal administrator, in three tabs:
+  - **Departments**: add, rename and delete departments (only an empty one can be deleted), each with its products,
+    services and DevSecOps pipelines, and a chart of the active and invalidated pipelines of every department. The
+    five BBH departments (AI Lab, Capital Partners, Corporate Technology, Custody and Fund Services) come with the
+    database.
+  - **Products**: add a product with all of its services and every setting the DevSecOps library
+    ([DSOEnhanced](https://github.com/mateuszmatan/DSOEnhanced)) reads from `config.yaml` today, edit or delete it.
+    Every new service gets a full pipeline with its own key; keys can be invalidated, regenerated and linked to a
+    Jenkins job, and each service names the Bitbucket repository where DSOEnhanced raises its GoldenFix pull
+    requests. A product saved before departments existed shows as "Not in a department" until it is edited, which
+    means choosing one.
+  - **Library defaults**: the DSOEnhanced library defaults every pipeline shares and no service can override. They
+    replace the library's `defaults.yaml`.
+
+Beadle:
+
+- **Production Change**: raises a ServiceNow (ProTech) change for a production release. Choose the department and the
+  product, then type the Jira FixVersion of the release (the known versions are offered, unreleased first): its epics
+  are listed, and choosing epics loads their stories. Then check the ServiceNow fields, filled in from the product's
+  defaults and editable for this change, and the schedule: the installation date turns the default start time and
+  durations into the installation, post-install validation and first usage times, each editable. The portal writes
+  the short description and the description from Jira, lets you edit them, and raises one change (CHG) with one
+  change task (CTASK) per service. See [ServiceNow production changes](#servicenow-production-changes).
+- **Admin**, in two tabs: **Departments** (the same departments as DevSecOps Admin, without the pipeline counts) and
+  **Products**: every product by department with the state of its ServiceNow defaults. Add a product; on its page
+  change its name, department, owner team and contact e-mail, delete it, add, change and remove its services, and
+  keep its ServiceNow defaults (see [ServiceNow production changes](#servicenow-production-changes)).
+
+Departments, products and services are one data set: both Admin areas edit the same records.
 
 No `config.yaml` remains in the product repositories. The portal-integrated library reads each pipeline's
 configuration from the portal by its key, so a service needs only the generic Jenkinsfile and its pipeline key:
@@ -42,7 +60,7 @@ devSecOpsPipeline(pipelineKey: '6f1c2d3e-0000-4abc-9def-123456789abc')
 ```
 
 A run that builds several services of one product passes the keys of their pipelines of that type, the primary service
-first; the product page offers this Jenkinsfile in the menu of a pipeline. Extended pipelines join only when they name
+first; the product page in DevSecOps Admin offers this Jenkinsfile in the menu of a pipeline. Extended pipelines join only when they name
 the same security pipeline, since the run reads the security run state of the primary's only:
 
 ```groovy
@@ -50,7 +68,7 @@ devSecOpsPipeline(pipelineKeys: ['6f1c2d3e-0000-4abc-9def-123456789abc', 'a1b2c3
 ```
 
 During the cutover, pin the portal-integrated library version (for example `DevSecOpsJenkinsLibrary@main`)
-in the Global Settings' shared library (`platform.jenkinsLibrary`, the name the generated Jenkinsfiles load) and in
+in the shared library of Admin > Library defaults (`platform.jenkinsLibrary`, the name the generated Jenkinsfiles load) and in
 the `@Library` line of every migrated job, until every job carries a key.
 
 ## Running it locally
@@ -62,7 +80,7 @@ Needs Java 21. The Gradle wrapper downloads Gradle, and the build downloads its 
 java -jar backend/build/libs/dso-portal-0.1.0-SNAPSHOT.jar
 ```
 
-Open http://localhost:8080, or http://localhost:8080/beadle/onboarding for the onboarding wizard. Without a profile
+Open http://localhost:8080, or http://localhost:8080/self-service for the Self-service wizard. Without a profile
 the portal runs with `local`: an embedded H2 database in Oracle mode in `./data`, with demo products on the first
 start. Every feature works on it. `./gradlew :backend:bootRun` does the same without building the jar (the database
 then lives in `backend/data`).
@@ -84,12 +102,13 @@ service's `project` variable and the selected time range. Grafana must let porta
 The `local` profile sets `dso.demo-data=true` (`DSO_DEMO_DATA`). On the first start it fills the H2 database in
 `./data` with ten products in the five departments: 23 services and 46 pipelines, 44 of them with an active key. The
 loader (`adapter/in/startup/DemoDataLoader.java`) adds the demo products that are missing and does nothing once the
-database holds all of them or any product of its own; it also sets the Global Settings' Jenkins URL to
+database holds all of them or any product of its own; it also sets the Jenkins URL of the library defaults to
 `https://jenkins.bbh.com` when none is set, so that job and build links work. `rd`, `qc` and `prod` (Oracle) get only
-the five departments, from Liquibase, and the BBH default Global Settings; no product, service, pipeline or metric is
-seeded there. Every demo product also gets a filled ServiceNow change template
-(`adapter/in/startup/DemoChangeProfiles.java`): a risk, an impact, a risk assessment and two to four approving
-managers, picked with a fixed seed per product code.
+the five departments, from Liquibase, and the BBH library defaults; no product, service, pipeline or metric is
+seeded there. Every demo product also gets filled ServiceNow defaults
+(`adapter/in/startup/DemoChangeProfiles.java`): approvers, schedule defaults, planning texts and a risk assessment,
+picked with a fixed seed per product code, and privileged access for Payments Hub. The demo Jira knows two released
+and one or two unreleased FixVersions per project, for example `PAYHUB 2.4`.
 
 | Department | Product (code) | Services | Build and deploy | Pipelines |
 |------------|----------------|----------|------------------|-----------|
@@ -188,7 +207,7 @@ SPRING_PROFILES_ACTIVE=qc DB_URL=jdbc:oracle:thin:@//<host>:1521/<service> DB_US
 ```
 
 Liquibase creates and updates the schema at start-up, on Oracle and on H2. The BBH tool servers and everything else
-pipelines share are stored in the database and edited in the Global Settings tab. Secrets never reach the portal:
+pipelines share are stored in the database and edited in Admin > Library defaults. Secrets never reach the portal:
 services name Jenkins credentials IDs, and the generated configuration carries only those IDs.
 
 ## OpenShift
@@ -469,27 +488,43 @@ never does.
 
 ## ServiceNow production changes
 
-Every product has a ServiceNow change template, edited from its page (**ServiceNow change**): the Jira project key,
-the configuration item, the assignment group, the change type and category, the risk and impact with the risk
-assessment, the managers who approve its changes, a description of the product and the implementation, backout and
-test plans. A product without one gets a suggestion from its code, name and owner team, which is saved once its risk
-assessment and approvers are filled in; the demo data fills in every demo product.
+Every product has ServiceNow defaults, kept by the administrator in Beadle Admin on the product's page:
 
-The Beadle wizard combines that template with what changes this time: the services (one change task each, in the
-order of the product), the epics and stories of the product's Jira project (the stories only of the chosen epics, each
-list with its own range of update dates, 90 days by default) and the change window (tonight, this weekend or a time of
-your choice, at most seven days long, always in the future). The short description lists the epics; the description
-names the product, its department, the window and the change tasks, lists every epic with its chosen stories and ends
-with the product description, cut to the 160 and 4000 characters ServiceNow takes. Both stay editable until the change
-is raised. A raised change is stored in the portal with its numbers, its texts and a copy of the template it used, so
-it outlives later template edits and the product itself.
+- **Change**: Jira project key, assignment group, category, type (normal, standard or emergency), affected CI,
+  release, incident, problem, affected clients and a description of the product.
+- **Approvers**: L1 manager, L2 manager and business approver.
+- **Schedule defaults**: downtime yes or no, the installation start time, how many hours the installation takes and
+  how many hours the post-install validation takes.
+- **Planning**: test summary, implementation plan, validation plan, backout plan and first use plan.
+- **Privileged access**: yes or no; when yes, up to seven users, each with the name of their privileged account.
+- **Risk assessment**: the numbers of BBH workgroups, BBH users and BBH applications impacted, of impacted clients and
+  of impacted clients outside BBH, the business impact, the complexity of the change and of its validation, backout
+  testing and duration, and the platform status. Business impact, the two complexities and the platform status offer
+  Low/Medium/High and Existing platform/New platform/Platform upgrade as suggestions until the ProTech value lists are
+  known; any text is accepted.
+
+A product without saved defaults gets suggested values from its code, name, owner team and description, and the
+demo data fills in every demo product.
+
+The Production Change wizard starts from those defaults and lets the app owner change any field for this change. It
+adds what changes this time: the services (one change task each, in the order of the product), the Jira FixVersion
+with its epics (the epics that carry the FixVersion or have a story that does) and the chosen epics' stories that carry
+it, and the schedule: installation start and end, post-install validation start and end and first usage, in that
+order, the installation in the future. The portal asks Jira again when the change is previewed or raised and refuses
+an epic or story the FixVersion does not list. The release is the FixVersion unless the defaults or the user name
+another.
+The short description names the product, the FixVersion and the epics; the description names the product, its
+department, the schedule, downtime and the change tasks, lists every epic with its chosen stories, then the planning
+texts, privileged access, the risk assessment and the product description, cut to the 160 and 4000 characters
+ServiceNow takes. Both stay editable until the change is raised. A raised change is stored in the portal with its
+numbers, its texts and a copy of the fields it used, so it outlives later edits of the defaults and the product itself.
 
 Jira and ServiceNow sit behind two ports, `JiraPort` and `ServiceNowPort`. The portal ships demo adapters only: the
 Jira one makes up a steady set of epics and stories per project key, and the ServiceNow one hands out demo `CHG` and
 `CTASK` numbers without calling anything. The pages say so. Connecting the real systems needs:
 
-- **Jira**: an adapter that searches the project with JQL (`issuetype = Epic AND updated >= ... AND updated <= ...`,
-  and the stories by their epic link or parent), the Jira base URL and a service account token in an OpenShift secret,
+- **Jira**: an adapter that lists the project's versions and searches it with JQL (`fixVersion = "..."` for the
+  stories, the epics by that FixVersion or as the parents of those stories, and the stories of the chosen epics), the Jira base URL and a service account token in an OpenShift secret,
   and HTTPS access from the portal pods to Jira.
 - **ServiceNow (ProTech)**: an adapter that creates the change with the Change Management API
   (`POST /api/sn_chg_rest/change/normal`, or `standard`/`emergency` by type) and one change task per service, the
@@ -526,7 +561,8 @@ Moving the configuration into the portal changes these behaviours of the library
 ## Preconditions before wider use
 
 This change does not bring BBH single sign-on with roles, an audit trail of who changed what, or a history of the
-rendered configuration; the owner decides on them later. Until they exist the portal must not be
+rendered configuration; the owner decides on them later. Both Admin areas are open to every user of the portal until
+an administrator role exists. Until they exist the portal must not be
 reachable outside the test network, because a portal edit now steers every build and pipeline keys are bearer
 secrets.
 
@@ -548,10 +584,11 @@ secrets.
 | `GET /api/monitoring/status`, `/products`, `/products/{id}`, `/pipelines/{id}?range=30d` | monitoring data |
 | `GET /api/monitoring/activity?range=30d` | the DORA summary and the daily activity of all pipelines together, as `{pipelines, dora, metricsError}`: the number of pipelines, the DORA metrics over the range with `dora.daily` (runs, failures and deployments per day), and the metrics error, if any |
 | `GET /api/evidence/products/{id}` | the change evidence of a product's pipelines |
-| `GET`/`PUT /api/settings` | the global settings; `PUT` carries the `version` it was read at |
-| `GET`/`PUT /api/products/{id}/change-profile` | the ServiceNow change template of a product; `version` is `null` until it is saved, and `PUT` carries the `version` it was read at |
-| `GET /api/products/{id}/jira/epics?from=&to=`, `/jira/stories?epics=&from=&to=` | the epics of the product's Jira project and the stories of the chosen epics, updated within the dates |
-| `POST /api/changes/preview`, `POST /api/changes` | draft a production change, or raise it with one change task per service (`productId`, `serviceIds`, `epicKeys`, `storyKeys`, `start`, `end`, and optionally the edited `shortDescription` and `description`) |
+| `GET`/`PUT /api/settings` | the DSOEnhanced library defaults (Admin > Library defaults); `PUT` carries the `version` it was read at |
+| `GET`/`PUT /api/products/{id}/change-profile` | the ServiceNow defaults of a product; `version` is `null` until they are saved (the template then holds the suggestion), and `PUT` carries the `version` it was read at |
+| `GET /api/change-profiles` | the products with saved ServiceNow defaults: `productId`, `productName`, `version`, `updatedAt` |
+| `GET /api/products/{id}/jira/versions`, `/jira/epics?fixVersion=`, `/jira/stories?fixVersion=&epics=` | the FixVersions of the product's Jira project (unreleased first), the epics of a FixVersion and the stories of the chosen epics that carry it; `project=` names another Jira project key |
+| `POST /api/changes/preview`, `POST /api/changes` | draft a production change, or raise it with one change task per service (`productId`, `serviceIds`, `fixVersion`, `epicKeys`, `storyKeys`, `schedule` with `installationStart`, `installationEnd`, `validationStart`, `validationEnd` and `firstUsage`, the ServiceNow fields as `template`, and optionally the edited `shortDescription` and `description`) |
 | `GET /api/changes`, `/api/changes/{id}`, `/api/changes/integrations` | the raised changes, newest first, one change, and whether Jira and ServiceNow are connected |
 
 A `range` is a number of days from `1d` to `730d`, `30d` when left out. Errors are RFC 9457 problem details;

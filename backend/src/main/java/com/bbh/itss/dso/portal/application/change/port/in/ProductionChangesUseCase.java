@@ -1,7 +1,7 @@
 package com.bbh.itss.dso.portal.application.change.port.in;
 
-import com.bbh.itss.dso.portal.domain.change.DateRange;
 import com.bbh.itss.dso.portal.domain.change.JiraIssue;
+import com.bbh.itss.dso.portal.domain.change.JiraVersion;
 import com.bbh.itss.dso.portal.domain.change.ProductionChange;
 
 import java.util.List;
@@ -14,9 +14,11 @@ public interface ProductionChangesUseCase {
 
     ChangeIntegrations integrations();
 
-    List<JiraIssue> epics(long productId, DateRange updated);
+    List<JiraVersion> versions(long productId, String project);
 
-    List<JiraIssue> stories(long productId, List<String> epicKeys, DateRange updated);
+    List<JiraIssue> epics(long productId, String fixVersion, String project);
+
+    List<JiraIssue> stories(long productId, String fixVersion, List<String> epicKeys, String project);
 
     ProductionChange preview(ChangeCommand command);
 

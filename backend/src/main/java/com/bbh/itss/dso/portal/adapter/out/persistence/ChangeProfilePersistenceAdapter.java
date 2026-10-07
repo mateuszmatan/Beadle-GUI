@@ -1,10 +1,12 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
+import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileSummary;
 import com.bbh.itss.dso.portal.application.change.port.out.ChangeProfileRepositoryPort;
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 
 import static com.bbh.itss.dso.portal.domain.shared.Failures.staleVersion;
@@ -14,6 +16,11 @@ import static com.bbh.itss.dso.portal.domain.shared.Failures.staleVersion;
 class ChangeProfilePersistenceAdapter implements ChangeProfileRepositoryPort {
 
     private final ChangeProfileJpaRepository profiles;
+
+    @Override
+    public List<ChangeProfileSummary> summaries() {
+        return profiles.summaries();
+    }
 
     @Override
     public Optional<ChangeProfile> find(long productId) {

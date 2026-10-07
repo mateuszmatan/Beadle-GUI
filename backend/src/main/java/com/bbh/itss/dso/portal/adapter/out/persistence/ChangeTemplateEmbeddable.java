@@ -1,56 +1,81 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
+import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess;
+import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedUser;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.Enumerated;
-import lombok.NoArgsConstructor;
+import org.hibernate.annotations.EmbeddedColumnNaming;
 
 import java.util.List;
 
+import static com.bbh.itss.dso.portal.adapter.RecordMapper.map;
 import static jakarta.persistence.EnumType.STRING;
-import static lombok.AccessLevel.PROTECTED;
 
 @Embeddable
-@NoArgsConstructor(access = PROTECTED)
-public class ChangeTemplateEmbeddable {
+public record ChangeTemplateEmbeddable(
+        String jiraProjectKey,
+        String assignmentGroup,
+        String category,
+        @Enumerated(STRING) @Column(name = "CHANGE_TYPE") ChangeTemplate.Type type,
+        String configurationItem,
+        @Column(name = "RELEASE_NAME") String release,
+        @Column(name = "INCIDENT_NUMBER") String incident,
+        @Column(name = "PROBLEM_NUMBER") String problem,
+        String affectedClients,
+        String description,
+        ApproversEmbeddable approvers,
+        Boolean downtime,
+        @EmbeddedColumnNaming("TIMING_%s") TimingEmbeddable timing,
+        PlanningEmbeddable planning,
+        PrivilegedAccessEmbeddable privilegedAccess,
+        @EmbeddedColumnNaming("RISK_%s") RiskAssessmentEmbeddable riskAssessment) {
 
-    private String jiraProjectKey;
-    private String configurationItem;
-    private String assignmentGroup;
+    static ChangeTemplateEmbeddable of(ChangeTemplate template) {
+        return map(template, ChangeTemplateEmbeddable.class);
+    }
 
-    @Enumerated(STRING)
-    @Column(name = "CHANGE_TYPE")
-    private ChangeTemplate.Type type;
+    static List<PrivilegedUserEmbeddable> usersOf(ChangeTemplate template) {
+        return template.privilegedAccess().users().stream()
+                .map(user -> map(user, PrivilegedUserEmbeddable.class)).toList();
+    }
 
-    private String category;
+    ChangeTemplate toDomain(List<PrivilegedUserEmbeddable> users) {
+        return map(ChangeTemplate.class, new Stored(new PrivilegedAccess(privilegedAccess.required(),
+                users.stream().map(user -> map(user, PrivilegedUser.class)).toList())), this);
+    }
 
-    @Enumerated(STRING)
-    private ChangeTemplate.Risk risk;
+    private record Stored(PrivilegedAccess privilegedAccess) {
+    }
 
-    @Enumerated(STRING)
-    private ChangeTemplate.Impact impact;
+    @Embeddable
+    public record ApproversEmbeddable(@Column(name = "L1_MANAGER") String l1Manager,
+                                      @Column(name = "L2_MANAGER") String l2Manager, String businessApprover) {
+    }
 
-    private String riskAssessment;
-    private List<String> approvers;
-    private String description;
-    private String implementationPlan;
-    private String backoutPlan;
-    private String testPlan;
+    @Embeddable
+    public record TimingEmbeddable(String installationStart, Integer installationHours, Integer validationHours) {
+    }
 
-    ChangeTemplateEmbeddable(ChangeTemplate template) {
-        jiraProjectKey = template.jiraProjectKey();
-        configurationItem = template.configurationItem();
-        assignmentGroup = template.assignmentGroup();
-        type = template.type();
-        category = template.category();
-        risk = template.risk();
-        impact = template.impact();
-        riskAssessment = template.riskAssessment();
-        approvers = template.approvers();
-        description = template.description();
-        implementationPlan = template.implementationPlan();
-        backoutPlan = template.backoutPlan();
-        testPlan = template.testPlan();
+    @Embeddable
+    public record PlanningEmbeddable(String testSummary, String implementationPlan, String validationPlan,
+                                     String backoutPlan, String firstUsePlan) {
+    }
+
+    @Embeddable
+    public record PrivilegedAccessEmbeddable(@Column(name = "PRIVILEGED_ACCESS_REQUIRED") Boolean required) {
+    }
+
+    @Embeddable
+    public record PrivilegedUserEmbeddable(@Column(name = "USER_NAME") String user,
+                                           @Column(name = "ACCOUNT_NAME") String account) {
+    }
+
+    @Embeddable
+    public record RiskAssessmentEmbeddable(Integer bbhWorkgroups, Integer bbhUsers, Integer bbhApplications,
+                                           Integer clients, Integer clientsOutsideBbh, String businessImpact,
+                                           String changeComplexity, String validationComplexity,
+                                           String backoutTesting, String platformStatus) {
     }
 }

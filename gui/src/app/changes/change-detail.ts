@@ -4,13 +4,13 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { RouterLink } from '@angular/router';
 import { errorMessage } from '../core/errors';
-import { CHANGES } from '../core/sections';
-import { ChangesApi, IMPACTS, RISKS, TYPES, labelOf } from './change-api';
-import { windowText } from './change-model';
+import { CHANGES, beadleProduct } from '../core/sections';
+import { ChangesApi } from './change-api';
+import { ChangeSummary } from './change-summary';
 
 @Component({
   selector: 'dso-change-detail',
-  imports: [RouterLink, MatButtonModule, MatProgressBarModule],
+  imports: [RouterLink, MatButtonModule, MatProgressBarModule, ChangeSummary],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
@@ -27,7 +27,6 @@ import { windowText } from './change-model';
       }
       @if (change.hasValue()) {
         @let c = change.value();
-        @let t = c.template;
         <header class="page-header">
           <div>
             <h1>{{ c.number }}</h1>
@@ -38,36 +37,15 @@ import { windowText } from './change-model';
               <a mat-stroked-button [href]="c.url" target="_blank" rel="noopener">ServiceNow</a>
             }
             @if (c.productId) {
-              <a mat-stroked-button [routerLink]="['/products', c.productId]">Product</a>
+              <a mat-stroked-button [routerLink]="productLink(c.productId)">Product</a>
             }
           </div>
         </header>
+        <section class="card block">
+          <h2>Summary</h2>
+          <dso-change-summary [change]="c" />
+        </section>
         <div class="columns">
-          <section class="card block">
-            <h2>Change</h2>
-            <dl class="rows">
-              <dt>Product</dt>
-              <dd>{{ c.productName }} ({{ c.productCode }})</dd>
-              <dt>Department</dt>
-              <dd>{{ c.departmentName ?? 'not set' }}</dd>
-              <dt>Window</dt>
-              <dd>{{ windowText(c.window.start, c.window.end) }}</dd>
-              <dt>Type</dt>
-              <dd>{{ label(types, t.type) }} · {{ t.category }}</dd>
-              <dt>Risk and impact</dt>
-              <dd>{{ label(risks, t.risk) }} risk · {{ label(impacts, t.impact) }} impact</dd>
-              <dt>Configuration item</dt>
-              <dd>{{ t.configurationItem }}</dd>
-              <dt>Assignment group</dt>
-              <dd>{{ t.assignmentGroup }}</dd>
-              <dt>Approvers</dt>
-              <dd>{{ t.approvers.join(', ') }}</dd>
-              <dt>Jira</dt>
-              <dd class="mono">{{ c.epicKeys.concat(c.storyKeys).join(' ') }}</dd>
-            </dl>
-            <h3>Risk assessment</h3>
-            <p class="text">{{ t.riskAssessment }}</p>
-          </section>
           <section class="card block">
             <h2>Change tasks</h2>
             <ol class="tasks">
@@ -80,17 +58,11 @@ import { windowText } from './change-model';
               }
             </ol>
           </section>
+          <section class="card block">
+            <h2>Description</h2>
+            <pre class="text">{{ c.description }}</pre>
+          </section>
         </div>
-        <section class="card block">
-          <h2>Description</h2>
-          <pre class="text">{{ c.description }}</pre>
-          <h3>Implementation plan</h3>
-          <p class="text">{{ t.implementationPlan }}</p>
-          <h3>Backout plan</h3>
-          <p class="text">{{ t.backoutPlan }}</p>
-          <h3>Test plan</h3>
-          <p class="text">{{ t.testPlan }}</p>
-        </section>
       }
     </div>
   `,
@@ -99,7 +71,7 @@ import { windowText } from './change-model';
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 12px;
-      margin-bottom: 12px;
+      margin-top: 12px;
     }
 
     .block {
@@ -108,11 +80,6 @@ import { windowText } from './change-model';
       h2 {
         margin: 0 0 8px;
         font-size: 15px;
-      }
-
-      h3 {
-        margin: 10px 0 2px;
-        font-size: 13px;
       }
     }
 
@@ -149,11 +116,7 @@ export class ChangeDetail {
 
   protected readonly section = CHANGES;
   protected readonly errorMessage = errorMessage;
-  protected readonly windowText = windowText;
-  protected readonly label = labelOf;
-  protected readonly types = TYPES;
-  protected readonly risks = RISKS;
-  protected readonly impacts = IMPACTS;
+  protected readonly productLink = beadleProduct;
   private readonly api = inject(ChangesApi);
   protected readonly change = rxResource({
     params: () => this.id(),

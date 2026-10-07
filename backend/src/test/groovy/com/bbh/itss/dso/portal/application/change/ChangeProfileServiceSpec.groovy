@@ -1,15 +1,18 @@
 package com.bbh.itss.dso.portal.application.change
 
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase
+import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileSummary
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileView
 import com.bbh.itss.dso.portal.application.change.port.out.ChangeProfileRepositoryPort
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile
+import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess
+import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import spock.lang.Specification
 
 import java.time.Instant
 
-import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Risk.HIGH
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.suggestedFor
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.privileged
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 
@@ -57,9 +60,19 @@ class ChangeProfileServiceSpec extends Specification {
         saved == new ChangeProfileView(1L, 'CertScanner', 0L, SAVED, template())
     }
 
+    def "the stored profiles are listed as the repository sorts them"() {
+        given:
+        def stored = [new ChangeProfileSummary(2L, 'Access Hub', 0, SAVED),
+                      new ChangeProfileSummary(1L, 'CertScanner', 3, SAVED)]
+        profiles.summaries() >> stored
+
+        expect:
+        service.list() == stored
+    }
+
     def "a stored template is changed when the version matches"() {
         given:
-        def changed = template(risk: HIGH)
+        def changed = template(privilegedAccess: privileged(2))
         profiles.find(1L) >> Optional.of(new ChangeProfile(1L, template(), 2, SAVED))
 
         when:
@@ -68,7 +81,7 @@ class ChangeProfileServiceSpec extends Specification {
         then:
         1 * profiles.save(new ChangeProfile(1L, changed, 2, SAVED)) >> new ChangeProfile(1L, changed, 3, SAVED)
         saved.version() == 3L
-        saved.template().risk() == HIGH
+        saved.template().privilegedAccess().users()*.account() == ['adm_user1', 'adm_user2']
     }
 
     def "a template changed by someone else meanwhile is not saved"() {
@@ -84,5 +97,16 @@ class ChangeProfileServiceSpec extends Specification {
 
         where:
         version << [1L, 3L, null]
+    }
+
+    def "a template that breaks its rules is refused against its fields before anything is stored"() {
+        when:
+        service.save(1L, null, template(planning: null, privilegedAccess: new PrivilegedAccess(false,
+                privileged(1).users())))
+
+        then:
+        def refused = thrown(InvalidRequestException)
+        refused.problems()*.field() == ['template.planning', 'template.privilegedAccess.users']
+        0 * profiles._
     }
 }

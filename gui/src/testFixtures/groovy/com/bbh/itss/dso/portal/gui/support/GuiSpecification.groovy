@@ -33,8 +33,8 @@ abstract class GuiSpecification extends Specification {
     static final int HEIGHT = 1000
 
     static final Map<String, List<String>> MENUS = [
-            'Beadle'              : ['Overview', 'Product Onboarding', 'Production Change'],
-            'DevSecOps Management': ['Product Management', 'Pipeline Monitoring', 'Change Evidence', 'Global Settings']]
+            'Beadle'              : ['Overview', 'Production Change', 'Admin'],
+            'DevSecOps Management': ['Self-service', 'Pipeline Monitoring', 'Change Evidence', 'Admin']]
 
     static final String CLIPBOARD_RECORDER = '''
         window.dsoCopiedTexts = [];
@@ -204,8 +204,16 @@ abstract class GuiSpecification extends Specification {
     }
 
     Locator menuLink(String label) {
-        menuButton(MENUS.find { it.value.contains(label) }.key).click()
+        menuLink(MENUS.find { it.value.contains(label) }.key, label)
+    }
+
+    Locator menuLink(String menu, String label) {
+        menuButton(menu).click()
         page.locator('.mat-mdc-menu-panel').getByRole(MENUITEM, new Locator.GetByRoleOptions().setName(label).setExact(true))
+    }
+
+    Locator tab(String label) {
+        page.locator('nav.tab-bar').getByRole(LINK, new Locator.GetByRoleOptions().setName(label).setExact(true))
     }
 
     Locator field(String label) {
