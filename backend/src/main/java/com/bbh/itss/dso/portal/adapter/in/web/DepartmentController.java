@@ -36,7 +36,7 @@ public class DepartmentController {
     @PostMapping
     public ResponseEntity<DepartmentView> create(@Valid @RequestBody DepartmentRequest request) {
         DepartmentView created = departments.create(request.name());
-        return ResponseEntity.created(ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
+        return ResponseEntity.created(ServletUriComponentsBuilder.fromCurrentRequestUri().path("/{id}")
                 .buildAndExpand(created.id()).toUri()).body(created);
     }
 
