@@ -8,6 +8,7 @@ import com.bbh.itss.dso.portal.domain.change.DateRange;
 import com.bbh.itss.dso.portal.domain.change.JiraIssue;
 import com.bbh.itss.dso.portal.domain.change.ProductionChange;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,22 +19,21 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.time.LocalDate;
 import java.util.List;
 
+import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
+import static org.springframework.http.ResponseEntity.created;
+import static org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentRequest;
+
 @RestController
 @RequestMapping("/api")
+@RequiredArgsConstructor
 public class ChangeController {
 
     private final ProductionChangesUseCase changes;
     private final ChangeProfilesUseCase profiles;
-
-    public ChangeController(ProductionChangesUseCase changes, ChangeProfilesUseCase profiles) {
-        this.changes = changes;
-        this.profiles = profiles;
-    }
 
     @GetMapping("/changes")
     public List<ProductionChange> list() {
@@ -58,21 +58,20 @@ public class ChangeController {
     @PostMapping("/changes")
     public ResponseEntity<ProductionChange> raise(@Valid @RequestBody ChangeRequest request) {
         ProductionChange raised = changes.raise(request.toCommand());
-        return ResponseEntity.created(ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
-                .buildAndExpand(raised.id()).toUri()).body(raised);
+        return created(fromCurrentRequest().path("/{id}").buildAndExpand(raised.id()).toUri()).body(raised);
     }
 
     @GetMapping("/products/{id}/jira/epics")
     public List<JiraIssue> epics(@PathVariable long id,
-                                 @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-                                 @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+                                 @RequestParam @DateTimeFormat(iso = DATE) LocalDate from,
+                                 @RequestParam @DateTimeFormat(iso = DATE) LocalDate to) {
         return changes.epics(id, new DateRange(from, to));
     }
 
     @GetMapping("/products/{id}/jira/stories")
     public List<JiraIssue> stories(@PathVariable long id, @RequestParam(defaultValue = "") List<String> epics,
-                                   @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-                                   @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+                                   @RequestParam @DateTimeFormat(iso = DATE) LocalDate from,
+                                   @RequestParam @DateTimeFormat(iso = DATE) LocalDate to) {
         return changes.stories(id, epics, new DateRange(from, to));
     }
 

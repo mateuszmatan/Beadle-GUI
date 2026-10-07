@@ -1,14 +1,15 @@
 package com.bbh.itss.dso.portal.gui.regression
 
-import com.bbh.itss.dso.portal.gui.support.StubResponse
 import com.microsoft.playwright.Locator
-import com.microsoft.playwright.options.AriaRole
 
-import java.time.DayOfWeek
 import java.time.Instant
-import java.time.ZoneOffset
 
+import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
+import static com.microsoft.playwright.options.AriaRole.BUTTON
+import static com.microsoft.playwright.options.AriaRole.RADIO
+import static java.time.DayOfWeek.SATURDAY
+import static java.time.ZoneOffset.UTC
 
 class ProductionChangeSpec extends EditorSpecification {
 
@@ -94,8 +95,8 @@ class ProductionChangeSpec extends EditorSpecification {
             epicKeys == ['CERT-120']
             storyKeys == ['CERT-121']
             shortDescription == 'CertScanner 2.4 release'
-            Instant.parse(start as String).atZone(ZoneOffset.UTC).dayOfWeek == DayOfWeek.SATURDAY
-            Instant.parse(start as String).atZone(ZoneOffset.UTC).hour == 6
+            Instant.parse(start as String).atZone(UTC).dayOfWeek == SATURDAY
+            Instant.parse(start as String).atZone(UTC).hour == 6
         }
 
         when:
@@ -153,7 +154,7 @@ class ProductionChangeSpec extends EditorSpecification {
 
     def "a change ServiceNow refuses stays on the review with the reasons"() {
         given:
-        api.respond('POST', '/api/changes', StubResponse.problem(400, 'Bad Request', '2 fields are invalid',
+        api.respond('POST', '/api/changes', problem(400, 'Bad Request', '2 fields are invalid',
                 [errors: [[field: 'start', message: 'must be in the future'],
                           [field: 'epicKeys', message: 'CERT-120 is not in Jira project CERT']]]))
 
@@ -175,7 +176,7 @@ class ProductionChangeSpec extends EditorSpecification {
         assertThat(currentStep()).hasText('Review')
 
         when:
-        page.locator('.step-bar').getByRole(AriaRole.BUTTON)
+        page.locator('.step-bar').getByRole(BUTTON)
                 .filter(new Locator.FilterOptions().setHasText('Window')).click()
         tile(step(), 'Another time').click()
 
@@ -201,6 +202,6 @@ class ProductionChangeSpec extends EditorSpecification {
     }
 
     Locator tile(Locator scope, String label) {
-        scope.getByRole(AriaRole.RADIO, new Locator.GetByRoleOptions().setName(label).setExact(true))
+        scope.getByRole(RADIO, new Locator.GetByRoleOptions().setName(label).setExact(true))
     }
 }

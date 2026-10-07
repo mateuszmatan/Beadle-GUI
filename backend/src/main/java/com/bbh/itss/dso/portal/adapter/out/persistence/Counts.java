@@ -1,13 +1,15 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
+import lombok.NoArgsConstructor;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-final class Counts {
+import static lombok.AccessLevel.PRIVATE;
 
-    private Counts() {
-    }
+@NoArgsConstructor(access = PRIVATE)
+final class Counts {
 
     static Map<Long, Long> perProduct(List<Object[]> rows) {
         Map<Long, Long> counts = new HashMap<>();

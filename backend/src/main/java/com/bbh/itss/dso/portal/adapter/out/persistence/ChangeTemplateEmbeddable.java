@@ -3,28 +3,32 @@ package com.bbh.itss.dso.portal.adapter.out.persistence;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
-import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 
+import static jakarta.persistence.EnumType.STRING;
+import static lombok.AccessLevel.PROTECTED;
+
 @Embeddable
+@NoArgsConstructor(access = PROTECTED)
 public class ChangeTemplateEmbeddable {
 
     private String jiraProjectKey;
     private String configurationItem;
     private String assignmentGroup;
 
-    @Enumerated(EnumType.STRING)
+    @Enumerated(STRING)
     @Column(name = "CHANGE_TYPE")
     private ChangeTemplate.Type type;
 
     private String category;
 
-    @Enumerated(EnumType.STRING)
+    @Enumerated(STRING)
     private ChangeTemplate.Risk risk;
 
-    @Enumerated(EnumType.STRING)
+    @Enumerated(STRING)
     private ChangeTemplate.Impact impact;
 
     private String riskAssessment;
@@ -33,9 +37,6 @@ public class ChangeTemplateEmbeddable {
     private String implementationPlan;
     private String backoutPlan;
     private String testPlan;
-
-    protected ChangeTemplateEmbeddable() {
-    }
 
     ChangeTemplateEmbeddable(ChangeTemplate template) {
         jiraProjectKey = template.jiraProjectKey();

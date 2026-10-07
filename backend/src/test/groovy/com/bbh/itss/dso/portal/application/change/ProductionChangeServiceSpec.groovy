@@ -18,15 +18,15 @@ import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException.FieldProblem
 import spock.lang.Specification
 
-import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneOffset
 
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.epic
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.story
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
 import static com.bbh.itss.dso.portal.support.Fixtures.product
+import static java.time.Clock.fixed
+import static java.time.ZoneOffset.UTC
 
 class ProductionChangeServiceSpec extends Specification {
 
@@ -44,7 +44,7 @@ class ProductionChangeServiceSpec extends Specification {
     JiraPort jira = Mock()
     ServiceNowPort serviceNow = Mock()
     def service = new ProductionChangeService(products, departments, profiles, changes, jira, serviceNow,
-            Clock.fixed(NOW, ZoneOffset.UTC))
+            fixed(NOW, UTC))
     def certScanner = product(code: 'CERTSCANNER', services: [[id: 10, name: 'gui'], [id: 11, name: 'api'],
                                                                [id: 12, name: 'batch']])
 

@@ -4,16 +4,17 @@ import com.bbh.itss.dso.portal.support.PortalSpecification
 
 import java.time.Instant
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.templateJson
+import static java.time.temporal.ChronoUnit.DAYS
+import static java.time.temporal.ChronoUnit.HOURS
 
 class ProductionChangeRegressionSpec extends PortalSpecification {
 
-    static final String START = Instant.now().plus(3, ChronoUnit.DAYS).truncatedTo(ChronoUnit.HOURS).toString()
-    static final String END = Instant.parse(START).plus(4, ChronoUnit.HOURS).toString()
+    static final String START = Instant.now().plus(3, DAYS).truncatedTo(HOURS).toString()
+    static final String END = Instant.parse(START).plus(4, HOURS).toString()
     static final String FROM = LocalDate.now().minusDays(300).toString()
     static final String TO = LocalDate.now().toString()
 

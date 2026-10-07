@@ -7,9 +7,9 @@ import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfilesUseCase
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate
 import spock.lang.Specification
 
-import java.time.Instant
-
+import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.suggestedFor
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
+import static java.time.Instant.EPOCH
 
 class DemoChangeProfilesSpec extends Specification {
 
@@ -19,7 +19,7 @@ class DemoChangeProfilesSpec extends Specification {
 
     def "every product without a template gets a risk assessment and its approvers, the others are left alone"() {
         given:
-        def suggested = ChangeTemplate.suggestedFor('PAYHUB', 'PayHub', null, null)
+        def suggested = suggestedFor('PAYHUB', 'PayHub', null, null)
         products.list(null) >> [summary(1, 'CERT'), summary(2, 'PAYHUB'), summary(3, 'FXR')]
         List<ChangeTemplate> saved = []
 
@@ -27,9 +27,11 @@ class DemoChangeProfilesSpec extends Specification {
         seeder.fillIn()
 
         then:
-        1 * profiles.get(1L) >> new ChangeProfileView(1L, 'CertScanner', 4L, Instant.EPOCH, template())
-        1 * profiles.get(2L) >> new ChangeProfileView(2L, 'PayHub', null, null, suggested)
-        1 * profiles.get(3L) >> new ChangeProfileView(3L, 'FX Rates', null, null, suggested)
+        1 * profiles.get(1L) >> new ChangeProfileView(1L, 'CertScanner', 4L, EPOCH, template())
+        1 * profiles.get(2L) >> ChangeProfileView.builder().productId(2L).productName('PayHub').template(suggested)
+                .build()
+        1 * profiles.get(3L) >> ChangeProfileView.builder().productId(3L).productName('FX Rates').template(suggested)
+                .build()
         2 * profiles.save({ it in [2L, 3L] }, null, _) >> { long id, Long version, ChangeTemplate template ->
             saved << template
             null

@@ -1,19 +1,20 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException;
-import com.bbh.itss.dso.portal.domain.shared.Versions;
 
 import java.util.Optional;
 import java.util.function.Function;
 
+import static com.bbh.itss.dso.portal.domain.shared.Versions.requireCurrent;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.trim;
 
 public record Department(Long id, String name, long version) {
 
     private static final int MAX_NAME_LENGTH = 100;
 
     public Department {
-        name = name == null ? null : name.trim();
+        name = trim(name);
     }
 
     public static Department create(String name, Function<String, Optional<Department>> byName) {
@@ -21,7 +22,7 @@ public record Department(Long id, String name, long version) {
     }
 
     public Department rename(Long expectedVersion, String name, Function<String, Optional<Department>> byName) {
-        Versions.requireCurrent(expectedVersion, version);
+        requireCurrent(expectedVersion, version);
         return new Department(id, name, version).checked(byName);
     }
 

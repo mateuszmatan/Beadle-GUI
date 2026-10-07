@@ -6,8 +6,8 @@ import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileView;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfilesUseCase;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Impact;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Risk;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -18,9 +18,10 @@ import java.util.Random;
 
 @Component
 @ConditionalOnBooleanProperty("dso.demo-data")
+@RequiredArgsConstructor
+@Slf4j
 public class DemoChangeProfiles {
 
-    private static final Logger log = LoggerFactory.getLogger(DemoChangeProfiles.class);
     private static final List<String> MANAGERS = List.of("Olivia Bennett", "James Carter", "Sophia Turner",
             "William Hayes", "Emma Brooks", "Henry Collins", "Grace Mitchell", "Daniel Foster", "Charlotte Reed",
             "Samuel Price");
@@ -34,11 +35,6 @@ public class DemoChangeProfiles {
 
     private final ProductsUseCase products;
     private final ChangeProfilesUseCase profiles;
-
-    public DemoChangeProfiles(ProductsUseCase products, ChangeProfilesUseCase profiles) {
-        this.products = products;
-        this.profiles = profiles;
-    }
 
     @EventListener(ApplicationReadyEvent.class)
     public void fillIn() {

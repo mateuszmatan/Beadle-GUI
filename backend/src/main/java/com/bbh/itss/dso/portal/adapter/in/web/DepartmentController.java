@@ -3,7 +3,7 @@ package com.bbh.itss.dso.portal.adapter.in.web;
 import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentView;
 import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentsUseCase;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,19 +14,19 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.List;
 
+import static org.springframework.http.HttpStatus.NO_CONTENT;
+import static org.springframework.http.ResponseEntity.created;
+import static org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentRequestUri;
+
 @RestController
 @RequestMapping("/api/departments")
+@RequiredArgsConstructor
 public class DepartmentController {
 
     private final DepartmentsUseCase departments;
-
-    public DepartmentController(DepartmentsUseCase departments) {
-        this.departments = departments;
-    }
 
     @GetMapping
     public List<DepartmentView> list() {
@@ -36,8 +36,7 @@ public class DepartmentController {
     @PostMapping
     public ResponseEntity<DepartmentView> create(@Valid @RequestBody DepartmentRequest request) {
         DepartmentView created = departments.create(request.name());
-        return ResponseEntity.created(ServletUriComponentsBuilder.fromCurrentRequestUri().path("/{id}")
-                .buildAndExpand(created.id()).toUri()).body(created);
+        return created(fromCurrentRequestUri().path("/{id}").buildAndExpand(created.id()).toUri()).body(created);
     }
 
     @PutMapping("/{id}")
@@ -46,7 +45,7 @@ public class DepartmentController {
     }
 
     @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @ResponseStatus(NO_CONTENT)
     public void delete(@PathVariable long id) {
         departments.delete(id);
     }

@@ -284,9 +284,31 @@ flowchart LR
 ```
 
 ArchUnit tests keep the domain and the use cases free of Spring, JPA and Jackson, and keep the adapters apart: the
-domain depends only on the JDK, the application only on the domain, `adapter.in` never on `adapter.out` or a
-`port.out`, `adapter.out` never on `adapter.in`, and every `@UseCase` class implements a `port.in` interface. The
-key generator's port, `KeyGenerator`, lives in `domain.pipeline`.
+domain depends only on the JDK, Lombok and Apache Commons, the application only on the domain and the same libraries,
+`adapter.in` never on `adapter.out` or a `port.out`, `adapter.out` never on `adapter.in`, and every `@UseCase` class
+implements a `port.in` interface. The key generator's port, `KeyGenerator`, lives in `domain.pipeline`.
+
+### Code conventions
+
+- Static imports wherever the name stays clear on its own: enum constants, constants, `Collectors`, `Comparator`,
+  `requireNonNull`, the Commons helpers. Generic names such as `List.of`, `Optional.empty` or `Product.restore` keep
+  their class.
+- Apache Commons (`StringUtils`, `ObjectUtils`, `BooleanUtils`, `CollectionUtils`, `ListUtils`) instead of repeated
+  null and empty checks, for example `trimToNull(name)`, `getIfNull(tests, TestSettings.DEFAULTS)` or
+  `List.copyOf(emptyIfNull(jobs))`.
+- Lombok instead of hand-written constructors, accessors, builders and loggers. `backend/lombok.config` makes accessors
+  fluent (`id()`, like the records), and utility classes use `@NoArgsConstructor(access = PRIVATE)` rather than
+  `@UtilityClass`, whose members javac cannot import statically. Entities never get `@Data` or `@EqualsAndHashCode`.
+- No exception classes that only add a name. The code throws JDK exceptions with a message, and
+  `ApiExceptionHandler` maps them: `NoSuchElementException` is 404, `IllegalStateException` is 409 (a clash with
+  stored data or an outdated `version`), `SecurityException` is 403 (an invalidated pipeline key) and
+  `InvalidRequestException`, the one portal exception because it carries the failing fields, is 400. An
+  `UncheckedIOException` from the metrics store becomes the metrics error of the page; anything else is a 500 and
+  is logged, so a programming error throws `IllegalArgumentException` (for example `Validate.isTrue`), never
+  `IllegalStateException`.
+- Groovy specs and fixtures use Groovy's own `?.`, `?:` and the records' builders instead of Commons and Lombok, and
+  keep GDK names such as `min` or `round` qualified.
+- No comments in the code.
 
 ### Data model
 

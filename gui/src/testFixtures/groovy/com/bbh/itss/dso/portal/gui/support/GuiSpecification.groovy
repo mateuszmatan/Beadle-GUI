@@ -8,17 +8,24 @@ import com.microsoft.playwright.Page
 import com.microsoft.playwright.Playwright
 import com.microsoft.playwright.Route
 import com.microsoft.playwright.TimeoutError
-import com.microsoft.playwright.options.AriaRole
-import com.microsoft.playwright.options.LoadState
 import spock.lang.Shared
 import spock.lang.Specification
 
-import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.function.BooleanSupplier
 import java.util.function.Consumer
 import java.util.function.Predicate
+
+import static com.microsoft.playwright.options.AriaRole.BUTTON
+import static com.microsoft.playwright.options.AriaRole.CHECKBOX
+import static com.microsoft.playwright.options.AriaRole.COMBOBOX
+import static com.microsoft.playwright.options.AriaRole.LINK
+import static com.microsoft.playwright.options.AriaRole.MENUITEM
+import static com.microsoft.playwright.options.AriaRole.OPTION
+import static com.microsoft.playwright.options.AriaRole.RADIO
+import static com.microsoft.playwright.options.LoadState.NETWORKIDLE
+import static java.nio.file.Files.createDirectories
 
 abstract class GuiSpecification extends Specification {
 
@@ -81,10 +88,10 @@ abstract class GuiSpecification extends Specification {
     }
 
     def cleanup() {
-        if (page != null) {
+        if (page) {
             try {
                 def target = reportsDir().resolve('screenshots').resolve(getClass().simpleName)
-                Files.createDirectories(target)
+                createDirectories(target)
                 def name = specificationContext.currentIteration.displayName.replaceAll('[^A-Za-z0-9._-]+', '_')
                 page.screenshot(new Page.ScreenshotOptions().setPath(target.resolve(name.take(120) + '.png')).setFullPage(true))
             } catch (Exception ignored) {
@@ -160,16 +167,16 @@ abstract class GuiSpecification extends Specification {
 
     Page open(String path) {
         page.navigate(url(path))
-        page.waitForLoadState(LoadState.NETWORKIDLE)
+        page.waitForLoadState(NETWORKIDLE)
         page
     }
 
     Locator button(String name, boolean exact = false) {
-        page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName(name).setExact(exact))
+        page.getByRole(BUTTON, new Page.GetByRoleOptions().setName(name).setExact(exact))
     }
 
     Locator buttonIn(Locator scope, String name, boolean exact = true) {
-        scope.getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName(name).setExact(exact))
+        scope.getByRole(BUTTON, new Locator.GetByRoleOptions().setName(name).setExact(exact))
     }
 
     Locator dialogButton(String name) {
@@ -189,16 +196,16 @@ abstract class GuiSpecification extends Specification {
     }
 
     Locator link(String name, boolean exact = false) {
-        page.getByRole(AriaRole.LINK, new Page.GetByRoleOptions().setName(name).setExact(exact))
+        page.getByRole(LINK, new Page.GetByRoleOptions().setName(name).setExact(exact))
     }
 
     Locator menuButton(String name) {
-        page.locator('nav.menu').getByRole(AriaRole.BUTTON, new Locator.GetByRoleOptions().setName(name).setExact(true))
+        page.locator('nav.menu').getByRole(BUTTON, new Locator.GetByRoleOptions().setName(name).setExact(true))
     }
 
     Locator menuLink(String label) {
         menuButton(MENUS.find { it.value.contains(label) }.key).click()
-        page.locator('.mat-mdc-menu-panel').getByRole(AriaRole.MENUITEM, new Locator.GetByRoleOptions().setName(label).setExact(true))
+        page.locator('.mat-mdc-menu-panel').getByRole(MENUITEM, new Locator.GetByRoleOptions().setName(label).setExact(true))
     }
 
     Locator field(String label) {
@@ -218,20 +225,20 @@ abstract class GuiSpecification extends Specification {
     }
 
     Locator select(Locator scope, String label) {
-        scope.getByRole(AriaRole.COMBOBOX, new Locator.GetByRoleOptions().setName(label).setExact(true))
+        scope.getByRole(COMBOBOX, new Locator.GetByRoleOptions().setName(label).setExact(true))
     }
 
     void choose(Locator scope, String label, String option) {
         select(scope, label).click()
-        page.getByRole(AriaRole.OPTION, new Page.GetByRoleOptions().setName(option).setExact(true)).click()
+        page.getByRole(OPTION, new Page.GetByRoleOptions().setName(option).setExact(true)).click()
     }
 
     Locator checkbox(Locator scope, String label) {
-        scope.getByRole(AriaRole.CHECKBOX, new Locator.GetByRoleOptions().setName(label))
+        scope.getByRole(CHECKBOX, new Locator.GetByRoleOptions().setName(label))
     }
 
     Locator radio(Locator scope, String name) {
-        scope.getByRole(AriaRole.RADIO, new Locator.GetByRoleOptions().setName(name).setExact(true))
+        scope.getByRole(RADIO, new Locator.GetByRoleOptions().setName(name).setExact(true))
     }
 
     Locator dialog() {

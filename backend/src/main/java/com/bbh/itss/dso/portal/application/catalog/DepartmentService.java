@@ -9,40 +9,37 @@ import com.bbh.itss.dso.portal.application.catalog.port.out.PipelineCountsPort;
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort;
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductSummary;
 import com.bbh.itss.dso.portal.domain.catalog.Department;
+import lombok.RequiredArgsConstructor;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
+import static java.lang.String.CASE_INSENSITIVE_ORDER;
+import static java.util.Comparator.comparing;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toList;
 
 @UseCase
+@RequiredArgsConstructor
 public class DepartmentService implements DepartmentsUseCase {
 
     private final DepartmentRepositoryPort departments;
     private final ProductRepositoryPort products;
     private final PipelineCountsPort pipelineCounts;
 
-    public DepartmentService(DepartmentRepositoryPort departments, ProductRepositoryPort products,
-                             PipelineCountsPort pipelineCounts) {
-        this.departments = departments;
-        this.products = products;
-        this.pipelineCounts = pipelineCounts;
-    }
-
     @Override
     @ReadOnly
     public List<DepartmentView> list() {
         Map<Long, List<Long>> productIds = products.summaries().stream()
                 .filter(product -> product.departmentId() != null)
-                .collect(Collectors.groupingBy(ProductSummary::departmentId,
-                        Collectors.mapping(ProductSummary::id, Collectors.toList())));
+                .collect(groupingBy(ProductSummary::departmentId, mapping(ProductSummary::id, toList())));
         Map<Long, Long> services = products.servicesPerProduct();
         Map<Long, Long> pipelines = pipelineCounts.pipelinesPerProduct();
         Map<Long, Long> active = pipelineCounts.activePipelinesPerProduct();
         return departments.findAll().stream()
-                .sorted(Comparator.comparing(Department::name, String.CASE_INSENSITIVE_ORDER))
+                .sorted(comparing(Department::name, CASE_INSENSITIVE_ORDER))
                 .map(department -> {
                     List<Long> ids = productIds.getOrDefault(department.id(), List.of());
                     return new DepartmentView(department.id(), department.name(), department.version(), ids.size(),
