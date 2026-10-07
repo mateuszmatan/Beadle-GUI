@@ -35,8 +35,25 @@ class StubApi {
             def search = request.params().search?.toLowerCase()
             def products = fixture('products.json') as List<Map>
             StubResponse.json(search ? products.findAll {
-                [it.code, it.name, it.ownerTeam].any { value -> value?.toString()?.toLowerCase()?.contains(search) }
+                [it.code, it.name, it.ownerTeam, it.departmentName].any { value -> value?.toString()?.toLowerCase()?.contains(search) }
             } : products)
+        }
+        def departments = new CopyOnWriteArrayList<Map>(fixture('departments.json') as List<Map>)
+        get('/api/departments') { departments.sort(false) { (it.name as String).toLowerCase() } }
+        on('POST', '/api/departments') { RecordedRequest request ->
+            def added = [id: (departments*.id.max() as int) + 1, name: request.json().name, version: 0, productCount: 0,
+                         serviceCount: 0, pipelineCount: 0, activePipelineCount: 0]
+            departments << added
+            StubResponse.json(added, 201)
+        }
+        on('PUT', '/api/departments/(\\d+)') { RecordedRequest request, List<String> ids ->
+            def department = departments.find { it.id == ids[0] as int }
+            department.putAll(name: request.json().name, version: (department.version as int) + 1)
+            department
+        }
+        on('DELETE', '/api/departments/(\\d+)') { RecordedRequest request, List<String> ids ->
+            departments.removeIf { it.id == ids[0] as int }
+            StubResponse.empty()
         }
         get('/api/products/code-suggestion') { RecordedRequest request ->
             StubResponse.json([code: request.params().name.toUpperCase().replaceAll(/[^A-Z0-9]/, '')])

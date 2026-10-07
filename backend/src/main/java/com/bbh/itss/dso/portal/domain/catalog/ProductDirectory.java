@@ -8,6 +8,8 @@ public interface ProductDirectory {
 
     Optional<ProductIdentity> findProductByName(String name);
 
+    boolean departmentExists(long id);
+
     record ProductIdentity(long id, String name) {
     }
 }

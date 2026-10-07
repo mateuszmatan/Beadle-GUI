@@ -1,4 +1,4 @@
-import { formatDuration, formatRelative } from './formatting';
+import { counted, formatDuration, formatRelative } from './formatting';
 
 describe('formatDuration', () => {
   it.each([
@@ -31,5 +31,15 @@ describe('formatRelative', () => {
     ['2026-07-01T12:00:00Z', '3 months ago'],
   ])('shows %s as %s', (iso, text) => {
     expect(formatRelative(iso, now)).toBe(text);
+  });
+});
+
+describe('counted', () => {
+  it.each([
+    [0, '0 products'],
+    [1, '1 product'],
+    [12, '12 products'],
+  ])('counts %s as %s', (count, text) => {
+    expect(counted(count, 'product')).toBe(text);
   });
 });
