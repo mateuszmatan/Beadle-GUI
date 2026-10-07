@@ -32,3 +32,6 @@ databaseChangeLog:
   - include:
       file: oracle/011-departments.sql
       relativeToChangelogFile: true
+  - include:
+      file: oracle/012-servicenow-changes.sql
+      relativeToChangelogFile: true

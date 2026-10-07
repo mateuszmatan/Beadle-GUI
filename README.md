@@ -9,6 +9,11 @@ where new features land, and **DevSecOps Management**, with the four pages below
   save. Every service gets a pipeline of the chosen type with its own key, and the last step lists what to do next
   in order, with the Jenkinsfile of each service ready to copy. Everything else comes from BBH defaults and the
   Global Settings, and can be fine-tuned in Product Management.
+- **Production Change** (Beadle): raises a ServiceNow (ProTech) change for a production release. Choose the
+  department, the product and the services you deploy, the Jira epics and their stories (each list filtered by the
+  dates they were last updated) and the change window. The portal writes the short description and the description
+  from Jira, lets you edit them, and raises one change (CHG) with one change task (CTASK) per service. See
+  [ServiceNow production changes](#servicenow-production-changes).
 - **DevSecOps Product Management**: add a product with all of its services and every setting the DevSecOps library
   ([DSOEnhanced](https://github.com/mateuszmatan/DSOEnhanced)) reads from `config.yaml` today. Every new service
   gets a full pipeline with its own key; keys can be invalidated, regenerated and linked to a Jenkins job, and each
@@ -118,10 +123,10 @@ The backend (`backend/src/main/java/com/bbh/itss/dso/portal`) is hexagonal:
 
 | Package | Holds |
 |---------|-------|
-| `domain` | plain Java: products, services and their settings, pipelines and keys, the global settings, the rendered configuration, DORA metrics and change evidence; every business rule lives here |
+| `domain` | plain Java: products, services and their settings, pipelines and keys, the global settings, the rendered configuration, DORA metrics, change evidence and ServiceNow production changes; every business rule lives here |
 | `application` | the use cases behind ports; `@UseCase` classes become transactional beans, without Spring in the code |
 | `adapter.in` | Spring MVC controllers with the request and response records, and the start-up tasks |
-| `adapter.out` | JPA entities and Spring Data repositories, the InfluxDB client and the Grafana links |
+| `adapter.out` | JPA entities and Spring Data repositories, the InfluxDB client, the Grafana links and the demo Jira and ServiceNow adapters |
 | `config` | the wiring of use cases and transactions |
 
 ArchUnit tests keep the domain and the use cases free of Spring, JPA and Jackson, and keep the adapters apart.
@@ -182,6 +187,37 @@ dashboard of the project and the Nexus IQ server, and the Jenkins build pages. A
 older library) counts for the service only when it is the run's only point of its kind; a point of another module
 never does.
 
+## ServiceNow production changes
+
+Every product has a ServiceNow change template, edited from its page (**ServiceNow change**): the Jira project key,
+the configuration item, the assignment group, the change type and category, the risk and impact with the risk
+assessment, the managers who approve its changes, a description of the product and the implementation, backout and
+test plans. A product without one gets a suggestion from its code, name and owner team, which is saved once its risk
+assessment and approvers are filled in; the demo data fills in every demo product.
+
+The Beadle wizard combines that template with what changes this time: the services (one change task each, in the
+order of the product), the epics and stories of the product's Jira project (the stories only of the chosen epics, each
+list with its own range of update dates, 90 days by default) and the change window (tonight, this weekend or a time of
+your choice, at most seven days long, always in the future). The short description lists the epics; the description
+names the product, its department, the window and the change tasks, lists every epic with its chosen stories and ends
+with the product description, cut to the 160 and 4000 characters ServiceNow takes. Both stay editable until the change
+is raised. A raised change is stored in the portal with its numbers, its texts and a copy of the template it used, so
+it outlives later template edits and the product itself.
+
+Jira and ServiceNow sit behind two ports, `JiraPort` and `ServiceNowPort`. The portal ships demo adapters only: the
+Jira one makes up a steady set of epics and stories per project key, and the ServiceNow one hands out demo `CHG` and
+`CTASK` numbers without calling anything. The pages say so. Connecting the real systems needs:
+
+- **Jira**: an adapter that searches the project with JQL (`issuetype = Epic AND updated >= ... AND updated <= ...`,
+  and the stories by their epic link or parent), the Jira base URL and a service account token in an OpenShift secret,
+  and HTTPS access from the portal pods to Jira.
+- **ServiceNow (ProTech)**: an adapter that creates the change with the Change Management API
+  (`POST /api/sn_chg_rest/change/normal`, or `standard`/`emergency` by type) and one change task per service, the
+  instance URL and an integration user allowed to create changes and change tasks (OAuth client or basic credentials
+  in a secret), the lookup of the configuration item and the assignment group by name, and BBH's rule for approvals
+  (the approval policy of the change model, or the approvers sent as approval records). The adapter returns the
+  numbers and the link of the change, which the change page then opens.
+
 ## Accepted differences from config.yaml
 
 Moving the configuration into the portal changes these behaviours of the library on purpose:
@@ -230,6 +266,10 @@ secrets.
 | `GET /api/monitoring/status`, `/products`, `/products/{id}`, `/pipelines/{id}?range=30d` | monitoring data |
 | `GET /api/evidence/products/{id}` | the change evidence of a product's pipelines |
 | `GET`/`PUT /api/settings` | the global settings; `PUT` carries the `version` it was read at |
+| `GET`/`PUT /api/products/{id}/change-profile` | the ServiceNow change template of a product; `version` is `null` until it is saved, and `PUT` carries the `version` it was read at |
+| `GET /api/products/{id}/jira/epics?from=&to=`, `/jira/stories?epics=&from=&to=` | the epics of the product's Jira project and the stories of the chosen epics, updated within the dates |
+| `POST /api/changes/preview`, `POST /api/changes` | draft a production change, or raise it with one change task per service (`productId`, `serviceIds`, `epicKeys`, `storyKeys`, `start`, `end`, and optionally the edited `shortDescription` and `description`) |
+| `GET /api/changes`, `/api/changes/{id}`, `/api/changes/integrations` | the raised changes, newest first, one change, and whether Jira and ServiceNow are connected |
 
 Errors are RFC 9457 problem details; validation errors name the failing fields, for example
 `services[2].build.javaPath`. Key values are only sent by the product management endpoints, and only for the active
@@ -259,6 +299,8 @@ detail, including its development server.
 ## Known gaps
 
 - The portal has no sign-in yet; see the preconditions above.
+- Production changes use demo Jira and ServiceNow adapters until the real ones are connected; see
+  [ServiceNow production changes](#servicenow-production-changes).
 - The change evidence of runs made by a library older than the portal integration has no unit test counts, artifact
   version, SonarQube quality gate, report links or configuration hint, so its links are built from the global settings
   and the Jenkins build number.
