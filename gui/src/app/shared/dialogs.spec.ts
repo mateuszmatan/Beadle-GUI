@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { CodeDialog, CodeDialogData } from './code-dialog';
 import { ConfirmDialog, ConfirmDialogData } from './confirm-dialog';
+import { buttonOf } from '../testing/dom';
 
 describe('ConfirmDialog', () => {
   async function render(data: ConfirmDialogData) {
@@ -43,10 +44,6 @@ describe('CodeDialog', () => {
   }
 
   const page = () => fixture.nativeElement as HTMLElement;
-  const button = (label: string) =>
-    [...page().querySelectorAll<HTMLButtonElement>('button')].find(
-      (element) => element.textContent?.trim() === label,
-    );
 
   it('shows the code and downloads it under its file name', async () => {
     await render({
@@ -64,7 +61,7 @@ describe('CodeDialog', () => {
 
     expect(page().querySelector('.subtitle')?.textContent).toBe('Every service');
     expect(page().querySelector('pre')?.textContent).toBe('projects: {}');
-    button('Download')!.click();
+    buttonOf(page(), 'Download')!.click();
 
     expect(createObjectURL).toHaveBeenCalled();
     expect(click).toHaveBeenCalled();
@@ -77,8 +74,8 @@ describe('CodeDialog', () => {
     await render({ title: 'Jenkinsfile', code: "@Library('dso') _" });
 
     expect(page().querySelector('.subtitle')).toBeNull();
-    expect(button('Download')).toBeUndefined();
-    button('Copy')!.click();
+    expect(buttonOf(page(), 'Download')).toBeUndefined();
+    buttonOf(page(), 'Copy')!.click();
     await fixture.whenStable();
 
     expect(document.querySelector('mat-snack-bar-container')?.textContent).toContain(

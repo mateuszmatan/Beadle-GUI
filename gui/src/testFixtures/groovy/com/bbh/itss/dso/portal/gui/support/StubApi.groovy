@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.gui.support
 
-import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 
 import java.util.concurrent.CopyOnWriteArrayList
@@ -14,10 +13,6 @@ class StubApi {
     private final List<Route> routes = new CopyOnWriteArrayList<>()
     private final List<RecordedRequest> recorded = new CopyOnWriteArrayList<>()
 
-    static StubApi withDemoData() {
-        new StubApi().loadDemoData()
-    }
-
     static Object fixture(String name) {
         new JsonSlurper().parseText(fixtureText(name))
     }
@@ -30,7 +25,7 @@ class StubApi {
         resource.getText('UTF-8')
     }
 
-    StubApi loadDemoData() {
+    private void loadDemoData() {
         get('/api/products') { RecordedRequest request ->
             def search = request.params().search?.toLowerCase()
             def products = fixture('products.json') as List<Map>
@@ -60,9 +55,9 @@ class StubApi {
         }
         get('/api/products/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("product-${ids[0]}.json", "Product ${ids[0]} does not exist") }
         get('/api/products/(\\d+)/pipelines') { RecordedRequest request, List<String> ids -> fixtureOr404("product-${ids[0]}-pipelines.json", "Product ${ids[0]} does not exist") }
-        get('/api/products/(\\d+)/config') { RecordedRequest request, List<String> ids -> yamlOr404("product-${ids[0]}-config.yaml", "Product ${ids[0]} does not exist") }
+        get('/api/products/(\\d+)/config') { RecordedRequest request, List<String> ids -> fixtureOr404("product-${ids[0]}-config.yaml", "Product ${ids[0]} does not exist") }
         get('/api/pipelines/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("pipeline-${ids[0]}.json", "Pipeline ${ids[0]} does not exist") }
-        get('/api/pipelines/(\\d+)/config') { RecordedRequest request, List<String> ids -> yamlOr404("pipeline-${ids[0]}-config.yaml", "Pipeline ${ids[0]} does not exist") }
+        get('/api/pipelines/(\\d+)/config') { RecordedRequest request, List<String> ids -> fixtureOr404("pipeline-${ids[0]}-config.yaml", "Pipeline ${ids[0]} does not exist") }
         get('/api/settings') { StubResponse.json(fixture('settings.json')) }
         get('/api/settings/config') { StubResponse.yaml(fixtureText('settings-config.yaml')) }
         get('/api/monitoring/status') { StubResponse.json(fixture('monitoring-status.json')) }
@@ -70,7 +65,6 @@ class StubApi {
         get('/api/monitoring/products/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("monitoring-product-${ids[0]}.json", "Product ${ids[0]} does not exist") }
         get('/api/monitoring/pipelines/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("monitoring-pipeline-${ids[0]}.json", "Pipeline ${ids[0]} does not exist") }
         get('/api/evidence/products/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("evidence-product-${ids[0]}.json", "Product ${ids[0]} does not exist") }
-        this
     }
 
     StubApi get(String path, Closure handler) {
@@ -120,26 +114,17 @@ class StubApi {
         matching ? matching.last() : null
     }
 
-    void clearRequests() {
-        recorded.clear()
-    }
-
     void reset() {
         routes.clear()
         recorded.clear()
         loadDemoData()
     }
 
-    static String toJson(Object value) {
-        JsonOutput.toJson(value)
-    }
-
     private static StubResponse fixtureOr404(String name, String detail) {
-        StubApi.getResource(FIXTURES + name) ? StubResponse.json(fixture(name)) : StubResponse.problem(404, 'Not found', detail)
-    }
-
-    private static StubResponse yamlOr404(String name, String detail) {
-        StubApi.getResource(FIXTURES + name) ? StubResponse.yaml(fixtureText(name)) : StubResponse.problem(404, 'Not found', detail)
+        if (!StubApi.getResource(FIXTURES + name)) {
+            return StubResponse.problem(404, 'Not found', detail)
+        }
+        name.endsWith('.yaml') ? StubResponse.yaml(fixtureText(name)) : StubResponse.json(fixture(name))
     }
 
     private static final class Route {

@@ -30,9 +30,6 @@ export interface ConfirmDialogData {
       margin: 0;
       white-space: pre-line;
     }
-    .danger {
-      --mat-button-filled-container-color: var(--dso-danger);
-    }
   `,
 })
 export class ConfirmDialog {

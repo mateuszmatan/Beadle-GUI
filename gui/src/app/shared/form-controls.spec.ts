@@ -1,9 +1,11 @@
 import { FormArray, FormGroup, Validators } from '@angular/forms';
 import {
   HTTP_URL,
+  addItem,
   applyFieldProblems,
   controlAt,
   eachItem,
+  filled,
   fitsColumn,
   flag,
   integer,
@@ -12,8 +14,10 @@ import {
   lines,
   maxLines,
   maxWords,
+  moveItem,
   optional,
   passesValidators,
+  removeItem,
   requireWhile,
   requiredRule,
   requiredWhen,
@@ -99,14 +103,20 @@ describe('validators', () => {
     const group = new FormGroup({ host: text(''), port: integer(null, 1, 65535) });
     const { host, port } = group.controls;
     requireWhile(port, () => !!optional(host.value), host);
-    expect(port.hasValidator(Validators.required)).toBe(false);
+    expect(port.hasValidator(filled)).toBe(false);
 
     host.setValue('proxy.bbh.com');
-    expect(port.hasValidator(Validators.required)).toBe(true);
+    expect(port.hasValidator(filled)).toBe(true);
     expect(port.hasError('required')).toBe(true);
 
     host.setValue('');
     expect(port.valid).toBe(true);
+  });
+
+  it('rejects a value of spaces only where a value is required', () => {
+    expect(text('   ', filled).hasError('required')).toBe(true);
+    expect(text(' x ', filled).valid).toBe(true);
+    expect(integer(0, 0, 10, filled).valid).toBe(true);
   });
 
   it('enables and disables a control only when it changes', () => {
@@ -181,5 +191,24 @@ describe('field problems', () => {
 
     applyFieldProblems(f, [{ field: 'limits[SAST].maxHigh', message: 'is stale' }]);
     expect(maxHigh.errors).toEqual({ server: 'is stale' });
+  });
+});
+
+describe('lists', () => {
+  it('adds, moves and removes items and marks the list as changed', () => {
+    const list = new FormArray([text('a'), text('b')]);
+    addItem(list, text('c'), 1);
+    expect(list.value).toEqual(['a', 'c', 'b']);
+    expect(list.dirty).toBe(true);
+
+    list.markAsPristine();
+    moveItem(list, 0, 2);
+    expect(list.value).toEqual(['c', 'b', 'a']);
+    expect(list.dirty).toBe(true);
+
+    list.markAsPristine();
+    removeItem(list, 1);
+    expect(list.value).toEqual(['c', 'a']);
+    expect(list.dirty).toBe(true);
   });
 });

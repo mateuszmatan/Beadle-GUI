@@ -1,4 +1,4 @@
-import { counted, formatDuration, formatRelative } from './formatting';
+import { CountedPipe, counted, formatDuration, formatRelative } from './formatting';
 
 describe('formatDuration', () => {
   it.each([
@@ -41,5 +41,11 @@ describe('counted', () => {
     [12, '12 products'],
   ])('counts %s as %s', (count, text) => {
     expect(counted(count, 'product')).toBe(text);
+  });
+
+  it('takes an irregular plural', () => {
+    expect(counted(1, 'recovery', 'recoveries')).toBe('1 recovery');
+    expect(counted(3, 'recovery', 'recoveries')).toBe('3 recoveries');
+    expect(new CountedPipe().transform(2, 'run')).toBe('2 runs');
   });
 });

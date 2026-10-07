@@ -27,11 +27,19 @@ export const INT_MAX = 2_147_483_647;
 export const text = (value: string | null | undefined = '', ...validators: ValidatorFn[]) =>
   new FormControl(value ?? '', { nonNullable: true, validators });
 
+export const max = (length: number) => Validators.maxLength(length);
+
+export const url = (
+  value: string | null | undefined,
+  length = 1000,
+  ...validators: ValidatorFn[]
+) => text(value, ...validators, Validators.pattern(HTTP_URL), max(length));
+
 export const shellSafe = (
   value: string | null | undefined,
   maxLength: number,
   ...validators: ValidatorFn[]
-) => text(value, Validators.pattern(SHELL_SAFE), Validators.maxLength(maxLength), ...validators);
+) => text(value, Validators.pattern(SHELL_SAFE), max(maxLength), ...validators);
 
 export const flag = (value: boolean | null | undefined, fallback = false) =>
   new FormControl(value ?? fallback, { nonNullable: true });
@@ -50,6 +58,9 @@ export function optional(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
 }
+
+export const filled: ValidatorFn = (control) =>
+  optional(String(control.value ?? '')) ? null : { required: true };
 
 export function lines(value: string | null | undefined, distinct = true): string[] {
   return split(value, /\n/, distinct);
@@ -127,10 +138,10 @@ export function requireWhile(
 ): void {
   const sync = () => {
     const required = condition();
-    if (required && !target.hasValidator(Validators.required)) {
-      target.addValidators(Validators.required);
-    } else if (!required && target.hasValidator(Validators.required)) {
-      target.removeValidators(Validators.required);
+    if (required && !target.hasValidator(filled)) {
+      target.addValidators(filled);
+    } else if (!required && target.hasValidator(filled)) {
+      target.removeValidators(filled);
     }
     target.updateValueAndValidity({ emitEvent: false });
   };
@@ -139,7 +150,7 @@ export function requireWhile(
 }
 
 function emptyError(control: AbstractControl, message?: string) {
-  const error = Validators.required(control);
+  const error = filled(control);
   return error && message ? { rule: message } : error;
 }
 
@@ -227,10 +238,27 @@ export function sent<T extends object>(value: T): Sent<T> {
   ) as Sent<T>;
 }
 
-export function addItem<T extends AbstractControl>(array: FormArray<T>, item: T): void {
-  array.push(item);
+export function addItem<T extends AbstractControl>(
+  array: FormArray<T>,
+  item: T,
+  index = array.length,
+): void {
+  array.insert(index, item);
   revalidateAll(item);
   array.updateValueAndValidity({ emitEvent: false });
+  array.markAsDirty();
+}
+
+export function removeItem(array: FormArray, index: number): void {
+  array.removeAt(index);
+  array.markAsDirty();
+}
+
+export function moveItem(array: FormArray, from: number, to: number): void {
+  const item = array.at(from);
+  array.removeAt(from, { emitEvent: false });
+  array.insert(to, item);
+  array.markAsDirty();
 }
 
 export function revalidateAll(control: AbstractControl): void {
