@@ -70,6 +70,7 @@ class StubApi {
         get('/api/monitoring/products/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("monitoring-product-${ids[0]}.json", "Product ${ids[0]} does not exist") }
         get('/api/monitoring/pipelines/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("monitoring-pipeline-${ids[0]}.json", "Pipeline ${ids[0]} does not exist") }
         get('/api/evidence/products/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("evidence-product-${ids[0]}.json", "Product ${ids[0]} does not exist") }
+        ChangeStubs.install(this)
         this
     }
 
