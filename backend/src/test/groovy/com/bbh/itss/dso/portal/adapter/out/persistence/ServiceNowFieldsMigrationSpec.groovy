@@ -17,23 +17,27 @@ import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabas
 import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.PlatformTransactionManager
-import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionTemplate
 import spock.lang.Specification
 
 import javax.sql.DataSource
-import java.time.Instant
 
+import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.FIRST_USE_PLAN
+import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Type.NORMAL
+import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.VALIDATION_PLAN
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.at
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.privileged
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
+import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
+import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED
 
 @DataJpaTest(properties = [
         'spring.datasource.url=jdbc:h2:mem:servicenow-fields;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
         'spring.datasource.username=sa',
         'spring.liquibase.enabled=false'])
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Transactional(propagation = Propagation.NOT_SUPPORTED)
+@AutoConfigureTestDatabase(replace = NONE)
+@Transactional(propagation = NOT_SUPPORTED)
 @Import([ChangeProfilePersistenceAdapter, ProductionChangePersistenceAdapter])
 class ServiceNowFieldsMigrationSpec extends Specification {
 
@@ -86,12 +90,14 @@ class ServiceNowFieldsMigrationSpec extends Specification {
 
         then:
         profile.version() == 2
-        profile.template() == new ChangeTemplate('CERT', 'Technology Architecture', 'Software',
-                ChangeTemplate.Type.NORMAL, 'CertScanner', null, null, null, null, 'Watches TLS certificates.',
-                new Approvers('Olivia Bennett', 'James Carter', 'Emma Brooks'), false, Timing.SUGGESTED,
-                new Planning('Pipeline tests passed on QC.', 'Deploy the services.', ChangeTemplate.VALIDATION_PLAN,
-                        'Redeploy the previous release.', ChangeTemplate.FIRST_USE_PLAN),
-                PrivilegedAccess.NONE, impact('Low'))
+        profile.template() == ChangeTemplate.builder().jiraProjectKey('CERT')
+                .assignmentGroup('Technology Architecture').category('Software').type(NORMAL)
+                .configurationItem('CertScanner').description('Watches TLS certificates.')
+                .approvers(new Approvers('Olivia Bennett', 'James Carter', 'Emma Brooks')).downtime(false)
+                .timing(Timing.SUGGESTED)
+                .planning(new Planning('Pipeline tests passed on QC.', 'Deploy the services.', VALIDATION_PLAN,
+                        'Redeploy the previous release.', FIRST_USE_PLAN))
+                .privilegedAccess(PrivilegedAccess.NONE).riskAssessment(impact('Low')).build()
         change.number() == 'CHG0030001'
         change.fixVersion() == 'Not recorded'
         change.schedule() == new ChangeSchedule(at('2026-03-02T06:00:00Z'), at('2026-03-02T08:00:00Z'),
@@ -161,10 +167,6 @@ class ServiceNowFieldsMigrationSpec extends Specification {
     }
 
     private static RiskAssessment impact(String businessImpact) {
-        new RiskAssessment(null, null, null, null, null, businessImpact, null, null, null, null)
-    }
-
-    private static Instant at(String text) {
-        Instant.parse(text)
+        RiskAssessment.builder().businessImpact(businessImpact).build()
     }
 }

@@ -4,26 +4,26 @@ import com.bbh.itss.dso.portal.adapter.RecordMapper;
 import com.bbh.itss.dso.portal.domain.catalog.Department;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+import static jakarta.persistence.GenerationType.IDENTITY;
+import static lombok.AccessLevel.PACKAGE;
+import static lombok.AccessLevel.PROTECTED;
 
 @Entity
 @Table(name = "DSO_DEPARTMENT")
+@NoArgsConstructor(access = PROTECTED)
 public class DepartmentEntity extends AuditedEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = IDENTITY)
     private Long id;
 
+    @Getter(PACKAGE)
     private String name;
-
-    protected DepartmentEntity() {
-    }
-
-    String name() {
-        return name;
-    }
 
     Department toDomain() {
         return RecordMapper.map(Department.class, this);

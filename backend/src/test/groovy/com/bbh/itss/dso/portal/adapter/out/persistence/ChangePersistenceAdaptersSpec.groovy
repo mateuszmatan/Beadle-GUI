@@ -11,7 +11,6 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedUser
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.RiskAssessment
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Timing
 import com.bbh.itss.dso.portal.domain.change.ProductionChange
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
@@ -20,6 +19,7 @@ import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.JdbcTemplate
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.TEST_SUMMARY
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.FIX_VERSION
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.epic
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.privileged
@@ -29,11 +29,12 @@ import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
 import static com.bbh.itss.dso.portal.support.Fixtures.account
 import static com.bbh.itss.dso.portal.support.Fixtures.details
 import static com.bbh.itss.dso.portal.support.Fixtures.settings
+import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 
 @DataJpaTest(properties = [
         'spring.datasource.url=jdbc:h2:mem:change-adapters;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
         'spring.datasource.username=sa'])
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@AutoConfigureTestDatabase(replace = NONE)
 @Import([ChangeProfilePersistenceAdapter, ProductionChangePersistenceAdapter, ProductPersistenceAdapter])
 class ChangePersistenceAdaptersSpec extends Specification {
 
@@ -85,7 +86,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         jdbc.queryForMap('''SELECT L1_MANAGER, L2_MANAGER, TIMING_INSTALLATION_START, TEST_SUMMARY, DOWNTIME,
                 PRIVILEGED_ACCESS_REQUIRED, RISK_BBH_USERS FROM DSO_CHANGE_PROFILE WHERE PRODUCT_ID = ?''', product.id()) ==
                 [L1_MANAGER: 'Emma Brooks', L2_MANAGER: null, TIMING_INSTALLATION_START: '18:00',
-                 TEST_SUMMARY: ChangeTemplate.TEST_SUMMARY, DOWNTIME: 0, PRIVILEGED_ACCESS_REQUIRED: 1, RISK_BBH_USERS: 10]
+                 TEST_SUMMARY: TEST_SUMMARY, DOWNTIME: 0, PRIVILEGED_ACCESS_REQUIRED: 1, RISK_BBH_USERS: 10]
         jdbc.queryForList('''SELECT u.POSITION, u.USER_NAME, u.ACCOUNT_NAME FROM DSO_CHANGE_PROFILE_PRIVILEGED_USER u
                 JOIN DSO_CHANGE_PROFILE p ON p.ID = u.PROFILE_ID WHERE p.PRODUCT_ID = ? ORDER BY u.POSITION''',
                 product.id()) == (1..3).collect { [POSITION: it - 1, USER_NAME: "User $it".toString(),
@@ -95,7 +96,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         profiles.save(created)
 
         then:
-        thrown(ConflictException)
+        thrown(IllegalStateException)
     }
 
     def "a template without approvers, privileged users or risk assessment reads back as such"() {

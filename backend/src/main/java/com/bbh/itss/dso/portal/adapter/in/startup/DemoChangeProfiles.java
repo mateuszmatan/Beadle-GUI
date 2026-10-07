@@ -10,8 +10,8 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedUser;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.RiskAssessment;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Timing;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -21,11 +21,14 @@ import java.util.List;
 import java.util.Random;
 
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.GROUP_MAX;
-import static com.bbh.itss.dso.portal.domain.shared.Text.abbreviate;
-import static com.bbh.itss.dso.portal.domain.shared.Text.orDefault;
+import static com.bbh.itss.dso.portal.domain.shared.Text.abbreviateBytes;
+import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
+import static org.apache.commons.lang3.StringUtils.trim;
 
 @Component
 @ConditionalOnBooleanProperty("dso.demo-data")
+@RequiredArgsConstructor
+@Slf4j
 public class DemoChangeProfiles {
 
     static final String PRIVILEGED_PRODUCT = "PAYHUB";
@@ -33,7 +36,6 @@ public class DemoChangeProfiles {
             new PrivilegedUser("Priya Natarajan", "adm_pnatarajan"), new PrivilegedUser("Marcus Webb", "adm_mwebb"));
     static final List<String> LEVELS = List.of("Low", "Medium", "High");
 
-    private static final Logger log = LoggerFactory.getLogger(DemoChangeProfiles.class);
     private static final List<String> MANAGERS = List.of("Olivia Bennett", "James Carter", "Sophia Turner",
             "William Hayes", "Emma Brooks", "Henry Collins", "Grace Mitchell", "Daniel Foster", "Charlotte Reed",
             "Samuel Price");
@@ -51,11 +53,6 @@ public class DemoChangeProfiles {
 
     private final ProductsUseCase products;
     private final ChangeProfilesUseCase profiles;
-
-    public DemoChangeProfiles(ProductsUseCase products, ChangeProfilesUseCase profiles) {
-        this.products = products;
-        this.profiles = profiles;
-    }
 
     @EventListener(ApplicationReadyEvent.class)
     public void fillIn() {
@@ -79,14 +76,18 @@ public class DemoChangeProfiles {
         Timing timing = new Timing(START_TIMES.get(random.nextInt(START_TIMES.size())), 2 + level, 1);
         PrivilegedAccess access = PRIVILEGED_PRODUCT.equals(product.code())
                 ? new PrivilegedAccess(true, PRIVILEGED_USERS) : PrivilegedAccess.NONE;
-        RiskAssessment risk = new RiskAssessment(1 + random.nextInt(2 + 2 * level),
-                List.of(25, 150, 800).get(level) + random.nextInt(50), 1 + random.nextInt(1 + 2 * level),
-                level == 0 ? 0 : 5 * level + random.nextInt(20 * level), level == 2 ? random.nextInt(4) : 0,
-                LEVELS.get(level), LEVELS.get(random.nextInt(level + 1)), LEVELS.get(random.nextInt(level + 1)),
-                BACKOUT_TESTING.get(level), level == 2 ? "Platform upgrade" : "Existing platform");
-        String group = abbreviate(orDefault(product.ownerTeam(), product.name()) + " Application Support", GROUP_MAX);
-        return new ChangeTemplate(suggested.jiraProjectKey(), group, suggested.category(), suggested.type(),
-                suggested.configurationItem(), null, null, null, AFFECTED_CLIENTS.get(level), suggested.description(),
-                approvers, level == 2, timing, suggested.planning(), access, risk);
+        RiskAssessment risk = RiskAssessment.builder().bbhWorkgroups(1 + random.nextInt(2 + 2 * level))
+                .bbhUsers(List.of(25, 150, 800).get(level) + random.nextInt(50))
+                .bbhApplications(1 + random.nextInt(1 + 2 * level))
+                .clients(level == 0 ? 0 : 5 * level + random.nextInt(20 * level))
+                .clientsOutsideBbh(level == 2 ? random.nextInt(4) : 0).businessImpact(LEVELS.get(level))
+                .changeComplexity(LEVELS.get(random.nextInt(level + 1)))
+                .validationComplexity(LEVELS.get(random.nextInt(level + 1))).backoutTesting(BACKOUT_TESTING.get(level))
+                .platformStatus(level == 2 ? "Platform upgrade" : "Existing platform").build();
+        String group = abbreviateBytes(defaultIfBlank(trim(product.ownerTeam()), product.name())
+                + " Application Support", GROUP_MAX);
+        return suggested.toBuilder().assignmentGroup(group).affectedClients(AFFECTED_CLIENTS.get(level))
+                .approvers(approvers).downtime(level == 2).timing(timing).privilegedAccess(access).riskAssessment(risk)
+                .build();
     }
 }

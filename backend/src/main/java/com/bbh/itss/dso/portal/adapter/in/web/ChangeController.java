@@ -9,6 +9,7 @@ import com.bbh.itss.dso.portal.domain.change.JiraIssue;
 import com.bbh.itss.dso.portal.domain.change.JiraVersion;
 import com.bbh.itss.dso.portal.domain.change.ProductionChange;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,21 +19,19 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.List;
 
+import static org.springframework.http.ResponseEntity.created;
+import static org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentRequest;
+
 @RestController
 @RequestMapping("/api")
+@RequiredArgsConstructor
 public class ChangeController {
 
     private final ProductionChangesUseCase changes;
     private final ChangeProfilesUseCase profiles;
-
-    public ChangeController(ProductionChangesUseCase changes, ChangeProfilesUseCase profiles) {
-        this.changes = changes;
-        this.profiles = profiles;
-    }
 
     @GetMapping("/changes")
     public List<ProductionChange> list() {
@@ -57,8 +56,7 @@ public class ChangeController {
     @PostMapping("/changes")
     public ResponseEntity<ProductionChange> raise(@Valid @RequestBody ChangeRequest request) {
         ProductionChange raised = changes.raise(request.toCommand());
-        return ResponseEntity.created(ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
-                .buildAndExpand(raised.id()).toUri()).body(raised);
+        return created(fromCurrentRequest().path("/{id}").buildAndExpand(raised.id()).toUri()).body(raised);
     }
 
     @GetMapping("/products/{id}/jira/versions")

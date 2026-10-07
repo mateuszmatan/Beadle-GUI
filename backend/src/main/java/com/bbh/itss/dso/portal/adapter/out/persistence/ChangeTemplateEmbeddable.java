@@ -5,20 +5,20 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedUser;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
-import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import org.hibernate.annotations.EmbeddedColumnNaming;
 
 import java.util.List;
 
 import static com.bbh.itss.dso.portal.adapter.RecordMapper.map;
+import static jakarta.persistence.EnumType.STRING;
 
 @Embeddable
 public record ChangeTemplateEmbeddable(
         String jiraProjectKey,
         String assignmentGroup,
         String category,
-        @Enumerated(EnumType.STRING) @Column(name = "CHANGE_TYPE") ChangeTemplate.Type type,
+        @Enumerated(STRING) @Column(name = "CHANGE_TYPE") ChangeTemplate.Type type,
         String configurationItem,
         @Column(name = "RELEASE_NAME") String release,
         @Column(name = "INCIDENT_NUMBER") String incident,

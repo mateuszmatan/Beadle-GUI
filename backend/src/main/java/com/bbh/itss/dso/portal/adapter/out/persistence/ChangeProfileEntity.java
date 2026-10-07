@@ -9,21 +9,25 @@ import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
+import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static jakarta.persistence.GenerationType.IDENTITY;
+import static lombok.AccessLevel.PROTECTED;
+
 @Entity
 @Table(name = "DSO_CHANGE_PROFILE")
+@NoArgsConstructor(access = PROTECTED)
 public class ChangeProfileEntity extends AuditedEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = IDENTITY)
     private Long id;
 
     @Column(updatable = false)
@@ -35,9 +39,6 @@ public class ChangeProfileEntity extends AuditedEntity {
     @CollectionTable(name = "DSO_CHANGE_PROFILE_PRIVILEGED_USER", joinColumns = @JoinColumn(name = "PROFILE_ID"))
     @OrderColumn(name = "POSITION")
     private List<PrivilegedUserEmbeddable> privilegedUsers = new ArrayList<>();
-
-    protected ChangeProfileEntity() {
-    }
 
     ChangeProfileEntity(long productId) {
         this.productId = productId;

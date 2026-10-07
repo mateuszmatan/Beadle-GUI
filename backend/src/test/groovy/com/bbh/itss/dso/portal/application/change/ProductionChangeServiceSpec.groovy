@@ -19,20 +19,20 @@ import com.bbh.itss.dso.portal.domain.change.JiraVersion
 import com.bbh.itss.dso.portal.domain.change.ProductionChange
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException.FieldProblem
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import spock.lang.Specification
 
-import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneOffset
 
+import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.JIRA_KEY_MESSAGE
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.FIX_VERSION
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.epic
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.schedule
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.story
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
 import static com.bbh.itss.dso.portal.support.Fixtures.product
+import static java.time.Clock.fixed
+import static java.time.ZoneOffset.UTC
 
 class ProductionChangeServiceSpec extends Specification {
 
@@ -47,7 +47,7 @@ class ProductionChangeServiceSpec extends Specification {
     JiraPort jira = Mock()
     ServiceNowPort serviceNow = Mock()
     def service = new ProductionChangeService(products, departments, profiles, changes, jira, serviceNow,
-            Clock.fixed(NOW, ZoneOffset.UTC))
+            fixed(NOW, UTC))
     def certScanner = product(code: 'CERTSCANNER', services: [[id: 10, name: 'gui'], [id: 11, name: 'api'],
                                                                [id: 12, name: 'batch']])
 
@@ -122,7 +122,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         def refused = thrown(InvalidRequestException)
-        refused.problems == problems.collect { new FieldProblem(it.key, it.value) }
+        refused.problems() == problems.collect { new FieldProblem(it.key, it.value) }
         0 * serviceNow._
         0 * changes._
 
@@ -156,7 +156,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         def refused = thrown(InvalidRequestException)
-        refused.problems*.field == ['template.jiraProjectKey']
+        refused.problems()*.field() == ['template.jiraProjectKey']
         0 * jira._
 
         where:
@@ -178,7 +178,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         def refused = thrown(InvalidRequestException)
-        refused.problems == [new FieldProblem('schedule.installationStart', 'must be in the future')]
+        refused.problems() == [new FieldProblem('schedule.installationStart', 'must be in the future')]
     }
 
     def "FixVersions come from the Jira project of the stored profile, unreleased first and newest first"() {
@@ -237,14 +237,14 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         def refused = thrown(InvalidRequestException)
-        refused.problems == [new FieldProblem(field, message)]
+        refused.problems() == [new FieldProblem(field, message)]
         0 * jira._
 
         where:
         method    | problem              | action                                                  || field        | message
         'epics'   | 'a blank FixVersion' | { ProductionChangeService it -> it.epics(1L, ' ', null) } || 'fixVersion' | 'choose a FixVersion'
         'stories' | 'no FixVersion'      | { ProductionChangeService it -> it.stories(1L, null, ['CERT-1'], null) } || 'fixVersion' | 'choose a FixVersion'
-        'versions'| 'a broken project'   | { ProductionChangeService it -> it.versions(1L, 'ce-rt') } || 'project' | ChangeTemplate.JIRA_KEY_MESSAGE
+        'versions'| 'a broken project'   | { ProductionChangeService it -> it.versions(1L, 'ce-rt') } || 'project' | JIRA_KEY_MESSAGE
     }
 
     def "raised changes are listed and read back, and the integrations say they are demo ones"() {
@@ -274,7 +274,7 @@ class ProductionChangeServiceSpec extends Specification {
         service.get(8L)
 
         then:
-        thrown(NotFoundException)
+        thrown(NoSuchElementException)
     }
 
     static ChangeCommand command(Map changes = [:]) {

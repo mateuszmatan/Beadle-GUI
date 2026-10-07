@@ -2,19 +2,19 @@ package com.bbh.itss.dso.portal.adapter.out.persistence;
 
 import com.bbh.itss.dso.portal.application.catalog.port.out.DepartmentRepositoryPort;
 import com.bbh.itss.dso.portal.domain.catalog.Department;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
 
+import static com.bbh.itss.dso.portal.adapter.out.persistence.AuditedEntity.current;
+
 @Component
+@RequiredArgsConstructor
 class DepartmentPersistenceAdapter implements DepartmentRepositoryPort {
 
     private final DepartmentJpaRepository departments;
-
-    DepartmentPersistenceAdapter(DepartmentJpaRepository departments) {
-        this.departments = departments;
-    }
 
     @Override
     public List<Department> findAll() {
@@ -34,7 +34,7 @@ class DepartmentPersistenceAdapter implements DepartmentRepositoryPort {
     @Override
     public Department save(Department department) {
         DepartmentEntity entity = department.id() == null ? new DepartmentEntity()
-                : AuditedEntity.current(departments.findById(department.id()), department.version());
+                : current(departments.findById(department.id()), department.version());
         entity.rename(department.name());
         return departments.saveAndFlush(entity).toDomain();
     }

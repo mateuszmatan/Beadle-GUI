@@ -3,7 +3,6 @@ package com.bbh.itss.dso.portal.regression
 import com.bbh.itss.dso.portal.support.PortalSpecification
 
 import java.time.Instant
-import java.time.temporal.ChronoUnit
 
 import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ApiJson.service
@@ -11,10 +10,12 @@ import static com.bbh.itss.dso.portal.support.ChangeFixtures.scheduleJson
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.templateJson
 import static java.net.URLEncoder.encode
 import static java.nio.charset.StandardCharsets.UTF_8
+import static java.time.temporal.ChronoUnit.DAYS
+import static java.time.temporal.ChronoUnit.HOURS
 
 class ProductionChangeRegressionSpec extends PortalSpecification {
 
-    static final Instant START = Instant.now().plus(3, ChronoUnit.DAYS).truncatedTo(ChronoUnit.HOURS)
+    static final Instant START = Instant.now().plus(3, DAYS).truncatedTo(HOURS)
     static final List<String> CHANGE_KEYS = ['id', 'number', 'productId', 'productCode', 'productName',
                                              'departmentName', 'fixVersion', 'schedule', 'shortDescription',
                                              'description', 'template', 'epicKeys', 'storyKeys', 'tasks', 'url',

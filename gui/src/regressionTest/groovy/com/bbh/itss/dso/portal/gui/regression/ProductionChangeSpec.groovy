@@ -2,12 +2,13 @@ package com.bbh.itss.dso.portal.gui.regression
 
 import com.microsoft.playwright.Locator
 
+import java.time.LocalDate
+
 import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.RELEASE_DATE
 import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.OPTION
 import static java.time.LocalDate.now
-import static java.time.LocalDate.parse
 
 class ProductionChangeSpec extends EditorSpecification {
 
@@ -327,7 +328,7 @@ class ProductionChangeSpec extends EditorSpecification {
     }
 
     static String nextDay() {
-        parse(RELEASE_DATE).plusDays(1).toString()
+        LocalDate.parse(RELEASE_DATE).plusDays(1).toString()
     }
 
     static String inDays(int days) {

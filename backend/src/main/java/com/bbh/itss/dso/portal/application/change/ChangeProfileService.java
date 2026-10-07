@@ -11,19 +11,18 @@ import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
+import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.suggestedFor;
+
 @UseCase
+@RequiredArgsConstructor
 public class ChangeProfileService implements ChangeProfilesUseCase {
 
     private final ChangeProfileRepositoryPort profiles;
     private final ProductsUseCase products;
-
-    public ChangeProfileService(ChangeProfileRepositoryPort profiles, ProductsUseCase products) {
-        this.profiles = profiles;
-        this.products = products;
-    }
 
     @Override
     @ReadOnly
@@ -36,9 +35,10 @@ public class ChangeProfileService implements ChangeProfilesUseCase {
     public ChangeProfileView get(long productId) {
         Product product = products.get(productId);
         return profiles.find(productId).map(profile -> view(product, profile))
-                .orElseGet(() -> new ChangeProfileView(productId, product.name(), null, null,
-                        ChangeTemplate.suggestedFor(product.code(), product.name(), product.ownerTeam(),
-                                product.description())));
+                .orElseGet(() -> ChangeProfileView.builder().productId(productId).productName(product.name())
+                        .template(suggestedFor(product.code(), product.name(), product.ownerTeam(),
+                                product.description()))
+                        .build());
     }
 
     @Override

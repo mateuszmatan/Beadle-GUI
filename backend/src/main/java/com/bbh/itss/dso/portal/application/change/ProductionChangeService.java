@@ -22,25 +22,32 @@ import com.bbh.itss.dso.portal.domain.change.JiraIssue;
 import com.bbh.itss.dso.portal.domain.change.JiraVersion;
 import com.bbh.itss.dso.portal.domain.change.ProductionChange;
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException;
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
-import com.bbh.itss.dso.portal.domain.shared.StoredList;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+import lombok.RequiredArgsConstructor;
 
 import java.time.Clock;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Function;
 
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.JIRA_KEY_MESSAGE;
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.isJiraKey;
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.jiraKeyOf;
+import static com.bbh.itss.dso.portal.domain.change.JiraVersion.UNRELEASED_NEWEST_FIRST;
+import static com.bbh.itss.dso.portal.domain.change.ProductionChange.DESCRIPTION_MAX;
+import static com.bbh.itss.dso.portal.domain.change.ProductionChange.FIX_VERSION_MAX;
+import static com.bbh.itss.dso.portal.domain.change.ProductionChange.SHORT_DESCRIPTION_MAX;
+import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
+import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_1000;
+import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_4000;
 import static com.bbh.itss.dso.portal.domain.shared.Text.bytes;
-import static com.bbh.itss.dso.portal.domain.shared.Text.trimToNull;
+import static java.util.Locale.ROOT;
+import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 @UseCase
+@RequiredArgsConstructor
 public class ProductionChangeService implements ProductionChangesUseCase {
 
     private final ProductsUseCase products;
@@ -51,18 +58,6 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     private final ServiceNowPort serviceNow;
     private final Clock clock;
 
-    public ProductionChangeService(ProductsUseCase products, DepartmentsUseCase departments,
-                                   ChangeProfileRepositoryPort profiles, ProductionChangeRepositoryPort changes,
-                                   JiraPort jira, ServiceNowPort serviceNow, Clock clock) {
-        this.products = products;
-        this.departments = departments;
-        this.profiles = profiles;
-        this.changes = changes;
-        this.jira = jira;
-        this.serviceNow = serviceNow;
-        this.clock = clock;
-    }
-
     @Override
     @ReadOnly
     public List<ProductionChange> list() {
@@ -72,7 +67,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @Override
     @ReadOnly
     public ProductionChange get(long id) {
-        return changes.load(id).orElseThrow(() -> NotFoundException.of("Change", id));
+        return changes.load(id).orElseThrow(() -> notFound("Change", id));
     }
 
     @Override
@@ -85,7 +80,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @WithoutTransaction
     public List<JiraVersion> versions(long productId, String project) {
         return jira.versions(projectOf(productId, project)).stream()
-                .sorted(JiraVersion.UNRELEASED_NEWEST_FIRST).toList();
+                .sorted(UNRELEASED_NEWEST_FIRST).toList();
     }
 
     @Override
@@ -130,7 +125,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
                 problems.add("serviceIds", "service " + id + " is not a service of " + product.name()));
         String version = trimToNull(command.fixVersion());
         problems.require("fixVersion", version, "choose the FixVersion of the release")
-                .fits("fixVersion", version, ProductionChange.FIX_VERSION_MAX);
+                .fits("fixVersion", version, FIX_VERSION_MAX);
         ChangeTemplate template = command.template();
         problems.require("template", template, "fill in the ServiceNow fields of the change");
         if (template != null) {
@@ -148,7 +143,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         String project = template == null ? null : template.jiraProjectKey();
         List<JiraIssue> epics = List.of();
         List<JiraIssue> stories = List.of();
-        if (isJiraKey(project) && version != null && bytes(version) <= ProductionChange.FIX_VERSION_MAX) {
+        if (isJiraKey(project) && version != null && bytes(version) <= FIX_VERSION_MAX) {
             epics = chosen(command.epicKeys(), jira.epics(project, version), "epicKeys",
                     " is not an epic of FixVersion " + version + " in Jira project " + project, problems);
             List<String> epicKeys = epics.stream().map(JiraIssue::key).toList();
@@ -157,10 +152,10 @@ public class ProductionChangeService implements ProductionChangesUseCase {
             stories = chosen(command.storyKeys(), offered, "storyKeys",
                     " is not a story of the chosen epics in FixVersion " + version, problems);
         }
-        StoredList.LINES_1000.check(problems, "epicKeys", command.epicKeys());
-        StoredList.LINES_4000.check(problems, "storyKeys", command.storyKeys());
-        problems.fits("shortDescription", command.shortDescription(), ProductionChange.SHORT_DESCRIPTION_MAX)
-                .fits("description", command.description(), ProductionChange.DESCRIPTION_MAX);
+        LINES_1000.check(problems, "epicKeys", command.epicKeys());
+        LINES_4000.check(problems, "storyKeys", command.storyKeys());
+        problems.fits("shortDescription", command.shortDescription(), SHORT_DESCRIPTION_MAX)
+                .fits("description", command.description(), DESCRIPTION_MAX);
         problems.throwIfAny();
         return ProductionChange.draft(product, departmentOf(product), services, command.fixVersion(), schedule,
                 template, epics, stories, command.shortDescription(), command.description());
@@ -173,7 +168,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
             return profiles.find(productId).map(profile -> profile.template().jiraProjectKey())
                     .orElseGet(() -> jiraKeyOf(product.code()));
         }
-        String key = override.toUpperCase(Locale.ROOT);
+        String key = override.toUpperCase(ROOT);
         if (!isJiraKey(key)) {
             throw InvalidRequestException.of("project", JIRA_KEY_MESSAGE);
         }
@@ -191,7 +186,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     private static List<JiraIssue> chosen(List<String> keys, List<JiraIssue> offered, String field, String refusal,
                                           ValidationProblems problems) {
         Map<String, JiraIssue> found = offered.stream()
-                .collect(toMap(JiraIssue::key, Function.identity(), (first, second) -> first));
+                .collect(toMap(JiraIssue::key, identity(), (first, second) -> first));
         keys.stream().filter(key -> !found.containsKey(key)).forEach(key -> problems.add(field, key + refusal));
         return keys.stream().map(found::get).filter(Objects::nonNull).toList();
     }

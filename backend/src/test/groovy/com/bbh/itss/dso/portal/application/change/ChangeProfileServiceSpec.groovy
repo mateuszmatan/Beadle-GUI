@@ -5,14 +5,13 @@ import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileSummary
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileView
 import com.bbh.itss.dso.portal.application.change.port.out.ChangeProfileRepositoryPort
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile
-import com.bbh.itss.dso.portal.domain.change.ChangeTemplate
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import spock.lang.Specification
 
 import java.time.Instant
 
+import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.suggestedFor
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.privileged
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
 import static com.bbh.itss.dso.portal.support.Fixtures.product
@@ -43,9 +42,10 @@ class ChangeProfileServiceSpec extends Specification {
         profiles.find(1L) >> Optional.empty()
 
         expect:
-        service.get(1L) == new ChangeProfileView(1L, 'CertScanner', null, null,
-                ChangeTemplate.suggestedFor('CERTSCANNER', 'CertScanner', 'Technology Architecture',
+        service.get(1L) == ChangeProfileView.builder().productId(1L).productName('CertScanner')
+                .template(suggestedFor('CERTSCANNER', 'CertScanner', 'Technology Architecture',
                         'Watches TLS certificates.'))
+                .build()
     }
 
     def "the first template of a product is created"() {
@@ -92,7 +92,7 @@ class ChangeProfileServiceSpec extends Specification {
         service.save(1L, version, template())
 
         then:
-        thrown(ConflictException)
+        thrown(IllegalStateException)
         0 * profiles.save(_)
 
         where:
@@ -106,7 +106,7 @@ class ChangeProfileServiceSpec extends Specification {
 
         then:
         def refused = thrown(InvalidRequestException)
-        refused.problems*.field == ['template.planning', 'template.privilegedAccess.users']
+        refused.problems()*.field() == ['template.planning', 'template.privilegedAccess.users']
         0 * profiles._
     }
 }
