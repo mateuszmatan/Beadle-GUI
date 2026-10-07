@@ -1,20 +1,47 @@
-import { ChangeProfile, ChangeTemplate, JiraIssue, ProductionChange } from '../changes/change-api';
+import {
+  ChangeProfile,
+  ChangeSchedule,
+  ChangeTemplate,
+  JiraIssue,
+  JiraVersion,
+  ProductionChange,
+} from '../changes/change-api';
 
 export function changeTemplate(overrides: Partial<ChangeTemplate> = {}): ChangeTemplate {
   return {
     jiraProjectKey: 'CERT',
-    configurationItem: 'CertScanner',
     assignmentGroup: 'Technology Architecture',
-    type: 'NORMAL',
     category: 'Software',
-    risk: 'MODERATE',
-    impact: 'LOW',
-    riskAssessment: 'Tested on QC.',
-    approvers: ['Olivia Bennett', 'James Carter'],
+    type: 'NORMAL',
+    configurationItem: 'CertScanner',
+    release: null,
+    incident: null,
+    problem: null,
+    affectedClients: null,
     description: 'Watches TLS certificates.',
-    implementationPlan: 'Deploy the services.',
-    backoutPlan: 'Redeploy the previous release.',
-    testPlan: 'Pipeline tests passed on QC.',
+    approvers: { l1Manager: 'Olivia Bennett', l2Manager: 'James Carter', businessApprover: null },
+    downtime: false,
+    timing: { installationStart: '18:00', installationHours: 2, validationHours: 1 },
+    planning: {
+      testSummary: 'Pipeline tests passed on QC.',
+      implementationPlan: 'Deploy the services.',
+      validationPlan: 'Run the smoke tests.',
+      backoutPlan: 'Redeploy the previous release.',
+      firstUsePlan: 'The business owner confirms the first use.',
+    },
+    privilegedAccess: { required: false, users: [] },
+    riskAssessment: {
+      bbhWorkgroups: 1,
+      bbhUsers: 10,
+      bbhApplications: 1,
+      clients: 0,
+      clientsOutsideBbh: 0,
+      businessImpact: 'Low',
+      changeComplexity: 'Low',
+      validationComplexity: 'Low',
+      backoutTesting: 'Tested on QC, about 15 minutes',
+      platformStatus: 'Existing platform',
+    },
     ...overrides,
   };
 }
@@ -30,12 +57,31 @@ export function changeProfile(overrides: Partial<ChangeProfile> = {}): ChangePro
   };
 }
 
+export function jiraVersion(
+  name: string,
+  released = false,
+  releaseDate: string | null = null,
+): JiraVersion {
+  return { name, released, releaseDate };
+}
+
 export function epic(key: string, summary: string, updated = '2026-09-20'): JiraIssue {
   return { key, summary, status: 'Done', epicKey: null, updated };
 }
 
 export function story(key: string, summary: string, epicKey: string): JiraIssue {
   return { key, summary, status: 'In Review', epicKey, updated: '2026-09-18' };
+}
+
+export function changeSchedule(overrides: Partial<ChangeSchedule> = {}): ChangeSchedule {
+  return {
+    installationStart: '2026-10-10T06:00:00Z',
+    installationEnd: '2026-10-10T08:00:00Z',
+    validationStart: '2026-10-10T08:00:00Z',
+    validationEnd: '2026-10-10T09:00:00Z',
+    firstUsage: '2026-10-12T08:00:00Z',
+    ...overrides,
+  };
 }
 
 export function productionChange(overrides: Partial<ProductionChange> = {}): ProductionChange {
@@ -46,10 +92,11 @@ export function productionChange(overrides: Partial<ProductionChange> = {}): Pro
     productCode: 'CERT',
     productName: 'CertScanner',
     departmentName: 'Corporate Technology',
-    window: { start: '2026-10-10T06:00:00Z', end: '2026-10-10T10:00:00Z' },
-    shortDescription: 'CertScanner release: Expiry alerts',
+    fixVersion: 'CERT 4.2',
+    schedule: changeSchedule(),
+    shortDescription: 'CertScanner CERT 4.2: Expiry alerts',
     description: 'Production release of CertScanner (CERT).',
-    template: changeTemplate(),
+    template: changeTemplate({ release: 'CERT 4.2' }),
     epicKeys: ['CERT-1'],
     storyKeys: ['CERT-2'],
     tasks: [

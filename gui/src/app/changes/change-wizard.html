@@ -36,8 +36,7 @@
       @case (0) {
         <h2>Which product goes to production?</h2>
         <p class="lead">
-          Choose the department, the product and the services you deploy. Each service gets its own
-          change task.
+          Choose the department and the product. Its ServiceNow defaults fill in the change.
         </p>
         @if (departmentsError(); as error) {
           <p class="choice-error">The departments could not be loaded: {{ error }}</p>
@@ -75,71 +74,84 @@
         }
         @if (profile.hasValue() && product.hasValue()) {
           @let chosen = product.value();
-          @if (template(); as t) {
-            <dl class="rows">
-              <dt>Configuration item</dt>
-              <dd>{{ t.configurationItem }}</dd>
-              <dt>Assignment group</dt>
-              <dd>{{ t.assignmentGroup }}</dd>
-              <dt>Risk and impact</dt>
-              <dd>{{ riskLabel(t.risk) }} risk · {{ impactLabel(t.impact) }} impact</dd>
-              <dt>Approvers</dt>
-              <dd>{{ t.approvers.join(', ') }}</dd>
-              <dt>Jira project</dt>
-              <dd class="mono">{{ t.jiraProjectKey }}</dd>
-            </dl>
-            <h3>Services</h3>
-            <div class="checks">
-              @for (service of chosen.services; track service.id) {
-                <mat-checkbox
-                  [checked]="serviceIds().includes(service.id)"
-                  (change)="toggleService(service.id, $event.checked)"
-                >
-                  <strong class="mono">{{ service.name }}</strong>
-                  @if (service.description) {
-                    <span class="muted"> · {{ service.description }}</span>
-                  }
-                </mat-checkbox>
-              }
-            </div>
-          } @else {
-            <div class="banner" role="alert">
+          @let defaults = profile.value();
+          @let t = defaults.template;
+          @if (defaults.version === null) {
+            <div class="banner info defaults-note" role="note">
               <span
-                >{{ chosen.name }} has no ServiceNow change template yet. Its risk assessment,
-                approvers and plans are filled in once per product.</span
+                >{{ chosen.name }} has no ServiceNow defaults yet, so the suggested values are
+                filled in. An admin can set the defaults in Beadle Admin.</span
               >
               <span class="spacer"></span>
-              <a mat-button [routerLink]="['/beadle/admin/products', chosen.id]">Fill it in</a>
+              <a mat-button [routerLink]="defaultsLink(chosen.id)">Set the defaults</a>
             </div>
           }
+          <dl class="rows">
+            <dt>Jira project</dt>
+            <dd class="mono">{{ t.jiraProjectKey }}</dd>
+            <dt>Assignment group</dt>
+            <dd>{{ t.assignmentGroup }}</dd>
+            <dt>Affected CI</dt>
+            <dd>{{ t.configurationItem }}</dd>
+            <dt>Approvers</dt>
+            <dd>{{ approverNames(t).join(', ') || 'not set' }}</dd>
+          </dl>
         }
       }
       @case (1) {
         <h2>What goes into the release?</h2>
         <p class="lead">
-          Pick the Jira epics and the stories under them. They write the short description and the
-          description of the change.
+          Give the Jira FixVersion of the release and pick its epics and stories. They write the
+          short description and the description of the change.
         </p>
-        <div class="scope-head">
-          <h3>Epics</h3>
-          <div class="range">
-            <mat-form-field>
-              <mat-label>Epics updated from</mat-label>
-              <input matInput type="date" [formControl]="epicFrom" />
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Epics updated to</mat-label>
-              <input matInput type="date" [formControl]="epicTo" />
-            </mat-form-field>
-          </div>
+        @let form = details()!;
+        <div class="find">
+          <mat-form-field class="project">
+            <mat-label>Jira project</mat-label>
+            <input
+              matInput
+              class="mono"
+              autocomplete="off"
+              [formControl]="form.controls.jiraProjectKey"
+            />
+            <mat-error>{{ errorText(form.controls.jiraProjectKey, jiraKeyError) }}</mat-error>
+          </mat-form-field>
+          <mat-form-field class="version">
+            <mat-label>FixVersion</mat-label>
+            <input
+              matInput
+              autocomplete="off"
+              [formControl]="fixVersion"
+              [matAutocomplete]="versionList"
+              (keydown.enter)="findEpics()"
+            />
+            <mat-autocomplete #versionList="matAutocomplete" (optionSelected)="findEpics()">
+              @for (version of versionOptions(); track version.name) {
+                <mat-option [value]="version.name">
+                  {{ version.name }}
+                  <span class="muted"> · {{ versionText(version) }}</span>
+                </mat-option>
+              }
+            </mat-autocomplete>
+            <mat-error>{{ errorText(fixVersion) }}</mat-error>
+          </mat-form-field>
+          <button mat-stroked-button type="button" (click)="findEpics()">Find epics</button>
         </div>
+        @if (versions.error(); as error) {
+          <p class="choice-error">
+            The FixVersions could not be loaded: {{ errorMessage(error) }}. Type the FixVersion.
+          </p>
+        }
+        <h3>Epics</h3>
         @if (epics.isLoading()) {
           <mat-progress-bar mode="indeterminate" />
         }
         @if (epics.error(); as error) {
           <p class="choice-error">The epics could not be loaded: {{ errorMessage(error) }}</p>
         }
-        @if (epics.hasValue()) {
+        @if (!searched()) {
+          <p class="empty">Enter the FixVersion and find its epics.</p>
+        } @else if (epics.hasValue()) {
           @if (epics.value().length) {
             <div class="issue-actions">
               <button type="button" class="text-link" (click)="chooseAllEpics(true)">All</button>
@@ -158,22 +170,10 @@
               }
             </div>
           } @else {
-            <p class="empty">No epic was updated in this range.</p>
+            <p class="empty">No epic carries FixVersion {{ searched() }}.</p>
           }
         }
-        <div class="scope-head">
-          <h3>Stories of the chosen epics</h3>
-          <div class="range">
-            <mat-form-field>
-              <mat-label>Stories updated from</mat-label>
-              <input matInput type="date" [formControl]="storyFrom" />
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Stories updated to</mat-label>
-              <input matInput type="date" [formControl]="storyTo" />
-            </mat-form-field>
-          </div>
-        </div>
+        <h3>Stories of the chosen epics</h3>
         @if (stories.isLoading()) {
           <mat-progress-bar mode="indeterminate" />
         }
@@ -194,48 +194,83 @@
                 <span class="muted"> · {{ issueText(story) }}</span>
               </mat-checkbox>
             } @empty {
-              <p class="empty">No story of this epic was updated in this range.</p>
+              <p class="empty">No story of this epic carries the FixVersion.</p>
             }
           </div>
         } @empty {
           <p class="empty">Choose an epic to see its stories.</p>
         }
-      }
-      @case (2) {
-        <h2>When is the change done?</h2>
-        <p class="lead">
-          The change window is when the services are deployed in production. Times are in your time
-          zone, {{ timeZone }}.
-        </p>
-        <dso-choice-tiles
-          label="Change window"
-          [options]="windows"
-          [value]="windowChoice()"
-          (valueChange)="chooseWindow($event)"
-        />
-        @if (windowChoice() === 'custom') {
-          <div class="fields">
-            <mat-form-field>
-              <mat-label>Starts</mat-label>
-              <input matInput type="datetime-local" [formControl]="customStart" />
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Ends</mat-label>
-              <input matInput type="datetime-local" [formControl]="customEnd" />
-            </mat-form-field>
+        @if (product.hasValue()) {
+          <h3>Services</h3>
+          <p class="hint">Each service you deploy gets its own change task.</p>
+          <div class="checks">
+            @for (service of product.value().services; track service.id) {
+              <mat-checkbox
+                [checked]="serviceIds().includes(service.id)"
+                (change)="toggleService(service.id, $event.checked)"
+              >
+                <strong class="mono">{{ service.name }}</strong>
+                @if (service.description) {
+                  <span class="muted"> · {{ service.description }}</span>
+                }
+              </mat-checkbox>
+            }
           </div>
         }
-        @if (window(); as chosen) {
+      }
+      @case (2) {
+        <h2>Check the ServiceNow fields</h2>
+        <p class="lead">
+          The defaults of the product are filled in. Change any value for this change; the defaults
+          stay as they are.
+        </p>
+        <dso-change-template-form [form]="details()!" />
+      }
+      @case (3) {
+        @let timing = details()!.controls.timing.getRawValue();
+        <h2>When is the change done?</h2>
+        <p class="lead">
+          Choose the installation date. The installation starts at
+          {{ timing.installationStart }} and takes
+          {{ counted(timing.installationHours ?? 0, 'hour') }}, then the validation takes
+          {{ counted(timing.validationHours ?? 0, 'hour') }}. Change any time you need. Times are in
+          your time zone, {{ timeZone }}.
+        </p>
+        <div class="fields">
+          <mat-form-field>
+            <mat-label>Installation date</mat-label>
+            <input matInput type="date" [formControl]="installationDate" />
+          </mat-form-field>
+        </div>
+        <div class="moments">
+          @for (moment of moments; track moment.key) {
+            @let pair = schedule.controls[moment.key].controls;
+            <mat-form-field>
+              <mat-label>{{ moment.label }} date</mat-label>
+              <input matInput type="date" [formControl]="pair.date" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>{{ moment.label }} time</mat-label>
+              <input matInput type="time" [formControl]="pair.time" />
+            </mat-form-field>
+          }
+        </div>
+        <mat-checkbox [formControl]="details()!.controls.downtime">
+          Downtime during the installation
+        </mat-checkbox>
+        @let times = planned();
+        @if (times.installationStart && times.installationEnd) {
           <p class="window-text">
-            <strong>{{ windowText(chosen.start, chosen.end) }}</strong>
+            Installation
+            <strong>{{ windowText(times.installationStart, times.installationEnd) }}</strong>
           </p>
         }
       }
-      @case (3) {
+      @case (4) {
         <h2>Check and raise the change</h2>
         <p class="lead">
-          The texts come from the Jira epics and stories. Change them if you like before you raise
-          the change.
+          The texts come from the Jira epics and stories and the ServiceNow fields. Change them if
+          you like before you raise the change.
         </p>
         @if (previewing()) {
           <mat-progress-bar mode="indeterminate" />
@@ -255,31 +290,7 @@
               <mat-error>{{ errorText(description) }}</mat-error>
             </mat-form-field>
           </div>
-          <dl class="rows">
-            <dt>Product</dt>
-            <dd>{{ draft.productName }} ({{ draft.productCode }})</dd>
-            <dt>Department</dt>
-            <dd>{{ draft.departmentName ?? 'not set' }}</dd>
-            <dt>Window</dt>
-            <dd>{{ windowText(draft.window.start, draft.window.end) }}</dd>
-            <dt>Type, risk and impact</dt>
-            <dd>
-              {{ typeLabel(draft.template.type) }} change ·
-              {{ riskLabel(draft.template.risk) }} risk ·
-              {{ impactLabel(draft.template.impact) }} impact
-            </dd>
-            <dt>Configuration item</dt>
-            <dd>{{ draft.template.configurationItem }}</dd>
-            <dt>Assignment group</dt>
-            <dd>{{ draft.template.assignmentGroup }}</dd>
-            <dt>Approvers</dt>
-            <dd>{{ draft.template.approvers.join(', ') }}</dd>
-            <dt>Jira scope</dt>
-            <dd>
-              {{ counted(draft.epicKeys.length, 'epic') }} and
-              {{ counted(draft.storyKeys.length, 'story', 'stories') }}
-            </dd>
-          </dl>
+          <dso-change-summary [change]="draft" />
           <h3>Change tasks</h3>
           <ol class="tasks">
             @for (task of draft.tasks; track task.serviceName) {
@@ -289,6 +300,11 @@
               </li>
             }
           </ol>
+          <p class="scope">
+            {{ counted(draft.epicKeys.length, 'epic') }} and
+            {{ counted(draft.storyKeys.length, 'story', 'stories') }} of FixVersion
+            {{ draft.fixVersion }}
+          </p>
         }
         @if (raising()) {
           <mat-progress-bar mode="indeterminate" />
@@ -308,15 +324,19 @@
           </div>
         }
       }
-      @case (4) {
+      @case (5) {
         @if (raised(); as change) {
           <h2>{{ change.number }} is raised</h2>
           <p class="lead">{{ change.shortDescription }}</p>
           <dl class="rows">
             <dt>Change</dt>
             <dd class="mono">{{ change.number }}</dd>
-            <dt>Window</dt>
-            <dd>{{ windowText(change.window.start, change.window.end) }}</dd>
+            <dt>FixVersion</dt>
+            <dd class="mono">{{ change.fixVersion }}</dd>
+            <dt>Installation</dt>
+            <dd>
+              {{ windowText(change.schedule.installationStart, change.schedule.installationEnd) }}
+            </dd>
             <dt>Change tasks</dt>
             <dd>
               <ul class="review-services">
@@ -331,7 +351,14 @@
           <ol class="next-steps">
             <li>
               <h3>Approvals</h3>
-              <p>{{ change.template.approvers.join(', ') }} approve the change in ServiceNow.</p>
+              <p>
+                @if (approverNames(change.template).length) {
+                  {{ approverNames(change.template).join(', ') }} approve the change in ServiceNow.
+                } @else {
+                  The approvers of {{ change.template.assignmentGroup }} approve the change in
+                  ServiceNow.
+                }
+              </p>
             </li>
             <li>
               <h3>Deploy in the window</h3>
@@ -357,7 +384,7 @@
     }
 
     <div class="step-actions">
-      @if (step() === 4) {
+      @if (step() === 5) {
         <a mat-button [routerLink]="['/beadle/changes', raised()?.id]">Open the change</a>
         <span class="spacer"></span>
         <button mat-flat-button type="button" (click)="restart()">Raise another change</button>

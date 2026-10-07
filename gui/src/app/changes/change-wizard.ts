@@ -7,9 +7,11 @@ import {
   inject,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatAutocompleteModule, MatAutocompleteTrigger } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -18,54 +20,93 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
 import { catchError, finalize, of } from 'rxjs';
-import { ChoiceTiles } from '../shared/choice-tiles';
 import { DepartmentsApi, ProductsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
-import { CHANGES } from '../core/sections';
+import { FieldProblem } from '../core/models';
+import { CHANGES, beadleProduct } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { NOT_IN_A_DEPARTMENT, byDepartment } from '../products/departments';
-import { fitsColumn } from '../shared/form-controls';
+import { filled, fitsColumn, max, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
+import { ChangeRequest, ChangesApi, JiraIssue, ProductionChange } from './change-api';
 import {
-  ChangesApi,
-  IMPACTS,
-  JiraIssue,
-  ProductionChange,
-  RISKS,
-  TYPES,
-  labelOf,
-} from './change-api';
-import {
-  ChangeWindow,
-  WINDOWS,
-  WindowChoice,
+  MOMENTS,
+  Moments,
+  approverNames,
   changeRequest,
-  fromLocalInput,
-  localInput,
-  presetWindow,
-  recentDays,
+  eachMoment,
+  isoDate,
+  matchingVersions,
+  momentInputs,
+  plannedSchedule,
+  readMoments,
+  scheduleProblem,
   storiesFollowing,
   toggled,
-  windowProblem,
+  versionText,
   windowText,
 } from './change-model';
+import { ChangeSummary } from './change-summary';
+import { ChangeTemplateForm, templateLabel } from './change-template-form';
+import {
+  JIRA_KEY,
+  JIRA_KEY_ERROR,
+  TEMPLATE_PREFIX,
+  TemplateForm,
+  applyTemplateProblems,
+  templateForm,
+  toTemplate,
+} from './change-template-model';
 import { IntegrationNote } from './integration-note';
 
-export const STEPS = ['Product', 'Jira scope', 'Window', 'Review', 'Raised'];
+export const STEPS = ['Product', 'Jira scope', 'Details', 'Schedule', 'Review', 'Raised'];
+
+const SCOPE = 1;
+const DETAILS = 2;
+const SCHEDULE = 3;
+const REVIEW = 4;
+const RAISED = 5;
+
+const REQUEST_LABELS: Record<string, string> = {
+  productId: 'Product',
+  serviceIds: 'Services',
+  fixVersion: 'FixVersion',
+  epicKeys: 'Epics',
+  storyKeys: 'Stories',
+  shortDescription: 'Short description',
+  description: 'Description',
+};
+
+export function requestLabel(field: string): string | null {
+  if (field.startsWith(TEMPLATE_PREFIX)) {
+    return templateLabel(field.slice(TEMPLATE_PREFIX.length));
+  }
+  const moment = MOMENTS.find(({ key }) => field === `schedule.${key}`);
+  return moment?.label ?? REQUEST_LABELS[field] ?? null;
+}
+
+function problemText(problem: FieldProblem): string {
+  const label = requestLabel(problem.field);
+  return label ? `${label}: ${problem.message}` : problem.message;
+}
+
+const momentForm = () => new FormGroup({ date: text(''), time: text('') });
 
 @Component({
   selector: 'dso-change-wizard',
   imports: [
     ReactiveFormsModule,
     RouterLink,
+    MatAutocompleteModule,
     MatButtonModule,
     MatCheckboxModule,
     MatFormFieldModule,
     MatInputModule,
     MatProgressBarModule,
     MatSelectModule,
-    ChoiceTiles,
+    ChangeSummary,
+    ChangeTemplateForm,
     IntegrationNote,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -79,14 +120,15 @@ export class ChangeWizard implements HasUnsavedChanges {
 
   protected readonly section = CHANGES;
   protected readonly steps = STEPS;
-  protected readonly windows = WINDOWS;
+  protected readonly moments = MOMENTS;
   protected readonly errorText = errorText;
   protected readonly errorMessage = errorMessage;
   protected readonly windowText = windowText;
+  protected readonly versionText = versionText;
+  protected readonly approverNames = approverNames;
   protected readonly counted = counted;
-  protected readonly typeLabel = (value: string) => labelOf(TYPES, value);
-  protected readonly riskLabel = (value: string) => labelOf(RISKS, value);
-  protected readonly impactLabel = (value: string) => labelOf(IMPACTS, value);
+  protected readonly defaultsLink = beadleProduct;
+  protected readonly jiraKeyError = JIRA_KEY_ERROR;
   protected readonly timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   protected readonly step = signal(0);
@@ -134,19 +176,33 @@ export class ChangeWizard implements HasUnsavedChanges {
     params: () => this.chosenProduct() ?? undefined,
     stream: ({ params }) => this.changesApi.profile(params),
   });
-  protected readonly template = computed(() =>
-    this.profile.hasValue() && this.profile.value().version !== null
-      ? this.profile.value().template
-      : null,
-  );
+  protected readonly details = signal<TemplateForm | null>(null);
   protected readonly serviceIds = signal<number[]>([]);
 
-  protected readonly epicFrom = new FormControl('', { nonNullable: true });
-  protected readonly epicTo = new FormControl('', { nonNullable: true });
-  protected readonly storyFrom = new FormControl('', { nonNullable: true });
-  protected readonly storyTo = new FormControl('', { nonNullable: true });
-  private readonly epicDates = this.dates(this.epicFrom, this.epicTo);
-  private readonly storyDates = this.dates(this.storyFrom, this.storyTo);
+  private readonly projectKey = signal('');
+  private readonly project = computed(() => {
+    const key = this.projectKey().trim().toUpperCase();
+    const stored = this.profile.hasValue() ? this.profile.value().template.jiraProjectKey : key;
+    return key !== stored && JIRA_KEY.test(key) ? key : undefined;
+  });
+
+  protected readonly fixVersion = new FormControl('', {
+    nonNullable: true,
+    validators: [filled, max(100)],
+  });
+  private readonly fixVersionText = toSignal(this.fixVersion.valueChanges, { initialValue: '' });
+  protected readonly searched = signal<string | null>(null);
+  private readonly versionTrigger = viewChild(MatAutocompleteTrigger);
+  protected readonly versions = rxResource({
+    params: () => {
+      const productId = this.details() ? this.chosenProduct() : null;
+      return productId ? { productId, project: this.project() } : undefined;
+    },
+    stream: ({ params }) => this.changesApi.versions(params.productId, params.project),
+  });
+  protected readonly versionOptions = computed(() =>
+    matchingVersions(this.versions.hasValue() ? this.versions.value() : [], this.fixVersionText()),
+  );
 
   protected readonly epicKeys = signal<string[]>([]);
   protected readonly storyKeys = signal<string[]>([]);
@@ -154,20 +210,26 @@ export class ChangeWizard implements HasUnsavedChanges {
 
   protected readonly epics = rxResource({
     params: () => {
-      const productId = this.template() ? this.chosenProduct() : null;
-      const dates = this.epicDates();
-      return productId && dates ? { productId, dates } : undefined;
+      const productId = this.chosenProduct();
+      const fixVersion = this.searched();
+      return productId && fixVersion
+        ? { productId, fixVersion, project: this.project() }
+        : undefined;
     },
-    stream: ({ params }) => this.changesApi.epics(params.productId, params.dates),
+    stream: ({ params }) =>
+      this.changesApi.epics(params.productId, params.fixVersion, params.project),
   });
   protected readonly stories = rxResource({
     params: () => {
-      const productId = this.template() ? this.chosenProduct() : null;
-      const dates = this.storyDates();
+      const productId = this.chosenProduct();
+      const fixVersion = this.searched();
       const epics = this.epicKeys();
-      return productId && dates && epics.length ? { productId, epics, dates } : undefined;
+      return productId && fixVersion && epics.length
+        ? { productId, fixVersion, epics, project: this.project() }
+        : undefined;
     },
-    stream: ({ params }) => this.changesApi.stories(params.productId, params.epics, params.dates),
+    stream: ({ params }) =>
+      this.changesApi.stories(params.productId, params.fixVersion, params.epics, params.project),
   });
   protected readonly storyGroups = computed(() => {
     const stories = this.stories.hasValue() && this.epicKeys().length ? this.stories.value() : [];
@@ -179,25 +241,12 @@ export class ChangeWizard implements HasUnsavedChanges {
     }));
   });
 
-  protected readonly windowChoice = signal<WindowChoice | null>(null);
-  protected readonly customStart = new FormControl('', { nonNullable: true });
-  protected readonly customEnd = new FormControl('', { nonNullable: true });
-  private readonly customStartValue = toSignal(this.customStart.valueChanges, {
-    initialValue: '',
+  protected readonly installationDate = new FormControl('', { nonNullable: true });
+  protected readonly schedule = new FormGroup(eachMoment(momentForm));
+  private readonly scheduleValue = toSignal(this.schedule.valueChanges, {
+    initialValue: this.schedule.getRawValue(),
   });
-  private readonly customEndValue = toSignal(this.customEnd.valueChanges, { initialValue: '' });
-  protected readonly window = computed<ChangeWindow | null>(() => {
-    const choice = this.windowChoice();
-    if (choice === null) {
-      return null;
-    }
-    if (choice !== 'custom') {
-      return presetWindow(choice, new Date());
-    }
-    const start = fromLocalInput(this.customStartValue());
-    const end = fromLocalInput(this.customEndValue());
-    return start && end ? { start, end } : null;
-  });
+  protected readonly planned = computed(() => readMoments(this.scheduleValue()));
 
   protected readonly shortDescription = new FormControl('', {
     nonNullable: true,
@@ -214,23 +263,40 @@ export class ChangeWizard implements HasUnsavedChanges {
   protected readonly problems = signal<string[]>([]);
   protected readonly raised = signal<ProductionChange | null>(null);
   private previewed = '';
+  private filledRelease: string | null = null;
 
   protected readonly nextLabel = computed(() =>
-    this.step() === 3 ? 'Raise the change in ServiceNow' : 'Continue',
+    this.step() === REVIEW ? 'Raise the change in ServiceNow' : 'Continue',
   );
 
   constructor() {
     this.departmentId.valueChanges
       .pipe(takeUntilDestroyed())
       .subscribe(() => this.productId.setValue(null));
-    this.productId.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => {
-      this.epicKeys.set([]);
-      this.storyKeys.set([]);
-      this.seenStories = new Set();
-    });
+    this.productId.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.forgetScope());
+    this.installationDate.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => this.fillSchedule());
     effect(() => {
       const product = this.product.hasValue() ? this.product.value() : null;
       this.serviceIds.set(product?.services.map((service) => service.id) ?? []);
+    });
+    effect(() => {
+      const profile = this.profile.hasValue() ? this.profile.value() : null;
+      untracked(() => this.details.set(profile ? templateForm(profile.template) : null));
+    });
+    effect((onCleanup) => {
+      const form = this.details();
+      if (!form) {
+        return;
+      }
+      const key = form.controls.jiraProjectKey;
+      untracked(() => this.projectKey.set(key.value));
+      const subscriptions = [
+        key.valueChanges.subscribe((value) => this.projectKey.set(value)),
+        form.controls.timing.valueChanges.subscribe(() => this.fillSchedule()),
+      ];
+      onCleanup(() => subscriptions.forEach((subscription) => subscription.unsubscribe()));
     });
     effect(() => {
       const loaded = this.epics.hasValue() ? this.epics.value() : null;
@@ -253,7 +319,7 @@ export class ChangeWizard implements HasUnsavedChanges {
   }
 
   hasUnsavedChanges(): boolean {
-    return !this.raised() && this.step() > 0;
+    return !this.raised() && (this.step() > 0 || this.searched() !== null);
   }
 
   protected canRevisit(index: number): boolean {
@@ -275,16 +341,26 @@ export class ChangeWizard implements HasUnsavedChanges {
 
   protected next(): void {
     this.checked.set(true);
+    if (this.step() === DETAILS) {
+      this.details()?.markAllAsTouched();
+    }
+    if (this.step() === SCHEDULE) {
+      this.schedule.markAllAsTouched();
+    }
     if (this.stepProblem()) {
       return;
     }
-    if (this.step() === 3) {
+    if (this.step() === REVIEW) {
       this.raise();
       return;
     }
     this.checked.set(false);
     this.step.update((step) => step + 1);
-    if (this.step() === 3) {
+    if (this.step() === DETAILS) {
+      this.fillRelease();
+    } else if (this.step() === SCHEDULE) {
+      this.suggestDate();
+    } else if (this.step() === REVIEW) {
       this.loadPreview();
     }
   }
@@ -295,25 +371,39 @@ export class ChangeWizard implements HasUnsavedChanges {
         if (!this.chosenProduct()) {
           return 'Choose the product';
         }
-        if (!this.template()) {
-          return 'The product needs its ServiceNow change template first';
+        if (!this.details() || !this.product.hasValue()) {
+          return this.product.isLoading() || this.profile.isLoading()
+            ? 'Wait until the product is loaded'
+            : 'Choose a product that can be loaded';
         }
-        return this.serviceIds().length ? null : 'Choose at least one service';
-      case 1:
-        if (!this.epicDates() || !this.storyDates() || this.epics.error() || this.stories.error()) {
-          return 'Choose dates the epics and stories can be loaded for';
-        }
-        return this.epicKeys().length ? null : 'Choose at least one epic';
-      case 2:
-        return this.windowChoice() === null
-          ? 'Choose the change window'
-          : windowProblem(this.window(), new Date());
-      case 3:
+        return null;
+      case SCOPE:
+        return this.scopeProblem();
+      case DETAILS:
+        return this.details()?.invalid ? 'Some fields need your attention.' : null;
+      case SCHEDULE:
+        return scheduleProblem(this.planned(), new Date());
+      case REVIEW:
         return !this.preview() || this.shortDescription.invalid || this.description.invalid
           ? 'Check the short description and the description'
           : null;
       default:
         return null;
+    }
+  }
+
+  protected findEpics(): void {
+    this.versionTrigger()?.closePanel();
+    this.fixVersion.markAsTouched();
+    const version = this.fixVersion.value.trim();
+    if (this.fixVersion.invalid) {
+      return;
+    }
+    if (version === this.searched()) {
+      this.epics.reload();
+    } else {
+      this.forgetIssues();
+      this.searched.set(version);
     }
   }
 
@@ -343,38 +433,76 @@ export class ChangeWizard implements HasUnsavedChanges {
     }
   }
 
-  protected chooseWindow(choice: WindowChoice | null): void {
-    this.windowChoice.set(choice);
-    const preset = choice
-      ? presetWindow(choice === 'custom' ? 'weekend' : choice, new Date())
-      : null;
-    if (choice === 'custom' && preset && !this.customStart.value) {
-      this.customStart.setValue(localInput(preset.start));
-      this.customEnd.setValue(localInput(preset.end));
-    }
-  }
-
   protected issueText(issue: JiraIssue): string {
     return [issue.status, `updated ${issue.updated}`].filter(Boolean).join(' · ');
   }
 
   protected restart(): void {
     this.raised.set(null);
-    this.preview.set(null);
-    this.previewed = '';
     this.productId.setValue(null);
-    this.windowChoice.set(null);
     this.checked.set(false);
     this.step.set(0);
   }
 
-  private dates(from: FormControl<string>, to: FormControl<string>) {
-    const range = recentDays(new Date());
-    from.setValue(range.from);
-    to.setValue(range.to);
-    const fromValue = toSignal(from.valueChanges, { initialValue: range.from });
-    const toValue = toSignal(to.valueChanges, { initialValue: range.to });
-    return computed(() => (fromValue() && toValue() ? { from: fromValue(), to: toValue() } : null));
+  private scopeProblem(): string | null {
+    const version = this.fixVersion.value.trim();
+    if (!version || this.fixVersion.invalid) {
+      return 'Enter the FixVersion of the release';
+    }
+    if (version !== this.searched()) {
+      return 'Find the epics of this FixVersion';
+    }
+    if (this.epics.error() || this.stories.error()) {
+      return 'The epics and stories of this FixVersion could not be loaded';
+    }
+    if (!this.epicKeys().length) {
+      return 'Choose at least one epic';
+    }
+    return this.serviceIds().length ? null : 'Choose at least one service';
+  }
+
+  private forgetIssues(): void {
+    this.epicKeys.set([]);
+    this.storyKeys.set([]);
+    this.seenStories = new Set();
+  }
+
+  private forgetScope(): void {
+    this.forgetIssues();
+    this.searched.set(null);
+    this.fixVersion.reset();
+    this.installationDate.reset();
+    this.schedule.reset();
+    this.filledRelease = null;
+    this.preview.set(null);
+    this.previewed = '';
+  }
+
+  private fillRelease(): void {
+    const release = this.details()!.controls.release;
+    const version = this.searched()!;
+    if (!release.value.trim() || release.value === this.filledRelease) {
+      release.setValue(version);
+      this.filledRelease = version;
+    }
+  }
+
+  private suggestDate(): void {
+    const version = this.versions.hasValue()
+      ? this.versions.value().find((candidate) => candidate.name === this.searched())
+      : null;
+    const date = version?.releaseDate;
+    if (!this.installationDate.value && date && date >= isoDate(new Date())) {
+      this.installationDate.setValue(date);
+    }
+  }
+
+  private fillSchedule(): void {
+    const timing = this.details()?.controls.timing.getRawValue();
+    const planned = timing ? plannedSchedule(this.installationDate.value, timing) : null;
+    if (planned) {
+      this.schedule.setValue(momentInputs(planned));
+    }
   }
 
   private loadedStories(): JiraIssue[] {
@@ -387,13 +515,17 @@ export class ChangeWizard implements HasUnsavedChanges {
     this.storyKeys.update((chosen) => chosen.filter((key) => !keys.includes(key)));
   }
 
-  private request() {
+  private request(): ChangeRequest {
     return changeRequest(
-      this.chosenProduct()!,
-      this.serviceIds(),
-      this.epicKeys(),
-      this.storyKeys(),
-      this.window(),
+      {
+        productId: this.chosenProduct()!,
+        serviceIds: this.serviceIds(),
+        fixVersion: this.searched()!,
+        epicKeys: this.epicKeys(),
+        storyKeys: this.storyKeys(),
+      },
+      this.planned() as Moments,
+      toTemplate(this.details()!),
     );
   }
 
@@ -443,14 +575,19 @@ export class ChangeWizard implements HasUnsavedChanges {
         next: (change) => {
           this.raised.set(change);
           this.checked.set(false);
-          this.step.set(4);
+          this.step.set(RAISED);
         },
         error: (error) => this.fail(error),
       });
   }
 
   private fail(error: unknown): void {
+    const problems = fieldProblems(error);
+    const form = this.details();
+    if (form) {
+      applyTemplateProblems(form, problems);
+    }
     this.problem.set(errorMessage(error));
-    this.problems.set(fieldProblems(error).map((problem) => problem.message));
+    this.problems.set(problems.map(problemText));
   }
 }

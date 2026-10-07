@@ -3,23 +3,67 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 export type ChangeType = 'NORMAL' | 'STANDARD' | 'EMERGENCY';
-export type ChangeRisk = 'LOW' | 'MODERATE' | 'HIGH';
-export type ChangeImpact = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface ChangeApprovers {
+  l1Manager: string | null;
+  l2Manager: string | null;
+  businessApprover: string | null;
+}
+
+export interface ChangeTiming {
+  installationStart: string;
+  installationHours: number;
+  validationHours: number;
+}
+
+export interface ChangePlanning {
+  testSummary: string;
+  implementationPlan: string;
+  validationPlan: string;
+  backoutPlan: string;
+  firstUsePlan: string;
+}
+
+export interface PrivilegedUser {
+  user: string;
+  account: string;
+}
+
+export interface PrivilegedAccess {
+  required: boolean;
+  users: PrivilegedUser[];
+}
+
+export interface RiskAssessment {
+  bbhWorkgroups: number | null;
+  bbhUsers: number | null;
+  bbhApplications: number | null;
+  clients: number | null;
+  clientsOutsideBbh: number | null;
+  businessImpact: string | null;
+  changeComplexity: string | null;
+  validationComplexity: string | null;
+  backoutTesting: string | null;
+  platformStatus: string | null;
+}
 
 export interface ChangeTemplate {
   jiraProjectKey: string;
-  configurationItem: string;
   assignmentGroup: string;
-  type: ChangeType;
   category: string;
-  risk: ChangeRisk;
-  impact: ChangeImpact;
-  riskAssessment: string | null;
-  approvers: string[];
+  type: ChangeType;
+  configurationItem: string;
+  release: string | null;
+  incident: string | null;
+  problem: string | null;
+  affectedClients: string | null;
   description: string | null;
-  implementationPlan: string;
-  backoutPlan: string;
-  testPlan: string;
+  approvers: ChangeApprovers;
+  downtime: boolean;
+  timing: ChangeTiming;
+  planning: ChangePlanning;
+  privilegedAccess: PrivilegedAccess;
+  riskAssessment: RiskAssessment;
 }
 
 export interface ChangeProfile {
@@ -30,12 +74,33 @@ export interface ChangeProfile {
   template: ChangeTemplate;
 }
 
+export interface ChangeProfileSummary {
+  productId: number;
+  productName: string;
+  version: number;
+  updatedAt: string;
+}
+
+export interface JiraVersion {
+  name: string;
+  released: boolean;
+  releaseDate: string | null;
+}
+
 export interface JiraIssue {
   key: string;
   summary: string;
   status: string | null;
   epicKey: string | null;
   updated: string;
+}
+
+export interface ChangeSchedule {
+  installationStart: string;
+  installationEnd: string;
+  validationStart: string;
+  validationEnd: string;
+  firstUsage: string;
 }
 
 export interface ChangeTask {
@@ -52,7 +117,8 @@ export interface ProductionChange {
   productCode: string;
   productName: string;
   departmentName: string | null;
-  window: { start: string; end: string };
+  fixVersion: string;
+  schedule: ChangeSchedule;
   shortDescription: string;
   description: string;
   template: ChangeTemplate;
@@ -66,10 +132,11 @@ export interface ProductionChange {
 export interface ChangeRequest {
   productId: number;
   serviceIds: number[];
+  fixVersion: string;
   epicKeys: string[];
   storyKeys: string[];
-  start: string | null;
-  end: string | null;
+  schedule: ChangeSchedule;
+  template: ChangeTemplate;
   shortDescription?: string;
   description?: string;
 }
@@ -79,34 +146,35 @@ export interface ChangeIntegrations {
   serviceNowConnected: boolean;
 }
 
-export interface DateRange {
-  from: string;
-  to: string;
-}
-
 export const TYPES: { value: ChangeType; label: string }[] = [
   { value: 'NORMAL', label: 'Normal' },
   { value: 'STANDARD', label: 'Standard' },
   { value: 'EMERGENCY', label: 'Emergency' },
 ];
 
-export const RISKS: { value: ChangeRisk; label: string }[] = [
-  { value: 'LOW', label: 'Low' },
-  { value: 'MODERATE', label: 'Moderate' },
-  { value: 'HIGH', label: 'High' },
-];
+const LEVELS = ['Low', 'Medium', 'High'];
 
-export const IMPACTS: { value: ChangeImpact; label: string }[] = [
-  { value: 'LOW', label: 'Low' },
-  { value: 'MEDIUM', label: 'Medium' },
-  { value: 'HIGH', label: 'High' },
-];
+export const SUGGESTIONS = {
+  businessImpact: LEVELS,
+  changeComplexity: LEVELS,
+  validationComplexity: LEVELS,
+  platformStatus: ['Existing platform', 'New platform', 'Platform upgrade'],
+} satisfies Partial<Record<keyof RiskAssessment, readonly string[]>>;
 
 export function labelOf<T>(options: readonly { value: T; label: string }[], value: T): string {
   return options.find((option) => option.value === value)?.label ?? String(value);
 }
 
-const range = (dates: DateRange) => new HttpParams().set('from', dates.from).set('to', dates.to);
+function jira(fixVersion: string | null, project?: string, epicKeys?: readonly string[]) {
+  let params = new HttpParams();
+  if (fixVersion !== null) {
+    params = params.set('fixVersion', fixVersion);
+  }
+  if (epicKeys) {
+    params = params.set('epics', epicKeys.join(','));
+  }
+  return project ? params.set('project', project) : params;
+}
 
 @Injectable({ providedIn: 'root' })
 export class ChangesApi {
@@ -124,15 +192,26 @@ export class ChangesApi {
     return this.http.get<ChangeIntegrations>('/api/changes/integrations');
   }
 
-  epics(productId: number, dates: DateRange): Observable<JiraIssue[]> {
-    return this.http.get<JiraIssue[]>(`/api/products/${productId}/jira/epics`, {
-      params: range(dates),
+  versions(productId: number, project?: string): Observable<JiraVersion[]> {
+    return this.http.get<JiraVersion[]>(`/api/products/${productId}/jira/versions`, {
+      params: jira(null, project),
     });
   }
 
-  stories(productId: number, epicKeys: string[], dates: DateRange): Observable<JiraIssue[]> {
+  epics(productId: number, fixVersion: string, project?: string): Observable<JiraIssue[]> {
+    return this.http.get<JiraIssue[]>(`/api/products/${productId}/jira/epics`, {
+      params: jira(fixVersion, project),
+    });
+  }
+
+  stories(
+    productId: number,
+    fixVersion: string,
+    epicKeys: readonly string[],
+    project?: string,
+  ): Observable<JiraIssue[]> {
     return this.http.get<JiraIssue[]>(`/api/products/${productId}/jira/stories`, {
-      params: range(dates).set('epics', epicKeys.join(',')),
+      params: jira(fixVersion, project, epicKeys),
     });
   }
 
@@ -142,6 +221,10 @@ export class ChangesApi {
 
   raise(request: ChangeRequest): Observable<ProductionChange> {
     return this.http.post<ProductionChange>('/api/changes', request);
+  }
+
+  profiles(): Observable<ChangeProfileSummary[]> {
+    return this.http.get<ChangeProfileSummary[]>('/api/change-profiles');
   }
 
   profile(productId: number): Observable<ChangeProfile> {
