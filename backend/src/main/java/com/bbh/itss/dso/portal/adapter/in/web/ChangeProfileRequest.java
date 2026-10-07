@@ -26,6 +26,7 @@ import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.MAX_HOURS;
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.MAX_PRIVILEGED_USERS;
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.TIME_OF_DAY;
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.TIME_OF_DAY_MESSAGE;
+import static jakarta.validation.constraints.Pattern.Flag.CASE_INSENSITIVE;
 
 public record ChangeProfileRequest(Long version, @NotNull @Valid TemplateDto template) {
 
@@ -34,7 +35,8 @@ public record ChangeProfileRequest(Long version, @NotNull @Valid TemplateDto tem
     }
 
     public record TemplateDto(
-            @NotBlank @Pattern(regexp = JIRA_KEY, message = JIRA_KEY_MESSAGE) String jiraProjectKey,
+            @NotBlank @Pattern(regexp = JIRA_KEY, flags = CASE_INSENSITIVE, message = JIRA_KEY_MESSAGE)
+            String jiraProjectKey,
             @NotBlank @Size(max = 200) String assignmentGroup,
             @NotBlank @Size(max = 100) String category,
             @NotNull ChangeTemplate.Type type,

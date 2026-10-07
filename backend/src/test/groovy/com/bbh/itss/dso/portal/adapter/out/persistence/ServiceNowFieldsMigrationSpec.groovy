@@ -88,15 +88,16 @@ class ServiceNowFieldsMigrationSpec extends Specification {
         profile.version() == 2
         profile.template() == new ChangeTemplate('CERT', 'Technology Architecture', 'Software',
                 ChangeTemplate.Type.NORMAL, 'CertScanner', null, null, null, null, 'Watches TLS certificates.',
-                new Approvers('Olivia Bennett', 'James Carter', null), false, Timing.SUGGESTED,
+                new Approvers('Olivia Bennett', 'James Carter', 'Emma Brooks'), false, Timing.SUGGESTED,
                 new Planning('Pipeline tests passed on QC.', 'Deploy the services.', ChangeTemplate.VALIDATION_PLAN,
                         'Redeploy the previous release.', ChangeTemplate.FIRST_USE_PLAN),
-                PrivilegedAccess.NONE, RiskAssessment.NONE)
+                PrivilegedAccess.NONE, impact('Low'))
         change.number() == 'CHG0030001'
         change.fixVersion() == 'Not recorded'
         change.schedule() == new ChangeSchedule(at('2026-03-02T06:00:00Z'), at('2026-03-02T08:00:00Z'),
                 at('2026-03-02T08:00:00Z'), at('2026-03-02T08:00:00Z'), at('2026-03-02T08:00:00Z'))
         change.template().approvers() == new Approvers('Ann Lee', null, null)
+        change.template().riskAssessment() == impact('Medium')
         change.template().planning() == new Planning('Tested.', 'Deploy.', 'Not recorded', 'Back out.',
                 'Not recorded')
         change.template().description() == 'About CertScanner.'
@@ -136,7 +137,7 @@ class ServiceNowFieldsMigrationSpec extends Specification {
                 VALUES ('CHG0030001', ?, 'CERTSCANNER', 'CertScanner', 'Corporate Technology',
                 TIMESTAMP '2026-03-02 06:00:00', TIMESTAMP '2026-03-02 08:00:00', 'CertScanner release',
                 'Production release of CertScanner.', 'CERT', 'CertScanner', 'Technology Architecture', 'NORMAL',
-                'Software', 'LOW', 'LOW', 'Routine.', 'Ann Lee', 'About CertScanner.', 'Deploy.', 'Back out.',
+                'Software', 'LOW', 'MEDIUM', 'Routine.', 'Ann Lee', 'About CertScanner.', 'Deploy.', 'Back out.',
                 'Tested.', 'CERT-1', ?, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)''', productId,
                 'CERT-2\nCERT-3')
         jdbc.update('''INSERT INTO DSO_PRODUCTION_CHANGE_TASK (CHANGE_ID, TASK_ORDER, TASK_NUMBER, SERVICE_NAME,
@@ -157,6 +158,10 @@ class ServiceNowFieldsMigrationSpec extends Specification {
     private boolean nullable(String table, String column) {
         jdbc.queryForObject('SELECT IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ? AND COLUMN_NAME = ?',
                 String, table, column) == 'YES'
+    }
+
+    private static RiskAssessment impact(String businessImpact) {
+        new RiskAssessment(null, null, null, null, null, businessImpact, null, null, null, null)
     }
 
     private static Instant at(String text) {

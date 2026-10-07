@@ -488,7 +488,9 @@ The Production Change wizard starts from those defaults and lets the app owner c
 adds what changes this time: the services (one change task each, in the order of the product), the Jira FixVersion
 with its epics (the epics that carry the FixVersion or have a story that does) and the chosen epics' stories that carry
 it, and the schedule: installation start and end, post-install validation start and end and first usage, in that
-order, the installation in the future. The release is the FixVersion unless the defaults or the user name another.
+order, the installation in the future. The portal asks Jira again when the change is previewed or raised and refuses
+an epic or story the FixVersion does not list. The release is the FixVersion unless the defaults or the user name
+another.
 The short description names the product, the FixVersion and the epics; the description names the product, its
 department, the schedule, downtime and the change tasks, lists every epic with its chosen stories, then the planning
 texts, privileged access, the risk assessment and the product description, cut to the 160 and 4000 characters

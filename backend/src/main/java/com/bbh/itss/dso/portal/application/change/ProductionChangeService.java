@@ -32,7 +32,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
-import java.util.stream.Stream;
 
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.JIRA_KEY_MESSAGE;
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.isJiraKey;
@@ -129,8 +128,9 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         }
         command.serviceIds().stream().filter(id -> product.service(id).isEmpty()).forEach(id ->
                 problems.add("serviceIds", "service " + id + " is not a service of " + product.name()));
-        problems.require("fixVersion", command.fixVersion(), "choose the FixVersion of the release");
-        fits(problems, "fixVersion", command.fixVersion(), ProductionChange.FIX_VERSION_MAX);
+        String version = trimToNull(command.fixVersion());
+        problems.require("fixVersion", version, "choose the FixVersion of the release")
+                .fits("fixVersion", version, ProductionChange.FIX_VERSION_MAX);
         ChangeTemplate template = command.template();
         problems.require("template", template, "fill in the ServiceNow fields of the change");
         if (template != null) {
@@ -148,21 +148,19 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         String project = template == null ? null : template.jiraProjectKey();
         List<JiraIssue> epics = List.of();
         List<JiraIssue> stories = List.of();
-        if (isJiraKey(project)) {
-            Map<String, JiraIssue> found = jira.issues(project,
-                            Stream.concat(command.epicKeys().stream(), command.storyKeys().stream()).toList())
-                    .stream().collect(toMap(JiraIssue::key, Function.identity(), (first, second) -> first));
-            epics = chosen(command.epicKeys(), found, "epicKeys", project, problems);
-            epics.stream().filter(epic -> epic.epicKey() != null).forEach(epic ->
-                    problems.add("epicKeys", epic.key() + " is a story, not an epic"));
-            stories = chosen(command.storyKeys(), found, "storyKeys", project, problems);
-            stories.stream().filter(story -> !command.epicKeys().contains(story.epicKey())).forEach(story ->
-                    problems.add("storyKeys", story.key() + " is not a story of the chosen epics"));
+        if (isJiraKey(project) && version != null && bytes(version) <= ProductionChange.FIX_VERSION_MAX) {
+            epics = chosen(command.epicKeys(), jira.epics(project, version), "epicKeys",
+                    " is not an epic of FixVersion " + version + " in Jira project " + project, problems);
+            List<String> epicKeys = epics.stream().map(JiraIssue::key).toList();
+            List<JiraIssue> offered = epicKeys.isEmpty() || command.storyKeys().isEmpty() ? List.of()
+                    : jira.stories(project, version, epicKeys);
+            stories = chosen(command.storyKeys(), offered, "storyKeys",
+                    " is not a story of the chosen epics in FixVersion " + version, problems);
         }
         StoredList.LINES_1000.check(problems, "epicKeys", command.epicKeys());
         StoredList.LINES_4000.check(problems, "storyKeys", command.storyKeys());
-        fits(problems, "shortDescription", command.shortDescription(), ProductionChange.SHORT_DESCRIPTION_MAX);
-        fits(problems, "description", command.description(), ProductionChange.DESCRIPTION_MAX);
+        problems.fits("shortDescription", command.shortDescription(), ProductionChange.SHORT_DESCRIPTION_MAX)
+                .fits("description", command.description(), ProductionChange.DESCRIPTION_MAX);
         problems.throwIfAny();
         return ProductionChange.draft(product, departmentOf(product), services, command.fixVersion(), schedule,
                 template, epics, stories, command.shortDescription(), command.description());
@@ -190,16 +188,11 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         return version;
     }
 
-    private static void fits(ValidationProblems problems, String field, String text, int maxBytes) {
-        if (text != null && bytes(text.trim()) > maxBytes) {
-            problems.add(field, "is too long: it may take at most " + maxBytes + " bytes");
-        }
-    }
-
-    private static List<JiraIssue> chosen(List<String> keys, Map<String, JiraIssue> found, String field,
-                                          String project, ValidationProblems problems) {
-        keys.stream().filter(key -> !found.containsKey(key)).forEach(key ->
-                problems.add(field, key + " is not in Jira project " + project));
+    private static List<JiraIssue> chosen(List<String> keys, List<JiraIssue> offered, String field, String refusal,
+                                          ValidationProblems problems) {
+        Map<String, JiraIssue> found = offered.stream()
+                .collect(toMap(JiraIssue::key, Function.identity(), (first, second) -> first));
+        keys.stream().filter(key -> !found.containsKey(key)).forEach(key -> problems.add(field, key + refusal));
         return keys.stream().map(found::get).filter(Objects::nonNull).toList();
     }
 

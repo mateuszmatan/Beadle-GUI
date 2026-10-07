@@ -58,7 +58,10 @@ class ProductionChangeServiceSpec extends Specification {
         departments.list() >> [new DepartmentView(3, 'Corporate Technology', 0, 1, 3, 3, 3)]
         profiles.find(1L) >> Optional.of(ChangeProfile.create(1L, template(jiraProjectKey: 'CSCAN')))
         profiles.find(2L) >> Optional.empty()
-        jira.issues('CERT', _) >> { project, Collection keys -> ISSUES.findAll { it.key() in keys } }
+        jira.epics('CERT', _) >> { project, version -> version == FIX_VERSION ? ISSUES.take(2) : [] }
+        jira.stories('CERT', _, _) >> { project, version, Collection epics ->
+            version == FIX_VERSION ? ISSUES.drop(2).findAll { it.epicKey() in epics } : []
+        }
     }
 
     def "the preview drafts the change of the chosen services in product order with the chosen Jira issues"() {
@@ -83,7 +86,7 @@ class ProductionChangeServiceSpec extends Specification {
     def "a product without stored ServiceNow defaults raises a change from the template of the request"() {
         given:
         def payHub = template(jiraProjectKey: 'PAY', configurationItem: 'PayHub')
-        jira.issues('PAY', ['PAY-1']) >> [epic('PAY-1', 'Instant payments')]
+        jira.epics('PAY', 'PAY 1.0') >> [epic('PAY-1', 'Instant payments')]
 
         when:
         def preview = service.preview(command(productId: 2L, serviceIds: [], template: payHub, epicKeys: ['PAY-1'],
@@ -130,10 +133,12 @@ class ProductionChangeServiceSpec extends Specification {
         'a change without a FixVersion' | [fixVersion: ' ']                                  || [fixVersion: 'choose the FixVersion of the release']
         'a FixVersion over 100 bytes'   | [fixVersion: 'é' * 51]                             || [fixVersion: 'is too long: it may take at most 100 bytes']
         'a change without epics'        | [epicKeys: [], storyKeys: []]                      || [epicKeys: 'choose at least one epic']
-        'an epic missing in Jira'       | [epicKeys: ['CERT-5', 'CERT-404'], storyKeys: []]  || [epicKeys: 'CERT-404 is not in Jira project CERT']
-        'a story chosen as an epic'     | [epicKeys: ['CERT-1', 'CERT-2'], storyKeys: []]    || [epicKeys: 'CERT-2 is a story, not an epic']
-        'a story of another epic'       | [epicKeys: ['CERT-1']]                             || [storyKeys: 'CERT-6 is not a story of the chosen epics']
-        'a story missing in Jira'       | [storyKeys: ['CERT-2', 'CERT-77']]                 || [storyKeys: 'CERT-77 is not in Jira project CERT']
+        'an epic missing in Jira'       | [epicKeys: ['CERT-5', 'CERT-404'], storyKeys: []]  || [epicKeys: 'CERT-404 is not an epic of FixVersion CERT 4.2 in Jira project CERT']
+        'a story chosen as an epic'     | [epicKeys: ['CERT-1', 'CERT-2'], storyKeys: []]    || [epicKeys: 'CERT-2 is not an epic of FixVersion CERT 4.2 in Jira project CERT']
+        'an epic of another FixVersion' | [fixVersion: 'CERT 4.1', epicKeys: ['CERT-1'], storyKeys: []] || [epicKeys: 'CERT-1 is not an epic of FixVersion CERT 4.1 in Jira project CERT']
+        'a story of another epic'       | [epicKeys: ['CERT-1']]                             || [storyKeys: 'CERT-6 is not a story of the chosen epics in FixVersion CERT 4.2']
+        'a story without its epic'      | [epicKeys: ['CERT-404'], storyKeys: ['CERT-2']]    || [epicKeys: 'CERT-404 is not an epic of FixVersion CERT 4.2 in Jira project CERT', storyKeys: 'CERT-2 is not a story of the chosen epics in FixVersion CERT 4.2']
+        'a story missing in Jira'       | [storyKeys: ['CERT-2', 'CERT-77']]                 || [storyKeys: 'CERT-77 is not a story of the chosen epics in FixVersion CERT 4.2']
         'an installation in the past'   | [schedule: schedule(installationStart: '2026-10-07T09:59:00Z')] || ['schedule.installationStart': 'must be in the future']
         'an installation starting now'  | [schedule: schedule(installationStart: '2026-10-07T10:00:00Z')] || ['schedule.installationStart': 'must be in the future']
         'an installation ending first'  | [schedule: schedule(installationEnd: '2026-10-10T06:00:00Z', validationStart: '2026-10-10T06:00:00Z')] || ['schedule.installationEnd': 'must be after the installation start']
