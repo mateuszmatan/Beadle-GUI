@@ -1,9 +1,11 @@
 import { ChangeDetectionStrategy, Component, Signal, effect, input, signal } from '@angular/core';
-import { AbstractControl, FormControl, ReactiveFormsModule } from '@angular/forms';
+import { AbstractControl, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { BuildTool, DeployTarget } from '../core/models';
+import { filled } from './form-controls';
 import { errorText } from './form-errors';
 
 export interface FieldOption {
@@ -29,15 +31,27 @@ export interface Field {
   max?: number;
 }
 
-export const GRADLE_MAVEN_FLUTTER: FieldOption[] = [
-  { value: 'GRADLE', label: 'Gradle' },
-  { value: 'MAVEN', label: 'Maven' },
-  { value: 'FLUTTER', label: 'Flutter' },
-];
+export const TOOL_LABELS: Record<BuildTool, string> = {
+  GRADLE: 'Gradle',
+  MAVEN: 'Maven',
+  FLUTTER: 'Flutter',
+};
 
-export const VM_OPENSHIFT: FieldOption[] = [
-  { value: 'VM', label: 'Virtual machine' },
-  { value: 'OPENSHIFT', label: 'OpenShift' },
+export const TARGET_LABELS: Record<DeployTarget, string> = {
+  VM: 'Virtual machine',
+  OPENSHIFT: 'OpenShift',
+};
+
+const optionsOf = (labels: Record<string, string>): FieldOption[] =>
+  Object.entries(labels).map(([value, label]) => ({ value, label }));
+
+export const GRADLE_MAVEN_FLUTTER = optionsOf(TOOL_LABELS);
+export const VM_OPENSHIFT = optionsOf(TARGET_LABELS);
+
+export const tristate = (unset: string, yes: string, no: string): FieldOption[] => [
+  { value: null, label: unset },
+  { value: true, label: yes },
+  { value: false, label: no },
 ];
 
 type More = Partial<Field>;
@@ -82,8 +96,8 @@ export function chips(text: string): string {
     .replace(/`([^`]+)`/g, '<code>$1</code>');
 }
 
-export function fallback(value: string | number | null | undefined, lead = 'left empty: '): string {
-  return value === null || value === undefined || value === '' ? '' : `${lead}${value}`;
+export function defaulted(value: string | null | undefined, missing = ''): More {
+  return { placeholder: value ?? '', hint: value ? `left empty: ${value}` : missing };
 }
 
 export function formRevision(form: () => AbstractControl): Signal<number> {
@@ -108,6 +122,7 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
   template: `
     @for (field of fields(); track field.key) {
       @let control = controlOf(field);
+      @let mandatory = required(control);
       @if (field.kind === 'check') {
         <mat-checkbox [class]="span(field, 12)" [formControl]="control">
           <span [innerHTML]="label(field)"></span>
@@ -122,6 +137,7 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
                 rows="2"
                 spellcheck="false"
                 [formControl]="control"
+                [required]="mandatory"
                 [class.mono]="field.mono"
                 [placeholder]="field.placeholder ?? ''"
               ></textarea>
@@ -129,6 +145,7 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
             @case ('select') {
               <mat-select
                 [formControl]="control"
+                [required]="mandatory"
                 [multiple]="field.multiple"
                 canSelectNullableOptions
               >
@@ -142,6 +159,7 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
                 matInput
                 type="number"
                 [formControl]="control"
+                [required]="mandatory"
                 [attr.min]="field.min"
                 [attr.max]="field.max"
               />
@@ -151,6 +169,7 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
                 matInput
                 autocomplete="off"
                 [formControl]="control"
+                [required]="mandatory"
                 [class.mono]="field.mono"
                 [placeholder]="field.placeholder ?? ''"
                 [attr.type]="field.type"
@@ -180,6 +199,10 @@ export class Fields {
 
   protected controlOf(field: Field): FormControl {
     return this.group().get(field.key) as FormControl;
+  }
+
+  protected required(control: AbstractControl): boolean {
+    return control.hasValidator(filled) || control.hasValidator(Validators.required);
   }
 
   protected span(field: Field, fallback: number): string {

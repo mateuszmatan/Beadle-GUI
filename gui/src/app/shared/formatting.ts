@@ -23,9 +23,15 @@ export function formatDuration(seconds: number | null | undefined): string {
   return rest ? `${days}d ${rest}h` : `${days}d`;
 }
 
-export function counted(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? '' : 's'}`;
+export function durationOrNull(seconds: number | null): string | null {
+  return seconds === null ? null : formatDuration(seconds);
 }
+
+export function counted(count: number, noun: string, plural = `${noun}s`): string {
+  return `${count} ${count === 1 ? noun : plural}`;
+}
+
+const relativeTime = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
 export function formatRelative(iso: string | null | undefined, now: number = Date.now()): string {
   if (!iso) {
@@ -33,20 +39,19 @@ export function formatRelative(iso: string | null | undefined, now: number = Dat
   }
   const diffSeconds = Math.round((new Date(iso).getTime() - now) / 1000);
   const abs = Math.abs(diffSeconds);
-  const format = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
   if (abs < 45) {
     return 'just now';
   }
   if (abs < 3600) {
-    return format.format(Math.round(diffSeconds / 60), 'minute');
+    return relativeTime.format(Math.round(diffSeconds / 60), 'minute');
   }
   if (abs < 86400) {
-    return format.format(Math.round(diffSeconds / 3600), 'hour');
+    return relativeTime.format(Math.round(diffSeconds / 3600), 'hour');
   }
   if (abs < 86400 * 45) {
-    return format.format(Math.round(diffSeconds / 86400), 'day');
+    return relativeTime.format(Math.round(diffSeconds / 86400), 'day');
   }
-  return format.format(Math.round(diffSeconds / (86400 * 30)), 'month');
+  return relativeTime.format(Math.round(diffSeconds / (86400 * 30)), 'month');
 }
 
 @Pipe({ name: 'duration' })
@@ -60,5 +65,12 @@ export class DurationPipe implements PipeTransform {
 export class RelativeTimePipe implements PipeTransform {
   transform(iso: string | null | undefined): string {
     return formatRelative(iso);
+  }
+}
+
+@Pipe({ name: 'counted' })
+export class CountedPipe implements PipeTransform {
+  transform(count: number, noun: string, plural?: string): string {
+    return counted(count, noun, plural);
   }
 }

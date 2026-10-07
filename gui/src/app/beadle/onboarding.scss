@@ -101,12 +101,6 @@
   color: var(--dso-muted);
 }
 
-.choice-error {
-  margin: 0;
-  color: var(--dso-danger);
-  font-size: 12px;
-}
-
 .prepare {
   padding: 8px 12px;
   border-left: 3px solid var(--dso-navy);
@@ -166,12 +160,6 @@
   }
 }
 
-.save-problem {
-  border-left-color: var(--dso-danger);
-  background: var(--dso-danger-bg);
-  color: var(--dso-danger);
-}
-
 .next-steps {
   display: flex;
   flex-direction: column;
@@ -193,12 +181,7 @@
   margin-top: 6px;
   border: 1px solid var(--dso-border);
 
-  .code {
-    margin: 0;
-    padding: 8px 12px;
-    background: var(--dso-code-bg);
-    color: var(--dso-code-fg);
-    font-size: 12px;
+  .code-block {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }

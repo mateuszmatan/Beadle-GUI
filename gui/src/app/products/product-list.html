@@ -24,6 +24,19 @@
     }
   </section>
 
+  @if (!query() && chart().length) {
+    <section class="card chart">
+      <header class="card-header">
+        <h2>DevSecOps pipelines by department</h2>
+        <div class="legend">
+          <span><i class="swatch active"></i>Active</span>
+          <span><i class="swatch disabled"></i>Key invalidated</span>
+        </div>
+      </header>
+      <dso-bar-chart [rows]="chart()" />
+    </section>
+  }
+
   @if (products.isLoading() || departments.isLoading()) {
     <mat-progress-bar mode="indeterminate" />
   }

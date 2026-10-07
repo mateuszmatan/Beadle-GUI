@@ -39,7 +39,13 @@ describe('ChangeProfileEditor', () => {
   afterEach(() => http.verify());
 
   it('shows a suggested template that is not saved yet and saves it with one approver per line', async () => {
-    await open(changeProfile({ version: null, updatedAt: null, template: changeTemplate({ approvers: [] }) }));
+    await open(
+      changeProfile({
+        version: null,
+        updatedAt: null,
+        template: changeTemplate({ approvers: [] }),
+      }),
+    );
 
     expect(text(page().querySelector('h1'))).toBe('ServiceNow change template of CertScanner');
     expect(text(page().querySelector('.banner.info'))).toContain('Not saved yet');

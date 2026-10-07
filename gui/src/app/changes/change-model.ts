@@ -46,7 +46,7 @@ export function presetWindow(choice: WindowChoice, now: Date): ChangeWindow | nu
     return { start: at(day, 20), end: at(day, 23) };
   }
   if (choice === 'weekend') {
-    const saturday = addDays(now, ((6 - now.getDay() + 7) % 7) || 7);
+    const saturday = addDays(now, (6 - now.getDay() + 7) % 7 || 7);
     return { start: at(saturday, 6), end: at(saturday, 10) };
   }
   return null;
@@ -114,8 +114,6 @@ export function storiesFollowing(
     .filter((story) => !seen.has(story.key) || chosen.includes(story.key))
     .map((story) => story.key);
 }
-
-export const storiesText = (count: number) => `${count} ${count === 1 ? 'story' : 'stories'}`;
 
 export function toggled(keys: readonly string[], key: string, on: boolean): string[] {
   return on ? [...new Set([...keys, key])] : keys.filter((current) => current !== key);

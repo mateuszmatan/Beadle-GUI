@@ -55,7 +55,7 @@ abstract class GuiSpecification extends Specification {
     GuiServer server
 
     @Shared
-    StubApi api = StubApi.withDemoData()
+    StubApi api = new StubApi()
 
     BrowserContext context
     Page page
@@ -77,9 +77,7 @@ abstract class GuiSpecification extends Specification {
 
     def setup() {
         api.reset()
-        context = newContext()
-        page = context.newPage()
-        watchErrors(page)
+        newPage()
     }
 
     def cleanup() {
@@ -99,6 +97,13 @@ abstract class GuiSpecification extends Specification {
         browser?.close()
         playwright?.close()
         server?.close()
+    }
+
+    void newPage() {
+        context?.close()
+        context = newContext()
+        page = context.newPage()
+        watchErrors(page)
     }
 
     BrowserContext newContext() {
@@ -198,6 +203,35 @@ abstract class GuiSpecification extends Specification {
 
     Locator field(String label) {
         page.getByLabel(label, new Page.GetByLabelOptions().setExact(true))
+    }
+
+    Locator input(Locator scope, String label) {
+        scope.getByLabel(label, new Locator.GetByLabelOptions().setExact(true))
+    }
+
+    Locator formField(Locator scope, String label) {
+        holding(scope.locator('mat-form-field'), "mat-label:text-is('${label}')")
+    }
+
+    Locator errorOf(Locator scope, String label) {
+        formField(scope, label).locator('mat-error')
+    }
+
+    Locator select(Locator scope, String label) {
+        scope.getByRole(AriaRole.COMBOBOX, new Locator.GetByRoleOptions().setName(label).setExact(true))
+    }
+
+    void choose(Locator scope, String label, String option) {
+        select(scope, label).click()
+        page.getByRole(AriaRole.OPTION, new Page.GetByRoleOptions().setName(option).setExact(true)).click()
+    }
+
+    Locator checkbox(Locator scope, String label) {
+        scope.getByRole(AriaRole.CHECKBOX, new Locator.GetByRoleOptions().setName(label))
+    }
+
+    Locator radio(Locator scope, String name) {
+        scope.getByRole(AriaRole.RADIO, new Locator.GetByRoleOptions().setName(name).setExact(true))
     }
 
     Locator dialog() {

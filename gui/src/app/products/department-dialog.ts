@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -8,6 +8,7 @@ import { finalize } from 'rxjs';
 import { DepartmentsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { Department } from '../core/models';
+import { filled, max, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 
 @Component({
@@ -26,7 +27,13 @@ import { errorText } from '../shared/form-errors';
       <mat-dialog-content>
         <mat-form-field class="full-width">
           <mat-label>Name</mat-label>
-          <input matInput formControlName="name" placeholder="Fund Services" autocomplete="off" />
+          <input
+            matInput
+            formControlName="name"
+            placeholder="Fund Services"
+            autocomplete="off"
+            required
+          />
           <mat-error>{{ errorText(name) }}</mat-error>
         </mat-form-field>
         @if (error(); as message) {
@@ -54,10 +61,7 @@ export class DepartmentDialog {
   private readonly api = inject(DepartmentsApi);
 
   protected readonly form = new FormGroup({
-    name: new FormControl(this.department?.name ?? '', {
-      nonNullable: true,
-      validators: [Validators.required, Validators.maxLength(100)],
-    }),
+    name: text(this.department?.name, filled, max(100)),
   });
   protected readonly name = this.form.controls.name;
   protected readonly saving = signal(false);
@@ -66,13 +70,10 @@ export class DepartmentDialog {
 
   protected save(): void {
     this.name.markAsTouched();
-    const name = this.name.value.trim();
-    if (!name) {
-      this.name.setErrors({ required: true });
-    }
     if (this.name.invalid || this.saving()) {
       return;
     }
+    const name = this.name.value.trim();
     this.saving.set(true);
     this.error.set(null);
     (this.department

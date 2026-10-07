@@ -49,7 +49,7 @@ public class ProductController {
     public ResponseEntity<ProductDto> create(@Valid @RequestBody ProductDto request,
                                              @RequestParam(required = false) PipelineType pipelineType) {
         ProductDto created = ProductDto.from(products.create(request.toCommand(pipelineType)));
-        return ResponseEntity.created(ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
+        return ResponseEntity.created(ServletUriComponentsBuilder.fromCurrentRequestUri().path("/{id}")
                 .buildAndExpand(created.id()).toUri()).body(created);
     }
 

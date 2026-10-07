@@ -91,14 +91,10 @@
   outline-offset: 0;
 }
 
-.menu-item {
-  min-height: 32px;
-
-  &.active {
-    --mat-menu-item-label-text-color: var(--dso-navy);
-    --mat-menu-item-label-text-weight: 600;
-    box-shadow: inset 2px 0 0 var(--dso-navy);
-  }
+.menu-item.active {
+  --mat-menu-item-label-text-color: var(--dso-navy);
+  --mat-menu-item-label-text-weight: 600;
+  box-shadow: inset 2px 0 0 var(--dso-navy);
 }
 
 .content {

@@ -36,8 +36,16 @@ const JIRA_KEY = /^[A-Z][A-Z0-9_]{1,9}$/;
 
 function templateForm(template: ChangeTemplate) {
   return new FormGroup({
-    jiraProjectKey: text(template.jiraProjectKey, Validators.required, Validators.pattern(JIRA_KEY)),
-    configurationItem: text(template.configurationItem, Validators.required, Validators.maxLength(200)),
+    jiraProjectKey: text(
+      template.jiraProjectKey,
+      Validators.required,
+      Validators.pattern(JIRA_KEY),
+    ),
+    configurationItem: text(
+      template.configurationItem,
+      Validators.required,
+      Validators.maxLength(200),
+    ),
     assignmentGroup: text(template.assignmentGroup, Validators.required, Validators.maxLength(200)),
     type: new FormControl<ChangeType>(template.type, { nonNullable: true }),
     category: text(template.category, Validators.required, Validators.maxLength(100)),
@@ -46,7 +54,11 @@ function templateForm(template: ChangeTemplate) {
     riskAssessment: text(template.riskAssessment, Validators.required, Validators.maxLength(2000)),
     approvers: text(joinLines(template.approvers), Validators.required, maxLines(10)),
     description: text(template.description, Validators.maxLength(2000)),
-    implementationPlan: text(template.implementationPlan, Validators.required, Validators.maxLength(2000)),
+    implementationPlan: text(
+      template.implementationPlan,
+      Validators.required,
+      Validators.maxLength(2000),
+    ),
     backoutPlan: text(template.backoutPlan, Validators.required, Validators.maxLength(2000)),
     testPlan: text(template.testPlan, Validators.required, Validators.maxLength(2000)),
   });
@@ -59,7 +71,9 @@ export const BLOCKS = [
     title: 'ServiceNow',
     text: 'Where the change is filed and who implements it.',
     fields: [
-      line('configurationItem', 'Configuration item', '', 6, { hint: 'The CMDB CI of the product' }),
+      line('configurationItem', 'Configuration item', '', 6, {
+        hint: 'The CMDB CI of the product',
+      }),
       line('assignmentGroup', 'Assignment group', '', 6),
       choice('type', 'Change type', TYPES, '', 4),
       line('category', 'Category', '', 4),
