@@ -3,16 +3,16 @@ import { counted } from '../shared/formatting';
 
 export const NOT_IN_A_DEPARTMENT = 'Not in a department';
 
-export interface DepartmentGroup {
+export interface DepartmentGroup<T = ProductSummary> {
   department: Department | null;
   name: string;
-  products: ProductSummary[];
+  products: T[];
 }
 
-export function byDepartment(
+export function byDepartment<T extends { departmentId: number | null }>(
   departments: readonly Department[],
-  products: readonly ProductSummary[],
-): DepartmentGroup[] {
+  products: readonly T[],
+): DepartmentGroup<T>[] {
   const groups = departments.map((department) => ({
     department,
     name: department.name,

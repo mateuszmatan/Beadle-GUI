@@ -488,6 +488,10 @@ mat-checkbox code {
   &.deployment {
     background: var(--dso-run-deploy);
   }
+
+  &.active {
+    background: var(--dso-navy);
+  }
 }
 
 .legend {
@@ -520,6 +524,22 @@ mat-checkbox code {
   color: var(--dso-code-fg);
   font-size: 11.5px;
   overflow-wrap: anywhere;
+}
+
+.card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-bottom: 6px;
+  font-size: 11.5px;
+
+  h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 500;
+  }
 }
 
 .stats {

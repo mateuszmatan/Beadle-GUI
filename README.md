@@ -16,9 +16,11 @@ where new features land, and **DevSecOps Management**, with the four pages below
   departments, and each department shows how many DevSecOps pipelines it has for how many products. The five BBH
   departments (AI Lab, Capital Partners, Corporate Technology, Custody and Fund Services) come with the database; a
   product saved before departments existed shows as "Not in a department" until it is edited, which means choosing one.
-- **DevSecOps Pipeline Monitoring**: every product with the status of its pipelines, and per pipeline its DORA
-  metrics, daily activity, latest runs, the Jenkins job and your DSOEnhanced Grafana dashboard, all read from the
-  InfluxDB the pipelines write to.
+  A chart on top compares the active and invalidated pipelines of every department.
+- **DevSecOps Pipeline Monitoring**: the DORA metrics and daily runs of all pipelines over the last 30 days, a chart
+  of pipeline status per department, every product with the status of its pipelines grouped by department, and per
+  pipeline its DORA metrics, daily activity, latest runs, the Jenkins job and your DSOEnhanced Grafana dashboard, all
+  read from the InfluxDB the pipelines write to.
 - **DevSecOps Change Evidence**: a read-only view of a product for ServiceNow change requests: per pipeline the
   unit, smoke, regression and performance tests, the SAST, DAST, SonarQube and Nexus IQ results, the release gate and
   the Jenkins build that produced them, with its artifact version and the portal configuration it ran with.

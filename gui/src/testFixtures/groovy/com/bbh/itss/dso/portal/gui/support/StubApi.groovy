@@ -62,6 +62,7 @@ class StubApi {
         get('/api/settings/config') { StubResponse.yaml(fixtureText('settings-config.yaml')) }
         get('/api/monitoring/status') { StubResponse.json(fixture('monitoring-status.json')) }
         get('/api/monitoring/products') { StubResponse.json(fixture('monitoring-products.json')) }
+        get('/api/monitoring/activity') { StubResponse.json(fixture('monitoring-activity.json')) }
         get('/api/monitoring/products/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("monitoring-product-${ids[0]}.json", "Product ${ids[0]} does not exist") }
         get('/api/monitoring/pipelines/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("monitoring-pipeline-${ids[0]}.json", "Pipeline ${ids[0]} does not exist") }
         get('/api/evidence/products/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("evidence-product-${ids[0]}.json", "Product ${ids[0]} does not exist") }
