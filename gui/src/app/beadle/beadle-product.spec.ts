@@ -12,6 +12,7 @@ describe('BeadleProduct', () => {
 
   const editor = () => fixture.componentInstance;
   const page = () => fixture.nativeElement as HTMLElement;
+  const form = () => editor()['form']()!;
 
   async function settle() {
     TestBed.tick();
@@ -27,6 +28,10 @@ describe('BeadleProduct', () => {
     await settle();
   }
 
+  function saved() {
+    return http.expectOne({ method: 'PUT', url: '/api/products/1/change-profile' });
+  }
+
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [BeadleProduct],
@@ -38,56 +43,81 @@ describe('BeadleProduct', () => {
 
   afterEach(() => http.verify());
 
-  it('shows a suggested template that is not saved yet and saves it with one approver per line', async () => {
-    await open(
-      changeProfile({
-        version: null,
-        updatedAt: null,
-        template: changeTemplate({ approvers: [] }),
-      }),
-    );
+  it('shows suggested defaults that are not saved yet and saves them with the privileged users', async () => {
+    await open(changeProfile({ version: null, updatedAt: null }));
 
-    expect(text(page().querySelector('h1'))).toBe('ServiceNow change template of CertScanner');
+    expect(
+      [...page().querySelectorAll('.breadcrumb a, .breadcrumb span:not(.sep)')].map(text),
+    ).toEqual(['Beadle Admin', 'Products', 'CertScanner']);
+    expect(text(page().querySelector('h1'))).toBe('ServiceNow defaults of CertScanner');
     expect(text(page().querySelector('.banner.info'))).toContain('Not saved yet');
-    const form = editor()['form']()!;
-    form.patchValue({ approvers: ' Emma Brooks \n\nHenry Collins ', risk: 'HIGH' });
-    form.markAsDirty();
+    expect(page().querySelector('dso-change-template-form')).not.toBeNull();
+    const access = form().controls.privilegedAccess.controls;
+    access.required.setValue(true);
+    access.users.at(0).setValue({ user: ' Jane Smith ', account: 'adm_jsmith' });
+    form().patchValue({ riskAssessment: { businessImpact: 'High' } });
+    form().markAsDirty();
     expect(editor().hasUnsavedChanges()).toBe(true);
 
     editor()['save']();
-    const saved = http.expectOne({ method: 'PUT', url: '/api/products/1/change-profile' });
-    expect(saved.request.body).toEqual({
-      version: null,
-      template: changeTemplate({ approvers: ['Emma Brooks', 'Henry Collins'], risk: 'HIGH' }),
+    const request = saved();
+    const template = changeTemplate({
+      privilegedAccess: { required: true, users: [{ user: 'Jane Smith', account: 'adm_jsmith' }] },
+      riskAssessment: { ...changeTemplate().riskAssessment, businessImpact: 'High' },
     });
-    saved.flush(changeProfile({ version: 0, template: changeTemplate({ risk: 'HIGH' }) }));
+    expect(request.request.body).toEqual({ version: null, template });
+    request.flush(changeProfile({ version: 0, template }));
     await settle();
 
     expect(editor().hasUnsavedChanges()).toBe(false);
-    expect(editor()['version']).toBe(0);
+    expect(editor()['version']()).toBe(0);
+    expect(page().querySelector('.banner.info')).toBeNull();
   });
 
-  it('does not send a template with missing values', async () => {
+  it('shows the new name of a renamed product and keeps the unsaved defaults', async () => {
     await open();
-    editor()['form']()!.patchValue({ jiraProjectKey: 'cert-1', riskAssessment: '' });
+    form().controls.category.setValue('Hardware');
+    form().markAsDirty();
+
+    editor().renamed({ name: 'CertWatch' });
+    await settle();
+
+    expect(text(page().querySelector('h1'))).toBe('ServiceNow defaults of CertWatch');
+    expect(text(page().querySelector('.breadcrumb span:last-child'))).toBe('CertWatch');
+    expect(form().controls.category.value).toBe('Hardware');
+    expect(editor().hasUnsavedChanges()).toBe(true);
+  });
+
+  it('does not send defaults with missing values', async () => {
+    await open();
+    form().patchValue({ jiraProjectKey: 'cert-1', planning: { backoutPlan: '' } });
 
     editor()['save']();
     fixture.detectChanges();
 
     expect(editor()['saveError']()).toBe('Some fields need your attention.');
-    expect(text(fieldOf(page(), 'Jira project key')?.querySelector('mat-error'))).toBe(
-      '2 to 10 upper case letters, digits or _',
+    expect(text(page().querySelector('.save-error'))).toBe('Some fields need your attention.');
+    expect(text(fieldOf(page(), 'Jira project')?.querySelector('mat-error'))).toBe(
+      '1 to 10 letters, digits or _, starting with a letter',
     );
+    expect(text(fieldOf(page(), 'Backout plan')?.querySelector('mat-error'))).toBe('Required');
   });
 
   it('marks the fields the portal refused and reports a conflict as it is', async () => {
     await open();
 
     editor()['save']();
-    http.expectOne({ method: 'PUT', url: '/api/products/1/change-profile' }).flush(
+    const first = saved();
+    expect(first.request.body.version).toBe(2);
+    first.flush(changeProfile({ version: 3 }));
+    await settle();
+    editor()['save']();
+    const second = saved();
+    expect(second.request.body.version).toBe(3);
+    second.flush(
       {
         detail: 'Invalid request',
-        errors: [{ field: 'template.approvers', message: 'add at least one manager' }],
+        errors: [{ field: 'template.riskAssessment.bbhUsers', message: 'must be at most 5000' }],
       },
       { status: 400, statusText: 'Bad Request' },
     );
@@ -95,16 +125,29 @@ describe('BeadleProduct', () => {
     expect(editor()['saveError']()).toBe(
       'The portal did not accept some values. They are marked below.',
     );
-    expect(editor()['form']()!.controls.approvers.errors).toEqual({
-      server: 'add at least one manager',
-    });
+    expect(text(fieldOf(page(), 'BBH users')?.querySelector('mat-error'))).toBe(
+      'must be at most 5000',
+    );
 
-    editor()['form']()!.controls.approvers.setValue('Emma Brooks');
     editor()['save']();
-    http
-      .expectOne({ method: 'PUT', url: '/api/products/1/change-profile' })
-      .flush({ detail: 'Someone else changed it' }, { status: 409, statusText: 'Conflict' });
+    expect(editor()['saveError']()).toBe('Some fields need your attention.');
+
+    form().controls.riskAssessment.controls.bbhUsers.setValue(50);
+    editor()['save']();
+    saved().flush(
+      { detail: 'Invalid request', errors: [{ field: 'version', message: 'is unknown' }] },
+      { status: 400, statusText: 'Bad Request' },
+    );
     await settle();
-    expect(editor()['saveError']()).toBe('Someone else changed it');
+    expect(editor()['saveError']()).toBe('Invalid request');
+
+    editor()['save']();
+    saved().flush(
+      { detail: 'Someone else changed the defaults' },
+      { status: 409, statusText: 'Conflict' },
+    );
+    await settle();
+    expect(editor()['saveError']()).toBe('Someone else changed the defaults');
+    expect(text(page().querySelector('.save-error'))).toBe('Someone else changed the defaults');
   });
 });

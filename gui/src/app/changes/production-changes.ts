@@ -6,7 +6,7 @@ import { RouterLink } from '@angular/router';
 import { errorMessage } from '../core/errors';
 import { CHANGES } from '../core/sections';
 import { RelativeTimePipe } from '../shared/formatting';
-import { ChangesApi, RISKS, labelOf } from './change-api';
+import { ChangesApi } from './change-api';
 import { windowText } from './change-model';
 import { IntegrationNote } from './integration-note';
 
@@ -40,9 +40,9 @@ import { IntegrationNote } from './integration-note';
                 <tr>
                   <th>Change</th>
                   <th>Product</th>
-                  <th>Window</th>
+                  <th>FixVersion</th>
+                  <th>Installation</th>
                   <th>Short description</th>
-                  <th>Risk</th>
                   <th>Tasks</th>
                   <th>Raised</th>
                 </tr>
@@ -59,9 +59,16 @@ import { IntegrationNote } from './integration-note';
                       {{ change.productName }}
                       <span class="muted">{{ change.departmentName }}</span>
                     </td>
-                    <td>{{ windowText(change.window.start, change.window.end) }}</td>
+                    <td class="mono">{{ change.fixVersion }}</td>
+                    <td>
+                      {{
+                        windowText(
+                          change.schedule.installationStart,
+                          change.schedule.installationEnd
+                        )
+                      }}
+                    </td>
                     <td>{{ change.shortDescription }}</td>
-                    <td>{{ riskLabel(change.template.risk) }}</td>
                     <td>{{ change.tasks.length }}</td>
                     <td>{{ change.createdAt | relative }}</td>
                   </tr>
@@ -73,8 +80,8 @@ import { IntegrationNote } from './integration-note';
           <div class="card empty-state">
             <h3>No production change yet</h3>
             <p>
-              Choose a product, its Jira epics and stories and the change window. The portal writes
-              the change and its change tasks.
+              Choose a product, the FixVersion with its Jira epics and stories and the installation
+              date. The portal writes the change and its change tasks.
             </p>
             <a mat-flat-button routerLink="/beadle/changes/new">Raise a production change</a>
           </div>
@@ -114,7 +121,6 @@ export class ProductionChanges {
   protected readonly section = CHANGES;
   protected readonly errorMessage = errorMessage;
   protected readonly windowText = windowText;
-  protected readonly riskLabel = (value: string) => labelOf(RISKS, value);
   private readonly api = inject(ChangesApi);
   protected readonly changes = rxResource({ stream: () => this.api.list() });
 }
