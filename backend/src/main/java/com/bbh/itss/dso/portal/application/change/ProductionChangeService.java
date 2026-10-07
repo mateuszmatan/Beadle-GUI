@@ -16,25 +16,30 @@ import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort;
 import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort.RaisedChange;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.catalog.Service;
-import com.bbh.itss.dso.portal.domain.change.ChangeProfile;
+import com.bbh.itss.dso.portal.domain.change.ChangeSchedule;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
-import com.bbh.itss.dso.portal.domain.change.ChangeWindow;
-import com.bbh.itss.dso.portal.domain.change.DateRange;
 import com.bbh.itss.dso.portal.domain.change.JiraIssue;
+import com.bbh.itss.dso.portal.domain.change.JiraVersion;
 import com.bbh.itss.dso.portal.domain.change.ProductionChange;
-import com.bbh.itss.dso.portal.domain.shared.ConflictException;
+import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException;
 import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 import com.bbh.itss.dso.portal.domain.shared.StoredList;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.time.Clock;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.JIRA_KEY_MESSAGE;
+import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.isJiraKey;
+import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.jiraKeyOf;
+import static com.bbh.itss.dso.portal.domain.shared.Text.bytes;
+import static com.bbh.itss.dso.portal.domain.shared.Text.trimToNull;
+import static java.util.stream.Collectors.toMap;
 
 @UseCase
 public class ProductionChangeService implements ProductionChangesUseCase {
@@ -79,64 +84,114 @@ public class ProductionChangeService implements ProductionChangesUseCase {
 
     @Override
     @WithoutTransaction
-    public List<JiraIssue> epics(long productId, DateRange updated) {
-        return jira.epics(templateOf(products.get(productId)).jiraProjectKey(), updated);
+    public List<JiraVersion> versions(long productId, String project) {
+        return jira.versions(projectOf(productId, project)).stream()
+                .sorted(JiraVersion.UNRELEASED_NEWEST_FIRST).toList();
     }
 
     @Override
     @WithoutTransaction
-    public List<JiraIssue> stories(long productId, List<String> epicKeys, DateRange updated) {
-        String project = templateOf(products.get(productId)).jiraProjectKey();
-        return epicKeys.isEmpty() ? List.of() : jira.stories(project, epicKeys, updated);
+    public List<JiraIssue> epics(long productId, String fixVersion, String project) {
+        String key = projectOf(productId, project);
+        return jira.epics(key, required(fixVersion));
+    }
+
+    @Override
+    @WithoutTransaction
+    public List<JiraIssue> stories(long productId, String fixVersion, List<String> epicKeys, String project) {
+        String key = projectOf(productId, project);
+        String version = required(fixVersion);
+        return epicKeys.isEmpty() ? List.of() : jira.stories(key, version, epicKeys);
     }
 
     @Override
     @WithoutTransaction
     public ProductionChange preview(ChangeCommand command) {
-        return draft(command);
+        return draft(command, false);
     }
 
     @Override
     @WithoutTransaction
     public ProductionChange raise(ChangeCommand command) {
-        ProductionChange draft = draft(command);
+        ProductionChange draft = draft(command, true);
         RaisedChange raised = serviceNow.raise(draft);
         return changes.save(draft.numbered(raised.number(), raised.taskNumbers(), raised.url()));
     }
 
-    private ProductionChange draft(ChangeCommand command) {
+    private ProductionChange draft(ChangeCommand command, boolean raising) {
         Product product = products.get(command.productId());
-        ChangeTemplate template = templateOf(product);
-        String project = template.jiraProjectKey();
         ValidationProblems problems = new ValidationProblems();
         List<Service> services = product.services().stream()
-                .filter(service -> command.serviceIds().contains(service.id())).toList();
-        problems.require("serviceIds", command.serviceIds(), "choose at least one service");
+                .filter(service -> command.serviceIds().isEmpty() || command.serviceIds().contains(service.id()))
+                .toList();
+        if (product.services().isEmpty()) {
+            problems.add("serviceIds", product.name() + " has no services to deploy");
+        }
         command.serviceIds().stream().filter(id -> product.service(id).isEmpty()).forEach(id ->
                 problems.add("serviceIds", "service " + id + " is not a service of " + product.name()));
+        problems.require("fixVersion", command.fixVersion(), "choose the FixVersion of the release");
+        fits(problems, "fixVersion", command.fixVersion(), ProductionChange.FIX_VERSION_MAX);
+        ChangeTemplate template = command.template();
+        problems.require("template", template, "fill in the ServiceNow fields of the change");
+        if (template != null) {
+            template.validate(problems.at("template"));
+        }
+        ChangeSchedule schedule = command.schedule();
+        problems.require("schedule", schedule, "choose when the change is installed, validated and first used");
+        if (schedule != null) {
+            schedule.check(problems.at("schedule"));
+            if (raising) {
+                schedule.checkUpcoming(clock.instant(), problems.at("schedule"));
+            }
+        }
         problems.require("epicKeys", command.epicKeys(), "choose at least one epic");
-        Map<String, JiraIssue> found = jira.issues(project,
-                        Stream.concat(command.epicKeys().stream(), command.storyKeys().stream()).toList()).stream()
-                .collect(Collectors.toMap(JiraIssue::key, Function.identity(), (first, second) -> first));
-        List<JiraIssue> epics = chosen(command.epicKeys(), found, "epicKeys", project, problems);
-        epics.stream().filter(epic -> epic.epicKey() != null).forEach(epic ->
-                problems.add("epicKeys", epic.key() + " is a story, not an epic"));
-        List<JiraIssue> stories = chosen(command.storyKeys(), found, "storyKeys", project, problems);
-        stories.stream().filter(story -> !command.epicKeys().contains(story.epicKey())).forEach(story ->
-                problems.add("storyKeys", story.key() + " is not a story of the chosen epics"));
+        String project = template == null ? null : template.jiraProjectKey();
+        List<JiraIssue> epics = List.of();
+        List<JiraIssue> stories = List.of();
+        if (isJiraKey(project)) {
+            Map<String, JiraIssue> found = jira.issues(project,
+                            Stream.concat(command.epicKeys().stream(), command.storyKeys().stream()).toList())
+                    .stream().collect(toMap(JiraIssue::key, Function.identity(), (first, second) -> first));
+            epics = chosen(command.epicKeys(), found, "epicKeys", project, problems);
+            epics.stream().filter(epic -> epic.epicKey() != null).forEach(epic ->
+                    problems.add("epicKeys", epic.key() + " is a story, not an epic"));
+            stories = chosen(command.storyKeys(), found, "storyKeys", project, problems);
+            stories.stream().filter(story -> !command.epicKeys().contains(story.epicKey())).forEach(story ->
+                    problems.add("storyKeys", story.key() + " is not a story of the chosen epics"));
+        }
         StoredList.LINES_1000.check(problems, "epicKeys", command.epicKeys());
         StoredList.LINES_4000.check(problems, "storyKeys", command.storyKeys());
         fits(problems, "shortDescription", command.shortDescription(), ProductionChange.SHORT_DESCRIPTION_MAX);
         fits(problems, "description", command.description(), ProductionChange.DESCRIPTION_MAX);
-        ChangeWindow window = new ChangeWindow(command.start(), command.end());
-        window.check(clock.instant(), problems);
         problems.throwIfAny();
-        return ProductionChange.draft(product, departmentOf(product), services, template, window, epics, stories,
-                command.shortDescription(), command.description());
+        return ProductionChange.draft(product, departmentOf(product), services, command.fixVersion(), schedule,
+                template, epics, stories, command.shortDescription(), command.description());
+    }
+
+    private String projectOf(long productId, String project) {
+        Product product = products.get(productId);
+        String override = trimToNull(project);
+        if (override == null) {
+            return profiles.find(productId).map(profile -> profile.template().jiraProjectKey())
+                    .orElseGet(() -> jiraKeyOf(product.code()));
+        }
+        String key = override.toUpperCase(Locale.ROOT);
+        if (!isJiraKey(key)) {
+            throw InvalidRequestException.of("project", JIRA_KEY_MESSAGE);
+        }
+        return key;
+    }
+
+    private static String required(String fixVersion) {
+        String version = trimToNull(fixVersion);
+        if (version == null) {
+            throw InvalidRequestException.of("fixVersion", "choose a FixVersion");
+        }
+        return version;
     }
 
     private static void fits(ValidationProblems problems, String field, String text, int maxBytes) {
-        if (text != null && Text.bytes(text.trim()) > maxBytes) {
+        if (text != null && bytes(text.trim()) > maxBytes) {
             problems.add(field, "is too long: it may take at most " + maxBytes + " bytes");
         }
     }
@@ -146,12 +201,6 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         keys.stream().filter(key -> !found.containsKey(key)).forEach(key ->
                 problems.add(field, key + " is not in Jira project " + project));
         return keys.stream().map(found::get).filter(Objects::nonNull).toList();
-    }
-
-    private ChangeTemplate templateOf(Product product) {
-        return profiles.find(product.id()).map(ChangeProfile::template).orElseThrow(() -> new ConflictException(
-                product.name() + " has no ServiceNow change template yet. Fill it in under DevSecOps Product"
-                        + " Management first."));
     }
 
     private String departmentOf(Product product) {

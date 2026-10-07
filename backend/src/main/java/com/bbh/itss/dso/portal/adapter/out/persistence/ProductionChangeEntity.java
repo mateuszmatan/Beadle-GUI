@@ -1,17 +1,23 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
 import com.bbh.itss.dso.portal.adapter.RecordMapper;
-import com.bbh.itss.dso.portal.domain.change.ChangeWindow;
+import com.bbh.itss.dso.portal.adapter.out.persistence.ChangeTemplateEmbeddable.PrivilegedUserEmbeddable;
+import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
 import com.bbh.itss.dso.portal.domain.change.ProductionChange;
 import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
@@ -33,13 +39,18 @@ public class ProductionChangeEntity extends AuditedEntity {
     private String productCode;
     private String productName;
     private String departmentName;
-    private Instant plannedStart;
-    private Instant plannedEnd;
+    private String fixVersion;
+    private ScheduleEmbeddable schedule;
     private String shortDescription;
     private String description;
 
     @AttributeOverride(name = "description", column = @Column(name = "PRODUCT_DESCRIPTION"))
     private ChangeTemplateEmbeddable template;
+
+    @ElementCollection
+    @CollectionTable(name = "DSO_PRODUCTION_CHANGE_PRIVILEGED_USER", joinColumns = @JoinColumn(name = "CHANGE_ID"))
+    @OrderColumn(name = "POSITION")
+    private List<PrivilegedUserEmbeddable> privilegedUsers = new ArrayList<>();
 
     private List<String> epicKeys;
     private List<String> storyKeys;
@@ -58,11 +69,12 @@ public class ProductionChangeEntity extends AuditedEntity {
         productCode = change.productCode();
         productName = change.productName();
         departmentName = change.departmentName();
-        plannedStart = change.window().start();
-        plannedEnd = change.window().end();
+        fixVersion = change.fixVersion();
+        schedule = RecordMapper.map(change.schedule(), ScheduleEmbeddable.class);
         shortDescription = change.shortDescription();
         description = change.description();
-        template = new ChangeTemplateEmbeddable(change.template());
+        template = ChangeTemplateEmbeddable.of(change.template());
+        privilegedUsers.addAll(ChangeTemplateEmbeddable.usersOf(change.template()));
         epicKeys = change.epicKeys();
         storyKeys = change.storyKeys();
         url = change.url();
@@ -71,11 +83,16 @@ public class ProductionChangeEntity extends AuditedEntity {
         }
     }
 
-    ChangeWindow window() {
-        return new ChangeWindow(plannedStart, plannedEnd);
+    ChangeTemplate template() {
+        return template.toDomain(privilegedUsers);
     }
 
     ProductionChange toDomain() {
         return RecordMapper.map(ProductionChange.class, this);
+    }
+
+    @Embeddable
+    public record ScheduleEmbeddable(Instant installationStart, Instant installationEnd, Instant validationStart,
+                                     Instant validationEnd, Instant firstUsage) {
     }
 }
