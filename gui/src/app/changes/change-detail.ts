@@ -38,7 +38,9 @@ import { windowText } from './change-model';
               <a mat-stroked-button [href]="c.url" target="_blank" rel="noopener">ServiceNow</a>
             }
             @if (c.productId) {
-              <a mat-stroked-button [routerLink]="['/products', c.productId]">Product</a>
+              <a mat-stroked-button [routerLink]="['/beadle/admin/products', c.productId]"
+                >Product</a
+              >
             }
           </div>
         </header>

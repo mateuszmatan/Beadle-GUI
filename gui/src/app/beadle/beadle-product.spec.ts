@@ -4,10 +4,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { changeProfile, changeTemplate } from '../testing/change-fixtures';
 import { fieldOf, text } from '../testing/dom';
-import { ChangeProfileEditor } from './change-profile-editor';
+import { BeadleProduct } from './beadle-product';
 
-describe('ChangeProfileEditor', () => {
-  let fixture: ComponentFixture<ChangeProfileEditor>;
+describe('BeadleProduct', () => {
+  let fixture: ComponentFixture<BeadleProduct>;
   let http: HttpTestingController;
 
   const editor = () => fixture.componentInstance;
@@ -29,11 +29,11 @@ describe('ChangeProfileEditor', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [ChangeProfileEditor],
+      imports: [BeadleProduct],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     http = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent(ChangeProfileEditor);
+    fixture = TestBed.createComponent(BeadleProduct);
   });
 
   afterEach(() => http.verify());

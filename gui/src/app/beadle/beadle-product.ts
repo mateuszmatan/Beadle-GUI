@@ -18,6 +18,7 @@ import { RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { errorMessage, fieldProblems } from '../core/errors';
 import { Notifier } from '../core/notifier';
+import { BEADLE_ADMIN, BEADLE_PRODUCTS } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { Fields, area, choice, line, mono } from '../shared/fields';
 import { applyFieldProblems, joinLines, lines, maxLines, text } from '../shared/form-controls';
@@ -30,7 +31,7 @@ import {
   IMPACTS,
   RISKS,
   TYPES,
-} from './change-api';
+} from '../changes/change-api';
 
 const JIRA_KEY = /^[A-Z][A-Z0-9_]{1,9}$/;
 
@@ -106,7 +107,7 @@ export const BLOCKS = [
 ];
 
 @Component({
-  selector: 'dso-change-profile-editor',
+  selector: 'dso-beadle-product',
   imports: [
     ReactiveFormsModule,
     RouterLink,
@@ -119,11 +120,11 @@ export const BLOCKS = [
   template: `
     <div class="page editor">
       <nav class="breadcrumb" aria-label="Breadcrumb">
-        <a routerLink="/products">DevSecOps Product Management</a>
+        <a [routerLink]="admin.path">{{ admin.heading }}</a>
         <span class="sep" aria-hidden="true">/</span>
-        <a [routerLink]="['/products', id()]">{{ productName() }}</a>
+        <a [routerLink]="products.path">{{ products.label }}</a>
         <span class="sep" aria-hidden="true">/</span>
-        <span>ServiceNow change</span>
+        <span>{{ productName() }}</span>
       </nav>
       <header class="page-header">
         <div>
@@ -167,7 +168,7 @@ export const BLOCKS = [
               <span class="muted">Unsaved changes</span>
             }
             <span class="spacer"></span>
-            <a mat-button [routerLink]="['/products', id()]">Cancel</a>
+            <a mat-button [routerLink]="products.path">Cancel</a>
             <button mat-flat-button type="submit" [disabled]="saving()">
               @if (saving()) {
                 <mat-spinner diameter="18" />
@@ -185,13 +186,15 @@ export const BLOCKS = [
     }
   `,
 })
-export class ChangeProfileEditor implements HasUnsavedChanges {
+export class BeadleProduct implements HasUnsavedChanges {
   readonly id = input.required({ transform: numberAttribute });
 
   private readonly api = inject(ChangesApi);
   private readonly notifier = inject(Notifier);
   private readonly destroyRef = inject(DestroyRef);
 
+  protected readonly admin = BEADLE_ADMIN;
+  protected readonly products = BEADLE_PRODUCTS;
   protected readonly blocks = BLOCKS;
   protected readonly errorMessage = errorMessage;
   protected readonly profile = rxResource({

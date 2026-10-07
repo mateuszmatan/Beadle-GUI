@@ -1,4 +1,4 @@
-import { Choice } from '../beadle/onboarding-model';
+import { Choice } from '../shared/choice-tiles';
 import { ChangeRequest, DateRange, JiraIssue } from './change-api';
 
 export type WindowChoice = 'tonight' | 'weekend' | 'custom';

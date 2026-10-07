@@ -18,7 +18,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
 import { catchError, finalize, of } from 'rxjs';
-import { ChoiceTiles } from '../beadle/choice-tiles';
+import { ChoiceTiles } from '../shared/choice-tiles';
 import { DepartmentsApi, ProductsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
 import { CHANGES } from '../core/sections';
@@ -70,7 +70,7 @@ export const STEPS = ['Product', 'Jira scope', 'Window', 'Review', 'Raised'];
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './change-wizard.html',
-  styleUrls: ['../beadle/onboarding.scss', './change-wizard.scss'],
+  styleUrls: ['../shared/wizard.scss', './change-wizard.scss'],
 })
 export class ChangeWizard implements HasUnsavedChanges {
   private readonly changesApi = inject(ChangesApi);
