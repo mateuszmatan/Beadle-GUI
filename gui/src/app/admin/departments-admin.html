@@ -60,11 +60,13 @@
               @if (department.pipelineCount === 0) {
                 <span class="muted">None yet</span>
               } @else {
-                <strong>{{ department.pipelineCount }}</strong>
-                <span class="muted"> · {{ department.activePipelineCount }} active</span>
-                @if (invalidated(department); as count) {
-                  <span class="revoked"> · {{ count }} invalidated</span>
-                }
+                <span class="pipelines">
+                  <strong>{{ department.pipelineCount }}</strong>
+                  <span class="muted"> · {{ department.activePipelineCount }} active</span>
+                  @if (invalidated(department); as count) {
+                    <span class="revoked"> · {{ count }} invalidated</span>
+                  }
+                </span>
               }
             </td>
           </ng-container>

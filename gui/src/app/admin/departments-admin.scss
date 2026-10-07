@@ -36,20 +36,37 @@ td.mat-mdc-cell {
   padding-right: 24px;
 }
 
+.mat-column-pipelines {
+  width: 240px;
+}
+
+.pipelines {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 4px;
+  white-space: nowrap;
+}
+
 .revoked {
   color: var(--dso-danger);
   font-size: 12px;
 }
 
 .actions {
-  width: 180px;
+  width: 150px;
   text-align: right;
   white-space: nowrap;
 }
 
 @media (max-width: 700px) {
-  .number {
+  .number,
+  .mat-column-pipelines,
+  .actions {
     width: auto;
+  }
+
+  .number {
     padding-right: 12px;
   }
 }

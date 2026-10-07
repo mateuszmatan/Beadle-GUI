@@ -205,6 +205,10 @@ abstract class GuiSpecification extends Specification {
         page.locator('.mat-mdc-menu-panel').getByRole(AriaRole.MENUITEM, new Locator.GetByRoleOptions().setName(label).setExact(true))
     }
 
+    Locator tab(String label) {
+        page.locator('nav.tab-bar').getByRole(AriaRole.LINK, new Locator.GetByRoleOptions().setName(label).setExact(true))
+    }
+
     Locator field(String label) {
         page.getByLabel(label, new Page.GetByLabelOptions().setExact(true))
     }
