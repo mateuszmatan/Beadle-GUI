@@ -1,10 +1,15 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence
 
+import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileSummary
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate
-import com.bbh.itss.dso.portal.domain.change.ChangeWindow
+import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Approvers
+import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess
+import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedUser
+import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.RiskAssessment
+import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Timing
 import com.bbh.itss.dso.portal.domain.change.ProductionChange
 import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import org.springframework.beans.factory.annotation.Autowired
@@ -15,9 +20,10 @@ import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.JdbcTemplate
 import spock.lang.Specification
 
-import java.time.Instant
-
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.FIX_VERSION
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.epic
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.privileged
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.schedule
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.story
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
 import static com.bbh.itss.dso.portal.support.Fixtures.account
@@ -31,8 +37,10 @@ import static com.bbh.itss.dso.portal.support.Fixtures.settings
 @Import([ChangeProfilePersistenceAdapter, ProductionChangePersistenceAdapter, ProductPersistenceAdapter])
 class ChangePersistenceAdaptersSpec extends Specification {
 
-    static final ChangeWindow WINDOW = new ChangeWindow(Instant.parse('2026-10-10T06:00:00Z'),
-            Instant.parse('2026-10-10T10:00:00Z'))
+    static final ChangeTemplate FULL = template(release: 'R 4.2', incident: 'INC0012345', problem: 'PRB0001234',
+            affectedClients: 'Fund administration clients', downtime: true, timing: new Timing('20:30', 3, 2),
+            privilegedAccess: new PrivilegedAccess(true, [new PrivilegedUser('Jane Smith', 'adm_jsmith'),
+                                                          new PrivilegedUser('Ann Lee', 'adm_alee')]))
 
     @Autowired
     ChangeProfilePersistenceAdapter profiles
@@ -52,9 +60,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
     Product product
 
     def setup() {
-        product = products.save(Product.create(details(code: 'CERT', name: 'CertScanner'), account(),
-                [new ServiceDraft(null, 'gui', 'Angular', settings()), new ServiceDraft(null, 'api', null, settings())],
-                products))
+        product = save('CERT', 'CertScanner')
         entities.clear()
     }
 
@@ -63,21 +69,27 @@ class ChangePersistenceAdaptersSpec extends Specification {
         profiles.find(product.id()) == Optional.empty()
 
         when:
-        def created = profiles.save(ChangeProfile.create(product.id(), template()))
+        def created = profiles.save(ChangeProfile.create(product.id(), FULL))
         entities.clear()
         def changed = profiles.save(profiles.find(product.id()).get().change(0L,
-                template(risk: ChangeTemplate.Risk.HIGH, approvers: ['Emma Brooks'])))
+                template(approvers: new Approvers('Emma Brooks', null, null), privilegedAccess: privileged(3))))
         entities.clear()
 
         then:
         created.version() == 0
-        created.template() == template()
+        created.template() == FULL
         created.updatedAt() != null
         changed.version() == 1
         profiles.find(product.id()).get() == changed
-        changed.template().approvers() == ['Emma Brooks']
-        jdbc.queryForMap('SELECT RISK, APPROVERS FROM DSO_CHANGE_PROFILE WHERE PRODUCT_ID = ?', product.id()) ==
-                [RISK: 'HIGH', APPROVERS: 'Emma Brooks']
+        changed.template().privilegedAccess() == privileged(3)
+        jdbc.queryForMap('''SELECT L1_MANAGER, L2_MANAGER, TIMING_INSTALLATION_START, TEST_SUMMARY, DOWNTIME,
+                PRIVILEGED_ACCESS_REQUIRED, RISK_BBH_USERS FROM DSO_CHANGE_PROFILE WHERE PRODUCT_ID = ?''', product.id()) ==
+                [L1_MANAGER: 'Emma Brooks', L2_MANAGER: null, TIMING_INSTALLATION_START: '18:00',
+                 TEST_SUMMARY: ChangeTemplate.TEST_SUMMARY, DOWNTIME: 0, PRIVILEGED_ACCESS_REQUIRED: 1, RISK_BBH_USERS: 10]
+        jdbc.queryForList('''SELECT u.POSITION, u.USER_NAME, u.ACCOUNT_NAME FROM DSO_CHANGE_PROFILE_PRIVILEGED_USER u
+                JOIN DSO_CHANGE_PROFILE p ON p.ID = u.PROFILE_ID WHERE p.PRODUCT_ID = ? ORDER BY u.POSITION''',
+                product.id()) == (1..3).collect { [POSITION: it - 1, USER_NAME: "User $it".toString(),
+                                                    ACCOUNT_NAME: "adm_user$it".toString()] }
 
         when:
         profiles.save(created)
@@ -86,11 +98,42 @@ class ChangePersistenceAdaptersSpec extends Specification {
         thrown(ConflictException)
     }
 
-    def "a raised change is stored with its template, its Jira keys and its tasks in order"() {
+    def "a template without approvers, privileged users or risk assessment reads back as such"() {
         given:
-        def raised = ProductionChange.draft(product, 'Corporate Technology', product.services(), template(), WINDOW,
-                [epic('CERT-1', 'Expiry alerts')], [story('CERT-2', 'E-mail', 'CERT-1')], null, null)
-                .numbered('CHG0001001', ['CTASK0002001', 'CTASK0002002'], 'https://snow/CHG0001001')
+        def bare = template(approvers: Approvers.NONE, riskAssessment: RiskAssessment.NONE)
+
+        when:
+        profiles.save(ChangeProfile.create(product.id(), bare))
+        entities.clear()
+
+        then:
+        profiles.find(product.id()).get().template() == bare
+    }
+
+    def "the stored profiles are summarised by product name"() {
+        given:
+        def access = save('ACCESS', 'Access Hub')
+        save('LEDGER', 'Ledger')
+        profiles.save(ChangeProfile.create(product.id(), FULL))
+        def stored = profiles.save(ChangeProfile.create(access.id(), template()))
+        profiles.save(profiles.find(access.id()).get().change(0L, template(category: 'Apps')))
+        entities.clear()
+
+        when:
+        def summaries = profiles.summaries()
+
+        then:
+        summaries*.productName() == ['Access Hub', 'CertScanner']
+        summaries[0] == new ChangeProfileSummary(access.id(), 'Access Hub', 1, summaries[0].updatedAt())
+        !summaries[0].updatedAt().isBefore(stored.updatedAt())
+        summaries[1].version() == 0
+    }
+
+    def "a raised change is stored with its schedule, its template, its Jira keys and its tasks in order"() {
+        given:
+        def raised = ProductionChange.draft(product, 'Corporate Technology', product.services(), FIX_VERSION,
+                schedule(), FULL, [epic('CERT-1', 'Expiry alerts')], [story('CERT-2', 'E-mail', 'CERT-1')], null,
+                null).numbered('CHG0001001', ['CTASK0002001', 'CTASK0002002'], 'https://snow/CHG0001001')
 
         when:
         def saved = changes.save(raised)
@@ -104,22 +147,27 @@ class ChangePersistenceAdaptersSpec extends Specification {
         loaded.number() == 'CHG0001001'
         [loaded.productId(), loaded.productCode(), loaded.productName(), loaded.departmentName()] ==
                 [product.id(), 'CERT', 'CertScanner', 'Corporate Technology']
-        loaded.window() == WINDOW
+        loaded.fixVersion() == FIX_VERSION
+        loaded.schedule() == schedule()
         [loaded.shortDescription(), loaded.description()] == [raised.shortDescription(), raised.description()]
-        loaded.template() == template()
+        loaded.template() == FULL
+        loaded.template().privilegedAccess().users()*.user() == ['Jane Smith', 'Ann Lee']
         [loaded.epicKeys(), loaded.storyKeys()] == [['CERT-1'], ['CERT-2']]
         loaded.tasks() == raised.tasks()
         loaded.url() == 'https://snow/CHG0001001'
         changes.findAll()*.number() == ['CHG0001002', 'CHG0001001']
+        changes.findAll()*.template().every { it == FULL }
         changes.load(later.id()).get().tasks()*.number() == ['CTASK0002003', 'CTASK0002004']
         changes.load(9999L) == Optional.empty()
+        jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PRODUCTION_CHANGE_PRIVILEGED_USER WHERE CHANGE_ID = ?', Integer,
+                saved.id()) == 2
     }
 
     def "deleting a product deletes its template and keeps its raised changes"() {
         given:
-        profiles.save(ChangeProfile.create(product.id(), template()))
-        def saved = changes.save(ProductionChange.draft(product, null, product.services().take(1), template(),
-                WINDOW, [epic('CERT-1', 'Expiry alerts')], [], null, null)
+        profiles.save(ChangeProfile.create(product.id(), FULL))
+        def saved = changes.save(ProductionChange.draft(product, null, product.services().take(1), FIX_VERSION,
+                schedule(), FULL, [epic('CERT-1', 'Expiry alerts')], [], null, null)
                 .numbered('CHG0001003', ['CTASK0002005'], null))
         entities.clear()
 
@@ -128,10 +176,18 @@ class ChangePersistenceAdaptersSpec extends Specification {
 
         then:
         profiles.find(product.id()) == Optional.empty()
+        jdbc.queryForObject('SELECT COUNT(*) FROM DSO_CHANGE_PROFILE_PRIVILEGED_USER', Integer) == 0
         with(changes.load(saved.id()).get()) {
             productId() == null
             productName() == 'CertScanner'
             tasks()*.serviceName() == ['gui']
+            it.template().privilegedAccess().users().size() == 2
         }
+    }
+
+    private Product save(String code, String name) {
+        products.save(Product.create(details(code: code, name: name), account(),
+                [new ServiceDraft(null, 'gui', 'Angular', settings()), new ServiceDraft(null, 'api', null, settings())],
+                products))
     }
 }

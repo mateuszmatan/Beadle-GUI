@@ -3,12 +3,16 @@ package com.bbh.itss.dso.portal.application.change;
 import com.bbh.itss.dso.portal.application.ReadOnly;
 import com.bbh.itss.dso.portal.application.UseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
+import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileSummary;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileView;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfilesUseCase;
 import com.bbh.itss.dso.portal.application.change.port.out.ChangeProfileRepositoryPort;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+
+import java.util.List;
 
 @UseCase
 public class ChangeProfileService implements ChangeProfilesUseCase {
@@ -19,6 +23,12 @@ public class ChangeProfileService implements ChangeProfilesUseCase {
     public ChangeProfileService(ChangeProfileRepositoryPort profiles, ProductsUseCase products) {
         this.profiles = profiles;
         this.products = products;
+    }
+
+    @Override
+    @ReadOnly
+    public List<ChangeProfileSummary> list() {
+        return profiles.summaries();
     }
 
     @Override
@@ -34,6 +44,9 @@ public class ChangeProfileService implements ChangeProfilesUseCase {
     @Override
     public ChangeProfileView save(long productId, Long version, ChangeTemplate template) {
         Product product = products.get(productId);
+        ValidationProblems problems = new ValidationProblems();
+        template.validate(problems.at("template"));
+        problems.throwIfAny();
         ChangeProfile changed = profiles.find(productId).map(stored -> stored.change(version, template))
                 .orElseGet(() -> ChangeProfile.create(productId, template));
         return view(product, profiles.save(changed));
