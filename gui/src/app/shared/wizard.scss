@@ -101,7 +101,8 @@
   color: var(--dso-muted);
 }
 
-.prepare {
+.prepare,
+.today {
   padding: 8px 12px;
   border-left: 3px solid var(--dso-navy);
   background: var(--dso-info-bg);
@@ -111,6 +112,12 @@
     padding-left: 16px;
     list-style: square;
   }
+}
+
+.today {
+  border-left-color: var(--dso-border);
+  background: var(--dso-neutral-bg);
+  font-size: 12.5px;
 }
 
 .fields {
@@ -135,7 +142,21 @@
     gap: 10px;
     padding: 6px 8px 6px 10px;
     border: 1px solid var(--dso-border);
+
+    &.removed {
+      border-color: var(--dso-danger);
+      background: var(--dso-danger-bg);
+
+      strong {
+        text-decoration: line-through;
+      }
+    }
   }
+}
+
+.removal {
+  color: var(--dso-danger);
+  font-weight: 600;
 }
 
 .service-text {
@@ -148,6 +169,10 @@
 
 .step > button[mat-stroked-button] {
   align-self: flex-start;
+}
+
+.removal-warning {
+  margin-bottom: 0;
 }
 
 .review-services {
