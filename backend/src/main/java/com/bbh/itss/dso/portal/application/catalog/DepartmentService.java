@@ -9,13 +9,13 @@ import com.bbh.itss.dso.portal.application.catalog.port.out.PipelineCountsPort;
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort;
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductSummary;
 import com.bbh.itss.dso.portal.domain.catalog.Department;
-import com.bbh.itss.dso.portal.domain.shared.ConflictException;
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
 
 @UseCase
 public class DepartmentService implements DepartmentsUseCase {
@@ -58,7 +58,7 @@ public class DepartmentService implements DepartmentsUseCase {
 
     @Override
     public DepartmentView rename(long id, Long version, String name) {
-        Department department = departments.load(id).orElseThrow(() -> NotFoundException.of("Department", id));
+        Department department = departments.load(id).orElseThrow(() -> notFound("Department", id));
         departments.save(department.rename(version, name, departments::findByName));
         return view(id);
     }
@@ -67,7 +67,7 @@ public class DepartmentService implements DepartmentsUseCase {
     public void delete(long id) {
         DepartmentView department = view(id);
         if (department.productCount() > 0) {
-            throw new ConflictException(department.name() + " still has " + department.productCount()
+            throw new IllegalStateException(department.name() + " still has " + department.productCount()
                     + " product(s). Move them to another department first.");
         }
         departments.delete(id);
@@ -75,7 +75,7 @@ public class DepartmentService implements DepartmentsUseCase {
 
     private DepartmentView view(long id) {
         return list().stream().filter(department -> department.id() == id).findFirst()
-                .orElseThrow(() -> NotFoundException.of("Department", id));
+                .orElseThrow(() -> notFound("Department", id));
     }
 
     private static long total(List<Long> productIds, Map<Long, Long> counts) {

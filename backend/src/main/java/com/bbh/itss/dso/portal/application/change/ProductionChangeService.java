@@ -22,8 +22,6 @@ import com.bbh.itss.dso.portal.domain.change.ChangeWindow;
 import com.bbh.itss.dso.portal.domain.change.DateRange;
 import com.bbh.itss.dso.portal.domain.change.JiraIssue;
 import com.bbh.itss.dso.portal.domain.change.ProductionChange;
-import com.bbh.itss.dso.portal.domain.shared.ConflictException;
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
 import com.bbh.itss.dso.portal.domain.shared.StoredList;
 import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
@@ -35,6 +33,8 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
 
 @UseCase
 public class ProductionChangeService implements ProductionChangesUseCase {
@@ -68,7 +68,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @Override
     @ReadOnly
     public ProductionChange get(long id) {
-        return changes.load(id).orElseThrow(() -> NotFoundException.of("Change", id));
+        return changes.load(id).orElseThrow(() -> notFound("Change", id));
     }
 
     @Override
@@ -149,7 +149,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private ChangeTemplate templateOf(Product product) {
-        return profiles.find(product.id()).map(ChangeProfile::template).orElseThrow(() -> new ConflictException(
+        return profiles.find(product.id()).map(ChangeProfile::template).orElseThrow(() -> new IllegalStateException(
                 product.name() + " has no ServiceNow change template yet. Fill it in under DevSecOps Product"
                         + " Management first."));
     }

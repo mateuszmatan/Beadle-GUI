@@ -1,6 +1,6 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
-import com.bbh.itss.dso.portal.domain.shared.Text;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 public record ProductDetails(String code, String name, String description, String ownerTeam, String contactEmail,
                              Long departmentId) {
@@ -8,8 +8,8 @@ public record ProductDetails(String code, String name, String description, Strin
     public ProductDetails {
         code = code == null ? null : code.trim();
         name = name == null ? null : name.trim();
-        description = Text.trimToNull(description);
-        ownerTeam = Text.trimToNull(ownerTeam);
-        contactEmail = Text.trimToNull(contactEmail);
+        description = trimToNull(description);
+        ownerTeam = trimToNull(ownerTeam);
+        contactEmail = trimToNull(contactEmail);
     }
 }

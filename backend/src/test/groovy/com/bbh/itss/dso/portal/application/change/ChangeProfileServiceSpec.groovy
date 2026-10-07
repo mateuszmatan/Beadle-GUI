@@ -5,7 +5,6 @@ import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileView
 import com.bbh.itss.dso.portal.application.change.port.out.ChangeProfileRepositoryPort
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import spock.lang.Specification
 
 import java.time.Instant
@@ -78,7 +77,7 @@ class ChangeProfileServiceSpec extends Specification {
         service.save(1L, version, template())
 
         then:
-        thrown(ConflictException)
+        thrown(IllegalStateException)
         0 * profiles.save(_)
 
         where:

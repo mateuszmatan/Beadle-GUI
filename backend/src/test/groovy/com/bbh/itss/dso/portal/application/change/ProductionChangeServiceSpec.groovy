@@ -14,10 +14,8 @@ import com.bbh.itss.dso.portal.domain.change.ChangeProfile
 import com.bbh.itss.dso.portal.domain.change.ChangeWindow
 import com.bbh.itss.dso.portal.domain.change.DateRange
 import com.bbh.itss.dso.portal.domain.change.ProductionChange
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException.FieldProblem
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import spock.lang.Specification
 
 import java.time.Clock
@@ -92,7 +90,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         def refused = thrown(InvalidRequestException)
-        refused.problems == problems.collect { new FieldProblem(it.key, it.value) }
+        refused.problems() == problems.collect { new FieldProblem(it.key, it.value) }
         0 * serviceNow._
         0 * changes._
 
@@ -118,7 +116,7 @@ class ProductionChangeServiceSpec extends Specification {
         action(service)
 
         then:
-        def refused = thrown(ConflictException)
+        def refused = thrown(IllegalStateException)
         refused.message == ('PayHub has no ServiceNow change template yet. Fill it in under DevSecOps Product'
                 + ' Management first.')
         0 * jira._
@@ -170,7 +168,7 @@ class ProductionChangeServiceSpec extends Specification {
         service.get(8L)
 
         then:
-        thrown(NotFoundException)
+        thrown(NoSuchElementException)
     }
 
     static ChangeCommand command(Map changes = [:]) {

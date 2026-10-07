@@ -6,7 +6,6 @@ import com.bbh.itss.dso.portal.domain.change.ChangeProfile
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate
 import com.bbh.itss.dso.portal.domain.change.ChangeWindow
 import com.bbh.itss.dso.portal.domain.change.ProductionChange
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
@@ -83,7 +82,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         profiles.save(created)
 
         then:
-        thrown(ConflictException)
+        thrown(IllegalStateException)
     }
 
     def "a raised change is stored with its template, its Jira keys and its tasks in order"() {
