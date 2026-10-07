@@ -41,12 +41,15 @@
         @if (departmentsError(); as error) {
           <p class="choice-error">The departments could not be loaded: {{ error }}</p>
         }
+        @if (productsError(); as error) {
+          <p class="choice-error">The products could not be loaded: {{ error }}</p>
+        }
         <div class="fields">
           <mat-form-field>
             <mat-label>Department</mat-label>
             <mat-select [formControl]="departmentId">
               @for (group of groups(); track group.name) {
-                <mat-option [value]="group.department?.id ?? null">{{ group.name }}</mat-option>
+                <mat-option [value]="departmentKey(group)">{{ group.name }}</mat-option>
               }
             </mat-select>
           </mat-form-field>
@@ -170,7 +173,7 @@
               }
             </div>
           } @else {
-            <p class="empty">No epic carries FixVersion {{ searched() }}.</p>
+            <p class="empty">No epic carries FixVersion {{ searched()?.fixVersion }}.</p>
           }
         }
         <h3>Stories of the chosen epics</h3>
@@ -194,7 +197,13 @@
                 <span class="muted"> · {{ issueText(story) }}</span>
               </mat-checkbox>
             } @empty {
-              <p class="empty">No story of this epic carries the FixVersion.</p>
+              <p class="empty">
+                {{
+                  stories.isLoading()
+                    ? 'Loading its stories'
+                    : 'No story of this epic carries the FixVersion.'
+                }}
+              </p>
             }
           </div>
         } @empty {
@@ -224,7 +233,7 @@
           The defaults of the product are filled in. Change any value for this change; the defaults
           stay as they are.
         </p>
-        <dso-change-template-form [form]="details()!" />
+        <dso-change-template-form [form]="details()!" [jiraProject]="false" />
       }
       @case (3) {
         @let timing = details()!.controls.timing.getRawValue();
@@ -233,8 +242,8 @@
           Choose the installation date. The installation starts at
           {{ timing.installationStart }} and takes
           {{ counted(timing.installationHours ?? 0, 'hour') }}, then the validation takes
-          {{ counted(timing.validationHours ?? 0, 'hour') }}. Change any time you need. Times are in
-          your time zone, {{ timeZone }}.
+          {{ counted(timing.validationHours ?? 0, 'hour') }}. Change any time you need.
+          {{ timeZoneNote }}
         </p>
         <div class="fields">
           <mat-form-field>
@@ -277,12 +286,32 @@
         }
         @if (preview(); as draft) {
           <div class="texts">
+            @if (shortDescription.value !== draft.shortDescription) {
+              <button
+                type="button"
+                class="text-link new-text"
+                aria-label="Use the generated text for the short description"
+                (click)="useGeneratedText(shortDescription, draft.shortDescription)"
+              >
+                Use the generated text
+              </button>
+            }
             <mat-form-field>
               <mat-label>Short description</mat-label>
               <input matInput [formControl]="shortDescription" maxlength="160" />
               <mat-hint align="end">{{ shortDescription.value.length }} / 160</mat-hint>
               <mat-error>{{ errorText(shortDescription) }}</mat-error>
             </mat-form-field>
+            @if (description.value !== draft.description) {
+              <button
+                type="button"
+                class="text-link new-text"
+                aria-label="Use the generated text for the description"
+                (click)="useGeneratedText(description, draft.description)"
+              >
+                Use the generated text
+              </button>
+            }
             <mat-form-field>
               <mat-label>Description</mat-label>
               <textarea matInput rows="11" [formControl]="description"></textarea>
@@ -321,6 +350,10 @@
                 </ul>
               }
             </div>
+            @if (!preview()) {
+              <span class="spacer"></span>
+              <button mat-button type="button" (click)="loadPreview()">Try again</button>
+            }
           </div>
         }
       }
@@ -398,7 +431,7 @@
         <button
           mat-flat-button
           type="button"
-          [disabled]="raising() || previewing()"
+          [disabled]="raising() || previewing() || (step() === 4 && !preview())"
           (click)="next()"
         >
           {{ nextLabel() }}

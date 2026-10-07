@@ -250,7 +250,7 @@ class BeadleAdminSpec extends EditorSpecification {
 
         when:
         def scanner = store.product.services[2]
-        buttonIn(serviceRow('backend-api'), 'Change').click()
+        buttonIn(serviceRow('backend-api'), 'Change backend-api').click()
 
         then:
         assertThat(dialog().locator('h2')).hasText('Change backend-api')
@@ -274,7 +274,7 @@ class BeadleAdminSpec extends EditorSpecification {
         }
 
         when:
-        buttonIn(serviceRow('gui'), 'Remove').click()
+        buttonIn(serviceRow('gui'), 'Remove gui').click()
 
         then:
         assertThat(dialog().locator('h2')).hasText('Remove gui?')

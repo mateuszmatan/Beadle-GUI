@@ -14,7 +14,7 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { ChangesApi } from '../changes/change-api';
 import { ChangeTemplateForm } from '../changes/change-template-form';
@@ -60,7 +60,7 @@ import { ProductAdmin } from './product-admin';
           </p>
         </div>
       </header>
-      <dso-product-admin [id]="id()" (saved)="renamed($event)" />
+      <dso-product-admin [id]="id()" (saved)="renamed($event)" (deleted)="leave()" />
       @if (profile.isLoading()) {
         <mat-progress-bar mode="indeterminate" />
       }
@@ -103,6 +103,7 @@ export class BeadleProduct implements HasUnsavedChanges {
 
   private readonly api = inject(ChangesApi);
   private readonly notifier = inject(Notifier);
+  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly admin = BEADLE_ADMIN;
@@ -137,6 +138,11 @@ export class BeadleProduct implements HasUnsavedChanges {
 
   hasUnsavedChanges(): boolean {
     return !!this.form()?.dirty && !this.saving();
+  }
+
+  protected leave(): void {
+    this.form()?.markAsPristine();
+    this.router.navigate([this.products.path]);
   }
 
   protected save(): void {

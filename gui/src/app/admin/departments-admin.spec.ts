@@ -109,6 +109,11 @@ describe('DepartmentsAdmin', () => {
     await load();
 
     expect(buttonOf(row('Corporate Technology'), 'Delete').disabled).toBe(true);
+    expect(
+      [...row('Fund Services').querySelectorAll('button')].map((button) =>
+        button.getAttribute('aria-label'),
+      ),
+    ).toEqual(['Rename Fund Services', 'Delete Fund Services']);
     expect(row('Corporate Technology').querySelector('.delete')?.getAttribute('title')).toBe(
       'Corporate Technology still has 1 product. Move them to another department first.',
     );

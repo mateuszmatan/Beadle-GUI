@@ -2,7 +2,7 @@ import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
-import { Router, provideRouter } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { Product } from '../core/models';
 import { ServiceDialog } from '../self-service/service-dialog';
@@ -16,8 +16,8 @@ import { ProductDialog } from './product-dialog';
 describe('ProductAdmin', () => {
   let fixture: ComponentFixture<ProductAdmin>;
   let http: HttpTestingController;
-  let navigate: ReturnType<typeof vi.spyOn>;
   let emitted: Product[];
+  let deleted: Product[];
 
   const gui = service();
   const api = anotherService({
@@ -42,10 +42,11 @@ describe('ProductAdmin', () => {
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     http = TestBed.inject(HttpTestingController);
-    navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     fixture = TestBed.createComponent(ProductAdmin);
     emitted = [];
+    deleted = [];
     fixture.componentInstance.saved.subscribe((saved) => emitted.push(saved));
+    fixture.componentInstance.deleted.subscribe((product) => deleted.push(product));
   });
 
   afterEach(() => http.verify());
@@ -116,6 +117,11 @@ describe('ProductAdmin', () => {
       'Change Remove',
     ]);
     expect(text(row('gui').querySelector('.mat-column-target'))).toBe('Virtual machine');
+    expect(
+      [...page().querySelectorAll('td.actions button')].map((button) =>
+        button.getAttribute('aria-label'),
+      ),
+    ).toEqual(['Change gui', 'Remove gui', 'Change api', 'Remove api']);
   });
 
   it('shows a product without services, team, e-mail or department', async () => {
@@ -311,7 +317,7 @@ describe('ProductAdmin', () => {
     expect(emitted).toEqual([]);
   });
 
-  it('deletes the product once confirmed and goes back to the products', async () => {
+  it('deletes the product once confirmed and tells the page', async () => {
     await load();
     const open = dialogClosing(true, true);
 
@@ -328,13 +334,13 @@ describe('ProductAdmin', () => {
       .expectOne({ method: 'DELETE', url: '/api/products/1' })
       .flush({ detail: 'The portal cannot be reached.' }, { status: 503, statusText: 'Down' });
     expect(snack()).toContain('The portal cannot be reached.');
-    expect(navigate).not.toHaveBeenCalled();
+    expect(deleted).toEqual([]);
 
     buttonOf(page(), 'Delete product').click();
     http.expectOne({ method: 'DELETE', url: '/api/products/1' }).flush(null);
     await fixture.whenStable();
 
     expect(snack()).toContain('CertScanner deleted');
-    expect(navigate).toHaveBeenCalledWith(['/beadle/admin/products']);
+    expect(deleted).toEqual([stored]);
   });
 });

@@ -25,7 +25,7 @@ import { errorMessage, fieldProblems } from '../core/errors';
 import { FieldProblem } from '../core/models';
 import { CHANGES, beadleProduct } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
-import { NOT_IN_A_DEPARTMENT, byDepartment } from '../products/departments';
+import { DepartmentGroup, byDepartment } from '../products/departments';
 import { filled, fitsColumn, max, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
@@ -33,6 +33,7 @@ import { ChangeRequest, ChangesApi, JiraIssue, ProductionChange } from './change
 import {
   MOMENTS,
   Moments,
+  TIME_ZONE_NOTE,
   approverNames,
   changeRequest,
   eachMoment,
@@ -93,6 +94,18 @@ function problemText(problem: FieldProblem): string {
 
 const momentForm = () => new FormGroup({ date: text(''), time: text('') });
 
+const NO_DEPARTMENT = -1;
+
+const departmentKey = (group: DepartmentGroup) => group.department?.id ?? NO_DEPARTMENT;
+
+interface Search {
+  fixVersion: string;
+  project: string | undefined;
+}
+
+const sameSearch = (search: Search, other: Search | null) =>
+  search.fixVersion === other?.fixVersion && search.project === other.project;
+
 @Component({
   selector: 'dso-change-wizard',
   imports: [
@@ -129,7 +142,8 @@ export class ChangeWizard implements HasUnsavedChanges {
   protected readonly counted = counted;
   protected readonly defaultsLink = beadleProduct;
   protected readonly jiraKeyError = JIRA_KEY_ERROR;
-  protected readonly timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  protected readonly timeZoneNote = TIME_ZONE_NOTE;
+  protected readonly departmentKey = departmentKey;
 
   protected readonly step = signal(0);
   protected readonly checked = signal(false);
@@ -153,19 +167,22 @@ export class ChangeWizard implements HasUnsavedChanges {
       ),
     { initialValue: [] },
   );
-  private readonly catalogue = toSignal(this.productsApi.list().pipe(catchError(() => of([]))), {
-    initialValue: [],
-  });
+  protected readonly productsError = signal<string | null>(null);
+  private readonly catalogue = toSignal(
+    this.productsApi.list().pipe(
+      catchError((error) => {
+        this.productsError.set(errorMessage(error));
+        return of([]);
+      }),
+    ),
+    { initialValue: [] },
+  );
   protected readonly groups = computed(() =>
     byDepartment(this.departments(), this.catalogue()).filter((group) => group.products.length),
   );
   protected readonly productsInDepartment = computed(() => {
     const id = this.chosenDepartment();
-    return (
-      this.groups().find((group) =>
-        id === null ? group.name === NOT_IN_A_DEPARTMENT : group.department?.id === id,
-      )?.products ?? []
-    );
+    return this.groups().find((group) => departmentKey(group) === id)?.products ?? [];
   });
 
   protected readonly product = rxResource({
@@ -191,7 +208,7 @@ export class ChangeWizard implements HasUnsavedChanges {
     validators: [filled, max(100)],
   });
   private readonly fixVersionText = toSignal(this.fixVersion.valueChanges, { initialValue: '' });
-  protected readonly searched = signal<string | null>(null);
+  protected readonly searched = signal<Search | null>(null);
   private readonly versionTrigger = viewChild(MatAutocompleteTrigger);
   protected readonly versions = rxResource({
     params: () => {
@@ -211,10 +228,8 @@ export class ChangeWizard implements HasUnsavedChanges {
   protected readonly epics = rxResource({
     params: () => {
       const productId = this.chosenProduct();
-      const fixVersion = this.searched();
-      return productId && fixVersion
-        ? { productId, fixVersion, project: this.project() }
-        : undefined;
+      const search = this.searched();
+      return productId && search ? { productId, ...search } : undefined;
     },
     stream: ({ params }) =>
       this.changesApi.epics(params.productId, params.fixVersion, params.project),
@@ -222,11 +237,9 @@ export class ChangeWizard implements HasUnsavedChanges {
   protected readonly stories = rxResource({
     params: () => {
       const productId = this.chosenProduct();
-      const fixVersion = this.searched();
+      const search = this.searched();
       const epics = this.epicKeys();
-      return productId && fixVersion && epics.length
-        ? { productId, fixVersion, epics, project: this.project() }
-        : undefined;
+      return productId && search && epics.length ? { productId, ...search, epics } : undefined;
     },
     stream: ({ params }) =>
       this.changesApi.stories(params.productId, params.fixVersion, params.epics, params.project),
@@ -262,8 +275,8 @@ export class ChangeWizard implements HasUnsavedChanges {
   protected readonly problem = signal<string | null>(null);
   protected readonly problems = signal<string[]>([]);
   protected readonly raised = signal<ProductionChange | null>(null);
-  private previewed = '';
   private filledRelease: string | null = null;
+  private filledDate = '';
 
   protected readonly nextLabel = computed(() =>
     this.step() === REVIEW ? 'Raise the change in ServiceNow' : 'Continue',
@@ -394,16 +407,18 @@ export class ChangeWizard implements HasUnsavedChanges {
 
   protected findEpics(): void {
     this.versionTrigger()?.closePanel();
+    const key = this.details()!.controls.jiraProjectKey;
     this.fixVersion.markAsTouched();
-    const version = this.fixVersion.value.trim();
-    if (this.fixVersion.invalid) {
+    key.markAsTouched();
+    if (this.fixVersion.invalid || key.invalid) {
       return;
     }
-    if (version === this.searched()) {
+    const search = this.search();
+    if (sameSearch(search, this.searched())) {
       this.epics.reload();
     } else {
       this.forgetIssues();
-      this.searched.set(version);
+      this.searched.set(search);
     }
   }
 
@@ -437,6 +452,11 @@ export class ChangeWizard implements HasUnsavedChanges {
     return [issue.status, `updated ${issue.updated}`].filter(Boolean).join(' · ');
   }
 
+  protected useGeneratedText(control: FormControl<string>, generated: string): void {
+    control.setValue(generated);
+    control.markAsPristine();
+  }
+
   protected restart(): void {
     this.raised.set(null);
     this.productId.setValue(null);
@@ -445,12 +465,17 @@ export class ChangeWizard implements HasUnsavedChanges {
   }
 
   private scopeProblem(): string | null {
-    const version = this.fixVersion.value.trim();
-    if (!version || this.fixVersion.invalid) {
+    if (this.details()!.controls.jiraProjectKey.invalid) {
+      return 'Check the Jira project';
+    }
+    if (!this.fixVersion.value.trim() || this.fixVersion.invalid) {
       return 'Enter the FixVersion of the release';
     }
-    if (version !== this.searched()) {
+    if (!sameSearch(this.search(), this.searched())) {
       return 'Find the epics of this FixVersion';
+    }
+    if (this.epics.isLoading() || this.stories.isLoading()) {
+      return 'Wait until the epics and stories are loaded';
     }
     if (this.epics.error() || this.stories.error()) {
       return 'The epics and stories of this FixVersion could not be loaded';
@@ -459,6 +484,10 @@ export class ChangeWizard implements HasUnsavedChanges {
       return 'Choose at least one epic';
     }
     return this.serviceIds().length ? null : 'Choose at least one service';
+  }
+
+  private search(): Search {
+    return { fixVersion: this.fixVersion.value.trim(), project: this.project() };
   }
 
   private forgetIssues(): void {
@@ -474,13 +503,15 @@ export class ChangeWizard implements HasUnsavedChanges {
     this.installationDate.reset();
     this.schedule.reset();
     this.filledRelease = null;
+    this.filledDate = '';
+    this.shortDescription.reset();
+    this.description.reset();
     this.preview.set(null);
-    this.previewed = '';
   }
 
   private fillRelease(): void {
     const release = this.details()!.controls.release;
-    const version = this.searched()!;
+    const version = this.searched()!.fixVersion;
     if (!release.value.trim() || release.value === this.filledRelease) {
       release.setValue(version);
       this.filledRelease = version;
@@ -489,11 +520,18 @@ export class ChangeWizard implements HasUnsavedChanges {
 
   private suggestDate(): void {
     const version = this.versions.hasValue()
-      ? this.versions.value().find((candidate) => candidate.name === this.searched())
+      ? this.versions.value().find((candidate) => candidate.name === this.searched()?.fixVersion)
       : null;
-    const date = version?.releaseDate;
-    if (!this.installationDate.value && date && date >= isoDate(new Date())) {
-      this.installationDate.setValue(date);
+    const date = version?.releaseDate ?? '';
+    const suggested = date >= isoDate(new Date()) ? date : '';
+    const value = this.installationDate.value;
+    if (value === suggested || (value && value !== this.filledDate)) {
+      return;
+    }
+    this.installationDate.setValue(suggested);
+    this.filledDate = suggested;
+    if (!suggested) {
+      this.schedule.reset();
     }
   }
 
@@ -520,7 +558,7 @@ export class ChangeWizard implements HasUnsavedChanges {
       {
         productId: this.chosenProduct()!,
         serviceIds: this.serviceIds(),
-        fixVersion: this.searched()!,
+        fixVersion: this.searched()!.fixVersion,
         epicKeys: this.epicKeys(),
         storyKeys: this.storyKeys(),
       },
@@ -529,7 +567,7 @@ export class ChangeWizard implements HasUnsavedChanges {
     );
   }
 
-  private loadPreview(): void {
+  protected loadPreview(): void {
     const request = this.request();
     this.previewing.set(true);
     this.problem.set(null);
@@ -542,17 +580,13 @@ export class ChangeWizard implements HasUnsavedChanges {
       )
       .subscribe({
         next: (preview) => {
-          const key = JSON.stringify(request);
-          if (key !== this.previewed) {
-            this.shortDescription.setValue(preview.shortDescription);
-            this.description.setValue(preview.description);
-            this.previewed = key;
-          }
+          this.fillText(this.shortDescription, preview.shortDescription);
+          this.fillText(this.description, preview.description);
           this.preview.set(preview);
         },
         error: (error) => {
           this.preview.set(null);
-          this.fail(error);
+          this.fail(error, 'The change could not be previewed: ');
         },
       });
   }
@@ -581,13 +615,19 @@ export class ChangeWizard implements HasUnsavedChanges {
       });
   }
 
-  private fail(error: unknown): void {
+  private fillText(control: FormControl<string>, generated: string): void {
+    if (control.pristine) {
+      control.setValue(generated);
+    }
+  }
+
+  private fail(error: unknown, lead = ''): void {
     const problems = fieldProblems(error);
     const form = this.details();
     if (form) {
       applyTemplateProblems(form, problems);
     }
-    this.problem.set(errorMessage(error));
+    this.problem.set(lead + errorMessage(error));
     this.problems.set(problems.map(problemText));
   }
 }

@@ -42,6 +42,7 @@ import { ChangeSummary } from './change-summary';
           </div>
         </header>
         <section class="card block">
+          <h2>Summary</h2>
           <dso-change-summary [change]="c" />
         </section>
         <div class="columns">

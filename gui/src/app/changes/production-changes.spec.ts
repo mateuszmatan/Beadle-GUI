@@ -8,6 +8,8 @@ import { ChangeDetail } from './change-detail';
 import { ChangeSummary } from './change-summary';
 import { ProductionChanges } from './production-changes';
 
+const zoneNote = `Times are in your time zone, ${Intl.DateTimeFormat().resolvedOptions().timeZone}.`;
+
 async function settle(fixture: ComponentFixture<unknown>) {
   TestBed.tick();
   await new Promise((resolve) => setTimeout(resolve));
@@ -58,6 +60,7 @@ describe('production changes', () => {
       '1',
     ]);
     expect(page.querySelectorAll('tbody tr')).toHaveLength(2);
+    expect(text(page.querySelector('.zone'))).toBe(zoneNote);
     expect(text(page.querySelector('dso-integration-note'))).not.toContain('Jira is not connected');
     expect(text(page.querySelector('dso-integration-note'))).toContain(
       'ServiceNow is not connected',
@@ -108,6 +111,18 @@ describe('production changes', () => {
       );
 
     expect(text(page.querySelector('h1'))).toBe('CHG0012345');
+    expect([...page.querySelectorAll('h1, h2, h3')].map((heading) => heading.tagName)).toEqual([
+      'H1',
+      'H2',
+      'H3',
+      'H3',
+      'H3',
+      'H3',
+      'H3',
+      'H3',
+      'H2',
+      'H2',
+    ]);
     expect(rows('Change')).toEqual([
       'Product: CertScanner (CERT)',
       'Department: Corporate Technology',
@@ -128,6 +143,7 @@ describe('production changes', () => {
       expect.stringMatching(/^First usage: Mon, 12 Oct 2026, /),
       'Downtime: Yes',
     ]);
+    expect(text(block('Schedule')!.querySelector('.note'))).toBe(zoneNote);
     expect(rows('Approvers')).toEqual([
       'L1 manager: Olivia Bennett',
       'L2 manager: James Carter',

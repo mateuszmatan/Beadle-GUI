@@ -14,13 +14,11 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
-import { Router } from '@angular/router';
 import { filter, finalize, switchMap } from 'rxjs';
 import { DepartmentsApi, ProductsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
 import { Product, ProductRequest } from '../core/models';
 import { Notifier } from '../core/notifier';
-import { BEADLE_PRODUCTS } from '../core/sections';
 import { NOT_IN_A_DEPARTMENT } from '../products/departments';
 import { ServiceDialog, ServiceDialogData } from '../self-service/service-dialog';
 import {
@@ -140,13 +138,20 @@ interface SaveError {
               <ng-container matColumnDef="actions">
                 <th mat-header-cell *matHeaderCellDef></th>
                 <td mat-cell *matCellDef="let service; let index = index" class="actions">
-                  <button mat-button type="button" [disabled]="busy()" (click)="openService(index)">
+                  <button
+                    mat-button
+                    type="button"
+                    [attr.aria-label]="'Change ' + service.name"
+                    [disabled]="busy()"
+                    (click)="openService(index)"
+                  >
                     Change
                   </button>
                   <button
                     mat-button
                     type="button"
                     class="danger"
+                    [attr.aria-label]="'Remove ' + service.name"
                     [disabled]="busy()"
                     (click)="removeService(index)"
                   >
@@ -223,12 +228,12 @@ interface SaveError {
 export class ProductAdmin {
   readonly id = input.required<number>();
   readonly saved = output<Product>();
+  readonly deleted = output<Product>();
 
   private readonly api = inject(ProductsApi);
   private readonly departmentsApi = inject(DepartmentsApi);
   private readonly dialog = inject(MatDialog);
   private readonly notifier = inject(Notifier);
-  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly columns = ['name', 'description', 'tool', 'target', 'actions'];
@@ -285,7 +290,7 @@ export class ProductAdmin {
       .subscribe({
         next: () => {
           this.notifier.success(`${product.name} deleted`);
-          this.router.navigate([BEADLE_PRODUCTS.path]);
+          this.deleted.emit(product);
         },
         error: (error) => this.notifier.error(error),
       });

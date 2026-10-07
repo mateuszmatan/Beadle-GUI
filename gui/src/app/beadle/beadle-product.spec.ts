@@ -1,9 +1,11 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { Router, provideRouter } from '@angular/router';
+import { of } from 'rxjs';
 import { changeProfile, changeTemplate } from '../testing/change-fixtures';
-import { fieldOf, text } from '../testing/dom';
+import { buttonOf, fieldOf, text } from '../testing/dom';
 import { product } from '../testing/fixtures';
 import { BeadleProduct } from './beadle-product';
 
@@ -89,6 +91,27 @@ describe('BeadleProduct', () => {
     expect(text(page().querySelector('.breadcrumb span:last-child'))).toBe('CertWatch');
     expect(form().controls.category.value).toBe('Hardware');
     expect(editor().hasUnsavedChanges()).toBe(true);
+  });
+
+  it('leaves a deleted product without asking about its unsaved defaults', async () => {
+    await open();
+    form().controls.category.setValue('Hardware');
+    form().markAsDirty();
+    vi.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
+      afterClosed: () => of(true),
+    } as unknown as MatDialogRef<unknown>);
+    const unsaved: boolean[] = [];
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockImplementation(() => {
+      unsaved.push(editor().hasUnsavedChanges());
+      return Promise.resolve(true);
+    });
+
+    buttonOf(page(), 'Delete product').click();
+    http.expectOne({ method: 'DELETE', url: '/api/products/1' }).flush(null);
+    await settle();
+
+    expect(navigate).toHaveBeenCalledWith(['/beadle/admin/products']);
+    expect(unsaved).toEqual([false]);
   });
 
   it('does not send defaults with missing values', async () => {

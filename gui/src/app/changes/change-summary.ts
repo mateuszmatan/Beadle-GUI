@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { ChangePlanning, ProductionChange, RiskAssessment, TYPES, labelOf } from './change-api';
-import { momentText, windowText } from './change-model';
+import { TIME_ZONE_NOTE, momentText, windowText } from './change-model';
 import { templateLabel } from './change-template-form';
 
 interface Row {
@@ -12,6 +12,7 @@ interface Row {
 interface Block {
   title: string;
   rows: Row[];
+  note?: string;
 }
 
 const PLANS: (keyof ChangePlanning)[] = [
@@ -74,6 +75,7 @@ export function summaryColumns(change: ProductionChange): Block[][] {
           { term: 'First usage', value: momentText(s.firstUsage) },
           { term: 'Downtime', value: t.downtime ? 'Yes' : 'No' },
         ],
+        note: TIME_ZONE_NOTE,
       },
       {
         title: 'Approvers',
@@ -119,6 +121,9 @@ export function summaryColumns(change: ProductionChange): Block[][] {
                   ></dd>
                 }
               </dl>
+              @if (block.note) {
+                <p class="note">{{ block.note }}</p>
+              }
             </section>
           }
         </div>

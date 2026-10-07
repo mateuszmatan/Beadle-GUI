@@ -7,7 +7,7 @@ import { errorMessage } from '../core/errors';
 import { CHANGES } from '../core/sections';
 import { RelativeTimePipe } from '../shared/formatting';
 import { ChangesApi } from './change-api';
-import { windowText } from './change-model';
+import { TIME_ZONE_NOTE, windowText } from './change-model';
 import { IntegrationNote } from './integration-note';
 
 @Component({
@@ -76,6 +76,7 @@ import { IntegrationNote } from './integration-note';
               </tbody>
             </table>
           </section>
+          <p class="note zone">{{ timeZoneNote }}</p>
         } @else {
           <div class="card empty-state">
             <h3>No production change yet</h3>
@@ -115,12 +116,17 @@ import { IntegrationNote } from './integration-note';
         font-size: 11.5px;
       }
     }
+
+    .zone {
+      margin-top: 6px;
+    }
   `,
 })
 export class ProductionChanges {
   protected readonly section = CHANGES;
   protected readonly errorMessage = errorMessage;
   protected readonly windowText = windowText;
+  protected readonly timeZoneNote = TIME_ZONE_NOTE;
   private readonly api = inject(ChangesApi);
   protected readonly changes = rxResource({ stream: () => this.api.list() });
 }

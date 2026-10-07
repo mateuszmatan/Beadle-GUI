@@ -74,12 +74,20 @@
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef></th>
             <td mat-cell *matCellDef="let department" class="actions">
-              <button mat-button type="button" (click)="rename(department)">Rename</button>
+              <button
+                mat-button
+                type="button"
+                [attr.aria-label]="'Rename ' + department.name"
+                (click)="rename(department)"
+              >
+                Rename
+              </button>
               <span class="delete" [attr.title]="deleteHint(department)">
                 <button
                   mat-button
                   type="button"
                   class="danger"
+                  [attr.aria-label]="'Delete ' + department.name"
                   [disabled]="department.productCount > 0"
                   (click)="delete(department)"
                 >

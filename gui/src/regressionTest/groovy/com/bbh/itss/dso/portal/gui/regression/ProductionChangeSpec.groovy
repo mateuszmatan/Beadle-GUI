@@ -203,8 +203,9 @@ class ProductionChangeSpec extends EditorSpecification {
         button('Continue', true).click()
 
         then:
-        hasValues(step(), ['Jira project': 'pay', 'Release': 'PAY 4.3', 'Affected CI': 'Payments Hub',
+        hasValues(step(), ['Release': 'PAY 4.3', 'Affected CI': 'Payments Hub',
                            'Assignment group': 'Payments Engineering', 'L1 manager': '', 'BBH users': ''])
+        assertThat(input(step(), 'Jira project')).hasCount(0)
 
         when:
         input(step(), 'L1 manager').fill('Emma Brooks')

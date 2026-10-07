@@ -11,10 +11,11 @@ describe('ChangeTemplateForm', () => {
   const page = () => fixture.nativeElement as HTMLElement;
   const component = () => fixture.componentInstance;
 
-  async function render(template = changeTemplate()) {
+  async function render(template = changeTemplate(), jiraProject = true) {
     form = templateForm(template);
     fixture = TestBed.createComponent(ChangeTemplateForm);
     fixture.componentRef.setInput('form', form);
+    fixture.componentRef.setInput('jiraProject', jiraProject);
     fixture.detectChanges();
     await fixture.whenStable();
   }
@@ -44,6 +45,13 @@ describe('ChangeTemplateForm', () => {
       'Tested on QC, about 15 minutes',
     );
     expect(fieldOf(page(), 'User')).toBeNull();
+  });
+
+  it('leaves out the Jira project when the page asks for it elsewhere', async () => {
+    await render(changeTemplate(), false);
+
+    expect(fieldOf(page(), 'Jira project')).toBeNull();
+    expect(inputOf(page(), 'Assignment group').value).toBe('Technology Architecture');
   });
 
   it('adds up to seven privileged users and removes them again', async () => {

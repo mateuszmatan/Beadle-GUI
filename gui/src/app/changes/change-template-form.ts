@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
@@ -124,7 +124,7 @@ export function templateLabel(path: string): string | null {
           <p>Where the change is filed and what it touches.</p>
         </header>
         <div class="form-fields">
-          <dso-fields [group]="f" [fields]="change" />
+          <dso-fields [group]="f" [fields]="change()" />
         </div>
       </section>
       <section class="card template-card">
@@ -307,8 +307,11 @@ export function templateLabel(path: string): string | null {
 })
 export class ChangeTemplateForm {
   readonly form = input.required<TemplateForm>();
+  readonly jiraProject = input(true);
 
-  protected readonly change = CHANGE;
+  protected readonly change = computed(() =>
+    this.jiraProject() ? CHANGE : CHANGE.filter((field) => field.key !== 'jiraProjectKey'),
+  );
   protected readonly approvers = APPROVERS;
   protected readonly downtime = DOWNTIME;
   protected readonly installationStart = INSTALLATION_START;
