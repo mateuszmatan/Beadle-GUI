@@ -3,11 +3,14 @@ package com.bbh.itss.dso.portal.gui.support
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
+
+import static java.net.InetAddress.getLoopbackAddress
+import static java.nio.charset.StandardCharsets.UTF_8
+import static java.nio.file.Files.isRegularFile
+import static java.nio.file.Files.readAllBytes
+import static java.util.concurrent.Executors.newFixedThreadPool
 
 class GuiServer implements AutoCloseable {
 
@@ -26,14 +29,14 @@ class GuiServer implements AutoCloseable {
     private GuiServer(Path dist, StubApi api) {
         this.dist = dist.toAbsolutePath().normalize()
         this.api = api
-        this.executor = Executors.newFixedThreadPool(8)
-        this.server = HttpServer.create(new InetSocketAddress(InetAddress.loopbackAddress, 0), 0)
+        this.executor = newFixedThreadPool(8)
+        this.server = HttpServer.create(new InetSocketAddress(getLoopbackAddress(), 0), 0)
         server.executor = executor
         server.createContext('/') { HttpExchange exchange -> serve(exchange) }
     }
 
     static GuiServer start(Path dist, StubApi api) {
-        if (!Files.isRegularFile(dist.resolve('index.html'))) {
+        if (!isRegularFile(dist.resolve('index.html'))) {
             throw new IllegalStateException("No built gui in $dist; run ./gradlew :gui:buildGui")
         }
         def guiServer = new GuiServer(dist, api)
@@ -55,25 +58,25 @@ class GuiServer implements AutoCloseable {
         try {
             def path = exchange.requestURI.rawPath
             if (path.startsWith('/api/')) {
-                def body = exchange.requestBody.getText(StandardCharsets.UTF_8.name())
+                def body = exchange.requestBody.getText(UTF_8.name())
                 def response = api.handle(exchange.requestMethod, path, exchange.requestURI.rawQuery, body)
-                send(exchange, response.status, response.contentType, response.body.getBytes(StandardCharsets.UTF_8))
+                send(exchange, response.status, response.contentType, response.body.getBytes(UTF_8))
             } else {
                 def file = resolve(path)
-                def bytes = Files.readAllBytes(file)
+                def bytes = readAllBytes(file)
                 send(exchange, 200, type(file), bytes)
             }
         } catch (Exception e) {
-            send(exchange, 500, 'text/plain', String.valueOf(e.message).getBytes(StandardCharsets.UTF_8))
+            send(exchange, 500, 'text/plain', String.valueOf(e.message).getBytes(UTF_8))
         } finally {
             exchange.close()
         }
     }
 
     private Path resolve(String rawPath) {
-        def relative = URLDecoder.decode(rawPath, StandardCharsets.UTF_8).replaceFirst('^/+', '')
+        def relative = URLDecoder.decode(rawPath, UTF_8).replaceFirst('^/+', '')
         def candidate = dist.resolve(relative).normalize()
-        if (candidate.startsWith(dist) && Files.isRegularFile(candidate)) {
+        if (candidate.startsWith(dist) && isRegularFile(candidate)) {
             return candidate
         }
         dist.resolve('index.html')

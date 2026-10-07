@@ -22,21 +22,27 @@ import com.bbh.itss.dso.portal.domain.change.ChangeWindow;
 import com.bbh.itss.dso.portal.domain.change.DateRange;
 import com.bbh.itss.dso.portal.domain.change.JiraIssue;
 import com.bbh.itss.dso.portal.domain.change.ProductionChange;
-import com.bbh.itss.dso.portal.domain.shared.ConflictException;
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException;
-import com.bbh.itss.dso.portal.domain.shared.StoredList;
-import com.bbh.itss.dso.portal.domain.shared.Text;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
+import lombok.RequiredArgsConstructor;
 
 import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.bbh.itss.dso.portal.domain.change.ProductionChange.DESCRIPTION_MAX;
+import static com.bbh.itss.dso.portal.domain.change.ProductionChange.SHORT_DESCRIPTION_MAX;
+import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
+import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_1000;
+import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_4000;
+import static com.bbh.itss.dso.portal.domain.shared.Text.bytes;
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toMap;
+import static org.apache.commons.lang3.StringUtils.trimToEmpty;
+
 @UseCase
+@RequiredArgsConstructor
 public class ProductionChangeService implements ProductionChangesUseCase {
 
     private final ProductsUseCase products;
@@ -47,18 +53,6 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     private final ServiceNowPort serviceNow;
     private final Clock clock;
 
-    public ProductionChangeService(ProductsUseCase products, DepartmentsUseCase departments,
-                                   ChangeProfileRepositoryPort profiles, ProductionChangeRepositoryPort changes,
-                                   JiraPort jira, ServiceNowPort serviceNow, Clock clock) {
-        this.products = products;
-        this.departments = departments;
-        this.profiles = profiles;
-        this.changes = changes;
-        this.jira = jira;
-        this.serviceNow = serviceNow;
-        this.clock = clock;
-    }
-
     @Override
     @ReadOnly
     public List<ProductionChange> list() {
@@ -68,7 +62,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @Override
     @ReadOnly
     public ProductionChange get(long id) {
-        return changes.load(id).orElseThrow(() -> NotFoundException.of("Change", id));
+        return changes.load(id).orElseThrow(() -> notFound("Change", id));
     }
 
     @Override
@@ -117,17 +111,17 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         problems.require("epicKeys", command.epicKeys(), "choose at least one epic");
         Map<String, JiraIssue> found = jira.issues(project,
                         Stream.concat(command.epicKeys().stream(), command.storyKeys().stream()).toList()).stream()
-                .collect(Collectors.toMap(JiraIssue::key, Function.identity(), (first, second) -> first));
+                .collect(toMap(JiraIssue::key, identity(), (first, second) -> first));
         List<JiraIssue> epics = chosen(command.epicKeys(), found, "epicKeys", project, problems);
         epics.stream().filter(epic -> epic.epicKey() != null).forEach(epic ->
                 problems.add("epicKeys", epic.key() + " is a story, not an epic"));
         List<JiraIssue> stories = chosen(command.storyKeys(), found, "storyKeys", project, problems);
         stories.stream().filter(story -> !command.epicKeys().contains(story.epicKey())).forEach(story ->
                 problems.add("storyKeys", story.key() + " is not a story of the chosen epics"));
-        StoredList.LINES_1000.check(problems, "epicKeys", command.epicKeys());
-        StoredList.LINES_4000.check(problems, "storyKeys", command.storyKeys());
-        fits(problems, "shortDescription", command.shortDescription(), ProductionChange.SHORT_DESCRIPTION_MAX);
-        fits(problems, "description", command.description(), ProductionChange.DESCRIPTION_MAX);
+        LINES_1000.check(problems, "epicKeys", command.epicKeys());
+        LINES_4000.check(problems, "storyKeys", command.storyKeys());
+        fits(problems, "shortDescription", command.shortDescription(), SHORT_DESCRIPTION_MAX);
+        fits(problems, "description", command.description(), DESCRIPTION_MAX);
         ChangeWindow window = new ChangeWindow(command.start(), command.end());
         window.check(clock.instant(), problems);
         problems.throwIfAny();
@@ -136,7 +130,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private static void fits(ValidationProblems problems, String field, String text, int maxBytes) {
-        if (text != null && Text.bytes(text.trim()) > maxBytes) {
+        if (bytes(trimToEmpty(text)) > maxBytes) {
             problems.add(field, "is too long: it may take at most " + maxBytes + " bytes");
         }
     }
@@ -149,7 +143,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private ChangeTemplate templateOf(Product product) {
-        return profiles.find(product.id()).map(ChangeProfile::template).orElseThrow(() -> new ConflictException(
+        return profiles.find(product.id()).map(ChangeProfile::template).orElseThrow(() -> new IllegalStateException(
                 product.name() + " has no ServiceNow change template yet. Fill it in under DevSecOps Product"
                         + " Management first."));
     }

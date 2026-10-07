@@ -4,12 +4,12 @@ import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileView
 import com.bbh.itss.dso.portal.application.change.port.out.ChangeProfileRepositoryPort
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile
-import com.bbh.itss.dso.portal.domain.change.ChangeTemplate
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import spock.lang.Specification
 
 import java.time.Instant
 
+import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Risk.HIGH
+import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.suggestedFor
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
 import static com.bbh.itss.dso.portal.support.Fixtures.product
 
@@ -39,9 +39,10 @@ class ChangeProfileServiceSpec extends Specification {
         profiles.find(1L) >> Optional.empty()
 
         expect:
-        service.get(1L) == new ChangeProfileView(1L, 'CertScanner', null, null,
-                ChangeTemplate.suggestedFor('CERTSCANNER', 'CertScanner', 'Technology Architecture',
+        service.get(1L) == ChangeProfileView.builder().productId(1L).productName('CertScanner')
+                .template(suggestedFor('CERTSCANNER', 'CertScanner', 'Technology Architecture',
                         'Watches TLS certificates.'))
+                .build()
     }
 
     def "the first template of a product is created"() {
@@ -58,7 +59,7 @@ class ChangeProfileServiceSpec extends Specification {
 
     def "a stored template is changed when the version matches"() {
         given:
-        def changed = template(risk: ChangeTemplate.Risk.HIGH)
+        def changed = template(risk: HIGH)
         profiles.find(1L) >> Optional.of(new ChangeProfile(1L, template(), 2, SAVED))
 
         when:
@@ -67,7 +68,7 @@ class ChangeProfileServiceSpec extends Specification {
         then:
         1 * profiles.save(new ChangeProfile(1L, changed, 2, SAVED)) >> new ChangeProfile(1L, changed, 3, SAVED)
         saved.version() == 3L
-        saved.template().risk() == ChangeTemplate.Risk.HIGH
+        saved.template().risk() == HIGH
     }
 
     def "a template changed by someone else meanwhile is not saved"() {
@@ -78,7 +79,7 @@ class ChangeProfileServiceSpec extends Specification {
         service.save(1L, version, template())
 
         then:
-        thrown(ConflictException)
+        thrown(IllegalStateException)
         0 * profiles.save(_)
 
         where:

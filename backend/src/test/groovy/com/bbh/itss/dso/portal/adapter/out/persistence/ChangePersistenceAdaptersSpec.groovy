@@ -3,10 +3,8 @@ package com.bbh.itss.dso.portal.adapter.out.persistence
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile
-import com.bbh.itss.dso.portal.domain.change.ChangeTemplate
 import com.bbh.itss.dso.portal.domain.change.ChangeWindow
 import com.bbh.itss.dso.portal.domain.change.ProductionChange
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
@@ -17,17 +15,19 @@ import spock.lang.Specification
 
 import java.time.Instant
 
+import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Risk.HIGH
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.epic
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.story
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
 import static com.bbh.itss.dso.portal.support.Fixtures.account
 import static com.bbh.itss.dso.portal.support.Fixtures.details
 import static com.bbh.itss.dso.portal.support.Fixtures.settings
+import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 
 @DataJpaTest(properties = [
         'spring.datasource.url=jdbc:h2:mem:change-adapters;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
         'spring.datasource.username=sa'])
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@AutoConfigureTestDatabase(replace = NONE)
 @Import([ChangeProfilePersistenceAdapter, ProductionChangePersistenceAdapter, ProductPersistenceAdapter])
 class ChangePersistenceAdaptersSpec extends Specification {
 
@@ -66,7 +66,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         def created = profiles.save(ChangeProfile.create(product.id(), template()))
         entities.clear()
         def changed = profiles.save(profiles.find(product.id()).get().change(0L,
-                template(risk: ChangeTemplate.Risk.HIGH, approvers: ['Emma Brooks'])))
+                template(risk: HIGH, approvers: ['Emma Brooks'])))
         entities.clear()
 
         then:
@@ -83,7 +83,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         profiles.save(created)
 
         then:
-        thrown(ConflictException)
+        thrown(IllegalStateException)
     }
 
     def "a raised change is stored with its template, its Jira keys and its tasks in order"() {

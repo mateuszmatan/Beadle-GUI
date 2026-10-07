@@ -14,21 +14,19 @@ import com.bbh.itss.dso.portal.domain.change.ChangeProfile
 import com.bbh.itss.dso.portal.domain.change.ChangeWindow
 import com.bbh.itss.dso.portal.domain.change.DateRange
 import com.bbh.itss.dso.portal.domain.change.ProductionChange
-import com.bbh.itss.dso.portal.domain.shared.ConflictException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException.FieldProblem
-import com.bbh.itss.dso.portal.domain.shared.NotFoundException
 import spock.lang.Specification
 
-import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneOffset
 
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.epic
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.story
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
 import static com.bbh.itss.dso.portal.support.Fixtures.product
+import static java.time.Clock.fixed
+import static java.time.ZoneOffset.UTC
 
 class ProductionChangeServiceSpec extends Specification {
 
@@ -46,7 +44,7 @@ class ProductionChangeServiceSpec extends Specification {
     JiraPort jira = Mock()
     ServiceNowPort serviceNow = Mock()
     def service = new ProductionChangeService(products, departments, profiles, changes, jira, serviceNow,
-            Clock.fixed(NOW, ZoneOffset.UTC))
+            fixed(NOW, UTC))
     def certScanner = product(code: 'CERTSCANNER', services: [[id: 10, name: 'gui'], [id: 11, name: 'api'],
                                                                [id: 12, name: 'batch']])
 
@@ -92,7 +90,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         def refused = thrown(InvalidRequestException)
-        refused.problems == problems.collect { new FieldProblem(it.key, it.value) }
+        refused.problems() == problems.collect { new FieldProblem(it.key, it.value) }
         0 * serviceNow._
         0 * changes._
 
@@ -118,7 +116,7 @@ class ProductionChangeServiceSpec extends Specification {
         action(service)
 
         then:
-        def refused = thrown(ConflictException)
+        def refused = thrown(IllegalStateException)
         refused.message == ('PayHub has no ServiceNow change template yet. Fill it in under DevSecOps Product'
                 + ' Management first.')
         0 * jira._
@@ -170,7 +168,7 @@ class ProductionChangeServiceSpec extends Specification {
         service.get(8L)
 
         then:
-        thrown(NotFoundException)
+        thrown(NoSuchElementException)
     }
 
     static ChangeCommand command(Map changes = [:]) {

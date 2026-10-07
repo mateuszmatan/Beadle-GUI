@@ -5,6 +5,10 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
+import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
+import static com.bbh.itss.dso.portal.gui.support.StubResponse.json
+import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
+
 final class ChangeStubs {
 
     static final Map CERT_TEMPLATE = [
@@ -36,10 +40,10 @@ final class ChangeStubs {
         api.get('/api/changes') { changes.reverse() }
         api.get('/api/changes/(\\d+)') { RecordedRequest request, List<String> ids ->
             def found = changes.find { it.id == ids[0] as int }
-            found ? StubResponse.json(found) : StubResponse.problem(404, 'Not found', "Change ${ids[0]} does not exist")
+            found ? json(found) : problem(404, 'Not found', "Change ${ids[0]} does not exist")
         }
         api.get('/api/products/(\\d+)/change-profile') { RecordedRequest request, List<String> ids ->
-            def product = StubApi.fixture("product-${ids[0]}.json") as Map
+            def product = fixture("product-${ids[0]}.json") as Map
             def stored = profiles[ids[0] as int]
             [productId: product.id, productName: product.name, version: stored?.version,
              updatedAt: stored ? '2026-10-05T12:00:00Z' : null,
@@ -51,7 +55,7 @@ final class ChangeStubs {
             def stored = profiles[ids[0] as int]
             def saved = [version: stored ? stored.version + 1 : 0, template: request.json().template]
             profiles[ids[0] as int] = saved
-            def product = StubApi.fixture("product-${ids[0]}.json") as Map
+            def product = fixture("product-${ids[0]}.json") as Map
             [productId: product.id, productName: product.name, updatedAt: '2026-10-07T09:00:00Z'] + saved
         }
         api.get('/api/products/(\\d+)/jira/epics') { CERT_ISSUES.findAll { it.epicKey == null } }
@@ -68,12 +72,12 @@ final class ChangeStubs {
             Map change = draft(asked) + numbered.subMap('id', 'number', 'shortDescription', 'description', 'tasks',
                     'createdAt')
             changes << change
-            StubResponse.json(change, 201)
+            json(change, 201)
         }
     }
 
     static Map draft(Map asked) {
-        def product = StubApi.fixture("product-${asked.productId}.json") as Map
+        def product = fixture("product-${asked.productId}.json") as Map
         def epics = CERT_ISSUES.findAll { it.key in asked.epicKeys }
         def services = (product.services as List<Map>).findAll { it.id in asked.serviceIds }
         [id              : null, number: null, productId: product.id, productCode: product.code,
@@ -89,7 +93,7 @@ final class ChangeStubs {
 
     private static Map raised(int id, String number, List serviceIds, List epicKeys, List storyKeys,
                               String shortDescription, String description) {
-        def product = StubApi.fixture('product-1.json') as Map
+        def product = fixture('product-1.json') as Map
         def names = (product.services as List<Map>).findAll { it.id in serviceIds }*.name
         [id         : id, number: number, productId: 1, productCode: product.code, productName: product.name,
          departmentName: 'Corporate Technology',

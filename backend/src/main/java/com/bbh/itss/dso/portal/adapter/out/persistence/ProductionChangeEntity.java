@@ -4,26 +4,30 @@ import com.bbh.itss.dso.portal.adapter.RecordMapper;
 import com.bbh.itss.dso.portal.domain.change.ChangeWindow;
 import com.bbh.itss.dso.portal.domain.change.ProductionChange;
 import jakarta.persistence.AttributeOverride;
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
+import static jakarta.persistence.CascadeType.ALL;
+import static jakarta.persistence.GenerationType.IDENTITY;
+import static lombok.AccessLevel.PROTECTED;
+
 @Entity
 @Table(name = "DSO_PRODUCTION_CHANGE")
+@NoArgsConstructor(access = PROTECTED)
 public class ProductionChangeEntity extends AuditedEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = IDENTITY)
     private Long id;
 
     @Column(name = "CHANGE_NUMBER", updatable = false)
@@ -45,12 +49,9 @@ public class ProductionChangeEntity extends AuditedEntity {
     private List<String> storyKeys;
     private String url;
 
-    @OneToMany(mappedBy = "change", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "change", cascade = ALL, orphanRemoval = true)
     @OrderBy("taskOrder")
     private List<ProductionChangeTaskEntity> tasks = new ArrayList<>();
-
-    protected ProductionChangeEntity() {
-    }
 
     ProductionChangeEntity(ProductionChange change) {
         number = change.number();
