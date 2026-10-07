@@ -1,0 +1,102 @@
+.fields {
+  align-items: start;
+}
+
+.checks,
+.issues {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.issues {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 4px 8px;
+  border: 1px solid var(--dso-border);
+}
+
+.scope-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-top: 6px;
+
+  h3 {
+    margin: 0;
+  }
+}
+
+.range {
+  display: flex;
+  gap: 10px;
+
+  mat-form-field {
+    width: 190px;
+  }
+}
+
+.issue-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.key {
+  font-size: 12px;
+  color: var(--dso-navy);
+}
+
+.story-group {
+  padding: 4px 8px 6px;
+  border-left: 3px solid var(--dso-navy-light);
+  background: var(--dso-surface);
+
+  h4 {
+    margin: 2px 0;
+    font-size: 13px;
+  }
+
+  mat-checkbox {
+    display: block;
+  }
+}
+
+.window-text {
+  margin: 0;
+}
+
+.texts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  textarea {
+    font-family: var(--dso-mono);
+    font-size: 12px;
+  }
+}
+
+.tasks {
+  margin: 0;
+  padding-left: 22px;
+  font-size: 12.5px;
+
+  li + li {
+    margin-top: 6px;
+  }
+
+  span {
+    display: block;
+  }
+}
+
+@media (max-width: 760px) {
+  .range {
+    flex-direction: column;
+    gap: 0;
+  }
+}

@@ -33,5 +33,8 @@ databaseChangeLog:
       file: oracle/011-departments.sql
       relativeToChangelogFile: true
   - include:
-      file: oracle/012-local-metrics.sql
+      file: oracle/012-servicenow-changes.sql
+      relativeToChangelogFile: true
+  - include:
+      file: oracle/013-local-metrics.sql
       relativeToChangelogFile: true
