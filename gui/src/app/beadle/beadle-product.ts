@@ -32,6 +32,7 @@ import {
   RISKS,
   TYPES,
 } from '../changes/change-api';
+import { ProductAdmin } from './product-admin';
 
 const JIRA_KEY = /^[A-Z][A-Z0-9_]{1,9}$/;
 
@@ -115,6 +116,7 @@ export const BLOCKS = [
     MatProgressBarModule,
     MatProgressSpinnerModule,
     Fields,
+    ProductAdmin,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -135,6 +137,7 @@ export const BLOCKS = [
           </p>
         </div>
       </header>
+      <dso-product-admin [id]="id()" (saved)="profile.reload()" />
       @if (profile.isLoading()) {
         <mat-progress-bar mode="indeterminate" />
       }
