@@ -111,7 +111,7 @@ describe('BeadleProducts', () => {
       'CertScannerCERT',
       'Technology Architecture',
       '2',
-      'Saved · version 2 · 2 days ago',
+      'Saved · 2 days ago',
     ]);
     expect(cells('Payments Hub')).toEqual(['Payments HubPAYHUB', '–', '4', 'Suggested values']);
     expect(rowOf('CertScanner').querySelector('a')?.getAttribute('href')).toBe(

@@ -67,7 +67,7 @@ class BeadleAdminSpec extends EditorSpecification {
         assertThat(page.locator('.toolbar .count')).hasText('2 products in 5 departments')
         assertThat(card('Fund Services').locator('th')).hasText(['Product', 'Owner team', 'Services', 'ServiceNow defaults'] as String[])
         assertThat(productRow('CertScanner').locator('td')).hasText(['CertScannerCERTSCANNER', 'Technology Architecture', '2',
-                                                                    'Saved · version 2 · 2 days ago'] as String[])
+                                                                    'Saved · 2 days ago'] as String[])
         assertThat(productRow('Payments Hub').locator('.mat-column-defaults')).hasText('Suggested values')
 
         when:

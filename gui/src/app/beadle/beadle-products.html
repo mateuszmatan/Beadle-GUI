@@ -89,9 +89,7 @@
                 } @else if (defaults.hasValue()) {
                   @if (stored().get(product.id); as saved) {
                     <span class="saved">Saved</span>
-                    <span class="muted">
-                      · version {{ saved.version }} · {{ saved.updatedAt | relative }}</span
-                    >
+                    <span class="muted"> · {{ saved.updatedAt | relative }}</span>
                   } @else {
                     <span class="muted">Suggested values</span>
                   }
