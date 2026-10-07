@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { changeProfile, changeTemplate } from '../testing/change-fixtures';
 import { fieldOf, text } from '../testing/dom';
+import { product } from '../testing/fixtures';
 import { BeadleProduct } from './beadle-product';
 
 describe('BeadleProduct', () => {
@@ -24,6 +25,8 @@ describe('BeadleProduct', () => {
     fixture.componentRef.setInput('id', 1);
     await settle();
     http.expectOne('/api/products/1/change-profile').flush(profile);
+    http.expectOne('/api/products/1').flush(product());
+    http.expectOne('/api/departments').flush([]);
     await settle();
   }
 
