@@ -110,15 +110,15 @@ export function requiredRule(message: string): ValidatorFn {
 
 const utf8 = new TextEncoder();
 
+export const byteLength = (value: string) => utf8.encode(value).length;
+
 export function fitsColumn(
   parse: (value: string) => string[],
   separator: string,
   max: number,
 ): ValidatorFn {
   return (control) =>
-    utf8.encode(parse(control.value ?? '').join(separator)).length > max
-      ? { columnLength: { max } }
-      : null;
+    byteLength(parse(control.value ?? '').join(separator)) > max ? { columnLength: { max } } : null;
 }
 
 export function requiredWhen(

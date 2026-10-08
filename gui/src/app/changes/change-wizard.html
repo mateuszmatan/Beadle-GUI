@@ -367,7 +367,7 @@
     <mat-form-field>
       <mat-label>Short description</mat-label>
       <input matInput [formControl]="shortDescription" maxlength="160" />
-      <mat-hint align="end">{{ shortDescription.value.length }} / 160</mat-hint>
+      <mat-hint align="end">{{ byteLength(shortDescription.value) }} / 160</mat-hint>
       <mat-error>{{ errorText(shortDescription) }}</mat-error>
     </mat-form-field>
     @if (description.value !== draft.description) {
@@ -383,7 +383,7 @@
     <mat-form-field>
       <mat-label>Description</mat-label>
       <textarea matInput rows="11" [formControl]="description"></textarea>
-      <mat-hint align="end">{{ description.value.length }} / 4000</mat-hint>
+      <mat-hint align="end">{{ byteLength(description.value) }} / 4000</mat-hint>
       <mat-error>{{ errorText(description) }}</mat-error>
     </mat-form-field>
   </div>

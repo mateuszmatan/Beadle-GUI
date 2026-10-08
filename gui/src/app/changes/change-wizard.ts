@@ -37,7 +37,7 @@ import { errorMessage, fieldProblems } from '../core/errors';
 import { CHANGES, NEW_CHANGE, beadleChange, beadleProduct } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { byDepartment } from '../products/departments';
-import { applyProblemsAt, filled } from '../shared/form-controls';
+import { applyProblemsAt, byteLength, filled } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
 import { ChangeRequest, ChangesApi, JiraIssue, ProductionChange } from './change-api';
@@ -129,6 +129,7 @@ export class ChangeWizard implements HasUnsavedChanges {
   protected readonly versionText = versionText;
   protected readonly approverNames = approverNames;
   protected readonly counted = counted;
+  protected readonly byteLength = byteLength;
   protected readonly templateLink = beadleProduct;
   protected readonly changeLink = beadleChange;
 

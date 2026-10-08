@@ -542,6 +542,8 @@ describe('ChangeWizard', () => {
     expect(wizard()['shortDescription'].hasError('bytes')).toBe(true);
     wizard()['shortDescription'].setValue('é'.repeat(80));
     expect(wizard()['shortDescription'].valid).toBe(true);
+    await settle();
+    expect(text(fieldOf(page(), 'Short description')?.querySelector('mat-hint'))).toBe('160 / 160');
 
     wizard()['back']();
     await next();
