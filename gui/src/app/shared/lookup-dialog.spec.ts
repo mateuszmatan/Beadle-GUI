@@ -106,7 +106,43 @@ describe('LookupDialog', () => {
     found('certs').flush([item('CertScanner'), item('CertVault')]);
     await settle();
     search().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    await settle();
     expect(close).toHaveBeenCalledWith(item('CertScanner'));
+  });
+
+  it('picks the first entry of the text typed when Enter comes before its search', async () => {
+    found(null).flush([item('CertScanner'), item('Payments Hub')]);
+    await settle();
+
+    search().value = 'pay';
+    search().dispatchEvent(new Event('input'));
+    search().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    await settle();
+    expect(close).not.toHaveBeenCalled();
+    await settle(LOOKUP_DELAY + 10);
+    const payments = found('pay');
+    await settle();
+    expect(close).not.toHaveBeenCalled();
+    payments.flush([item('Payments Hub', 'Payments')]);
+    await settle();
+    expect(close).toHaveBeenCalledWith(item('Payments Hub', 'Payments'));
+  });
+
+  it('forgets an Enter when the text changes before its search', async () => {
+    found(null).flush([item('CertScanner'), item('Payments Hub')]);
+    await settle();
+
+    search().value = 'pay';
+    search().dispatchEvent(new Event('input'));
+    search().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    await type('cert');
+    found('cert').flush([item('CertScanner')]);
+    await settle();
+    await type('pay');
+    found('pay').flush([item('Payments Hub', 'Payments')]);
+    await settle();
+
+    expect(close).not.toHaveBeenCalled();
   });
 });
 

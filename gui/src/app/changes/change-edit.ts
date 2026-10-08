@@ -26,11 +26,11 @@ import { CHANGES, beadleChange } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { applyFieldProblems, filled, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
-import { ChangesApi, ProductionChange, STATES, approvalOf, isOpen, labelOf } from './change-api';
+import { ChangesApi, ProductionChange, isOpen } from './change-api';
 import { activeTasks, editHint, fits } from './change-model';
 import { problemText } from './change-problems';
 import { onHours, scheduleForm, scheduleValue } from './change-schedule-model';
-import { Fact } from './change-sections';
+import { changeFacts } from './change-sections';
 import { ChangeTasksForm } from './change-tasks-form';
 import { tasksForm, toEditedTasks } from './change-tasks-model';
 import { ChangeTemplateForm } from './change-template-form';
@@ -56,15 +56,6 @@ export function editForm(change: ProductionChange) {
     template,
     tasks: tasksForm(activeTasks(change.tasks)),
   });
-}
-
-export function changeFacts(change: ProductionChange): Fact[] {
-  return [
-    { label: 'Change number', value: change.number },
-    { label: 'Approval', value: approvalOf(change.state) },
-    { label: 'Opened By', value: change.openedBy },
-    { label: 'State', value: labelOf(STATES, change.state) },
-  ];
 }
 
 export type EditForm = ReturnType<typeof editForm>;
@@ -268,7 +259,7 @@ export class ChangeEdit implements HasUnsavedChanges {
   }
 
   hasUnsavedChanges(): boolean {
-    return !!this.form()?.dirty && !this.saving();
+    return !!this.form()?.dirty;
   }
 
   protected reload(): void {

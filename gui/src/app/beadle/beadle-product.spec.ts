@@ -6,7 +6,7 @@ import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { changeOptions, changeProfile, changeTemplate, taskText } from '../testing/change-fixtures';
 import { buttonOf, fieldOf, text } from '../testing/dom';
-import { product } from '../testing/fixtures';
+import { productDetails } from '../testing/fixtures';
 import { BeadleProduct } from './beadle-product';
 
 describe('BeadleProduct', () => {
@@ -32,7 +32,7 @@ describe('BeadleProduct', () => {
     fixture.componentRef.setInput('id', 1);
     await settle();
     http.expectOne('/api/products/1/change-profile').flush(profile);
-    http.expectOne('/api/products/1').flush(product());
+    http.expectOne('/api/products/1/details').flush(productDetails());
     http.expectOne('/api/departments').flush([]);
     await settle();
     http.expectOne('/api/changes/options').flush(changeOptions());
@@ -90,6 +90,7 @@ describe('BeadleProduct', () => {
 
     buttonOf(page(), 'Save the template').click();
     const request = saved();
+    expect(editor().hasUnsavedChanges()).toBe(true);
     const expected = changeTemplate({
       privilegedAccess: { required: true, users: [{ user: 'Jane Smith', account: 'adm_jsmith' }] },
       riskAssessment: { ...changeTemplate().riskAssessment, businessImpact: 'High' },
@@ -133,7 +134,7 @@ describe('BeadleProduct', () => {
     });
 
     buttonOf(page(), 'Delete product').click();
-    http.expectOne({ method: 'DELETE', url: '/api/products/1' }).flush(null);
+    http.expectOne({ method: 'DELETE', url: '/api/products/1/details' }).flush(null);
     await settle();
 
     expect(navigate).toHaveBeenCalledWith(['/beadle/admin/products']);
@@ -207,6 +208,7 @@ describe('BeadleProduct', () => {
     );
     await settle();
     expect(editor()['saveError']()).toBe('Invalid request');
+    expect(buttonOf(page(), 'Reload')).toBeUndefined();
 
     editor()['save']();
     saved().flush(
@@ -216,5 +218,18 @@ describe('BeadleProduct', () => {
     await settle();
     expect(editor()['saveError']()).toBe('Someone else changed the template');
     expect(text(page().querySelector('.save-error'))).toBe('Someone else changed the template');
+
+    buttonOf(page(), 'Reload').click();
+    await settle();
+    http
+      .expectOne('/api/products/1/change-profile')
+      .flush(changeProfile({ version: 5, template: changeTemplate({ category: 'Network' }) }));
+    await settle();
+    expect(page().querySelector('.save-error')).toBeNull();
+    expect(buttonOf(page(), 'Reload')).toBeUndefined();
+    expect(template().controls.category.value).toBe('Network');
+    expect(editor().hasUnsavedChanges()).toBe(false);
+    editor()['save']();
+    expect(saved().request.body.version).toBe(5);
   });
 });

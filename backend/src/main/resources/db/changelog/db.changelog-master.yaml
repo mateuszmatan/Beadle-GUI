@@ -51,5 +51,8 @@ databaseChangeLog:
       file: oracle/017-beadle-wizard-fields.sql
       relativeToChangelogFile: true
   - include:
+      file: oracle/018-beadle-products.sql
+      relativeToChangelogFile: true
+  - include:
       file: oracle/019-service-template.sql
       relativeToChangelogFile: true

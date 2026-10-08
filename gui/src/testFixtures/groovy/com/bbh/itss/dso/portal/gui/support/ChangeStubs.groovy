@@ -9,6 +9,8 @@ import static com.bbh.itss.dso.portal.gui.support.StubApi.SIGNED_IN_USER
 import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
 import static com.bbh.itss.dso.portal.gui.support.StubResponse.json
 import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
+import static java.lang.String.format
+import static java.time.Instant.parse
 import static java.time.LocalDate.now
 import static java.time.temporal.ChronoUnit.DAYS
 import static java.time.temporal.ChronoUnit.HOURS
@@ -203,7 +205,8 @@ final class ChangeStubs {
          departmentId    : product.departmentId, departmentName: department,
          fixVersion      : asked.fixVersion, schedule: asked.schedule,
          shortDescription: "$product.name $asked.fixVersion: ${epics*.summary.join('; ')}".toString(),
-         description     : "Production release of $product.name ($product.code), FixVersion $asked.fixVersion.\n\nEpics:\n"
+         description     : "Production release of $product.name ($product.code), FixVersion $asked.fixVersion.\n"
+                 + "Change tasks: ${(asked.tasks as List<Map>)*.shortDescription.join('; ')}.\n\nEpics:\n"
                  + epics.collect { "$it.key $it.summary ($it.status)" }.join('\n') + '\n\nStories:\n'
                  + stories.collect { "$it.key $it.summary" }.join('\n'),
          template        : withRisk(template + [release     : template.release ?: asked.fixVersion,
@@ -214,7 +217,7 @@ final class ChangeStubs {
          epicKeys        : asked.epicKeys, storyKeys: asked.storyKeys,
          tasks           : (asked.tasks as List<Map>).collect { task(null, it, 'OPEN') },
          url             : null, state: 'DRAFT', workflow: [], syncedAt: null, syncProblem: null, update: null,
-         version         : null, createdAt: null, openedBy: SIGNED_IN_USER]
+         version         : null, editedVersion: null, createdAt: null, openedBy: SIGNED_IN_USER]
     }
 
     static List<String> unapplied(Map requested, Map held) {
@@ -223,7 +226,7 @@ final class ChangeStubs {
         }
         def paths = differing(['shortDescription', 'description'], requested, held) { a, b -> a == b } +
                 differing(SCHEDULE, requested.schedule as Map, held.schedule as Map) { a, b ->
-                    a == b || (a && b && Instant.parse(a as String) == Instant.parse(b as String))
+                    a == b || (a && b && parse(a as String) == parse(b as String))
                 }.collect { "schedule.$it".toString() } +
                 differing(EDITABLE, requested.template as Map, held.template as Map) { a, b -> a == b }
                         .collect { "template.$it".toString() }
@@ -310,7 +313,7 @@ final class ChangeStubs {
         Map read(Map change) {
             if (applying && (change.update as Map)?.status == 'PENDING') {
                 change.tasks = (change.tasks as List<Map>).collect {
-                    it.number ? it : it + [number: String.format('CTASK%07d', taskNumbers.incrementAndGet())]
+                    it.number ? it : it + [number: format('CTASK%07d', taskNumbers.incrementAndGet())]
                 } + (canceling.remove(change.id as int) ?: [])
                 change.update = (change.update as Map) + [status: 'APPLIED', fields: [], checkedAt: stamp()]
                 change.version = (change.version as int) + 1
@@ -320,7 +323,7 @@ final class ChangeStubs {
         }
 
         Object update(Map change, Map asked) {
-            if (asked.version != change.version) {
+            if (asked.version != null && (asked.version < change.editedVersion || asked.version > change.version)) {
                 return problem(409, 'Conflict', STALE)
             }
             if (asked.departmentId != change.departmentId) {
@@ -346,10 +349,19 @@ final class ChangeStubs {
                              tasks           : tasks]
             def fields = unapplied(requested, change)
             canceling[change.id as int] = held.findAll { it.number && !(it.number in numbers) }.collect { it + [state: 'CANCELED'] }
-            change.putAll(requested + [update  : [status : 'PENDING', requestedAt: stamp(), departmentName: change.departmentName,
-                                                  fields : fields, message: null, checkedAt: stamp()],
-                                       version : (change.version as int) + 1, syncedAt: stamp()])
+            def version = (change.version as int) + 1
+            change.putAll(requested + [update       : [status : 'PENDING', requestedAt: stamp(), departmentName: change.departmentName,
+                                                       fields : fields, message: null, checkedAt: stamp()],
+                                       version      : version, editedVersion: fields ? version : change.editedVersion,
+                                       syncedAt     : stamp()])
             change
+        }
+
+        void advance(Object id, String state) {
+            def change = find(id)
+            change.state = state
+            change.workflow = (change.workflow as List<Map>) + [state: state, enteredAt: stamp()]
+            change.version = (change.version as int) + 1
         }
 
         Map raise(Map asked) {
@@ -361,9 +373,9 @@ final class ChangeStubs {
                     shortDescription: asked.shortDescription ?: drafted.shortDescription,
                     description     : asked.description ?: drafted.description,
                     tasks           : (drafted.tasks as List<Map>).withIndex().collect { task, index ->
-                        task + [number: String.format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1)]
+                        task + [number: format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1)]
                     },
-                    workflow        : [[state: 'DRAFT', enteredAt: raisedAt]], syncedAt: raisedAt, version: 0]
+                    workflow        : [[state: 'DRAFT', enteredAt: raisedAt]], syncedAt: raisedAt, version: 0, editedVersion: 0]
             changes << change
             change
         }
@@ -385,9 +397,9 @@ final class ChangeStubs {
             }
             drafted + [id      : id, number: number, createdAt: stamp(raisedAt), state: stages.last(), workflow: entered,
                        tasks   : texts.withIndex().collect { text, index ->
-                           task(String.format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1), text, taskState)
+                           task(format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1), text, taskState)
                        },
-                       syncedAt: stamp(raisedAt), version: version]
+                       syncedAt: stamp(raisedAt), version: version, editedVersion: version]
         }
     }
 }

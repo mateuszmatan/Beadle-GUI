@@ -12,7 +12,7 @@ import {
 import { text } from '../testing/dom';
 import { department } from '../testing/fixtures';
 import { ProductionChange } from './change-api';
-import { ChangeFilters, ProductionChanges, changeRow, matches, sorted } from './production-changes';
+import { ChangeFilters, ChangesList, changeRow, matches, sorted } from './changes-list';
 
 const zoneNote = `Times are in your time zone, ${Intl.DateTimeFormat().resolvedOptions().timeZone}.`;
 
@@ -56,21 +56,22 @@ const noFilters: ChangeFilters = {
 };
 
 describe('the rows of the changes table', () => {
-  const rows = [certScanner, payments, draft].map(changeRow);
+  const row = (change: ProductionChange) => changeRow(change, 3);
+  const rows = [certScanner, payments, draft].map(row);
   const numbers = (list: { change: ProductionChange }[]) => list.map((row) => row.change.number);
 
   it('counts the tasks that are not canceled and names the state', () => {
-    expect(changeRow(payments)).toMatchObject({ open: false, state: 'Closed', tasks: 1 });
-    expect(changeRow(draft)).toMatchObject({ open: true, state: 'Draft', tasks: 2 });
+    expect(row(payments)).toMatchObject({ open: false, state: 'Closed', tasks: 1 });
+    expect(row(draft)).toMatchObject({ open: true, state: 'Draft', tasks: 2 });
   });
 
-  it('lets an open change be edited unless its last update still waits for ProTech', () => {
-    expect(changeRow(draft).editable).toBe(true);
-    expect(changeRow(payments).editable).toBe(false);
-    expect(changeRow({ ...draft, update: changeUpdate() }).editable).toBe(false);
-    expect(changeRow({ ...draft, update: changeUpdate({ status: 'NOT_APPLIED' }) }).editable).toBe(
-      true,
-    );
+  it('lets the department edit an open change unless its last update still waits for ProTech', () => {
+    expect(row(draft).editable).toBe(true);
+    expect(row(payments).editable).toBe(false);
+    expect(row({ ...draft, update: changeUpdate() }).editable).toBe(false);
+    expect(row({ ...draft, update: changeUpdate({ status: 'NOT_APPLIED' }) }).editable).toBe(true);
+    expect(changeRow(draft, 5).editable).toBe(false);
+    expect(changeRow(draft, null).editable).toBe(false);
   });
 
   it('filters by every column, the state by stage or by being open', () => {
@@ -117,9 +118,9 @@ describe('the rows of the changes table', () => {
   });
 });
 
-describe('ProductionChanges', () => {
+describe('ChangesList', () => {
   let http: HttpTestingController;
-  let fixture: ComponentFixture<ProductionChanges>;
+  let fixture: ComponentFixture<ChangesList>;
 
   const page = () => fixture.nativeElement as HTMLElement;
   const shownNumbers = () => [...page().querySelectorAll('tbody tr td:first-child')].map(text);
@@ -141,7 +142,7 @@ describe('ProductionChanges', () => {
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     http = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent(ProductionChanges);
+    fixture = TestBed.createComponent(ChangesList);
     await settle();
     http
       .expectOne('/api/changes/integrations')
@@ -327,7 +328,7 @@ describe('ProductionChanges', () => {
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     http = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent(ProductionChanges);
+    fixture = TestBed.createComponent(ChangesList);
     await settle();
     http
       .expectOne('/api/changes/integrations')

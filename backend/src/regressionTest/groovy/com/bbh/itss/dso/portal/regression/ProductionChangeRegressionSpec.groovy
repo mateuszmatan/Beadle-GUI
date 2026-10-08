@@ -347,6 +347,27 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         'a too long short text'       | [shortDescription: 's' * 161]                                  || ['shortDescription']
     }
 
+    def "a change of a product outside every department is refused on the product, previewed or raised"() {
+        given:
+        def created = createProduct(product(code: uniqueCode(), name: "Orphan ${uniqueCode()}"))
+        def key = 'ORP' + created.id
+        def fixVersion = api.get("/api/products/$created.id/jira/versions?project=$key").json[0].name
+        def epic = api.get("/api/products/$created.id/jira/epics?fixVersion=${enc(fixVersion)}&project=$key")
+                .json[0].key
+        jdbc.update('UPDATE DSO_PRODUCT SET DEPARTMENT_ID = NULL WHERE ID = ?', created.id)
+        def body = change(created, fixVersion, [epic], [], [template: templateJson(jiraProjectKey: key)])
+
+        when:
+        def previewed = api.post('/api/changes/preview', body)
+        def raised = api.post('/api/changes', body)
+
+        then:
+        [previewed, raised]*.status == [400, 400]
+        [previewed, raised]*.json*.errors == [[[field  : 'productId',
+                                                 message: 'the product must be placed in a department in Beadle Admin first']]] * 2
+        api.get('/api/changes').json.every { it.productId != created.id }
+    }
+
     def "the preview accepts an installation start in the past, raising it does not"() {
         given:
         def created = createProduct(product(code: uniqueCode(), name: "Product ${uniqueCode()}"))
@@ -360,6 +381,29 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         expect:
         api.post('/api/changes/preview', past).json.schedule.installationStart == '2026-01-05T17:00:00Z'
         api.post('/api/changes', past).json.errors == [[field: 'schedule.installationStart', message: 'must be in the future']]
+    }
+
+    def "the preview writes the texts before the schedule is planned, raising it does not"() {
+        given:
+        def created = createProduct(product(code: uniqueCode(), name: "Product ${uniqueCode()}"))
+        def key = 'UNP' + created.id
+        def fixVersion = api.get("/api/products/$created.id/jira/versions?project=$key").json[0].name
+        def epic = api.get("/api/products/$created.id/jira/epics?fixVersion=${enc(fixVersion)}&project=$key").json[0]
+        def unplanned = change(created, fixVersion, [epic.key], [], [template: templateJson(jiraProjectKey: key),
+                                                                     schedule: [:]])
+
+        when:
+        def preview = api.post('/api/changes/preview', unplanned)
+
+        then:
+        preview.status == 200
+        preview.json.shortDescription == "$created.name $fixVersion: $epic.summary"
+        preview.json.description.contains('Installation not planned yet, post-install validation not planned yet,' +
+                ' first usage not planned yet. No downtime.')
+        api.post('/api/changes', unplanned).json.errors*.field == ['schedule.installationStart',
+                                                                   'schedule.installationEnd',
+                                                                   'schedule.validationStart',
+                                                                   'schedule.validationEnd', 'schedule.firstUsage']
     }
 
     def "its department updates an open change, ProTech applies it and Beadle shows it as applied"() {
@@ -394,7 +438,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
                 [status: 'APPLIED', departmentName: 'Corporate Technology', fields: [], message: null]
         !Instant.parse(updated.json.update.checkedAt).isBefore(Instant.parse(updated.json.update.requestedAt))
         updated.json.syncProblem == null
-        updated.json.version == 1
+        updated.json.version == 2
 
         when:
         def opened = api.get("/api/changes/$raised.id").json

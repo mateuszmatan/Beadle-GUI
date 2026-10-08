@@ -2,6 +2,7 @@ import { AbstractControl } from '@angular/forms';
 import { LookupKind } from '../core/models';
 import { Field, FieldOption, area, choice, count, line, mono } from '../shared/fields';
 import { Lookup } from '../shared/lookup-dialog';
+import { ProductionChange, STATES, approvalOf, labelOf } from './change-api';
 import {
   JIRA_KEY_ERROR,
   MAX_PRIVILEGED_USERS,
@@ -24,6 +25,7 @@ export interface Fact {
   label: string;
   value: string | null;
   placeholder?: string;
+  mono?: boolean;
 }
 
 export const SECTIONS: readonly Section[] = [
@@ -84,6 +86,17 @@ export const NOT_ASSESSED = 'Not assessed';
 
 export const NUMBER_PENDING = 'Given by ProTech when raised';
 
+export function changeFacts(
+  change: Pick<ProductionChange, 'number' | 'state' | 'openedBy'>,
+): Fact[] {
+  return [
+    { label: 'Change number', value: change.number, placeholder: NUMBER_PENDING, mono: true },
+    { label: 'Approval', value: approvalOf(change.state) },
+    { label: 'Opened By', value: change.openedBy },
+    { label: 'State', value: labelOf(STATES, change.state) },
+  ];
+}
+
 export const OPENER_HINT = 'left empty: the user who opens the change';
 
 const DEPARTMENT_HINT = 'left empty: the department of the product';
@@ -112,7 +125,7 @@ export const REQUEST_FIELDS: readonly Field[] = [
   mono('problem', 'Problem', '', 6, { ...find('problems'), placeholder: 'PRB0001234' }),
 ];
 
-export const RISK = { key: 'risk', label: 'Risk' };
+export const RISK = { key: 'risk', label: 'Risk', hint: 'from the risk assessment' };
 
 export const CLOSING_FIELDS: readonly Field[] = [
   line('affectedClients', 'Affected clients', '', 6, find('clients', { append: true })),

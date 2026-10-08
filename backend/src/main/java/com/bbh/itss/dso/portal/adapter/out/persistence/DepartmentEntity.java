@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
-import com.bbh.itss.dso.portal.adapter.RecordMapper;
 import com.bbh.itss.dso.portal.domain.catalog.Department;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -9,6 +8,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import static com.bbh.itss.dso.portal.adapter.RecordMapper.map;
 import static jakarta.persistence.GenerationType.IDENTITY;
 import static lombok.AccessLevel.PACKAGE;
 import static lombok.AccessLevel.PROTECTED;
@@ -26,7 +26,7 @@ public class DepartmentEntity extends AuditedEntity {
     private String name;
 
     Department toDomain() {
-        return RecordMapper.map(Department.class, this);
+        return map(Department.class, this);
     }
 
     void rename(String name) {

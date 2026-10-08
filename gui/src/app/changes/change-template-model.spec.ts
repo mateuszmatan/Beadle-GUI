@@ -1,3 +1,4 @@
+import { errorText } from '../shared/form-errors';
 import { changeOptions, changeTemplate } from '../testing/change-fixtures';
 import { RiskAssessment } from './change-api';
 import {
@@ -104,15 +105,15 @@ describe('change template model', () => {
     });
     expect(invalid()).toEqual([
       'pattern',
-      'maxlength',
+      'bytes',
       'required',
       'required',
-      'maxlength',
+      'bytes',
       'pattern',
       'min',
       'max',
       'required',
-      'maxlength',
+      'bytes',
     ]);
 
     form.patchValue({
@@ -128,6 +129,31 @@ describe('change template model', () => {
     expect(invalid()).toEqual([]);
     c.timing.controls.installationHours.setValue(null);
     expect(c.timing.controls.installationHours.hasError('required')).toBe(true);
+  });
+
+  it('counts the length of a text in bytes as the portal does', () => {
+    const form = templateForm(changeTemplate());
+    const c = form.controls;
+    const access = c.privilegedAccess.controls;
+    access.count.setValue(1);
+    const account = access.users.at(0).controls.account;
+
+    form.patchValue({
+      requestedFor: 'é'.repeat(101),
+      incident: ` ${'€'.repeat(13)}  `,
+      planning: { backoutPlan: 'ü'.repeat(1001) },
+      approvers: { l1Manager: 'ł'.repeat(100) },
+    });
+    account.setValue('ø'.repeat(101));
+
+    expect(c.requestedFor.errors).toEqual({ bytes: { max: 200 } });
+    expect(errorText(c.requestedFor)).toBe('Too long: at most 200 bytes');
+    expect(c.incident.valid).toBe(true);
+    expect(c.planning.controls.backoutPlan.hasError('bytes')).toBe(true);
+    expect(c.approvers.controls.l1Manager.valid).toBe(true);
+    expect(account.hasError('bytes')).toBe(true);
+    c.incident.setValue('€'.repeat(14));
+    expect(c.incident.hasError('bytes')).toBe(true);
   });
 
   it('asks for as many privileged accounts as chosen', () => {

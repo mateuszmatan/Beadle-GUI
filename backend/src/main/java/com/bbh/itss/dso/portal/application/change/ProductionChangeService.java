@@ -1,22 +1,18 @@
 package com.bbh.itss.dso.portal.application.change;
 
-import com.bbh.itss.dso.portal.application.ReadOnly;
 import com.bbh.itss.dso.portal.application.UseCase;
 import com.bbh.itss.dso.portal.application.WithoutTransaction;
-import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentView;
-import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentsUseCase;
-import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeCommand;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeEditCommand;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeIntegrations;
 import com.bbh.itss.dso.portal.application.change.port.in.ProductionChangesUseCase;
-import com.bbh.itss.dso.portal.application.change.port.out.ChangeProfileRepositoryPort;
+import com.bbh.itss.dso.portal.application.change.port.out.ChangeProductsPort;
 import com.bbh.itss.dso.portal.application.change.port.out.JiraPort;
 import com.bbh.itss.dso.portal.application.change.port.out.ProductionChangeRepositoryPort;
 import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort;
 import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort.RaisedChange;
 import com.bbh.itss.dso.portal.application.user.port.in.SignedInUserUseCase;
-import com.bbh.itss.dso.portal.domain.catalog.Product;
+import com.bbh.itss.dso.portal.domain.change.ChangeProduct;
 import com.bbh.itss.dso.portal.domain.change.ChangeSchedule;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
 import com.bbh.itss.dso.portal.domain.change.JiraIssue;
@@ -29,19 +25,20 @@ import lombok.RequiredArgsConstructor;
 import java.io.UncheckedIOException;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.UnaryOperator;
 
+import static com.bbh.itss.dso.portal.domain.change.ChangeSchedule.UNPLANNED;
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.JIRA_KEY_MESSAGE;
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.isJiraKey;
-import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.jiraKeyOf;
 import static com.bbh.itss.dso.portal.domain.change.ChangeUpdate.requested;
 import static com.bbh.itss.dso.portal.domain.change.JiraVersion.UNRELEASED_NEWEST_FIRST;
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.DESCRIPTION_MAX;
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.FIX_VERSION_MAX;
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.SHORT_DESCRIPTION_MAX;
+import static com.bbh.itss.dso.portal.domain.change.ProductionChange.checkTemplate;
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.checkTemplateAndSchedule;
 import static com.bbh.itss.dso.portal.domain.change.TaskText.validateTasks;
 import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
@@ -54,6 +51,7 @@ import static com.bbh.itss.dso.portal.domain.shared.Versions.requireUnchangedSin
 import static java.util.Locale.ROOT;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
+import static org.apache.commons.lang3.ObjectUtils.getIfNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 import static org.apache.commons.lang3.Strings.CS;
 
@@ -61,9 +59,7 @@ import static org.apache.commons.lang3.Strings.CS;
 @RequiredArgsConstructor
 public class ProductionChangeService implements ProductionChangesUseCase {
 
-    private final ProductsUseCase products;
-    private final DepartmentsUseCase departments;
-    private final ChangeProfileRepositoryPort profiles;
+    private final ChangeProductsPort products;
     private final ProductionChangeRepositoryPort changes;
     private final JiraPort jira;
     private final ServiceNowPort serviceNow;
@@ -79,8 +75,9 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         if (open.isEmpty()) {
             return stored;
         }
-        UnaryOperator<ProductionChange> sync = syncOf(open);
-        return stored.stream().map(change -> change.state().isOpen() ? sync.apply(change) : change).toList();
+        Map<Long, ProductionChange> synced = listed(open).stream()
+                .collect(toMap(ProductionChange::id, identity()));
+        return stored.stream().map(change -> synced.getOrDefault(change.id(), change)).toList();
     }
 
     @Override
@@ -98,30 +95,22 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @WithoutTransaction
     public ProductionChange update(long id, ChangeEditCommand command) {
         ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
-        requireUnchangedSince(command.version(), stored.editedVersion(), stored.version());
         requireDepartment(stored, command.departmentId());
-        if (stored.update() != null && stored.update().pending()) {
-            throw new IllegalStateException("The last update of " + stored.number()
-                    + " is still waiting for ProTech; change it again once ProTech has applied it");
-        }
-        ProductionChange current = synced(stored);
-        if (!current.state().isOpen()) {
-            throw new IllegalStateException(current.number() + " is closed in ProTech and can no longer be changed");
-        }
-        if (!current.unappliedIn(stored).isEmpty()) {
-            throw staleVersion();
-        }
+        requireUnchangedSince(command.version(), stored.editedVersion(), stored.version());
         Instant now = now(clock);
-        ProductionChange edited = current.edited(command.shortDescription(), command.description(),
-                command.schedule(), command.template(), command.tasks(), now);
-        serviceNow.update(edited);
-        ProductionChange published = edited.toBuilder().update(requested(now, current.departmentName())).build();
-        ProductionChange verified = verified(published, current, now);
+        ProductionChange edit = stored.edited(command.shortDescription(), command.description(), command.schedule(),
+                command.template(), command.tasks(), now);
+        ProductionChange current = synced(stored);
+        requireChangeable(current, stored);
+        ProductionChange claimed = changes.save(edit.rebasedOn(current).toBuilder()
+                .update(requested(now, current.departmentName())).build());
+        publish(claimed, current);
+        ProductionChange verified = verified(claimed, current, now);
         return recorded(verified).withSyncProblem(verified.syncProblem());
     }
 
     @Override
-    @ReadOnly
+    @WithoutTransaction
     public ChangeIntegrations integrations() {
         return new ChangeIntegrations(jira.connected(), serviceNow.connected());
     }
@@ -164,14 +153,20 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private ProductionChange draft(ChangeCommand command, Instant raisedAt) {
-        Product product = products.get(command.productId());
+        ChangeProduct product = products.get(command.productId());
         ValidationProblems problems = new ValidationProblems();
-        String version = trimToNull(command.fixVersion());
+        problems.require("productId", product.departmentId(),
+                "the product must be placed in a department in Beadle Admin first");
+        String version = command.fixVersion();
         problems.require("fixVersion", version, "choose the FixVersion of the release")
                 .fits("fixVersion", version, FIX_VERSION_MAX);
         ChangeTemplate template = command.template();
         ChangeSchedule schedule = command.schedule();
-        checkTemplateAndSchedule(template, schedule, raisedAt, problems);
+        if (raisedAt == null) {
+            checkTemplate(template, problems);
+        } else {
+            checkTemplateAndSchedule(template, schedule, raisedAt, problems);
+        }
         problems.require("epicKeys", command.epicKeys(), "choose at least one epic");
         String project = template == null ? null : template.jiraProjectKey();
         List<JiraIssue> epics = List.of();
@@ -191,49 +186,71 @@ public class ProductionChangeService implements ProductionChangesUseCase {
                 .fits("description", command.description(), DESCRIPTION_MAX);
         validateTasks(command.tasks(), problems);
         problems.throwIfAny();
-        return ProductionChange.draft(product, product.departmentId(), departmentOf(product),
-                users.signedInUser().name(), command.tasks(), command.fixVersion(), schedule, template, epics,
-                stories, command.shortDescription(), command.description());
+        return ProductionChange.draft(product, users.signedInUser().name(), command.tasks(), version,
+                getIfNull(schedule, UNPLANNED), template, epics, stories, command.shortDescription(),
+                command.description());
     }
 
-    private UnaryOperator<ProductionChange> syncOf(List<ProductionChange> open) {
+    private List<ProductionChange> listed(List<ProductionChange> open) {
+        Map<String, ProductionChange> remote;
         try {
-            Map<String, ProductionChange> remote = serviceNow.read(open);
-            Instant now = now(clock);
-            return change -> synced(change, remote, now);
+            remote = serviceNow.read(open);
         } catch (UncheckedIOException e) {
             String problem = unreachable(e);
-            return change -> change.withSyncProblem(problem);
+            return open.stream().map(change -> change.withSyncProblem(problem)).toList();
         }
+        return synced(open, remote);
     }
 
     private ProductionChange synced(ProductionChange stored) {
-        return synced(stored, serviceNow.read(List.of(stored)), now(clock));
+        return synced(List.of(stored), serviceNow.read(List.of(stored))).getFirst();
     }
 
-    private ProductionChange synced(ProductionChange stored, Map<String, ProductionChange> remote, Instant now) {
-        ProductionChange read = remote.get(stored.number());
-        if (read == null) {
-            return stored.withSyncProblem(missing(stored));
-        }
-        ProductionChange synced = stored.synced(read, now);
-        if (synced.differsFrom(stored)) {
-            try {
-                return changes.save(synced);
-            } catch (IllegalStateException stale) {
-                return changes.load(stored.id()).orElseThrow(() -> stale);
+    private List<ProductionChange> synced(List<ProductionChange> open, Map<String, ProductionChange> remote) {
+        Instant now = now(clock);
+        List<ProductionChange> synced = new ArrayList<>();
+        List<Long> unchanged = new ArrayList<>();
+        for (ProductionChange stored : open) {
+            ProductionChange read = remote.get(stored.number());
+            ProductionChange change = read == null ? null : stored.synced(read, now);
+            if (change == null) {
+                synced.add(stored.withSyncProblem(missing(stored)));
+            } else if (change.differsFrom(stored)) {
+                synced.add(saved(change, stored));
+            } else {
+                unchanged.add(stored.id());
+                synced.add(change);
             }
         }
-        changes.synced(stored.id(), now);
+        if (!unchanged.isEmpty()) {
+            changes.synced(unchanged, now);
+        }
         return synced;
     }
 
-    private ProductionChange recorded(ProductionChange verified) {
+    private ProductionChange saved(ProductionChange synced, ProductionChange stored) {
         try {
-            return changes.save(verified);
+            return changes.save(synced);
         } catch (IllegalStateException stale) {
-            ProductionChange latest = changes.load(verified.id()).orElseThrow(() -> stale);
-            return changes.save(verified.toBuilder().version(latest.version()).build());
+            return changes.load(stored.id()).orElseThrow(() -> stale);
+        }
+    }
+
+    private void publish(ProductionChange claimed, ProductionChange current) {
+        try {
+            serviceNow.update(claimed);
+        } catch (RuntimeException refused) {
+            recorded(current.toBuilder().version(claimed.version()).build());
+            throw refused;
+        }
+    }
+
+    private ProductionChange recorded(ProductionChange change) {
+        try {
+            return changes.save(change);
+        } catch (IllegalStateException stale) {
+            ProductionChange latest = changes.load(change.id()).orElseThrow(() -> stale);
+            return changes.save(change.toBuilder().version(latest.version()).build());
         }
     }
 
@@ -244,6 +261,22 @@ public class ProductionChangeService implements ProductionChangesUseCase {
                     : published.synced(remote, now);
         } catch (UncheckedIOException e) {
             return published.unverified(current, unreachable(e));
+        }
+    }
+
+    private static void requireChangeable(ProductionChange current, ProductionChange stored) {
+        if (current.syncProblem() != null) {
+            throw new IllegalStateException(current.syncProblem());
+        }
+        if (current.update() != null && current.update().pending()) {
+            throw new IllegalStateException("The last update of " + current.number()
+                    + " is still waiting for ProTech; change it again once ProTech has applied it");
+        }
+        if (!current.state().isOpen()) {
+            throw new IllegalStateException(current.number() + " is closed in ProTech and can no longer be changed");
+        }
+        if (!current.unappliedIn(stored).isEmpty()) {
+            throw staleVersion();
         }
     }
 
@@ -269,11 +302,10 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private String projectOf(long productId, String project) {
-        Product product = products.get(productId);
+        ChangeProduct product = products.get(productId);
         String override = trimToNull(project);
         if (override == null) {
-            return profiles.find(productId).map(profile -> profile.template().jiraProjectKey())
-                    .orElseGet(() -> jiraKeyOf(product.code()));
+            return product.jiraProject();
         }
         String key = override.toUpperCase(ROOT);
         if (!isJiraKey(key)) {
@@ -296,11 +328,5 @@ public class ProductionChangeService implements ProductionChangesUseCase {
                 .collect(toMap(JiraIssue::key, identity(), (first, second) -> first));
         keys.stream().filter(key -> !found.containsKey(key)).forEach(key -> problems.add(field, key + refusal));
         return keys.stream().map(found::get).filter(Objects::nonNull).toList();
-    }
-
-    private String departmentOf(Product product) {
-        return departments.list().stream()
-                .filter(department -> Objects.equals(department.id(), product.departmentId()))
-                .map(DepartmentView::name).findFirst().orElse(null);
     }
 }
