@@ -1,7 +1,7 @@
 package com.bbh.itss.dso.portal.application.change
 
-import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileView
+import com.bbh.itss.dso.portal.application.change.port.out.ChangeProductsPort
 import com.bbh.itss.dso.portal.application.change.port.out.ChangeProfileRepositoryPort
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile
 import com.bbh.itss.dso.portal.domain.change.ChangeProfileSummary
@@ -14,22 +14,21 @@ import java.time.Instant
 
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.suggestedFor
 import static com.bbh.itss.dso.portal.domain.change.TaskText.suggestedTasks
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.changeProduct
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.privileged
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
-import static com.bbh.itss.dso.portal.support.Fixtures.product
 
 class ChangeProfileServiceSpec extends Specification {
 
     static final Instant SAVED = Instant.parse('2026-10-05T12:00:00Z')
 
     ChangeProfileRepositoryPort profiles = Mock()
-    ProductsUseCase products = Stub()
+    ChangeProductsPort products = Stub()
     def service = new ChangeProfileService(profiles, products)
 
     def setup() {
-        products.get(1L) >> product(code: 'CERTSCANNER', ownerTeam: 'Technology Architecture',
-                description: 'Watches TLS certificates.')
+        products.get(1L) >> changeProduct()
     }
 
     def "a stored template is shown with its version"() {

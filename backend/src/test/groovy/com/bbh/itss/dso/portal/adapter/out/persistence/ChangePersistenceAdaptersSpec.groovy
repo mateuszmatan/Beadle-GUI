@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.adapter.out.persistence
 
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
+import com.bbh.itss.dso.portal.domain.change.ChangeProduct
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile
 import com.bbh.itss.dso.portal.domain.change.ChangeProfileSummary
 import com.bbh.itss.dso.portal.domain.change.ChangeSchedule
@@ -51,7 +52,8 @@ import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTest
         'spring.datasource.url=jdbc:h2:mem:change-adapters;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
         'spring.datasource.username=sa'])
 @AutoConfigureTestDatabase(replace = NONE)
-@Import([ChangeProfilePersistenceAdapter, ProductionChangePersistenceAdapter, ProductPersistenceAdapter])
+@Import([ChangeProfilePersistenceAdapter, ChangeProductPersistenceAdapter, ProductionChangePersistenceAdapter,
+        ProductPersistenceAdapter])
 class ChangePersistenceAdaptersSpec extends Specification {
 
     static final ChangeTemplate FULL = template(requestedFor: 'Ann Lee', requestedBy: 'Jane Smith',
@@ -67,6 +69,9 @@ class ChangePersistenceAdaptersSpec extends Specification {
 
     @Autowired
     ChangeProfilePersistenceAdapter profiles
+
+    @Autowired
+    ChangeProductPersistenceAdapter changeProducts
 
     @Autowired
     ProductionChangePersistenceAdapter changes
@@ -164,6 +169,31 @@ class ChangePersistenceAdaptersSpec extends Specification {
         summaries[1].version() == 0
     }
 
+    def "Beadle reads a product with its department and the Jira project of its profile, not its services"() {
+        given:
+        def ledger = save('LEDGER', 'Ledger', 4L)
+        def access = save('ACCESS', 'Access Hub', 3L)
+        jdbc.update('UPDATE DSO_PRODUCT SET DEPARTMENT_ID = NULL WHERE ID = ?', access.id())
+        profiles.save(ChangeProfile.create(product.id(), template(jiraProjectKey: 'CSCAN'), tasks()))
+        entities.clear()
+
+        expect:
+        changeProducts.get(product.id()) == new ChangeProduct(product.id(), 'CERT', 'CertScanner', null, null, 3L,
+                'Corporate Technology', 'CSCAN')
+        changeProducts.get(product.id()).jiraProject() == 'CSCAN'
+        changeProducts.get(ledger.id()).jiraProject() == 'LEDGER'
+        changeProducts.findAll() == [new ChangeProduct(access.id(), 'ACCESS', 'Access Hub', null, null, null, null, null),
+                                     changeProducts.get(product.id()), changeProducts.get(ledger.id())]
+        changeProducts.get(ledger.id()).departmentName() == 'Custody'
+
+        when:
+        changeProducts.get(99999L)
+
+        then:
+        def missing = thrown(NoSuchElementException)
+        missing.message == 'Product 99999 does not exist'
+    }
+
     def "a raised change is stored with its department, its draft stage, its Jira keys and its tasks in order"() {
         given:
         def raised = raise('CHG0001001', 'CTASK0002001', 'CTASK0002002')
@@ -216,8 +246,8 @@ class ChangePersistenceAdaptersSpec extends Specification {
         def bare = template(riskAssessment: RiskAssessment.NONE)
 
         when:
-        def saved = changes.save(ProductionChange.draft(product, 3L, 'Corporate Technology', 'Mateusz Matan',
-                tasks(1), FIX_VERSION, schedule(), bare, [epic('CERT-1', 'Expiry alerts')], [], null, null)
+        def saved = changes.save(ProductionChange.draft(changeProducts.get(product.id()), 'Mateusz Matan', tasks(1),
+                FIX_VERSION, schedule(), bare, [epic('CERT-1', 'Expiry alerts')], [], null, null)
                 .raisedAt(RAISED)
                 .numbered('CHG0001009', ['CTASK0002019'], null))
         entities.clear()
@@ -383,10 +413,9 @@ class ChangePersistenceAdaptersSpec extends Specification {
     }
 
     private ProductionChange raise(String number, List<String> taskNumbers, Product owner) {
-        List<TaskText> texts = tasks(taskNumbers.size())
-        String department = owner.departmentId() == 3L ? 'Corporate Technology' : 'Custody'
-        ProductionChange.draft(owner, owner.departmentId(), department, 'Mateusz Matan', texts, FIX_VERSION, DOWNTIME,
-                FULL, [epic('CERT-1', 'Expiry alerts')], [story('CERT-2', 'E-mail', 'CERT-1')], null, null)
+        ProductionChange.draft(changeProducts.get(owner.id()), 'Mateusz Matan', tasks(taskNumbers.size()),
+                FIX_VERSION, DOWNTIME, FULL, [epic('CERT-1', 'Expiry alerts')], [story('CERT-2', 'E-mail', 'CERT-1')],
+                null, null)
                 .raisedAt(RAISED)
                 .numbered(number, taskNumbers, "https://snow/$number".toString())
     }

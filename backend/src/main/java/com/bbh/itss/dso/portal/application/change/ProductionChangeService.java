@@ -2,20 +2,17 @@ package com.bbh.itss.dso.portal.application.change;
 
 import com.bbh.itss.dso.portal.application.UseCase;
 import com.bbh.itss.dso.portal.application.WithoutTransaction;
-import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentView;
-import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentsUseCase;
-import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeCommand;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeEditCommand;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeIntegrations;
 import com.bbh.itss.dso.portal.application.change.port.in.ProductionChangesUseCase;
-import com.bbh.itss.dso.portal.application.change.port.out.ChangeProfileRepositoryPort;
+import com.bbh.itss.dso.portal.application.change.port.out.ChangeProductsPort;
 import com.bbh.itss.dso.portal.application.change.port.out.JiraPort;
 import com.bbh.itss.dso.portal.application.change.port.out.ProductionChangeRepositoryPort;
 import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort;
 import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort.RaisedChange;
 import com.bbh.itss.dso.portal.application.user.port.in.SignedInUserUseCase;
-import com.bbh.itss.dso.portal.domain.catalog.Product;
+import com.bbh.itss.dso.portal.domain.change.ChangeProduct;
 import com.bbh.itss.dso.portal.domain.change.ChangeSchedule;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
 import com.bbh.itss.dso.portal.domain.change.JiraIssue;
@@ -36,7 +33,6 @@ import java.util.function.UnaryOperator;
 import static com.bbh.itss.dso.portal.domain.change.ChangeSchedule.UNPLANNED;
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.JIRA_KEY_MESSAGE;
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.isJiraKey;
-import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.jiraKeyOf;
 import static com.bbh.itss.dso.portal.domain.change.ChangeUpdate.requested;
 import static com.bbh.itss.dso.portal.domain.change.JiraVersion.UNRELEASED_NEWEST_FIRST;
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.DESCRIPTION_MAX;
@@ -63,9 +59,7 @@ import static org.apache.commons.lang3.Strings.CS;
 @RequiredArgsConstructor
 public class ProductionChangeService implements ProductionChangesUseCase {
 
-    private final ProductsUseCase products;
-    private final DepartmentsUseCase departments;
-    private final ChangeProfileRepositoryPort profiles;
+    private final ChangeProductsPort products;
     private final ProductionChangeRepositoryPort changes;
     private final JiraPort jira;
     private final ServiceNowPort serviceNow;
@@ -166,7 +160,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private ProductionChange draft(ChangeCommand command, Instant raisedAt) {
-        Product product = products.get(command.productId());
+        ChangeProduct product = products.get(command.productId());
         ValidationProblems problems = new ValidationProblems();
         String version = command.fixVersion();
         problems.require("fixVersion", version, "choose the FixVersion of the release")
@@ -197,9 +191,9 @@ public class ProductionChangeService implements ProductionChangesUseCase {
                 .fits("description", command.description(), DESCRIPTION_MAX);
         validateTasks(command.tasks(), problems);
         problems.throwIfAny();
-        return ProductionChange.draft(product, product.departmentId(), departmentOf(product),
-                users.signedInUser().name(), command.tasks(), command.fixVersion(), getIfNull(schedule, UNPLANNED),
-                template, epics, stories, command.shortDescription(), command.description());
+        return ProductionChange.draft(product, users.signedInUser().name(), command.tasks(), version,
+                getIfNull(schedule, UNPLANNED), template, epics, stories, command.shortDescription(),
+                command.description());
     }
 
     private UnaryOperator<ProductionChange> syncOf(List<ProductionChange> open) {
@@ -275,11 +269,10 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private String projectOf(long productId, String project) {
-        Product product = products.get(productId);
+        ChangeProduct product = products.get(productId);
         String override = trimToNull(project);
         if (override == null) {
-            return profiles.find(productId).map(profile -> profile.template().jiraProjectKey())
-                    .orElseGet(() -> jiraKeyOf(product.code()));
+            return product.jiraProject();
         }
         String key = override.toUpperCase(ROOT);
         if (!isJiraKey(key)) {
@@ -302,11 +295,5 @@ public class ProductionChangeService implements ProductionChangesUseCase {
                 .collect(toMap(JiraIssue::key, identity(), (first, second) -> first));
         keys.stream().filter(key -> !found.containsKey(key)).forEach(key -> problems.add(field, key + refusal));
         return keys.stream().map(found::get).filter(Objects::nonNull).toList();
-    }
-
-    private String departmentOf(Product product) {
-        return departments.list().stream()
-                .filter(department -> Objects.equals(department.id(), product.departmentId()))
-                .map(DepartmentView::name).findFirst().orElse(null);
     }
 }

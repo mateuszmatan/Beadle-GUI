@@ -1,19 +1,15 @@
 package com.bbh.itss.dso.portal.application.change
 
-import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentView
-import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentsUseCase
-import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeCommand
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeEditCommand
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeIntegrations
-import com.bbh.itss.dso.portal.application.change.port.out.ChangeProfileRepositoryPort
+import com.bbh.itss.dso.portal.application.change.port.out.ChangeProductsPort
 import com.bbh.itss.dso.portal.application.change.port.out.JiraPort
 import com.bbh.itss.dso.portal.application.change.port.out.ProductionChangeRepositoryPort
 import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort
 import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort.RaisedChange
 import com.bbh.itss.dso.portal.application.user.port.in.SignedInUser
 import com.bbh.itss.dso.portal.application.user.port.in.SignedInUserUseCase
-import com.bbh.itss.dso.portal.domain.change.ChangeProfile
 import com.bbh.itss.dso.portal.domain.change.ChangeSchedule
 import com.bbh.itss.dso.portal.domain.change.ChangeTask
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate
@@ -45,13 +41,13 @@ import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.domain.shared.Failures.staleVersion
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.FIX_VERSION
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.RAISED
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.changeProduct
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.epic
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.raised
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.schedule
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.story
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
-import static com.bbh.itss.dso.portal.support.Fixtures.product
 import static java.time.Clock.fixed
 import static java.time.ZoneOffset.UTC
 
@@ -64,25 +60,20 @@ class ProductionChangeServiceSpec extends Specification {
     static final ChangeUpdate PENDING_UPDATE = new ChangeUpdate(PENDING, NOW, 'Corporate Technology',
             ['shortDescription'], null, NOW)
 
-    ProductsUseCase products = Stub()
-    DepartmentsUseCase departments = Stub()
-    ChangeProfileRepositoryPort profiles = Stub()
+    ChangeProductsPort products = Stub()
     ProductionChangeRepositoryPort changes = Mock()
     JiraPort jira = Mock()
     ServiceNowPort serviceNow = Mock()
     SignedInUserUseCase users = Stub() {
         signedInUser() >> new SignedInUser('Mateusz Matan')
     }
-    def service = new ProductionChangeService(products, departments, profiles, changes, jira, serviceNow, users,
-            fixed(NOW, UTC))
-    def certScanner = product(code: 'CERTSCANNER')
+    def service = new ProductionChangeService(products, changes, jira, serviceNow, users, fixed(NOW, UTC))
+    def certScanner = changeProduct(jiraProjectKey: 'CSCAN')
 
     def setup() {
         products.get(1L) >> certScanner
-        products.get(2L) >> product(id: 2L, code: 'PAYHUB', name: 'PayHub', departmentId: null)
-        departments.list() >> [new DepartmentView(3, 'Corporate Technology', 0, 1, 3, 3, 3, 0)]
-        profiles.find(1L) >> Optional.of(ChangeProfile.create(1L, template(jiraProjectKey: 'CSCAN'), tasks()))
-        profiles.find(2L) >> Optional.empty()
+        products.get(2L) >> changeProduct(id: 2L, code: 'PAYHUB', name: 'PayHub', departmentId: null,
+                departmentName: null)
         jira.epics('CERT', _) >> { project, version -> version == FIX_VERSION ? ISSUES.take(2) : [] }
         jira.stories('CERT', _, _) >> { project, version, Collection epics ->
             version == FIX_VERSION ? ISSUES.drop(2).findAll { it.epicKey() in epics } : []
@@ -94,8 +85,8 @@ class ProductionChangeServiceSpec extends Specification {
         def draft = service.preview(command(tasks: tasks(3)))
 
         then:
-        draft == ProductionChange.draft(certScanner, 3L, 'Corporate Technology', 'Mateusz Matan', tasks(3),
-                FIX_VERSION, schedule(), template(), ISSUES.take(2), ISSUES.drop(2), null, null)
+        draft == ProductionChange.draft(certScanner, 'Mateusz Matan', tasks(3), FIX_VERSION, schedule(), template(),
+                ISSUES.take(2), ISSUES.drop(2), null, null)
         draft.departmentId() == 3L
         draft.openedBy() == 'Mateusz Matan'
         [draft.template().requestedFor(), draft.template().requestedBy(), draft.template().assignedTo(),

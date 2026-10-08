@@ -23,6 +23,7 @@ import static com.bbh.itss.dso.portal.domain.change.TaskState.WORK_IN_PROGRESS
 import static com.bbh.itss.dso.portal.domain.change.TaskText.suggestedTasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.FIX_VERSION
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.RAISED
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.changeProduct
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.epic
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.schedule
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasks
@@ -127,8 +128,9 @@ class ProTechSyncMigrationSpec extends MigrationSpecification {
 
     private static ProductionChange changeOf(Product product, String number = 'CHG0031001',
                                              String task = 'CTASK0041001', String department = 'Corporate Technology') {
-        ProductionChange draft = ProductionChange.draft(product, 3L, department, 'Mateusz Matan', tasks(2),
-                FIX_VERSION, schedule(), template(), [epic('CERT-1', 'Expiry alerts')], [], null, null).raisedAt(RAISED)
+        ProductionChange draft = ProductionChange.draft(changeProduct(id: product.id(), code: product.code(),
+                name: product.name(), departmentName: department), 'Mateusz Matan', tasks(2), FIX_VERSION, schedule(),
+                template(), [epic('CERT-1', 'Expiry alerts')], [], null, null).raisedAt(RAISED)
                 .numbered(number, [task, task + '2'], null)
         draft.toBuilder().state(IMPLEMENTATION)
                 .workflow([new WorkflowStep(DRAFT, RAISED), new WorkflowStep(BUSINESS_APPROVAL, RAISED.plusSeconds(120)),

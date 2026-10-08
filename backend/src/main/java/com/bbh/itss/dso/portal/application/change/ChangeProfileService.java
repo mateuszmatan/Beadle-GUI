@@ -2,11 +2,11 @@ package com.bbh.itss.dso.portal.application.change;
 
 import com.bbh.itss.dso.portal.application.ReadOnly;
 import com.bbh.itss.dso.portal.application.UseCase;
-import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileView;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfilesUseCase;
+import com.bbh.itss.dso.portal.application.change.port.out.ChangeProductsPort;
 import com.bbh.itss.dso.portal.application.change.port.out.ChangeProfileRepositoryPort;
-import com.bbh.itss.dso.portal.domain.catalog.Product;
+import com.bbh.itss.dso.portal.domain.change.ChangeProduct;
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile;
 import com.bbh.itss.dso.portal.domain.change.ChangeProfileSummary;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
@@ -25,7 +25,7 @@ import static com.bbh.itss.dso.portal.domain.change.TaskText.validateTasks;
 public class ChangeProfileService implements ChangeProfilesUseCase {
 
     private final ChangeProfileRepositoryPort profiles;
-    private final ProductsUseCase products;
+    private final ChangeProductsPort products;
 
     @Override
     @ReadOnly
@@ -36,7 +36,7 @@ public class ChangeProfileService implements ChangeProfilesUseCase {
     @Override
     @ReadOnly
     public ChangeProfileView get(long productId) {
-        Product product = products.get(productId);
+        ChangeProduct product = products.get(productId);
         return profiles.find(productId).map(profile -> view(product, profile))
                 .orElseGet(() -> ChangeProfileView.builder().productId(productId).productName(product.name())
                         .template(suggestedFor(product.code(), product.name(), product.ownerTeam(),
@@ -46,7 +46,7 @@ public class ChangeProfileService implements ChangeProfilesUseCase {
 
     @Override
     public ChangeProfileView save(long productId, Long version, ChangeTemplate template, List<TaskText> tasks) {
-        Product product = products.get(productId);
+        ChangeProduct product = products.get(productId);
         ValidationProblems problems = new ValidationProblems();
         template.validate(problems.at("template"));
         validateTasks(tasks, problems);
@@ -56,7 +56,7 @@ public class ChangeProfileService implements ChangeProfilesUseCase {
         return view(product, profiles.save(changed));
     }
 
-    private static ChangeProfileView view(Product product, ChangeProfile profile) {
+    private static ChangeProfileView view(ChangeProduct product, ChangeProfile profile) {
         return new ChangeProfileView(product.id(), product.name(), profile.version(), profile.updatedAt(),
                 profile.template(), profile.tasks());
     }
