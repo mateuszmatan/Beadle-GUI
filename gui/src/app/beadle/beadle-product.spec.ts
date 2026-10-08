@@ -90,6 +90,7 @@ describe('BeadleProduct', () => {
 
     buttonOf(page(), 'Save the template').click();
     const request = saved();
+    expect(editor().hasUnsavedChanges()).toBe(true);
     const expected = changeTemplate({
       privilegedAccess: { required: true, users: [{ user: 'Jane Smith', account: 'adm_jsmith' }] },
       riskAssessment: { ...changeTemplate().riskAssessment, businessImpact: 'High' },

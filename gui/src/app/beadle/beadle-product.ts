@@ -178,7 +178,7 @@ export class BeadleProduct implements HasUnsavedChanges {
   }
 
   hasUnsavedChanges(): boolean {
-    return !!this.form()?.dirty && !this.saving();
+    return !!this.form()?.dirty;
   }
 
   protected leave(): void {

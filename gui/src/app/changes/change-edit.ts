@@ -259,7 +259,7 @@ export class ChangeEdit implements HasUnsavedChanges {
   }
 
   hasUnsavedChanges(): boolean {
-    return !!this.form()?.dirty && !this.saving();
+    return !!this.form()?.dirty;
   }
 
   protected reload(): void {
