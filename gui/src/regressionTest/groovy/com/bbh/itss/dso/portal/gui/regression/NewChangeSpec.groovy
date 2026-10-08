@@ -238,7 +238,8 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(currentStep()).hasText('Review')
         assertThat(input(texts(), 'Short description')).hasValue('CertScanner CERT 4.2: Expiry alerts for certificates')
         assertThat(input(texts(), 'Description')).hasValue(
-                'Production release of CertScanner (CERTSCANNER), FixVersion CERT 4.2.\n\nEpics:\n'
+                'Production release of CertScanner (CERTSCANNER), FixVersion CERT 4.2.\n'
+                        + 'Change tasks: Deploy CertScanner to production; Validate CertScanner in production.\n\nEpics:\n'
                         + 'CERT-120 Expiry alerts for certificates (In Review)\n\nStories:\nCERT-121 E-mail the certificate owner')
         assertThat(taskRows()).hasCount(2)
         hasValues(taskRows().nth(0), ['Short description': 'Deploy CertScanner to production',
@@ -299,6 +300,15 @@ class NewChangeSpec extends EditorSpecification {
 
         when:
         input(taskRows().nth(1), 'Description').fill('Run the Liquibase changesets of CertScanner.')
+
+        then:
+        assertThat(input(texts(), 'Description')).hasValue(
+                ~/\nChange tasks: Deploy CertScanner to production; Run the database scripts\.\n/)
+        with(api.requests('POST', '/api/changes/preview').last().json()) {
+            tasks*.shortDescription == ['Deploy CertScanner to production', 'Run the database scripts']
+        }
+
+        when:
         input(texts(), 'Short description').fill('CertScanner 4.2 release')
         button('Raise the change in ProTech', true).click()
 
@@ -315,6 +325,7 @@ class NewChangeSpec extends EditorSpecification {
             epicKeys == ['CERT-120']
             storyKeys == ['CERT-121']
             shortDescription == 'CertScanner 4.2 release'
+            description.contains('\nChange tasks: Deploy CertScanner to production; Run the database scripts.\n')
             schedule.downtimeEnd == "${RELEASE_DATE}T19:30:00.000Z"
             template.secureCodingTicket == 'SEC-4711'
         }

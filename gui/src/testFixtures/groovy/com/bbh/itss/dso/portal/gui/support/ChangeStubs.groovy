@@ -205,7 +205,8 @@ final class ChangeStubs {
          departmentId    : product.departmentId, departmentName: department,
          fixVersion      : asked.fixVersion, schedule: asked.schedule,
          shortDescription: "$product.name $asked.fixVersion: ${epics*.summary.join('; ')}".toString(),
-         description     : "Production release of $product.name ($product.code), FixVersion $asked.fixVersion.\n\nEpics:\n"
+         description     : "Production release of $product.name ($product.code), FixVersion $asked.fixVersion.\n"
+                 + "Change tasks: ${(asked.tasks as List<Map>)*.shortDescription.join('; ')}.\n\nEpics:\n"
                  + epics.collect { "$it.key $it.summary ($it.status)" }.join('\n') + '\n\nStories:\n'
                  + stories.collect { "$it.key $it.summary" }.join('\n'),
          template        : withRisk(template + [release     : template.release ?: asked.fixVersion,

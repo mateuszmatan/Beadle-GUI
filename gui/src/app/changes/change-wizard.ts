@@ -20,7 +20,17 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { EMPTY, catchError, finalize, of, switchMap } from 'rxjs';
+import {
+  EMPTY,
+  Observable,
+  Subject,
+  catchError,
+  filter,
+  finalize,
+  of,
+  switchMap,
+  timer,
+} from 'rxjs';
 import { MyDepartment } from '../beadle/my-department';
 import { DepartmentsApi, ProductsApi, UserApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
@@ -85,6 +95,8 @@ const STEP_KEYS: readonly StepKey[] = [
 export const STEPS = [...SECTIONS.map((section) => section.step), 'Review', 'Raised'];
 
 const RAISED = STEP_KEYS.indexOf('raised');
+
+export const PREVIEW_DELAY = 400;
 
 const ATTENTION = 'Some fields need your attention.';
 
@@ -260,6 +272,7 @@ export class ChangeWizard implements HasUnsavedChanges {
   });
   protected readonly preview = signal<ProductionChange | null>(null);
   protected readonly previewing = signal(false);
+  private readonly reviews = new Subject<number | null>();
   private readonly jiraScope = computed(() =>
     this.stepKey() === 'jira' && this.epicKeys().length && this.stories.status() === 'resolved'
       ? [...this.epicKeys(), ...this.storyKeys()].join()
@@ -287,6 +300,19 @@ export class ChangeWizard implements HasUnsavedChanges {
         takeUntilDestroyed(),
       )
       .subscribe((draft) => this.showTexts(draft));
+    this.reviews
+      .pipe(
+        switchMap((wait) => (wait === null ? EMPTY : this.previewAfter(wait))),
+        takeUntilDestroyed(),
+      )
+      .subscribe((draft) => this.showTexts(draft));
+    toObservable(this.tasks)
+      .pipe(
+        switchMap((tasks) => tasks?.valueChanges ?? EMPTY),
+        filter(() => this.stepKey() === 'review' && !this.raising()),
+        takeUntilDestroyed(),
+      )
+      .subscribe(() => this.reviews.next(this.tasks()!.valid ? PREVIEW_DELAY : null));
     this.departmentId.valueChanges.pipe(takeUntilDestroyed()).subscribe((id) => {
       this.myDepartment.choose(id);
       this.productId.setValue(null);
@@ -382,6 +408,9 @@ export class ChangeWizard implements HasUnsavedChanges {
       case 'schedule':
         return this.schedule()!.invalid ? ATTENTION : null;
       case 'review':
+        if (this.previewing()) {
+          return 'Wait until the change is previewed';
+        }
         if (!this.preview() || this.shortDescription.invalid || this.description.invalid) {
           return 'Check the short description and the description';
         }
@@ -563,23 +592,24 @@ export class ChangeWizard implements HasUnsavedChanges {
   }
 
   protected loadPreview(): void {
-    const request = this.request();
+    this.reviews.next(0);
+  }
+
+  private previewAfter(wait: number): Observable<ProductionChange> {
     this.previewing.set(true);
-    this.problem.set(null);
-    this.problems.set([]);
-    this.changesApi
-      .preview(request)
-      .pipe(
-        finalize(() => this.previewing.set(false)),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe({
-        next: (preview) => this.showTexts(preview),
-        error: (error) => {
-          this.preview.set(null);
-          this.fail(error, 'The change could not be previewed: ');
-        },
-      });
+    return (wait ? timer(wait) : of(0)).pipe(
+      switchMap(() => {
+        this.problem.set(null);
+        this.problems.set([]);
+        return this.changesApi.preview(this.request());
+      }),
+      catchError((error) => {
+        this.preview.set(null);
+        this.fail(error, 'The change could not be previewed: ');
+        return EMPTY;
+      }),
+      finalize(() => this.previewing.set(false)),
+    );
   }
 
   private raise(): void {
