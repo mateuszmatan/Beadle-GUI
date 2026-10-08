@@ -856,8 +856,8 @@ detail, including its development server.
 - The portal has no sign-in yet; see the preconditions above.
 - Production changes use demo Jira and ProTech adapters, and the wizard's searches demo ProTech data, until the real
   ones are connected; see [ProTech production changes](#protech-production-changes). Until BBH single sign-on exists,
-  "your department" in Beadle is the department the user picks in Changes, and the signed-in user is the one name in
-  `dso.signed-in-user`, the same for everybody.
+  "your department" in Beadle is the department the user last picked in Changes or New Change, and the signed-in
+  user is the one name in `dso.signed-in-user`, the same for everybody.
 - The category, type and risk answer lists are written into the portal and change only with a new version of it,
   until ProTech's value lists can be read.
 - The change evidence of runs made by a library older than the portal integration has no unit test counts, artifact
