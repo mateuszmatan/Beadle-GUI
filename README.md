@@ -92,13 +92,18 @@ Beadle, in three tabs:
   9. **Review**: every value with the change tasks, which stay editable; raising it creates one change (CHG) with its
      change tasks (CTASK) in ProTech.
 - **Admin**, in two tabs: **Departments** (the same departments as DevSecOps Admin, without the pipeline counts) and
-  **Products**: every product by department with the state of its change template. Add a product; on its page change
-  its name, department, owner team and contact e-mail, delete it, and keep its **change template**: the ProTech
-  fields in the sections and order of New Change, and the default change tasks of its changes (see
-  [ProTech production changes](#protech-production-changes)).
+  **Products**: every product by department with the state of its change template. Add a product with its name,
+  code, department, owner team and contact e-mail (no DevSecOps setting); on its page change its name, department,
+  owner team and contact e-mail, delete it with its change template while it has no services in DevSecOps
+  Management, and keep its **change template**: the ProTech fields in the sections and order of New Change, and the
+  default change tasks of its changes (see [ProTech production changes](#protech-production-changes)).
 
 Departments and products are one data set: both Admin areas edit the same records. Services stay in DevSecOps
-Management, where the pipelines need them; ProTech has no such thing, so Beadle neither shows nor uses them.
+Management, where the pipelines need them; ProTech has no such thing, so Beadle neither shows nor uses them. Beadle
+reads and changes only a product's own details (`/api/products/{id}/details`), so a change there keeps the services,
+the AppScan account and the pipelines as they are, and a product that still has services is deleted in DevSecOps
+Management only. A product needs its AppScan API key once it has services: the product editor of DevSecOps Admin and
+Self-service ask for it when a product added in Beadle has none yet.
 
 No `config.yaml` remains in the product repositories. The portal-integrated library reads each pipeline's
 configuration from the portal by its key, so a service needs only the generic Jenkinsfile and its pipeline key:
@@ -429,7 +434,7 @@ erDiagram
         VARCHAR2 CODE UK "such as PAYHUB"
         VARCHAR2 NAME UK
         VARCHAR2 OWNER_TEAM
-        VARCHAR2 ASOC_KEY_ID "AppScan API key ID"
+        VARCHAR2 ASOC_KEY_ID "AppScan API key ID, set once it has services"
         NUMBER VERSION
     }
     DSO_SERVICE {
@@ -475,7 +480,8 @@ erDiagram
 ```
 
 A service has at most one pipeline of each type, and a pipeline at most one `ACTIVE` key; revoked keys stay as its
-key history. `DEPARTMENT_ID` is empty only for a product saved before departments existed. The service settings that
+key history. `DEPARTMENT_ID` is empty only for a product saved before departments existed, and `ASOC_KEY_ID` only for
+a product without services, such as one added in Beadle Admin (`018-beadle-products.sql`). The service settings that
 repeat live in child tables of `DSO_SERVICE` (`DSO_SERVICE_TEST_JOB`, `DSO_SERVICE_SSH_TARGET`,
 `DSO_SERVICE_OPENSHIFT_TARGET`, `DSO_UCD_APPLICATION` with `DSO_UCD_COMPONENT`, `DSO_SERVICE_NEXUS_IQ_APP`), and the
 scanners' severity limits in `DSO_GLOBAL_SEVERITY_LIMIT`. The service template of Admin > Service template is the one
@@ -819,7 +825,8 @@ secrets.
 | `GET /api/departments` | departments by name, each with the number of its products, their services, their DevSecOps pipelines, the pipelines with an active key and the changes raised in Beadle (`changeCount`) |
 | `POST /api/departments`, `PUT`/`DELETE /api/departments/{id}` | add, rename or delete a department; `PUT` carries the `version` it was read at; a department that still has products or changes is not deleted (409) |
 | `GET /api/products?search=` | products with their department, service and pipeline counts; the search also matches the department name |
-| `POST /api/products`, `GET`/`PUT`/`DELETE /api/products/{id}` | a product in its department (`departmentId`, required on every save) with its complete list of services; `PUT` carries the `version` it was read at; every service the save creates gets a full pipeline with an active key, or with `?pipelineType=SAST\|NEXUS_IQ\|SECURITY\|FULL` every service of the product without a pipeline of that type gets one |
+| `POST /api/products`, `GET`/`PUT`/`DELETE /api/products/{id}` | a product in its department (`departmentId`, required on every save) with its complete list of services and its AppScan account (`appScan`, whose `keyId` is required once the product has a service); `PUT` carries the `version` it was read at; every service the save creates gets a full pipeline with an active key, or with `?pipelineType=SAST\|NEXUS_IQ\|SECURITY\|FULL` every service of the product without a pipeline of that type gets one; `DELETE` removes the product with its pipelines and keys |
+| `GET`/`PUT`/`DELETE /api/products/{id}/details` | the product's own details as Beadle Admin uses them: `id`, `code`, `name`, `ownerTeam`, `contactEmail`, `departmentId` and `version`, without its services or AppScan account; `PUT` carries `name`, `departmentId`, `ownerTeam`, `contactEmail` and the `version` it was read at, checks only these and keeps the services, the AppScan account and the pipelines; `DELETE` removes a product without services with its change template, and refuses one that still has services in DevSecOps Management (409) |
 | `GET /api/products/code-suggestion?name=` | the code the portal suggests for a new product's name: its letters and digits in upper case, with a number added when another product has that code |
 | `GET /api/products/{id}/pipelines` | each service of a product with its pipelines |
 | `POST /api/services/{id}/pipelines` | add a pipeline; it starts with an active key |

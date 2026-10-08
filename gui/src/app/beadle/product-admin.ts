@@ -13,12 +13,12 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { filter, switchMap } from 'rxjs';
-import { DepartmentsApi, ProductsApi } from '../core/api';
+import { DepartmentsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
-import { Product } from '../core/models';
 import { Notifier } from '../core/notifier';
 import { NOT_IN_A_DEPARTMENT } from '../products/departments';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
+import { ProductDetails, ProductDetailsApi } from './product-details-api';
 import { ProductDialog, ProductDialogData, ProductDialogResult } from './product-dialog';
 
 @Component({
@@ -92,10 +92,10 @@ import { ProductDialog, ProductDialogData, ProductDialogResult } from './product
 })
 export class ProductAdmin {
   readonly id = input.required<number>();
-  readonly saved = output<Product>();
-  readonly deleted = output<Product>();
+  readonly saved = output<ProductDetails>();
+  readonly deleted = output<ProductDetails>();
 
-  private readonly api = inject(ProductsApi);
+  private readonly api = inject(ProductDetailsApi);
   private readonly departmentsApi = inject(DepartmentsApi);
   private readonly dialog = inject(MatDialog);
   private readonly notifier = inject(Notifier);
@@ -142,9 +142,7 @@ export class ProductAdmin {
       .open<ConfirmDialog, ConfirmDialogData, boolean>(ConfirmDialog, {
         data: {
           title: `Delete ${product.name}?`,
-          message:
-            `${product.name} is deleted with its change template and its DevSecOps pipelines and keys. ` +
-            'Jenkins jobs using those keys stop working. This cannot be undone.',
+          message: `${product.name} is deleted with its change template. This cannot be undone.`,
           confirmLabel: 'Delete product',
           danger: true,
         },
@@ -163,13 +161,13 @@ export class ProductAdmin {
       });
   }
 
-  private done(saved: Product, message: string): void {
+  private done(saved: ProductDetails, message: string): void {
     this.product.set(saved);
     this.notifier.success(message);
     this.saved.emit(saved);
   }
 
-  private reload(conflict: HttpErrorResponse, product: Product): void {
+  private reload(conflict: HttpErrorResponse, product: ProductDetails): void {
     this.api
       .get(product.id)
       .pipe(takeUntilDestroyed(this.destroyRef))

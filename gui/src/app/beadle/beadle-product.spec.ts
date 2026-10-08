@@ -6,7 +6,7 @@ import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { changeOptions, changeProfile, changeTemplate, taskText } from '../testing/change-fixtures';
 import { buttonOf, fieldOf, text } from '../testing/dom';
-import { product } from '../testing/fixtures';
+import { productDetails } from '../testing/fixtures';
 import { BeadleProduct } from './beadle-product';
 
 describe('BeadleProduct', () => {
@@ -32,7 +32,7 @@ describe('BeadleProduct', () => {
     fixture.componentRef.setInput('id', 1);
     await settle();
     http.expectOne('/api/products/1/change-profile').flush(profile);
-    http.expectOne('/api/products/1').flush(product());
+    http.expectOne('/api/products/1/details').flush(productDetails());
     http.expectOne('/api/departments').flush([]);
     await settle();
     http.expectOne('/api/changes/options').flush(changeOptions());
@@ -134,7 +134,7 @@ describe('BeadleProduct', () => {
     });
 
     buttonOf(page(), 'Delete product').click();
-    http.expectOne({ method: 'DELETE', url: '/api/products/1' }).flush(null);
+    http.expectOne({ method: 'DELETE', url: '/api/products/1/details' }).flush(null);
     await settle();
 
     expect(navigate).toHaveBeenCalledWith(['/beadle/admin/products']);
