@@ -362,6 +362,29 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         api.post('/api/changes', past).json.errors == [[field: 'schedule.installationStart', message: 'must be in the future']]
     }
 
+    def "the preview writes the texts before the schedule is planned, raising it does not"() {
+        given:
+        def created = createProduct(product(code: uniqueCode(), name: "Product ${uniqueCode()}"))
+        def key = 'UNP' + created.id
+        def fixVersion = api.get("/api/products/$created.id/jira/versions?project=$key").json[0].name
+        def epic = api.get("/api/products/$created.id/jira/epics?fixVersion=${enc(fixVersion)}&project=$key").json[0]
+        def unplanned = change(created, fixVersion, [epic.key], [], [template: templateJson(jiraProjectKey: key),
+                                                                     schedule: [:]])
+
+        when:
+        def preview = api.post('/api/changes/preview', unplanned)
+
+        then:
+        preview.status == 200
+        preview.json.shortDescription == "$created.name $fixVersion: $epic.summary"
+        preview.json.description.contains('Installation not planned yet, post-install validation not planned yet,' +
+                ' first usage not planned yet. No downtime.')
+        api.post('/api/changes', unplanned).json.errors*.field == ['schedule.installationStart',
+                                                                   'schedule.installationEnd',
+                                                                   'schedule.validationStart',
+                                                                   'schedule.validationEnd', 'schedule.firstUsage']
+    }
+
     def "its department updates an open change, ProTech applies it and Beadle shows it as applied"() {
         given:
         def raised = raise(createProduct(product(code: uniqueCode(), name: "Update ${uniqueCode()}")))

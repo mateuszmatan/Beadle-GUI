@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
 
+import static com.bbh.itss.dso.portal.domain.change.ChangeSchedule.UNPLANNED;
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.JIRA_KEY_MESSAGE;
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.isJiraKey;
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.jiraKeyOf;
@@ -42,6 +43,7 @@ import static com.bbh.itss.dso.portal.domain.change.JiraVersion.UNRELEASED_NEWES
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.DESCRIPTION_MAX;
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.FIX_VERSION_MAX;
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.SHORT_DESCRIPTION_MAX;
+import static com.bbh.itss.dso.portal.domain.change.ProductionChange.checkTemplate;
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.checkTemplateAndSchedule;
 import static com.bbh.itss.dso.portal.domain.change.TaskText.validateTasks;
 import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
@@ -54,6 +56,7 @@ import static com.bbh.itss.dso.portal.domain.shared.Versions.requireUnchangedSin
 import static java.util.Locale.ROOT;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
+import static org.apache.commons.lang3.ObjectUtils.getIfNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 import static org.apache.commons.lang3.Strings.CS;
 
@@ -171,7 +174,11 @@ public class ProductionChangeService implements ProductionChangesUseCase {
                 .fits("fixVersion", version, FIX_VERSION_MAX);
         ChangeTemplate template = command.template();
         ChangeSchedule schedule = command.schedule();
-        checkTemplateAndSchedule(template, schedule, raisedAt, problems);
+        if (raisedAt == null) {
+            checkTemplate(template, problems);
+        } else {
+            checkTemplateAndSchedule(template, schedule, raisedAt, problems);
+        }
         problems.require("epicKeys", command.epicKeys(), "choose at least one epic");
         String project = template == null ? null : template.jiraProjectKey();
         List<JiraIssue> epics = List.of();
@@ -192,8 +199,8 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         validateTasks(command.tasks(), problems);
         problems.throwIfAny();
         return ProductionChange.draft(product, product.departmentId(), departmentOf(product),
-                users.signedInUser().name(), command.tasks(), command.fixVersion(), schedule, template, epics,
-                stories, command.shortDescription(), command.description());
+                users.signedInUser().name(), command.tasks(), command.fixVersion(), getIfNull(schedule, UNPLANNED),
+                template, epics, stories, command.shortDescription(), command.description());
     }
 
     private UnaryOperator<ProductionChange> syncOf(List<ProductionChange> open) {

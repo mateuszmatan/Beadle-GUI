@@ -187,6 +187,19 @@
         } @empty {
           <p class="empty">Choose an epic to see its stories.</p>
         }
+        @if (epicKeys().length) {
+          @if (preview(); as draft) {
+            <h3>Short description and description</h3>
+            <p class="hint">
+              Written from the chosen epics and stories; the description takes in the later steps as
+              you fill them in.
+            </p>
+            <ng-container
+              [ngTemplateOutlet]="changeTexts"
+              [ngTemplateOutletContext]="{ $implicit: draft }"
+            />
+          }
+        }
       }
       @case ('schedule') {
         <h2>{{ current()!.title }}</h2>
@@ -206,40 +219,10 @@
           <mat-progress-bar mode="indeterminate" />
         }
         @if (preview(); as draft) {
-          <div class="texts">
-            @if (shortDescription.value !== draft.shortDescription) {
-              <button
-                type="button"
-                class="text-link new-text"
-                aria-label="Use the generated text for the short description"
-                (click)="useGeneratedText(shortDescription, draft.shortDescription)"
-              >
-                Use the generated text
-              </button>
-            }
-            <mat-form-field>
-              <mat-label>Short description</mat-label>
-              <input matInput [formControl]="shortDescription" maxlength="160" />
-              <mat-hint align="end">{{ shortDescription.value.length }} / 160</mat-hint>
-              <mat-error>{{ errorText(shortDescription) }}</mat-error>
-            </mat-form-field>
-            @if (description.value !== draft.description) {
-              <button
-                type="button"
-                class="text-link new-text"
-                aria-label="Use the generated text for the description"
-                (click)="useGeneratedText(description, draft.description)"
-              >
-                Use the generated text
-              </button>
-            }
-            <mat-form-field>
-              <mat-label>Description</mat-label>
-              <textarea matInput rows="11" [formControl]="description"></textarea>
-              <mat-hint align="end">{{ description.value.length }} / 4000</mat-hint>
-              <mat-error>{{ errorText(description) }}</mat-error>
-            </mat-form-field>
-          </div>
+          <ng-container
+            [ngTemplateOutlet]="changeTexts"
+            [ngTemplateOutletContext]="{ $implicit: draft }"
+          />
           <h3 class="tasks-title">Change tasks</h3>
           <p class="hint">Each change task is created in ProTech with the change.</p>
           <dso-change-tasks-form [tasks]="tasks()!" />
@@ -361,3 +344,39 @@
     </div>
   </section>
 </div>
+<ng-template #changeTexts let-draft>
+  <div class="texts">
+    @if (shortDescription.value !== draft.shortDescription) {
+      <button
+        type="button"
+        class="text-link new-text"
+        aria-label="Use the generated text for the short description"
+        (click)="useGeneratedText(shortDescription, draft.shortDescription)"
+      >
+        Use the generated text
+      </button>
+    }
+    <mat-form-field>
+      <mat-label>Short description</mat-label>
+      <input matInput [formControl]="shortDescription" maxlength="160" />
+      <mat-hint align="end">{{ shortDescription.value.length }} / 160</mat-hint>
+      <mat-error>{{ errorText(shortDescription) }}</mat-error>
+    </mat-form-field>
+    @if (description.value !== draft.description) {
+      <button
+        type="button"
+        class="text-link new-text"
+        aria-label="Use the generated text for the description"
+        (click)="useGeneratedText(description, draft.description)"
+      >
+        Use the generated text
+      </button>
+    }
+    <mat-form-field>
+      <mat-label>Description</mat-label>
+      <textarea matInput rows="11" [formControl]="description"></textarea>
+      <mat-hint align="end">{{ description.value.length }} / 4000</mat-hint>
+      <mat-error>{{ errorText(description) }}</mat-error>
+    </mat-form-field>
+  </div>
+</ng-template>

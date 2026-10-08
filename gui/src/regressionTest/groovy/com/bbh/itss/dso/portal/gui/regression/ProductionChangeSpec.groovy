@@ -130,9 +130,18 @@ class ProductionChangeSpec extends EditorSpecification {
         assertThat(checkbox(step(), 'CERT-121')).isChecked()
         assertThat(checkbox(step(), 'CERT-122')).isChecked()
         awaitRequest('GET', '/api/products/1/jira/stories').params() == [fixVersion: 'CERT 4.2', epics: 'CERT-120']
+        assertThat(step().locator('h3:has-text("Short description and description")')).isVisible()
+        assertThat(input(texts(), 'Short description')).hasValue('CertScanner CERT 4.2: Expiry alerts for certificates')
+        assertThat(input(texts(), 'Description')).hasValue(
+                ~/Stories:\nCERT-121 E-mail the certificate owner\nCERT-122 Teams alert on expiry$/)
 
         when:
         checkbox(step(), 'CERT-122').uncheck()
+
+        then:
+        assertThat(input(texts(), 'Description')).hasValue(~/Stories:\nCERT-121 E-mail the certificate owner$/)
+
+        when:
         button('Continue', true).click()
 
         then:
@@ -251,7 +260,7 @@ class ProductionChangeSpec extends EditorSpecification {
         assertThat(review('Downtime')).hasText(~/, 18:00 to 19:30$/)
         assertThat(review('Secure coding ticket number')).hasText('SEC-4711')
         assertThat(step().locator('.scope')).hasText('1 epic and 1 story of FixVersion CERT 4.2')
-        with(awaitRequest('POST', '/api/changes/preview').json()) {
+        with(reviewed()) {
             fixVersion == 'CERT 4.2'
             schedule == [installationStart: "${RELEASE_DATE}T18:00:00.000Z".toString(),
                          installationEnd  : "${RELEASE_DATE}T20:00:00.000Z".toString(),
@@ -405,7 +414,7 @@ class ProductionChangeSpec extends EditorSpecification {
         then:
         assertThat(review('Risk')).hasText('not set')
         assertThat(review('L1 approver')).hasText('Emma Brooks')
-        with(awaitRequest('POST', '/api/changes/preview').json()) {
+        with(reviewed()) {
             productId == 2
             tasks == suggestedTasks(2)
             epicKeys == ['PAYHUB-130']
@@ -498,6 +507,11 @@ class ProductionChangeSpec extends EditorSpecification {
 
     Locator texts() {
         step().locator('.texts')
+    }
+
+    Map reviewed() {
+        assertThat(step().locator('.scope')).isVisible()
+        api.requests('POST', '/api/changes/preview').last().json() as Map
     }
 
     Locator summary() {

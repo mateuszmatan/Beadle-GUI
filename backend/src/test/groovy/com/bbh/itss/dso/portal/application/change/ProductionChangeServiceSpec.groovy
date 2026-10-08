@@ -31,6 +31,7 @@ import spock.lang.Specification
 import java.time.Instant
 import java.time.LocalDate
 
+import static com.bbh.itss.dso.portal.domain.change.ChangeSchedule.UNPLANNED
 import static com.bbh.itss.dso.portal.domain.change.ChangeState.BUSINESS_APPROVAL
 import static com.bbh.itss.dso.portal.domain.change.ChangeState.CLOSED
 import static com.bbh.itss.dso.portal.domain.change.ChangeState.DRAFT
@@ -217,6 +218,32 @@ class ProductionChangeServiceSpec extends Specification {
         then:
         def refused = thrown(InvalidRequestException)
         refused.problems() == [new FieldProblem('schedule.installationStart', 'must be in the future')]
+    }
+
+    def "the preview writes the texts before the schedule is #planned, the raise refuses it"() {
+        given:
+        def unplanned = command(schedule: schedule)
+
+        when:
+        def preview = service.preview(unplanned)
+
+        then:
+        preview.schedule() == UNPLANNED
+        preview.description().contains('Installation not planned yet, post-install validation not planned yet,' +
+                ' first usage not planned yet. No downtime.')
+
+        when:
+        service.raise(unplanned)
+
+        then:
+        def refused = thrown(InvalidRequestException)
+        refused.problems()*.field().every { it.startsWith('schedule') }
+        0 * serviceNow._
+
+        where:
+        planned          | schedule
+        'sent'           | null
+        'filled in'      | UNPLANNED
     }
 
     def "FixVersions come from the Jira project of the stored profile, unreleased first and newest first"() {

@@ -138,6 +138,16 @@ describe('ChangeWizard', () => {
     await settle();
   }
 
+  function previews(): TestRequest[] {
+    return http.match('/api/changes/preview').filter((request) => !request.cancelled);
+  }
+
+  async function texts(draft = productionChange({ id: null, number: null })) {
+    await settle();
+    previews().forEach((request) => request.flush(draft));
+    await settle();
+  }
+
   async function scope() {
     await findEpics();
     jira('epics').flush([epic('CERT-1', 'Expiry alerts'), epic('CERT-5', 'Audit trail')]);
@@ -148,7 +158,7 @@ describe('ChangeWizard', () => {
       story('CERT-2', 'E-mail the owner', 'CERT-1'),
       story('CERT-3', 'Teams alert', 'CERT-1'),
     ]);
-    await settle();
+    await texts();
   }
 
   async function toSchedule() {
@@ -456,6 +466,54 @@ describe('ChangeWizard', () => {
     expect(wizard()['fixVersion'].value).toBe('');
   });
 
+  it('writes the short description and description on the Jira step once the stories are loaded', async () => {
+    await chooseCertScanner();
+    await next();
+    const headings = () => [...page().querySelectorAll('h3')].map(text);
+    expect(headings()).not.toContain('Short description and description');
+    await findEpics();
+    jira('epics').flush([epic('CERT-1', 'Expiry alerts'), epic('CERT-5', 'Audit trail')]);
+    await settle();
+    wizard()['toggleEpic']('CERT-1', true);
+    await settle();
+    expect(previews()).toEqual([]);
+    jira('stories').flush([
+      story('CERT-2', 'E-mail the owner', 'CERT-1'),
+      story('CERT-3', 'Teams alert', 'CERT-1'),
+    ]);
+    await settle();
+
+    const [preview, ...more] = previews();
+    expect(more).toEqual([]);
+    expect(preview.request.body).toMatchObject({
+      fixVersion: 'CERT 4.2',
+      epicKeys: ['CERT-1'],
+      storyKeys: ['CERT-2', 'CERT-3'],
+    });
+    preview.flush(productionChange({ id: null, number: null }));
+    await settle();
+    expect(headings()).toContain('Short description and description');
+    expect(inputOf(page(), 'Short description').value).toBe('CertScanner CERT 4.2: Expiry alerts');
+    expect(inputOf(page(), 'Description').value).toBe('Production release of CertScanner (CERT).');
+
+    await type('Short description', 'Mine');
+    wizard()['toggleStory']('CERT-3', false);
+    await settle();
+    const [again, ...others] = previews();
+    expect(others).toEqual([]);
+    expect(again.request.body.storyKeys).toEqual(['CERT-2']);
+    again.flush(
+      productionChange({ id: null, number: null, shortDescription: 'CertScanner CERT 4.2: Alerts' }),
+    );
+    await settle();
+    expect(inputOf(page(), 'Short description').value).toBe('Mine');
+    expect(buttonOf(page(), 'Use the generated text for the short description')).toBeDefined();
+
+    await next();
+    expect(wizard()['step']()).toBe(2);
+    expect(headings()).not.toContain('Short description and description');
+  });
+
   it('keeps the texts the user changed when the same change is previewed again and shows why ProTech refused it', async () => {
     await toReview();
     http.expectOne('/api/changes/preview').flush(productionChange({ id: null, number: null }));
@@ -547,12 +605,14 @@ describe('ChangeWizard', () => {
       'No story of this epic carries the FixVersion.',
     );
     expect(wizard()['stepProblem']()).toBeNull();
+    await texts();
 
     await next();
     expect(wizard()['step']()).toBe(2);
     wizard()['goTo'](1);
     await settle();
     expect(wizard()['epicKeys']()).toEqual(['CERT-1']);
+    await texts();
   });
 
   it('chooses every epic or none and forgets the stories of an epic it drops', async () => {
@@ -566,7 +626,7 @@ describe('ChangeWizard', () => {
       story('CERT-2', 'E-mail the owner', 'CERT-1'),
       story('CERT-6', 'Record it', 'CERT-5'),
     ]);
-    await settle();
+    await texts();
     expect(wizard()['epicKeys']()).toEqual(['CERT-1', 'CERT-5']);
     expect(wizard()['storyKeys']()).toEqual(['CERT-2', 'CERT-6']);
 
@@ -574,7 +634,7 @@ describe('ChangeWizard', () => {
     expect(wizard()['storyKeys']()).toEqual(['CERT-2']);
     await settle();
     jira('stories').flush([story('CERT-2', 'E-mail the owner', 'CERT-1')]);
-    await settle();
+    await texts();
 
     wizard()['chooseAllEpics'](false);
     await settle();
@@ -678,7 +738,7 @@ describe('ChangeWizard', () => {
       wizard()['toggleEpic']('CERT-1', true);
       await settle();
       jira('stories').flush([story('CERT-2', 'E-mail the owner', 'CERT-1')]);
-      await settle();
+      await texts();
       await next();
       await next();
     }

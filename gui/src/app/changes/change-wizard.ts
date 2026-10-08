@@ -9,7 +9,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { rxResource, takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatAutocompleteModule, MatAutocompleteTrigger } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
@@ -18,8 +18,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
+import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { catchError, finalize, of } from 'rxjs';
+import { EMPTY, catchError, finalize, of, switchMap } from 'rxjs';
 import { MyDepartment } from '../beadle/my-department';
 import { DepartmentsApi, ProductsApi, UserApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
@@ -94,6 +95,7 @@ const departmentKey = (group: DepartmentGroup) => group.department?.id ?? NO_DEP
 @Component({
   selector: 'dso-change-wizard',
   imports: [
+    NgTemplateOutlet,
     ReactiveFormsModule,
     RouterLink,
     MatAutocompleteModule,
@@ -255,6 +257,11 @@ export class ChangeWizard implements HasUnsavedChanges {
   });
   protected readonly preview = signal<ProductionChange | null>(null);
   protected readonly previewing = signal(false);
+  private readonly jiraScope = computed(() =>
+    this.stepKey() === 'jira' && this.epicKeys().length && this.stories.status() === 'resolved'
+      ? [...this.epicKeys(), ...this.storyKeys()].join()
+      : null,
+  );
   protected readonly raising = signal(false);
   protected readonly problem = signal<string | null>(null);
   protected readonly problems = signal<string[]>([]);
@@ -267,6 +274,16 @@ export class ChangeWizard implements HasUnsavedChanges {
   );
 
   constructor() {
+    toObservable(this.jiraScope)
+      .pipe(
+        switchMap((scope) =>
+          scope === null
+            ? EMPTY
+            : this.changesApi.preview(this.request()).pipe(catchError(() => EMPTY)),
+        ),
+        takeUntilDestroyed(),
+      )
+      .subscribe((draft) => this.showTexts(draft));
     this.departmentId.valueChanges.pipe(takeUntilDestroyed()).subscribe((id) => {
       this.myDepartment.choose(id);
       this.productId.setValue(null);
@@ -554,11 +571,7 @@ export class ChangeWizard implements HasUnsavedChanges {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
-        next: (preview) => {
-          this.fillText(this.shortDescription, preview.shortDescription);
-          this.fillText(this.description, preview.description);
-          this.preview.set(preview);
-        },
+        next: (preview) => this.showTexts(preview),
         error: (error) => {
           this.preview.set(null);
           this.fail(error, 'The change could not be previewed: ');
@@ -588,6 +601,12 @@ export class ChangeWizard implements HasUnsavedChanges {
         },
         error: (error) => this.fail(error),
       });
+  }
+
+  private showTexts(draft: ProductionChange): void {
+    this.fillText(this.shortDescription, draft.shortDescription);
+    this.fillText(this.description, draft.description);
+    this.preview.set(draft);
   }
 
   private fillText(control: FormControl<string>, generated: string): void {
