@@ -1,0 +1,28 @@
+--liquibase formatted sql
+
+--changeset dso-portal:019-service-template dbms:oracle,h2
+CREATE TABLE DSO_SERVICE_TEMPLATE (
+    ID                          NUMBER(19)      NOT NULL,
+    AGENT_LABELS                VARCHAR2(1000)  NOT NULL,
+    JENKINS_JOB                 VARCHAR2(500),
+    GRADLE_TASKS                VARCHAR2(500),
+    GRADLE_ARTIFACT             VARCHAR2(500),
+    GRADLE_SCAN_PATTERN         VARCHAR2(300),
+    MAVEN_TASKS                 VARCHAR2(500),
+    MAVEN_ARTIFACT              VARCHAR2(500),
+    MAVEN_SCAN_PATTERN          VARCHAR2(300),
+    FLUTTER_SCAN_PATTERN        VARCHAR2(300),
+    DELIVERY_TASKS              VARCHAR2(500),
+    NEXUS_IQ_APPLICATION        VARCHAR2(200),
+    REPOSITORY_URL              VARCHAR2(1000),
+    BITBUCKET_CREDENTIALS_ID    VARCHAR2(200),
+    OPEN_SHIFT_PROJECT          VARCHAR2(100),
+    IMAGE_REGISTRY              VARCHAR2(300),
+    HEALTH_CHECK_URL            VARCHAR2(500),
+    CREATED_AT                  TIMESTAMP       NOT NULL,
+    UPDATED_AT                  TIMESTAMP       NOT NULL,
+    VERSION                     NUMBER(19)      DEFAULT 0 NOT NULL,
+    CONSTRAINT PK_DSO_SERVICE_TEMPLATE PRIMARY KEY (ID),
+    CONSTRAINT CK_DSO_SERVICE_TEMPLATE_ROW CHECK (ID = 1)
+);
+--rollback DROP TABLE DSO_SERVICE_TEMPLATE;
