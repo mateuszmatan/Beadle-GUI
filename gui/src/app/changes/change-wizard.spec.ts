@@ -533,7 +533,7 @@ describe('ChangeWizard', () => {
     await settle();
     await type('Description', 'Mine');
     wizard()['shortDescription'].setValue('é'.repeat(81));
-    expect(wizard()['shortDescription'].hasError('columnLength')).toBe(true);
+    expect(wizard()['shortDescription'].hasError('bytes')).toBe(true);
     wizard()['shortDescription'].setValue('é'.repeat(80));
     expect(wizard()['shortDescription'].valid).toBe(true);
 

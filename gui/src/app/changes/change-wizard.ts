@@ -37,7 +37,7 @@ import { errorMessage, fieldProblems } from '../core/errors';
 import { NEW_CHANGE, beadleChange, beadleProduct } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { byDepartment } from '../products/departments';
-import { applyProblemsAt, filled, max } from '../shared/form-controls';
+import { applyProblemsAt, filled } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
 import {
@@ -217,7 +217,7 @@ export class ChangeWizard implements HasUnsavedChanges {
 
   protected readonly fixVersion = new FormControl('', {
     nonNullable: true,
-    validators: [filled, max(100)],
+    validators: [filled, fits(100)],
   });
   private readonly fixVersionText = toSignal(this.fixVersion.valueChanges, { initialValue: '' });
   protected readonly searched = signal<string | null>(null);

@@ -34,7 +34,7 @@ describe('change tasks model', () => {
     expect(tasks.at(0).controls.shortDescription.hasError('required')).toBe(true);
     expect(tasks.at(0).controls.description.hasError('required')).toBe(true);
     tasks.at(0).controls.shortDescription.setValue('é'.repeat(81));
-    expect(tasks.at(0).controls.shortDescription.hasError('columnLength')).toBe(true);
+    expect(tasks.at(0).controls.shortDescription.hasError('bytes')).toBe(true);
 
     expect(tasksForm([]).errors).toEqual({ rule: 'Add at least one change task' });
   });
