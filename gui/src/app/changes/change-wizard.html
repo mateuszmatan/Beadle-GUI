@@ -1,15 +1,8 @@
 <div class="page wizard">
-  <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a routerLink="/beadle/changes">{{ section.heading }}</a>
-    <span class="sep" aria-hidden="true">/</span>
-    <span>New change</span>
-  </nav>
   <header class="page-header">
     <div>
-      <h1>Raise a production change</h1>
-      <p class="page-description">
-        A ServiceNow change (CHG) with one change task (CTASK) per service, written from Jira
-      </p>
+      <h1>{{ section.heading }}</h1>
+      <p class="page-description">{{ section.description }}</p>
     </div>
   </header>
 
@@ -36,7 +29,7 @@
       @case (0) {
         <h2>Which product goes to production?</h2>
         <p class="lead">
-          Choose the department and the product. Its ServiceNow defaults fill in the change.
+          Choose the department and the product. Its change template fills in the change.
         </p>
         @if (departmentsError(); as error) {
           <p class="choice-error">The departments could not be loaded: {{ error }}</p>
@@ -62,31 +55,30 @@
                 >
               }
             </mat-select>
-            @if (departmentId.dirty) {
+            @if (chosenDepartment() !== null) {
               <mat-hint
                 >{{ counted(productsInDepartment().length, 'product') }} in the department</mat-hint
               >
             }
           </mat-form-field>
         </div>
-        @if (product.isLoading() || profile.isLoading()) {
+        @if (profile.isLoading()) {
           <mat-progress-bar mode="indeterminate" />
         }
-        @if (profile.error() || product.error()) {
+        @if (profile.error()) {
           <p class="choice-error">The product could not be loaded.</p>
         }
-        @if (profile.hasValue() && product.hasValue()) {
-          @let chosen = product.value();
-          @let defaults = profile.value();
-          @let t = defaults.template;
-          @if (defaults.version === null) {
+        @if (profile.hasValue()) {
+          @let chosen = profile.value();
+          @let t = chosen.template;
+          @if (chosen.version === null) {
             <div class="banner info defaults-note" role="note">
               <span
-                >{{ chosen.name }} has no ServiceNow defaults yet, so the suggested values are
-                filled in. An admin can set the defaults in Beadle Admin.</span
+                >{{ chosen.productName }} has no change template yet, so the suggested values are
+                filled in. An admin can set it in Beadle Admin.</span
               >
               <span class="spacer"></span>
-              <a mat-button [routerLink]="defaultsLink(chosen.id)">Set the defaults</a>
+              <a mat-button [routerLink]="templateLink(chosen.productId)">Set the template</a>
             </div>
           }
           <dl class="rows">
@@ -209,31 +201,17 @@
         } @empty {
           <p class="empty">Choose an epic to see its stories.</p>
         }
-        @if (product.hasValue()) {
-          <h3>Services</h3>
-          <p class="hint">Each service you deploy gets its own change task.</p>
-          <div class="checks">
-            @for (service of product.value().services; track service.id) {
-              <mat-checkbox
-                [checked]="serviceIds().includes(service.id)"
-                (change)="toggleService(service.id, $event.checked)"
-              >
-                <strong class="mono">{{ service.name }}</strong>
-                @if (service.description) {
-                  <span class="muted"> · {{ service.description }}</span>
-                }
-              </mat-checkbox>
-            }
-          </div>
-        }
       }
       @case (2) {
-        <h2>Check the ServiceNow fields</h2>
+        <h2>Check the ProTech fields</h2>
         <p class="lead">
-          The defaults of the product are filled in. Change any value for this change; the defaults
-          stay as they are.
+          The change template of the product is filled in. Change any value for this change; the
+          template stays as it is.
         </p>
         <dso-change-template-form [form]="details()!" [jiraProject]="false" />
+        <h3 class="tasks-title">Change tasks</h3>
+        <p class="hint">Each change task is created in ProTech with the change.</p>
+        <dso-change-tasks-form [tasks]="tasks()!" />
       }
       @case (3) {
         @let timing = details()!.controls.timing.getRawValue();
@@ -278,8 +256,8 @@
       @case (4) {
         <h2>Check and raise the change</h2>
         <p class="lead">
-          The texts come from the Jira epics and stories and the ServiceNow fields. Change them if
-          you like before you raise the change.
+          The texts come from the Jira epics and stories and the ProTech fields. Change them if you
+          like before you raise the change.
         </p>
         @if (previewing()) {
           <mat-progress-bar mode="indeterminate" />
@@ -322,7 +300,7 @@
           <dso-change-summary [change]="draft" />
           <h3>Change tasks</h3>
           <ol class="tasks">
-            @for (task of draft.tasks; track task.serviceName) {
+            @for (task of draft.tasks; track $index) {
               <li>
                 <strong>{{ task.shortDescription }}</strong>
                 <span class="muted">{{ task.description }}</span>
@@ -372,8 +350,8 @@
             </dd>
             <dt>Change tasks</dt>
             <dd>
-              <ul class="review-services">
-                @for (task of change.tasks; track task.number) {
+              <ul class="review-list">
+                @for (task of change.tasks; track $index) {
                   <li>
                     <span class="mono">{{ task.number }}</span> · {{ task.shortDescription }}
                   </li>
@@ -386,18 +364,18 @@
               <h3>Approvals</h3>
               <p>
                 @if (approverNames(change.template).length) {
-                  {{ approverNames(change.template).join(', ') }} approve the change in ServiceNow.
+                  {{ approverNames(change.template).join(', ') }} approve the change in ProTech.
                 } @else {
                   The approvers of {{ change.template.assignmentGroup }} approve the change in
-                  ServiceNow.
+                  ProTech.
                 }
               </p>
             </li>
             <li>
               <h3>Deploy in the window</h3>
               <p>
-                {{ change.template.assignmentGroup }} deploys each service and closes its change
-                task.
+                {{ change.template.assignmentGroup }} works through the change tasks and closes each
+                in ProTech.
               </p>
             </li>
             <li>
@@ -418,7 +396,7 @@
 
     <div class="step-actions">
       @if (step() === 5) {
-        <a mat-button [routerLink]="['/beadle/changes', raised()?.id]">Open the change</a>
+        <a mat-button [routerLink]="changeLink(raised()?.id ?? '')">Open the change</a>
         <span class="spacer"></span>
         <button mat-flat-button type="button" (click)="restart()">Raise another change</button>
       } @else {

@@ -88,7 +88,7 @@
                   type="button"
                   class="danger"
                   [attr.aria-label]="'Delete ' + department.name"
-                  [disabled]="department.productCount > 0"
+                  [disabled]="deleteHint(department) !== null"
                   (click)="delete(department)"
                 >
                   Delete

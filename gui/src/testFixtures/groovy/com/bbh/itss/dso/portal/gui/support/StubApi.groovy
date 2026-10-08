@@ -17,6 +17,7 @@ class StubApi {
 
     private final List<Route> routes = new CopyOnWriteArrayList<>()
     private final List<RecordedRequest> recorded = new CopyOnWriteArrayList<>()
+    ChangeStubs.ProTech protech
 
     static Object fixture(String name) {
         new JsonSlurper().parseText(fixtureText(name))
@@ -42,7 +43,7 @@ class StubApi {
         get('/api/departments') { departments.sort(false) { (it.name as String).toLowerCase() } }
         on('POST', '/api/departments') { RecordedRequest request ->
             def added = [id: (departments*.id.max() as int) + 1, name: request.json().name, version: 0, productCount: 0,
-                         serviceCount: 0, pipelineCount: 0, activePipelineCount: 0]
+                         serviceCount: 0, pipelineCount: 0, activePipelineCount: 0, changeCount: 0]
             departments << added
             json(added, 201)
         }
@@ -71,7 +72,7 @@ class StubApi {
         get('/api/monitoring/products/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("monitoring-product-${ids[0]}.json", "Product ${ids[0]} does not exist") }
         get('/api/monitoring/pipelines/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("monitoring-pipeline-${ids[0]}.json", "Pipeline ${ids[0]} does not exist") }
         get('/api/evidence/products/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("evidence-product-${ids[0]}.json", "Product ${ids[0]} does not exist") }
-        ChangeStubs.install(this)
+        protech = ChangeStubs.install(this)
     }
 
     StubApi get(String path, Closure handler) {

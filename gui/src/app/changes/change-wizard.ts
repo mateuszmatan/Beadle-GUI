@@ -10,7 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatAutocompleteModule, MatAutocompleteTrigger } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -20,13 +20,13 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
 import { catchError, finalize, of } from 'rxjs';
+import { MyDepartment } from '../beadle/my-department';
 import { DepartmentsApi, ProductsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
-import { FieldProblem } from '../core/models';
-import { CHANGES, beadleProduct } from '../core/sections';
+import { NEW_CHANGE, beadleChange, beadleProduct } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { DepartmentGroup, byDepartment } from '../products/departments';
-import { filled, fitsColumn, max, text } from '../shared/form-controls';
+import { filled, max } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
 import { ChangeRequest, ChangesApi, JiraIssue, ProductionChange } from './change-api';
@@ -36,24 +36,27 @@ import {
   TIME_ZONE_NOTE,
   approverNames,
   changeRequest,
-  eachMoment,
+  fits,
   isoDate,
   matchingVersions,
   momentInputs,
   plannedSchedule,
   readMoments,
+  scheduleForm,
   scheduleProblem,
   storiesFollowing,
   toggled,
   versionText,
   windowText,
 } from './change-model';
+import { problemText } from './change-problems';
 import { ChangeSummary } from './change-summary';
-import { ChangeTemplateForm, templateLabel } from './change-template-form';
+import { ChangeTasksForm } from './change-tasks-form';
+import { TasksForm, applyTaskProblems, tasksForm, toTaskTexts } from './change-tasks-model';
+import { ChangeTemplateForm } from './change-template-form';
 import {
   JIRA_KEY,
   JIRA_KEY_ERROR,
-  TEMPLATE_PREFIX,
   TemplateForm,
   applyTemplateProblems,
   templateForm,
@@ -68,31 +71,6 @@ const DETAILS = 2;
 const SCHEDULE = 3;
 const REVIEW = 4;
 const RAISED = 5;
-
-const REQUEST_LABELS: Record<string, string> = {
-  productId: 'Product',
-  serviceIds: 'Services',
-  fixVersion: 'FixVersion',
-  epicKeys: 'Epics',
-  storyKeys: 'Stories',
-  shortDescription: 'Short description',
-  description: 'Description',
-};
-
-export function requestLabel(field: string): string | null {
-  if (field.startsWith(TEMPLATE_PREFIX)) {
-    return templateLabel(field.slice(TEMPLATE_PREFIX.length));
-  }
-  const moment = MOMENTS.find(({ key }) => field === `schedule.${key}`);
-  return moment?.label ?? REQUEST_LABELS[field] ?? null;
-}
-
-function problemText(problem: FieldProblem): string {
-  const label = requestLabel(problem.field);
-  return label ? `${label}: ${problem.message}` : problem.message;
-}
-
-const momentForm = () => new FormGroup({ date: text(''), time: text('') });
 
 const NO_DEPARTMENT = -1;
 
@@ -119,6 +97,7 @@ const sameSearch = (search: Search, other: Search | null) =>
     MatProgressBarModule,
     MatSelectModule,
     ChangeSummary,
+    ChangeTasksForm,
     ChangeTemplateForm,
     IntegrationNote,
   ],
@@ -131,7 +110,7 @@ export class ChangeWizard implements HasUnsavedChanges {
   private readonly productsApi = inject(ProductsApi);
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly section = CHANGES;
+  protected readonly section = NEW_CHANGE;
   protected readonly steps = STEPS;
   protected readonly moments = MOMENTS;
   protected readonly errorText = errorText;
@@ -140,7 +119,8 @@ export class ChangeWizard implements HasUnsavedChanges {
   protected readonly versionText = versionText;
   protected readonly approverNames = approverNames;
   protected readonly counted = counted;
-  protected readonly defaultsLink = beadleProduct;
+  protected readonly templateLink = beadleProduct;
+  protected readonly changeLink = beadleChange;
   protected readonly jiraKeyError = JIRA_KEY_ERROR;
   protected readonly timeZoneNote = TIME_ZONE_NOTE;
   protected readonly departmentKey = departmentKey;
@@ -148,10 +128,10 @@ export class ChangeWizard implements HasUnsavedChanges {
   protected readonly step = signal(0);
   protected readonly checked = signal(false);
 
-  protected readonly departmentId = new FormControl<number | null>(null);
+  protected readonly departmentId = new FormControl(inject(MyDepartment).departmentId());
   protected readonly productId = new FormControl<number | null>(null);
-  private readonly chosenDepartment = toSignal(this.departmentId.valueChanges, {
-    initialValue: null,
+  protected readonly chosenDepartment = toSignal(this.departmentId.valueChanges, {
+    initialValue: this.departmentId.value,
   });
   private readonly chosenProduct = toSignal(this.productId.valueChanges, { initialValue: null });
 
@@ -185,16 +165,12 @@ export class ChangeWizard implements HasUnsavedChanges {
     return this.groups().find((group) => departmentKey(group) === id)?.products ?? [];
   });
 
-  protected readonly product = rxResource({
-    params: () => this.chosenProduct() ?? undefined,
-    stream: ({ params }) => this.productsApi.get(params),
-  });
   protected readonly profile = rxResource({
     params: () => this.chosenProduct() ?? undefined,
     stream: ({ params }) => this.changesApi.profile(params),
   });
   protected readonly details = signal<TemplateForm | null>(null);
-  protected readonly serviceIds = signal<number[]>([]);
+  protected readonly tasks = signal<TasksForm | null>(null);
 
   private readonly projectKey = signal('');
   private readonly project = computed(() => {
@@ -255,7 +231,7 @@ export class ChangeWizard implements HasUnsavedChanges {
   });
 
   protected readonly installationDate = new FormControl('', { nonNullable: true });
-  protected readonly schedule = new FormGroup(eachMoment(momentForm));
+  protected readonly schedule = scheduleForm();
   private readonly scheduleValue = toSignal(this.schedule.valueChanges, {
     initialValue: this.schedule.getRawValue(),
   });
@@ -263,11 +239,11 @@ export class ChangeWizard implements HasUnsavedChanges {
 
   protected readonly shortDescription = new FormControl('', {
     nonNullable: true,
-    validators: [Validators.required, fitsColumn((value) => [value], '', 160)],
+    validators: [Validators.required, fits(160)],
   });
   protected readonly description = new FormControl('', {
     nonNullable: true,
-    validators: [Validators.required, fitsColumn((value) => [value], '', 4000)],
+    validators: [Validators.required, fits(4000)],
   });
   protected readonly preview = signal<ProductionChange | null>(null);
   protected readonly previewing = signal(false);
@@ -279,7 +255,7 @@ export class ChangeWizard implements HasUnsavedChanges {
   private filledDate = '';
 
   protected readonly nextLabel = computed(() =>
-    this.step() === REVIEW ? 'Raise the change in ServiceNow' : 'Continue',
+    this.step() === REVIEW ? 'Raise the change in ProTech' : 'Continue',
   );
 
   constructor() {
@@ -291,12 +267,11 @@ export class ChangeWizard implements HasUnsavedChanges {
       .pipe(takeUntilDestroyed())
       .subscribe(() => this.fillSchedule());
     effect(() => {
-      const product = this.product.hasValue() ? this.product.value() : null;
-      this.serviceIds.set(product?.services.map((service) => service.id) ?? []);
-    });
-    effect(() => {
       const profile = this.profile.hasValue() ? this.profile.value() : null;
-      untracked(() => this.details.set(profile ? templateForm(profile.template) : null));
+      untracked(() => {
+        this.details.set(profile ? templateForm(profile.template) : null);
+        this.tasks.set(profile ? tasksForm(profile.tasks) : null);
+      });
     });
     effect((onCleanup) => {
       const form = this.details();
@@ -356,6 +331,7 @@ export class ChangeWizard implements HasUnsavedChanges {
     this.checked.set(true);
     if (this.step() === DETAILS) {
       this.details()?.markAllAsTouched();
+      this.tasks()?.markAllAsTouched();
     }
     if (this.step() === SCHEDULE) {
       this.schedule.markAllAsTouched();
@@ -384,8 +360,8 @@ export class ChangeWizard implements HasUnsavedChanges {
         if (!this.chosenProduct()) {
           return 'Choose the product';
         }
-        if (!this.details() || !this.product.hasValue()) {
-          return this.product.isLoading() || this.profile.isLoading()
+        if (!this.details()) {
+          return this.profile.isLoading()
             ? 'Wait until the product is loaded'
             : 'Choose a product that can be loaded';
         }
@@ -393,7 +369,9 @@ export class ChangeWizard implements HasUnsavedChanges {
       case SCOPE:
         return this.scopeProblem();
       case DETAILS:
-        return this.details()?.invalid ? 'Some fields need your attention.' : null;
+        return this.details()?.invalid || this.tasks()?.invalid
+          ? 'Some fields need your attention.'
+          : null;
       case SCHEDULE:
         return scheduleProblem(this.planned(), new Date());
       case REVIEW:
@@ -420,12 +398,6 @@ export class ChangeWizard implements HasUnsavedChanges {
       this.forgetIssues();
       this.searched.set(search);
     }
-  }
-
-  protected toggleService(id: number, on: boolean): void {
-    this.serviceIds.update((ids) =>
-      on ? [...new Set([...ids, id])] : ids.filter((i) => i !== id),
-    );
   }
 
   protected toggleEpic(key: string, on: boolean): void {
@@ -480,10 +452,7 @@ export class ChangeWizard implements HasUnsavedChanges {
     if (this.epics.error() || this.stories.error()) {
       return 'The epics and stories of this FixVersion could not be loaded';
     }
-    if (!this.epicKeys().length) {
-      return 'Choose at least one epic';
-    }
-    return this.serviceIds().length ? null : 'Choose at least one service';
+    return this.epicKeys().length ? null : 'Choose at least one epic';
   }
 
   private search(): Search {
@@ -557,13 +526,13 @@ export class ChangeWizard implements HasUnsavedChanges {
     return changeRequest(
       {
         productId: this.chosenProduct()!,
-        serviceIds: this.serviceIds(),
         fixVersion: this.searched()!.fixVersion,
         epicKeys: this.epicKeys(),
         storyKeys: this.storyKeys(),
       },
       this.planned() as Moments,
       toTemplate(this.details()!),
+      toTaskTexts(this.tasks()!),
     );
   }
 
@@ -623,10 +592,7 @@ export class ChangeWizard implements HasUnsavedChanges {
 
   private fail(error: unknown, lead = ''): void {
     const problems = fieldProblems(error);
-    const form = this.details();
-    if (form) {
-      applyTemplateProblems(form, problems);
-    }
+    applyTaskProblems(this.tasks()!, applyTemplateProblems(this.details()!, problems));
     this.problem.set(lead + errorMessage(error));
     this.problems.set(problems.map(problemText));
   }

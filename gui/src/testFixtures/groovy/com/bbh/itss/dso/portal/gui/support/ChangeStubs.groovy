@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.gui.support
 
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
@@ -8,14 +9,28 @@ import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
 import static com.bbh.itss.dso.portal.gui.support.StubResponse.json
 import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static java.time.LocalDate.now
+import static java.time.temporal.ChronoUnit.DAYS
+import static java.time.temporal.ChronoUnit.HOURS
+import static java.time.temporal.ChronoUnit.MINUTES
+import static java.time.temporal.ChronoUnit.SECONDS
 
 final class ChangeStubs {
 
+    static final String STALE = 'The record was changed by someone else in the meantime. Reload it and apply your change again.'
+
+    static final String NOT_APPLIED = 'A minute later ProTech still held its own values, so Beadle shows those.'
+
+    static final List<String> SCHEDULE = ['installationStart', 'installationEnd', 'validationStart', 'validationEnd', 'firstUsage']
+
+    static final List<String> EDITABLE = ['assignmentGroup', 'category', 'configurationItem', 'release', 'incident', 'problem',
+                                          'affectedClients', 'description', 'approvers', 'downtime', 'planning',
+                                          'privilegedAccess', 'riskAssessment']
+
     static final Map PLANNING = [
             testSummary       : 'Unit, smoke, regression and performance tests and the security scans passed on QC.',
-            implementationPlan: 'Deploy each service with its change task, in the order listed.',
-            validationPlan    : 'Run the smoke tests of the DevSecOps pipeline against production and check the monitoring of each service.',
-            backoutPlan       : 'Redeploy the previous release of each service from Nexus.',
+            implementationPlan: 'Work through the change tasks in the order listed.',
+            validationPlan    : 'Run the smoke tests of the DevSecOps pipeline against production and check the monitoring.',
+            backoutPlan       : 'Redeploy the previous release from Nexus.',
             firstUsePlan      : 'The business owner confirms the first use of the release in production.']
 
     static final Map CERT_TEMPLATE = [
@@ -31,6 +46,10 @@ final class ChangeStubs {
                                 businessImpact: 'Low', changeComplexity: 'Low', validationComplexity: 'Low',
                                 backoutTesting: 'Tested on QC, about 15 minutes', platformStatus: 'Existing platform']]
 
+    static final List<Map> CERT_TASKS = [
+            taskText('Deploy CertScanner to production', 'Deploy the release of CertScanner with its deployment jobs.'),
+            taskText('Validate CertScanner in production', 'Run the smoke tests of CertScanner and confirm the release.')]
+
     static final List<Map> CERT_ISSUES = [
             issue('CERT-120', 'Expiry alerts for certificates', null, '4.2', 3),
             issue('CERT-121', 'E-mail the certificate owner', 'CERT-120', '4.2', 5),
@@ -45,19 +64,22 @@ final class ChangeStubs {
     private ChangeStubs() {
     }
 
-    static void install(StubApi api) {
-        def profiles = new ConcurrentHashMap<Integer, Map>([1: [version: 2, template: CERT_TEMPLATE]])
-        def changes = new CopyOnWriteArrayList<Map>([first()])
-        def numbers = new AtomicInteger(31001)
+    static ProTech install(StubApi api) {
+        def profiles = new ConcurrentHashMap<Integer, Map>([1: [version: 2, template: CERT_TEMPLATE, tasks: CERT_TASKS]])
+        def protech = new ProTech()
         def projectOf = { RecordedRequest request, String id ->
             request.params().project ?: (profiles[id as int]?.template ?: suggested(id)).jiraProjectKey
         }
 
         api.get('/api/changes/integrations') { [jiraConnected: false, serviceNowConnected: false] }
-        api.get('/api/changes') { changes.reverse() }
+        api.get('/api/changes') { RecordedRequest request -> protech.list(request.params().departmentId) }
         api.get('/api/changes/(\\d+)') { RecordedRequest request, List<String> ids ->
-            def found = changes.find { it.id == ids[0] as int }
-            found ? json(found) : problem(404, 'Not found', "Change ${ids[0]} does not exist")
+            def found = protech.find(ids[0])
+            found ? json(protech.read(found)) : problem(404, 'Not found', "Change ${ids[0]} does not exist")
+        }
+        api.on('PUT', '/api/changes/(\\d+)') { RecordedRequest request, List<String> ids ->
+            def found = protech.find(ids[0])
+            found ? protech.update(found, request.json() as Map) : problem(404, 'Not found', "Change ${ids[0]} does not exist")
         }
         api.get('/api/change-profiles') {
             profiles.collect { id, stored ->
@@ -67,15 +89,16 @@ final class ChangeStubs {
         api.get('/api/products/(\\d+)/change-profile') { RecordedRequest request, List<String> ids ->
             def stored = profiles[ids[0] as int]
             [productId: ids[0] as int, productName: product(ids[0]).name, version: stored?.version,
-             updatedAt: stored ? '2026-10-05T12:00:00Z' : null, template: stored?.template ?: suggested(ids[0])]
+             updatedAt: stored ? '2026-10-05T12:00:00Z' : null, template: stored?.template ?: suggested(ids[0]),
+             tasks    : stored?.tasks ?: suggestedTasks(ids[0])]
         }
         api.on('PUT', '/api/products/(\\d+)/change-profile') { RecordedRequest request, List<String> ids ->
             def stored = profiles[ids[0] as int]
             Map asked = request.json() as Map
             if (asked.version != stored?.version) {
-                return problem(409, 'Conflict', "The ServiceNow defaults of ${product(ids[0]).name} were changed by someone else. Reload the page.")
+                return problem(409, 'Conflict', STALE)
             }
-            def saved = [version: stored ? stored.version + 1 : 0, template: asked.template]
+            def saved = [version: stored ? stored.version + 1 : 0, template: asked.template, tasks: asked.tasks]
             profiles[ids[0] as int] = saved
             [productId: ids[0] as int, productName: product(ids[0]).name, updatedAt: '2026-10-07T09:00:00Z'] + saved
         }
@@ -102,18 +125,8 @@ final class ChangeStubs {
                     .collect { jiraIssue(it) }
         }
         api.on('POST', '/api/changes/preview') { RecordedRequest request -> draft(request.json() as Map) }
-        api.on('POST', '/api/changes') { RecordedRequest request ->
-            Map asked = request.json() as Map
-            def number = "CHG00${numbers.incrementAndGet()}".toString()
-            Map change = draft(asked) + [id: changes.size() + 1, number: number, createdAt: '2026-10-07T08:00:00Z',
-                                         shortDescription: asked.shortDescription ?: draft(asked).shortDescription,
-                                         description: asked.description ?: draft(asked).description]
-            change.tasks = (change.tasks as List<Map>).withIndex().collect { task, index ->
-                task + [number: String.format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1)]
-            }
-            changes << change
-            json(change, 201)
-        }
+        api.on('POST', '/api/changes') { RecordedRequest request -> json(protech.raise(request.json() as Map), 201) }
+        protech
     }
 
     static Map suggested(Object id) {
@@ -130,37 +143,57 @@ final class ChangeStubs {
                             platformStatus: null]]
     }
 
+    static List<Map> suggestedTasks(Object id) {
+        def name = product(id).name
+        [taskText("Deploy $name to production", "Deploy the release of $name in the change window with its deployment jobs, " +
+                'then run the smoke tests of the DevSecOps pipeline and record the result in this task.'),
+         taskText("Validate $name in production", "Run the post-install validation of $name: the smoke tests and the monitoring, " +
+                 'then confirm the release with the business owner in this task.')]
+    }
+
     static Map draft(Map asked) {
         def product = product(asked.productId)
         def project = (asked.template as Map).jiraProjectKey as String
         def issues = issuesOf(project)
         def epics = issues.findAll { it.key in asked.epicKeys }
         def stories = issues.findAll { it.key in asked.storyKeys }
-        def services = (product.services as List<Map>).findAll { !asked.serviceIds || it.id in asked.serviceIds }
         [id              : null, number: null, productId: product.id, productCode: product.code, productName: product.name,
-         departmentName  : 'Corporate Technology', fixVersion: asked.fixVersion, schedule: asked.schedule,
+         departmentId    : product.departmentId, departmentName: departmentName(product.departmentId),
+         fixVersion      : asked.fixVersion, schedule: asked.schedule,
          shortDescription: "$product.name $asked.fixVersion: ${epics*.summary.join('; ')}".toString(),
          description     : "Production release of $product.name ($product.code), FixVersion $asked.fixVersion.\n\nEpics:\n"
                  + epics.collect { "$it.key $it.summary ($it.status)" }.join('\n') + '\n\nStories:\n'
                  + stories.collect { "$it.key $it.summary" }.join('\n'),
          template        : asked.template + [release: (asked.template as Map).release ?: asked.fixVersion],
          epicKeys        : asked.epicKeys, storyKeys: asked.storyKeys,
-         tasks           : services.collect { task(it.name as String, product.name as String) },
-         url             : null, createdAt: null]
+         tasks           : (asked.tasks as List<Map>).collect { task(null, it, 'OPEN') },
+         url             : null, state: 'DRAFT', workflow: [], syncedAt: null, syncProblem: null, update: null,
+         version         : null, createdAt: null]
     }
 
-    private static Map first() {
-        def schedule = [installationStart: '2026-10-10T17:00:00Z', installationEnd: '2026-10-10T19:00:00Z',
-                        validationStart  : '2026-10-10T19:00:00Z', validationEnd: '2026-10-10T20:00:00Z',
-                        firstUsage       : '2026-10-12T08:00:00Z']
-        def change = draft([productId: 1, serviceIds: [1], fixVersion: 'CERT 4.1', epicKeys: ['CERT-140'], storyKeys: [],
-                            schedule : schedule, template: CERT_TEMPLATE])
-        change + [id: 1, number: 'CHG0031001', createdAt: '2026-10-07T08:00:00Z',
-                  tasks: (change.tasks as List<Map>).collect { it + [number: 'CTASK0310011'] }]
+    static List<String> unapplied(Map requested, Map held) {
+        def differing = { List<String> keys, Map wanted, Map stored, Closure<Boolean> same ->
+            keys.findAll { !same(wanted[it], stored[it]) }
+        }
+        def paths = differing(['shortDescription', 'description'], requested, held) { a, b -> a == b } +
+                differing(SCHEDULE, requested.schedule as Map, held.schedule as Map) { a, b ->
+                    Instant.parse(a as String) == Instant.parse(b as String)
+                }.collect { "schedule.$it".toString() } +
+                differing(EDITABLE, requested.template as Map, held.template as Map) { a, b -> a == b }
+                        .collect { "template.$it".toString() }
+        texts(requested.tasks as List<Map>) == texts(held.tasks as List<Map>) ? paths : paths + 'tasks'
+    }
+
+    private static List<List> texts(List<Map> tasks) {
+        tasks.findAll { it.state != 'CANCELED' }.collect { [it.shortDescription, it.description] }
     }
 
     private static Map product(Object id) {
         fixture("product-${id}.json") as Map
+    }
+
+    private static String departmentName(Object id) {
+        (fixture('departments.json') as List<Map>).find { it.id == id }?.name
     }
 
     private static List<Map> issuesOf(String project) {
@@ -174,13 +207,141 @@ final class ChangeStubs {
         issue.subMap('key', 'summary', 'status', 'epicKey', 'updated')
     }
 
-    private static Map task(String service, String product) {
-        [number     : null, serviceName: service, shortDescription: "Deploy $service of $product to production".toString(),
-         description: "Deploy $service of $product, then run its smoke tests.".toString()]
+    private static Map taskText(String shortDescription, String description) {
+        [shortDescription: shortDescription, description: description]
+    }
+
+    private static Map task(String number, Map text, String state) {
+        [number: number, shortDescription: text.shortDescription, description: text.description, state: state]
     }
 
     private static Map issue(String key, String summary, String epicKey, String fixVersion, int daysAgo) {
         [key       : key, summary: summary, status: daysAgo < 10 ? 'In Review' : 'Done', epicKey: epicKey,
          fixVersion: fixVersion, updated: now().minusDays(daysAgo).toString()]
+    }
+
+    private static String stamp(Instant time = Instant.now()) {
+        time.truncatedTo(SECONDS).toString()
+    }
+
+    static final class ProTech {
+
+        volatile boolean applying = true
+        final List<Map> changes = new CopyOnWriteArrayList<Map>()
+        final Map<Integer, List<Map>> canceling = new ConcurrentHashMap<>()
+        final AtomicInteger changeNumbers = new AtomicInteger(31001)
+        final AtomicInteger taskNumbers = new AtomicInteger(320000)
+
+        ProTech() {
+            def at = Instant.now().truncatedTo(MINUTES)
+            def today = at.truncatedTo(DAYS)
+            changes << seed(1, 'CHG0030990', 1, 'CERT 4.0', at.minus(10, DAYS), today.minus(7, DAYS).plus(17, HOURS),
+                    ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL', 'CTASK_APPROVAL', 'IMPLEMENTATION',
+                     'CLOSED'], 'CLOSED', 6)
+            changes << seed(2, 'CHG0030995', 1, 'CERT 4.1.1', at.minus(3, DAYS), at.minus(1, HOURS),
+                    ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL', 'CTASK_APPROVAL', 'IMPLEMENTATION'],
+                    'WORK_IN_PROGRESS', 5) + [update: [status       : 'NOT_APPLIED', requestedAt: stamp(at.minus(30, MINUTES)),
+                                                      departmentName: 'Corporate Technology',
+                                                      fields        : ['schedule.installationStart', 'schedule.installationEnd'],
+                                                      message       : NOT_APPLIED, checkedAt: stamp(at.minus(29, MINUTES))]]
+            changes << seed(3, 'CHG0031000', 2, 'PAYHUB 4.2', at.minus(30, MINUTES), at.plus(20, HOURS),
+                    ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL', 'CTASK_APPROVAL', 'ESCALATED_APPROVAL'],
+                    'OPEN', 4)
+            changes << seed(4, 'CHG0031001', 1, 'CERT 4.1', at.minus(1, DAYS), today.plus(3, DAYS).plus(17, HOURS),
+                    ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL'], 'OPEN', 3)
+        }
+
+        List<Map> list(String departmentId) {
+            changes.findAll { !departmentId || it.departmentId == departmentId as int }
+                    .collect { it.state == 'CLOSED' ? it : read(it) }
+                    .sort { a, b -> b.id <=> a.id }
+        }
+
+        Map find(Object id) {
+            changes.find { it.id == id as int }
+        }
+
+        Map read(Map change) {
+            if (applying && (change.update as Map)?.status == 'PENDING') {
+                change.tasks = (change.tasks as List<Map>).collect {
+                    it.number ? it : it + [number: String.format('CTASK%07d', taskNumbers.incrementAndGet())]
+                } + (canceling.remove(change.id as int) ?: [])
+                change.update = (change.update as Map) + [status: 'APPLIED', fields: [], checkedAt: stamp()]
+                change.version = (change.version as int) + 1
+            }
+            change.syncedAt = stamp()
+            change
+        }
+
+        Object update(Map change, Map asked) {
+            if (asked.version != change.version) {
+                return problem(409, 'Conflict', STALE)
+            }
+            if (asked.departmentId != change.departmentId) {
+                return problem(403, 'Forbidden', "Only $change.departmentName can change $change.number")
+            }
+            if ((change.update as Map)?.status == 'PENDING') {
+                return problem(409, 'Conflict', "The last update of $change.number is still waiting for ProTech; " +
+                        'change it again once ProTech has applied it')
+            }
+            if (change.state == 'CLOSED') {
+                return problem(409, 'Conflict', "$change.number is closed in ProTech and can no longer be changed")
+            }
+            def held = change.tasks as List<Map>
+            def numbers = (asked.tasks as List<Map>)*.number.findAll()
+            def tasks = (asked.tasks as List<Map>).collect { wanted ->
+                task(wanted.number as String, wanted, held.find { it.number && it.number == wanted.number }?.state as String ?: 'OPEN')
+            }
+            def requested = [shortDescription: asked.shortDescription, description: asked.description,
+                             schedule        : asked.schedule,
+                             template        : (asked.template as Map) +
+                                     (change.template as Map).subMap('jiraProjectKey', 'type', 'timing') +
+                                     [release: (asked.template as Map).release ?: change.fixVersion],
+                             tasks           : tasks]
+            def fields = unapplied(requested, change)
+            canceling[change.id as int] = held.findAll { it.number && !(it.number in numbers) }.collect { it + [state: 'CANCELED'] }
+            change.putAll(requested + [update  : [status : 'PENDING', requestedAt: stamp(), departmentName: change.departmentName,
+                                                  fields : fields, message: null, checkedAt: stamp()],
+                                       version : (change.version as int) + 1, syncedAt: stamp()])
+            change
+        }
+
+        Map raise(Map asked) {
+            def number = "CHG00${changeNumbers.incrementAndGet()}".toString()
+            def drafted = draft(asked)
+            def raisedAt = stamp()
+            def change = drafted + [
+                    id              : (changes*.id.max() as int) + 1, number: number, createdAt: raisedAt,
+                    shortDescription: asked.shortDescription ?: drafted.shortDescription,
+                    description     : asked.description ?: drafted.description,
+                    tasks           : (drafted.tasks as List<Map>).withIndex().collect { task, index ->
+                        task + [number: String.format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1)]
+                    },
+                    workflow        : [[state: 'DRAFT', enteredAt: raisedAt]], syncedAt: raisedAt, version: 0]
+            changes << change
+            change
+        }
+
+        private static Map seed(int id, String number, int productId, String fixVersion, Instant raisedAt, Instant start,
+                                List<String> stages, String taskState, int version) {
+            def product = product(productId)
+            def template = productId == 1 ? CERT_TEMPLATE : suggested(productId)
+            def project = template.jiraProjectKey
+            def schedule = [installationStart: stamp(start), installationEnd: stamp(start.plus(2, HOURS)),
+                            validationStart  : stamp(start.plus(2, HOURS)), validationEnd: stamp(start.plus(3, HOURS)),
+                            firstUsage       : stamp(start.plus(3, HOURS))]
+            def texts = productId == 1 ? CERT_TASKS : suggestedTasks(productId)
+            def drafted = draft([productId: product.id, fixVersion: fixVersion, epicKeys: ["$project-140".toString()],
+                                 storyKeys: [], schedule: schedule, template: template, tasks: texts])
+            def entered = stages.withIndex().collect { stage, index ->
+                [state    : stage,
+                 enteredAt: stamp(stage == 'CLOSED' ? start.plus(3, HOURS) : raisedAt.plus(2 * index, MINUTES))]
+            }
+            drafted + [id      : id, number: number, createdAt: stamp(raisedAt), state: stages.last(), workflow: entered,
+                       tasks   : texts.withIndex().collect { text, index ->
+                           task(String.format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1), text, taskState)
+                       },
+                       syncedAt: stamp(raisedAt), version: version]
+        }
     }
 }

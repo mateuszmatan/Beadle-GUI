@@ -10,7 +10,7 @@ import java.util.Optional;
 
 public interface ChangeProfileJpaRepository extends JpaRepository<ChangeProfileEntity, Long> {
 
-    @EntityGraph(attributePaths = "privilegedUsers")
+    @EntityGraph(attributePaths = {"privilegedUsers", "tasks"})
     Optional<ChangeProfileEntity> findByProductId(long productId);
 
     @Query("""

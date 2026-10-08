@@ -61,6 +61,9 @@ describe('ProductDialog', () => {
     await render({ departmentId: 5 });
 
     expect(text(page().querySelector('h2'))).toBe('Add product');
+    expect(text(page().querySelector('.intro'))).toBe(
+      "Add its change template on the product's page.",
+    );
     expect(labels()).toEqual([
       'Product name',
       'Code',

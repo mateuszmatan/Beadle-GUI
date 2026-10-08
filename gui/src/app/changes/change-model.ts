@@ -1,10 +1,15 @@
+import { FormGroup } from '@angular/forms';
+import { fitsColumn, text } from '../shared/form-controls';
 import {
   ChangeRequest,
   ChangeSchedule,
+  ChangeTask,
   ChangeTemplate,
   ChangeTiming,
   JiraIssue,
   JiraVersion,
+  ProductionChange,
+  TaskText,
 } from './change-api';
 
 export type Moment = keyof ChangeSchedule;
@@ -27,7 +32,6 @@ export type MomentValues = Partial<Record<Moment, Partial<{ date: string; time: 
 
 export interface ChangeScope {
   productId: number;
-  serviceIds: readonly number[];
   fixVersion: string;
   epicKeys: readonly string[];
   storyKeys: readonly string[];
@@ -83,17 +87,32 @@ export function momentInputs(moments: Moments): MomentInputs {
   return eachMoment((key) => ({ date: isoDate(moments[key]), time: timeOf(moments[key]) }));
 }
 
+export const fits = (length: number) => fitsColumn((value) => [value], '', length);
+
+export function scheduleForm(schedule?: ChangeSchedule) {
+  const inputs = schedule ? momentInputs(eachMoment((key) => new Date(schedule[key]))) : null;
+  return new FormGroup(
+    eachMoment(
+      (key) => new FormGroup({ date: text(inputs?.[key].date), time: text(inputs?.[key].time) }),
+    ),
+  );
+}
+
 export function readMoments(inputs: MomentValues): Record<Moment, Date | null> {
   return eachMoment((key) => fromLocalInput(inputs[key]?.date, inputs[key]?.time));
 }
 
-export function scheduleProblem(moments: Record<Moment, Date | null>, now: Date): string | null {
+export function scheduleProblem(
+  moments: Record<Moment, Date | null>,
+  now: Date,
+  upcoming = true,
+): string | null {
   const missing = MOMENTS.find(({ key }) => !moments[key]);
   if (missing) {
     return `Enter the date and time of the ${missing.label.toLowerCase()}`;
   }
   const at = (key: Moment) => moments[key]!.getTime();
-  if (at('installationStart') <= now.getTime()) {
+  if (upcoming && at('installationStart') <= now.getTime()) {
     return 'The installation must start in the future';
   }
   if (at('installationEnd') <= at('installationStart')) {
@@ -165,18 +184,44 @@ export function approverNames(template: ChangeTemplate): string[] {
   return [l1Manager, l2Manager, businessApprover].filter((name): name is string => !!name);
 }
 
+export function scheduleOf(moments: Moments): ChangeSchedule {
+  return eachMoment((key) => moments[key].toISOString());
+}
+
 export function changeRequest(
   scope: ChangeScope,
   moments: Moments,
   template: ChangeTemplate,
+  tasks: TaskText[],
 ): ChangeRequest {
   return {
     productId: scope.productId,
-    serviceIds: [...scope.serviceIds],
     fixVersion: scope.fixVersion.trim(),
     epicKeys: [...scope.epicKeys],
     storyKeys: [...scope.storyKeys],
-    schedule: eachMoment((key) => moments[key].toISOString()),
+    schedule: scheduleOf(moments),
     template,
+    tasks,
   };
+}
+
+export const activeTasks = (tasks: readonly ChangeTask[]) =>
+  tasks.filter((task) => task.state !== 'CANCELED');
+
+export function editHint(
+  change: Pick<ProductionChange, 'number' | 'departmentId' | 'departmentName' | 'update'>,
+  departmentId: number | null,
+): string | null {
+  if (change.departmentId === null) {
+    return `No department owns ${change.number}, so it cannot be changed in Beadle`;
+  }
+  if (departmentId === null) {
+    return 'Choose your department in Changes to change it';
+  }
+  if (departmentId !== change.departmentId) {
+    return `Only ${change.departmentName ?? 'its department'} can change it`;
+  }
+  return change.update?.status === 'PENDING'
+    ? 'The last update is still waiting for ProTech; change it again once ProTech has applied it'
+    : null;
 }

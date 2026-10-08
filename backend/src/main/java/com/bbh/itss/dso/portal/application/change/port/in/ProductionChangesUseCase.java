@@ -8,9 +8,11 @@ import java.util.List;
 
 public interface ProductionChangesUseCase {
 
-    List<ProductionChange> list();
+    List<ProductionChange> list(Long departmentId);
 
     ProductionChange get(long id);
+
+    ProductionChange update(long id, ChangeEditCommand command);
 
     ChangeIntegrations integrations();
 

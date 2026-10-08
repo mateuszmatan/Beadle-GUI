@@ -20,11 +20,7 @@ import { RelativeTimePipe, counted } from '../shared/formatting';
 import { ProductDialog, ProductDialogData } from './product-dialog';
 
 function tally(group: DepartmentGroup): string {
-  const { productCount, serviceCount } = group.department ?? {
-    productCount: group.products.length,
-    serviceCount: group.products.reduce((sum, product) => sum + product.serviceCount, 0),
-  };
-  return `${counted(productCount, 'product')} · ${counted(serviceCount, 'service')}`;
+  return counted(group.department?.productCount ?? group.products.length, 'product');
 }
 
 @Component({
@@ -52,7 +48,7 @@ export class BeadleProducts {
   private readonly router = inject(Router);
 
   protected readonly beadleProduct = beadleProduct;
-  protected readonly columns = ['product', 'ownerTeam', 'services', 'defaults'];
+  protected readonly columns = ['product', 'ownerTeam', 'template'];
   protected readonly search = new FormControl('', { nonNullable: true });
   protected readonly query = toSignal(
     this.search.valueChanges.pipe(
@@ -68,15 +64,15 @@ export class BeadleProducts {
     stream: ({ params }) => this.api.list(params),
   });
   protected readonly departments = rxResource({ stream: () => this.departmentsApi.list() });
-  protected readonly defaults = rxResource({
+  protected readonly templates = rxResource({
     stream: () => this.changesApi.profiles(),
   });
   protected readonly stored = computed(
     () =>
       new Map(
-        (this.defaults.hasValue() ? this.defaults.value() : []).map((defaults) => [
-          defaults.productId,
-          defaults,
+        (this.templates.hasValue() ? this.templates.value() : []).map((template) => [
+          template.productId,
+          template,
         ]),
       ),
   );

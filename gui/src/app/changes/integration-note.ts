@@ -16,8 +16,8 @@ import { ChangesApi } from './change-api';
               Jira is not connected yet, so the epics and stories are demo data.
             }
             @if (!connected.serviceNowConnected) {
-              ServiceNow is not connected yet, so a raised change stays in the portal under a demo
-              number.
+              ProTech is not connected yet: Beadle talks to a demo ProTech that moves every change
+              through its workflow and applies updates a few seconds after they are published.
             }
           </span>
         </div>

@@ -83,7 +83,8 @@ describe('DepartmentsAdmin', () => {
     create(false);
     await load();
 
-    expect(headers()).toEqual(['Department', 'Products', 'Services', '']);
+    expect(headers()).toEqual(['Department', 'Products', '']);
+    expect(text(page().querySelector('.count'))).toBe('2 departments · 1 product');
     expect(page().querySelector('section.chart')).toBeNull();
   });
 
@@ -92,7 +93,7 @@ describe('DepartmentsAdmin', () => {
     await load([]);
 
     expect(text(page().querySelector('.empty-state h3'))).toBe('No departments yet');
-    expect(text(page().querySelector('.count'))).toBe('0 departments · 0 products · 0 services');
+    expect(text(page().querySelector('.count'))).toBe('0 departments · 0 products');
   });
 
   it('shows why the departments could not be loaded', async () => {
@@ -104,9 +105,13 @@ describe('DepartmentsAdmin', () => {
     expect(page().querySelector('.banner')?.textContent).toContain('cannot be reached');
   });
 
-  it('deletes only a department without products', async () => {
+  it('deletes only a department without products or changes', async () => {
     create(true);
-    await load();
+    await load([
+      department(),
+      fundServices,
+      department({ id: 4, name: 'Custody', productCount: 0, changeCount: 2 }),
+    ]);
 
     expect(buttonOf(row('Corporate Technology'), 'Delete').disabled).toBe(true);
     expect(
@@ -119,6 +124,10 @@ describe('DepartmentsAdmin', () => {
     );
     expect(buttonOf(row('Fund Services'), 'Delete').disabled).toBe(false);
     expect(row('Fund Services').querySelector('.delete')?.hasAttribute('title')).toBe(false);
+    expect(buttonOf(row('Custody'), 'Delete').disabled).toBe(true);
+    expect(row('Custody').querySelector('.delete')?.getAttribute('title')).toBe(
+      'Custody still owns 2 changes raised in Beadle, so it cannot be deleted.',
+    );
   });
 
   it('adds and renames a department and lists the departments again', async () => {
