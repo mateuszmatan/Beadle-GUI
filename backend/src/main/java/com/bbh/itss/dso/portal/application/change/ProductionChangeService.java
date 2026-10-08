@@ -94,25 +94,17 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @WithoutTransaction
     public ProductionChange update(long id, ChangeEditCommand command) {
         ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
-        requireUnchangedSince(command.version(), stored.editedVersion(), stored.version());
         requireDepartment(stored, command.departmentId());
-        if (stored.update() != null && stored.update().pending()) {
-            throw new IllegalStateException("The last update of " + stored.number()
-                    + " is still waiting for ProTech; change it again once ProTech has applied it");
-        }
-        ProductionChange current = synced(stored);
-        if (!current.state().isOpen()) {
-            throw new IllegalStateException(current.number() + " is closed in ProTech and can no longer be changed");
-        }
-        if (!current.unappliedIn(stored).isEmpty()) {
-            throw staleVersion();
-        }
+        requireUnchangedSince(command.version(), stored.editedVersion(), stored.version());
         Instant now = now(clock);
-        ProductionChange edited = current.edited(command.shortDescription(), command.description(),
-                command.schedule(), command.template(), command.tasks(), now);
-        serviceNow.update(edited);
-        ProductionChange published = edited.toBuilder().update(requested(now, current.departmentName())).build();
-        ProductionChange verified = verified(published, current, now);
+        ProductionChange edit = stored.edited(command.shortDescription(), command.description(), command.schedule(),
+                command.template(), command.tasks(), now);
+        ProductionChange current = synced(stored);
+        requireChangeable(current, stored);
+        ProductionChange claimed = changes.save(edit.rebasedOn(current).toBuilder()
+                .update(requested(now, current.departmentName())).build());
+        publish(claimed, current);
+        ProductionChange verified = verified(claimed, current, now);
         return recorded(verified).withSyncProblem(verified.syncProblem());
     }
 
@@ -230,12 +222,21 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         return synced;
     }
 
-    private ProductionChange recorded(ProductionChange verified) {
+    private void publish(ProductionChange claimed, ProductionChange current) {
         try {
-            return changes.save(verified);
+            serviceNow.update(claimed);
+        } catch (RuntimeException refused) {
+            recorded(current.toBuilder().version(claimed.version()).build());
+            throw refused;
+        }
+    }
+
+    private ProductionChange recorded(ProductionChange change) {
+        try {
+            return changes.save(change);
         } catch (IllegalStateException stale) {
-            ProductionChange latest = changes.load(verified.id()).orElseThrow(() -> stale);
-            return changes.save(verified.toBuilder().version(latest.version()).build());
+            ProductionChange latest = changes.load(change.id()).orElseThrow(() -> stale);
+            return changes.save(change.toBuilder().version(latest.version()).build());
         }
     }
 
@@ -246,6 +247,22 @@ public class ProductionChangeService implements ProductionChangesUseCase {
                     : published.synced(remote, now);
         } catch (UncheckedIOException e) {
             return published.unverified(current, unreachable(e));
+        }
+    }
+
+    private static void requireChangeable(ProductionChange current, ProductionChange stored) {
+        if (current.syncProblem() != null) {
+            throw new IllegalStateException(current.syncProblem());
+        }
+        if (current.update() != null && current.update().pending()) {
+            throw new IllegalStateException("The last update of " + current.number()
+                    + " is still waiting for ProTech; change it again once ProTech has applied it");
+        }
+        if (!current.state().isOpen()) {
+            throw new IllegalStateException(current.number() + " is closed in ProTech and can no longer be changed");
+        }
+        if (!current.unappliedIn(stored).isEmpty()) {
+            throw staleVersion();
         }
     }
 

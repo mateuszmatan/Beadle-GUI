@@ -36,6 +36,7 @@ import static com.bbh.itss.dso.portal.domain.change.ChangeUpdate.NOT_APPLIED_MES
 import static com.bbh.itss.dso.portal.domain.change.ChangeUpdate.Status.APPLIED
 import static com.bbh.itss.dso.portal.domain.change.ChangeUpdate.Status.NOT_APPLIED
 import static com.bbh.itss.dso.portal.domain.change.ChangeUpdate.Status.PENDING
+import static com.bbh.itss.dso.portal.domain.change.ChangeUpdate.requested
 import static com.bbh.itss.dso.portal.domain.change.TaskState.OPEN
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.domain.shared.Failures.staleVersion
@@ -57,8 +58,8 @@ class ProductionChangeServiceSpec extends Specification {
     static final List ISSUES = [epic('CERT-1', 'Expiry alerts'), epic('CERT-5', 'Audit trail'),
                                 story('CERT-2', 'E-mail the owner', 'CERT-1'), story('CERT-6', 'Record it', 'CERT-5')]
     static final ChangeTask NEW_TASK = new ChangeTask(null, 'Check the audit trail', 'Open the audit trail.', null)
-    static final ChangeUpdate PENDING_UPDATE = new ChangeUpdate(PENDING, NOW, 'Corporate Technology',
-            ['shortDescription'], null, NOW)
+    static final String PENDING_REFUSAL = 'The last update of CHG0031001 is still waiting for ProTech; change it' +
+            ' again once ProTech has applied it'
 
     ChangeProductsPort products = Stub()
     ProductionChangeRepositoryPort changes = Mock()
@@ -474,7 +475,7 @@ class ProductionChangeServiceSpec extends Specification {
         'updated' | { ProductionChangeService it -> it.update(8L, edit()) }
     }
 
-    def "an update its department publishes to ProTech is verified as applied and stored"() {
+    def "an update its department claims, publishes to ProTech, verifies as applied and stores"() {
         given:
         def stored = raised()
         def applied = raised(shortDescription: 'Renamed', state: BUSINESS_APPROVAL,
@@ -489,14 +490,17 @@ class ProductionChangeServiceSpec extends Specification {
         1 * changes.synced(7L, NOW)
 
         then:
-        1 * serviceNow.update({ ProductionChange it ->
-            it.shortDescription() == 'Renamed' && it.tasks()*.number() == ['CTASK0041001', 'CTASK0041002', null] &&
-                    it.tasks()*.state() == [OPEN] * 3 && it.update() == null
-        })
+        1 * changes.save({ ProductionChange it ->
+            it.version() == 0L && it.shortDescription() == 'Renamed' && it.update() == requested(NOW, 'Corporate Technology') &&
+                    it.tasks()*.number() == ['CTASK0041001', 'CTASK0041002', null] && it.tasks()*.state() == [OPEN] * 3
+        }) >> { ProductionChange change -> change.toBuilder().version(1L).build() }
+
+        then:
+        1 * serviceNow.update({ ProductionChange it -> it.version() == 1L && it.shortDescription() == 'Renamed' })
 
         then:
         1 * serviceNow.read({ it*.update()*.status() == [PENDING] }) >> [CHG0031001: applied]
-        1 * changes.save(_) >> { ProductionChange change -> change.toBuilder().version(1L).build() }
+        1 * changes.save({ it.version() == 1L }) >> { ProductionChange change -> change.toBuilder().version(2L).build() }
         0 * changes._
         0 * serviceNow._
         updated.shortDescription() == 'Renamed'
@@ -505,7 +509,7 @@ class ProductionChangeServiceSpec extends Specification {
         updated.update() == new ChangeUpdate(APPLIED, NOW, 'Corporate Technology', [], null, NOW)
         updated.syncedAt() == NOW
         updated.syncProblem() == null
-        updated.version() == 1L
+        updated.version() == 2L
     }
 
     def "an update read before ProTech only moved the change through its workflow is published"() {
@@ -518,9 +522,10 @@ class ProductionChangeServiceSpec extends Specification {
         def updated = service.update(7L, edit(version: 3L, shortDescription: 'Renamed'))
 
         then:
-        1 * serviceNow.update({ it.shortDescription() == 'Renamed' })
         1 * changes.save({ it.version() == 4L }) >> { ProductionChange change -> change.toBuilder().version(5L).build() }
-        updated.version() == 5L
+        1 * serviceNow.update({ it.shortDescription() == 'Renamed' })
+        1 * changes.save({ it.version() == 5L }) >> { ProductionChange change -> change.toBuilder().version(6L).build() }
+        updated.version() == 6L
         updated.update().status() == PENDING
     }
 
@@ -535,13 +540,14 @@ class ProductionChangeServiceSpec extends Specification {
         1 * changes.load(7L) >> Optional.of(stored)
         1 * serviceNow.read(_) >> [CHG0031001: stored]
         1 * changes.synced(7L, NOW)
+        1 * changes.save({ it.update().fields() == [] }) >> { ProductionChange change -> change }
 
         then:
         1 * serviceNow.update(_)
 
         then:
         1 * serviceNow.read(_) >> [CHG0031001: raised(state: BUSINESS_APPROVAL)]
-        1 * changes.save(_) >> { ProductionChange change -> change }
+        1 * changes.save({ it.update().fields() == ['shortDescription'] }) >> { ProductionChange change -> change }
         updated.shortDescription() == 'Renamed'
         updated.state() == BUSINESS_APPROVAL
         updated.update() == new ChangeUpdate(PENDING, NOW, 'Corporate Technology', ['shortDescription'], null, NOW)
@@ -558,6 +564,7 @@ class ProductionChangeServiceSpec extends Specification {
         1 * changes.load(7L) >> Optional.of(stored)
         1 * serviceNow.read(_) >> [CHG0031001: stored]
         1 * changes.synced(7L, NOW)
+        1 * changes.save({ ProductionChange it -> it.syncProblem() == null }) >> { ProductionChange change -> change }
 
         then:
         1 * serviceNow.update(_)
@@ -595,21 +602,22 @@ class ProductionChangeServiceSpec extends Specification {
         refusal                          | stored                                              | departmentId | version || failure                 | message
         'without a department'           | raised()                                            | null         | 0L      || InvalidRequestException | 'choose your department'
         'of another department'          | raised()                                            | 4L           | 0L      || SecurityException       | 'Only Corporate Technology can change CHG0031001'
+        'of another department at an old version' | raised(version: 2L, editedVersion: 2L)     | 4L           | 1L      || SecurityException       | 'Only Corporate Technology can change CHG0031001'
         'of a change without department' | raised(departmentId: null, departmentName: null)    | 3L           | 0L      || SecurityException       | 'No department owns CHG0031001, so it cannot be changed in Beadle'
         'at a stale version'             | raised(version: 2L, editedVersion: 2L)              | 3L           | 1L      || IllegalStateException   | STALE_VERSION
         'read before its last edit'      | raised(version: 4L, editedVersion: 3L)              | 3L           | 2L      || IllegalStateException   | STALE_VERSION
         'at a version it never had'      | raised(version: 2L)                                 | 3L           | 3L      || IllegalStateException   | STALE_VERSION
-        'while the last one is pending'  | raised(update: PENDING_UPDATE)                      | 3L           | 0L      || IllegalStateException   | 'The last update of CHG0031001 is still waiting for ProTech; change it again once ProTech has applied it'
     }
 
-    def "an update is refused when ProTech #problem"() {
+    def "an update is refused without being published when ProTech #problem"() {
         when:
         service.update(7L, edit())
 
         then:
         1 * changes.load(7L) >> Optional.of(raised())
         1 * serviceNow.read(_) >> { reply() }
-        _ * changes.save(_) >> { ProductionChange change -> change }
+        _ * changes.save({ it.update() == null }) >> { ProductionChange change -> change }
+        0 * changes.save({ it.update() != null })
         0 * serviceNow.update(_)
         def refused = thrown(failure)
         refused.message == message
@@ -619,16 +627,91 @@ class ProductionChangeServiceSpec extends Specification {
         'has closed the change'  | { [CHG0031001: raised(state: CLOSED)] }                                   || IllegalStateException | 'CHG0031001 is closed in ProTech and can no longer be changed'
         'changed its texts'      | { [CHG0031001: raised(description: 'Edited in ProTech')] }               || IllegalStateException | STALE_VERSION
         'added a change task'    | { [CHG0031001: raised(tasks: raised().tasks() + NEW_TASK.numbered('CTASK0041009'))] } || IllegalStateException | STALE_VERSION
+        'no longer holds it'     | { [:] }                                                                   || IllegalStateException | 'ProTech has no change CHG0031001.'
         'cannot be reached'      | { throw new UncheckedIOException('Read timed out', new IOException()) }  || UncheckedIOException  | 'Read timed out'
     }
 
-    def "an update with problems is refused with every problem and its path before it is published"() {
+    def "an update ProTech applied but Beadle has not read back yet no longer blocks the next one"() {
+        given:
+        def waiting = raised(shortDescription: 'Renamed', update: new ChangeUpdate(PENDING, NOW.minusSeconds(5),
+                'Corporate Technology', ['shortDescription'], null, NOW.minusSeconds(5)))
+
+        when:
+        def updated = service.update(7L, edit(shortDescription: 'Renamed', description: 'Edited again'))
+
+        then:
+        1 * changes.load(7L) >> Optional.of(waiting)
+        1 * serviceNow.read(_) >> [CHG0031001: raised(shortDescription: 'Renamed')]
+        1 * changes.save({ it.update().status() == APPLIED }) >>
+                { ProductionChange change -> change.toBuilder().version(1L).build() }
+
+        then:
+        1 * changes.save({ it.version() == 1L && it.update() == requested(NOW, 'Corporate Technology') }) >>
+                { ProductionChange change -> change.toBuilder().version(2L).build() }
+
+        then:
+        1 * serviceNow.update({ it.shortDescription() == 'Renamed' && it.description() == 'Edited again' })
+
+        then:
+        1 * serviceNow.read(_) >> [CHG0031001: raised(shortDescription: 'Renamed', description: 'Edited again')]
+        1 * changes.save({ it.version() == 2L }) >> { ProductionChange change -> change.toBuilder().version(3L).build() }
+        updated.update() == new ChangeUpdate(APPLIED, NOW, 'Corporate Technology', [], null, NOW)
+        updated.version() == 3L
+    }
+
+    def "an update after one ProTech #outcome is judged after the sync and refused as #refusal"() {
+        given:
+        def waiting = raised(shortDescription: 'Renamed', update: new ChangeUpdate(PENDING, NOW.minusSeconds(age),
+                'Corporate Technology', ['shortDescription'], null, NOW.minusSeconds(age)))
+
+        when:
+        service.update(7L, edit(shortDescription: 'Renamed', description: 'Edited again'))
+
+        then:
+        1 * changes.load(7L) >> Optional.of(waiting)
+        1 * serviceNow.read(_) >> [CHG0031001: raised()]
+        _ * changes.save({ it.update().requestedAt() != NOW }) >> { ProductionChange change -> change }
+        0 * changes.save({ it.update().requestedAt() == NOW })
+        0 * serviceNow.update(_)
+        def refused = thrown(IllegalStateException)
+        refused.message == message
+
+        where:
+        outcome                         | age || refusal         | message
+        'has not applied yet'           | 59  || 'still pending' | PENDING_REFUSAL
+        'did not apply within a minute' | 60  || 'stale'         | STALE_VERSION
+    }
+
+    def "an update with problems in its texts, schedule or template is refused before ProTech is read"() {
+        given:
+        def stored = raised()
+        changes.load(7L) >> Optional.of(stored)
+        serviceNow.read(_) >> { throw new UncheckedIOException('Connection refused', new IOException()) }
+
+        when:
+        service.update(7L, edit(shortDescription: ' ', schedule: schedule(installationStart: '2026-10-07T09:00:00Z'),
+                template: template(category: 'Software'),
+                tasks: [stored.tasks()[0], stored.tasks()[0], new ChangeTask('CTASK9', ' ', 'Other task.', OPEN)]))
+
+        then:
+        def refused = thrown(InvalidRequestException)
+        refused.problems() == [new FieldProblem('shortDescription', 'is required'),
+                               new FieldProblem('template.category', 'must be one of Application, Hardware, ' +
+                                       'Infrastructure, System Software, Network, Telecom, Data Amendment, ' +
+                                       'Desktop Software, Storage, Facilities, Other, Database'),
+                               new FieldProblem('schedule.installationStart', 'must be in the future'),
+                               new FieldProblem('tasks[2].shortDescription', 'is required')]
+        0 * serviceNow.update(_)
+        0 * changes.save(_)
+    }
+
+    def "an update with tasks ProTech does not take is refused with their paths before it is claimed"() {
         given:
         def stored = raised()
 
         when:
-        service.update(7L, edit(shortDescription: ' ', schedule: schedule(installationStart: '2026-10-07T09:00:00Z'),
-                tasks: [stored.tasks()[0], stored.tasks()[0], new ChangeTask('CTASK9', 'Other', 'Other task.', OPEN)]))
+        service.update(7L, edit(tasks: [stored.tasks()[0], stored.tasks()[0],
+                                         new ChangeTask('CTASK9', 'Other', 'Other task.', OPEN)]))
 
         then:
         1 * changes.load(7L) >> Optional.of(stored)
@@ -636,10 +719,23 @@ class ProductionChangeServiceSpec extends Specification {
         0 * serviceNow.update(_)
         0 * changes.save(_)
         def refused = thrown(InvalidRequestException)
-        refused.problems() == [new FieldProblem('shortDescription', 'is required'),
-                               new FieldProblem('schedule.installationStart', 'must be in the future'),
-                               new FieldProblem('tasks[1].number', 'is listed more than once'),
+        refused.problems() == [new FieldProblem('tasks[1].number', 'is listed more than once'),
                                new FieldProblem('tasks[2].number', 'is not a change task of CHG0031001')]
+    }
+
+    def "of two updates read at the same version the second is refused before ProTech is asked"() {
+        when:
+        service.update(7L, edit(shortDescription: 'Mine'))
+
+        then:
+        1 * changes.load(7L) >> Optional.of(raised())
+        1 * serviceNow.read(_) >> [CHG0031001: raised()]
+        1 * changes.synced(7L, NOW)
+        1 * changes.save({ it.version() == 0L && it.update().pending() }) >> { throw staleVersion() }
+        0 * changes._
+        0 * serviceNow.update(_)
+        def refused = thrown(IllegalStateException)
+        refused.message == STALE_VERSION
     }
 
     def "an opened change another request synced in the meantime is shown as that request stored it"() {
@@ -668,34 +764,43 @@ class ProductionChangeServiceSpec extends Specification {
         1 * changes.load(7L) >> Optional.of(raised())
         1 * serviceNow.read(_) >> [CHG0031001: raised()]
         1 * changes.synced(7L, NOW)
+        1 * changes.save({ it.version() == 0L }) >> { ProductionChange change -> change.toBuilder().version(1L).build() }
 
         then:
         1 * serviceNow.update(_)
 
         then:
         1 * serviceNow.read(_) >> [CHG0031001: raised(shortDescription: 'Renamed')]
-        1 * changes.save({ it.version() == 0L }) >> { throw staleVersion() }
+        1 * changes.save({ it.version() == 1L }) >> { throw staleVersion() }
 
         then:
-        1 * changes.load(7L) >> Optional.of(raised(version: 1L))
+        1 * changes.load(7L) >> Optional.of(raised(shortDescription: 'Renamed', version: 2L))
 
         then:
-        1 * changes.save({ it.version() == 1L && it.shortDescription() == 'Renamed' }) >>
-                { ProductionChange change -> change.toBuilder().version(2L).build() }
+        1 * changes.save({ it.version() == 2L && it.shortDescription() == 'Renamed' }) >>
+                { ProductionChange change -> change.toBuilder().version(3L).build() }
         0 * changes._
-        updated.version() == 2L
+        updated.version() == 3L
         updated.update().status() == APPLIED
     }
 
-    def "a refusal of ProTech is passed on and nothing is stored"() {
+    def "a refusal of ProTech puts the stored change back and is passed on"() {
         when:
         service.update(7L, edit(shortDescription: 'Renamed'))
 
         then:
         1 * changes.load(7L) >> Optional.of(raised())
         1 * serviceNow.read(_) >> [CHG0031001: raised()]
+        1 * changes.synced(7L, NOW)
+        1 * changes.save({ it.shortDescription() == 'Renamed' && it.update().pending() }) >>
+                { ProductionChange change -> change.toBuilder().version(1L).build() }
+
+        then:
         1 * serviceNow.update(_) >> { throw new IllegalStateException('ProTech does not change a closed change') }
-        0 * changes.save(_)
+
+        then:
+        1 * changes.save(raised(version: 1L, syncedAt: NOW)) >> { ProductionChange change -> change.toBuilder().version(2L).build() }
+        0 * changes._
         def refused = thrown(IllegalStateException)
         refused.message == 'ProTech does not change a closed change'
     }

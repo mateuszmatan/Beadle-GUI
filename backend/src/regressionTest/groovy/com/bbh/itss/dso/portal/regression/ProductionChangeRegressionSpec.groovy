@@ -438,7 +438,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
                 [status: 'APPLIED', departmentName: 'Corporate Technology', fields: [], message: null]
         !Instant.parse(updated.json.update.checkedAt).isBefore(Instant.parse(updated.json.update.requestedAt))
         updated.json.syncProblem == null
-        updated.json.version == 1
+        updated.json.version == 2
 
         when:
         def opened = api.get("/api/changes/$raised.id").json
