@@ -96,7 +96,7 @@ final class ChangeStubs {
             def stored = profiles[ids[0] as int]
             Map asked = request.json() as Map
             if (asked.version != stored?.version) {
-                return problem(409, 'Conflict', "The change template of ${product(ids[0]).name} was changed by someone else. Reload the page.")
+                return problem(409, 'Conflict', STALE)
             }
             def saved = [version: stored ? stored.version + 1 : 0, template: asked.template, tasks: asked.tasks]
             profiles[ids[0] as int] = saved
@@ -278,6 +278,10 @@ final class ChangeStubs {
             if (asked.departmentId != change.departmentId) {
                 return problem(403, 'Forbidden', "Only $change.departmentName can change $change.number")
             }
+            if ((change.update as Map)?.status == 'PENDING') {
+                return problem(409, 'Conflict', "The last update of $change.number is still waiting for ProTech; " +
+                        'change it again once ProTech has applied it')
+            }
             if (change.state == 'CLOSED') {
                 return problem(409, 'Conflict', "$change.number is closed in ProTech and can no longer be changed")
             }
@@ -289,7 +293,8 @@ final class ChangeStubs {
             def requested = [shortDescription: asked.shortDescription, description: asked.description,
                              schedule        : asked.schedule,
                              template        : (asked.template as Map) +
-                                     (change.template as Map).subMap('jiraProjectKey', 'type', 'timing'),
+                                     (change.template as Map).subMap('jiraProjectKey', 'type', 'timing') +
+                                     [release: (asked.template as Map).release ?: change.fixVersion],
                              tasks           : tasks]
             def fields = unapplied(requested, change)
             canceling[change.id as int] = held.findAll { it.number && !(it.number in numbers) }.collect { it + [state: 'CANCELED'] }

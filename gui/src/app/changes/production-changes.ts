@@ -34,6 +34,7 @@ export interface ChangeFilters {
 export interface ChangeRow {
   change: ProductionChange;
   open: boolean;
+  editable: boolean;
   state: string;
   installation: string;
   tasks: number;
@@ -63,6 +64,7 @@ export function changeRow(change: ProductionChange): ChangeRow {
   return {
     change,
     open: isOpen(change),
+    editable: isOpen(change) && change.update?.status !== 'PENDING',
     state: labelOf(STATES, change.state),
     installation: windowText(change.schedule.installationStart, change.schedule.installationEnd),
     tasks: activeTasks(change.tasks).length,
@@ -221,7 +223,7 @@ export function sorted(rows: readonly ChangeRow[], sort: Sort): ChangeRow[] {
                 <ng-container matColumnDef="actions">
                   <th mat-header-cell *matHeaderCellDef></th>
                   <td mat-cell *matCellDef="let row" class="actions">
-                    @if (row.open) {
+                    @if (row.editable) {
                       <a
                         mat-button
                         [routerLink]="changeLink(row.change.id, 'edit')"

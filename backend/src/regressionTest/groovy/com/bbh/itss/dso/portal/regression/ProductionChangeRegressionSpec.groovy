@@ -401,6 +401,8 @@ class ProductionChangeRegressionSpec extends PortalSpecification {
         def opened = api.get("/api/changes/$raised.id").json
         def updated = api.put("/api/changes/$raised.id", editOf(opened, [schedule: moved,
                                                                          shortDescription: 'Moved release']))
+        def waiting = api.get("/api/changes/$raised.id").json
+        def refused = api.put("/api/changes/$raised.id", editOf(waiting, [shortDescription: 'Again']))
 
         then:
         opened.number == number
@@ -413,7 +415,10 @@ class ProductionChangeRegressionSpec extends PortalSpecification {
         updated.json.update.fields == SCHEDULE_PATHS
         updated.json.schedule == moved
         updated.json.shortDescription == 'Moved release'
-        api.get("/api/changes/$raised.id").json.update.status == 'PENDING'
+        waiting.update.status == 'PENDING'
+        refused.status == 409
+        refused.json.detail == "The last update of $number is still waiting for ProTech; change it again once ProTech has applied it".toString()
+        api.get("/api/changes/$raised.id").json.shortDescription == 'Moved release'
     }
 
     def "a change ProTech has closed is synced when opened and can no longer be updated"() {

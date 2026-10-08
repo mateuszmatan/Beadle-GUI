@@ -209,7 +209,7 @@ export const activeTasks = (tasks: readonly ChangeTask[]) =>
   tasks.filter((task) => task.state !== 'CANCELED');
 
 export function editHint(
-  change: Pick<ProductionChange, 'number' | 'departmentId' | 'departmentName'>,
+  change: Pick<ProductionChange, 'number' | 'departmentId' | 'departmentName' | 'update'>,
   departmentId: number | null,
 ): string | null {
   if (change.departmentId === null) {
@@ -218,7 +218,10 @@ export function editHint(
   if (departmentId === null) {
     return 'Choose your department in Changes to change it';
   }
-  return departmentId === change.departmentId
-    ? null
-    : `Only ${change.departmentName ?? 'its department'} can change it`;
+  if (departmentId !== change.departmentId) {
+    return `Only ${change.departmentName ?? 'its department'} can change it`;
+  }
+  return change.update?.status === 'PENDING'
+    ? 'The last update is still waiting for ProTech; change it again once ProTech has applied it'
+    : null;
 }

@@ -3,7 +3,12 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { MY_DEPARTMENT_KEY } from '../beadle/my-department';
-import { changeSchedule, changeTask, productionChange } from '../testing/change-fixtures';
+import {
+  changeSchedule,
+  changeTask,
+  changeUpdate,
+  productionChange,
+} from '../testing/change-fixtures';
 import { text } from '../testing/dom';
 import { department } from '../testing/fixtures';
 import { ProductionChange } from './change-api';
@@ -57,6 +62,15 @@ describe('the rows of the changes table', () => {
   it('counts the tasks that are not canceled and names the state', () => {
     expect(changeRow(payments)).toMatchObject({ open: false, state: 'Closed', tasks: 1 });
     expect(changeRow(draft)).toMatchObject({ open: true, state: 'Draft', tasks: 2 });
+  });
+
+  it('lets an open change be edited unless its last update still waits for ProTech', () => {
+    expect(changeRow(draft).editable).toBe(true);
+    expect(changeRow(payments).editable).toBe(false);
+    expect(changeRow({ ...draft, update: changeUpdate() }).editable).toBe(false);
+    expect(changeRow({ ...draft, update: changeUpdate({ status: 'NOT_APPLIED' }) }).editable).toBe(
+      true,
+    );
   });
 
   it('filters by every column, the state by stage or by being open', () => {

@@ -58,6 +58,8 @@ class ProductionChangeServiceSpec extends Specification {
     static final List ISSUES = [epic('CERT-1', 'Expiry alerts'), epic('CERT-5', 'Audit trail'),
                                 story('CERT-2', 'E-mail the owner', 'CERT-1'), story('CERT-6', 'Record it', 'CERT-5')]
     static final ChangeTask NEW_TASK = new ChangeTask(null, 'Check the audit trail', 'Open the audit trail.', null)
+    static final ChangeUpdate PENDING_UPDATE = new ChangeUpdate(PENDING, NOW, 'Corporate Technology',
+            ['shortDescription'], null, NOW)
 
     ProductsUseCase products = Stub()
     DepartmentsUseCase departments = Stub()
@@ -534,6 +536,7 @@ class ProductionChangeServiceSpec extends Specification {
         'of another department'          | raised()                                            | 4L           | 0L      || SecurityException       | 'Only Corporate Technology can change CHG0031001'
         'of a change without department' | raised(departmentId: null, departmentName: null)    | 3L           | 0L      || SecurityException       | 'No department owns CHG0031001, so it cannot be changed in Beadle'
         'at a stale version'             | raised(version: 2L)                                 | 3L           | 1L      || IllegalStateException   | STALE_VERSION
+        'while the last one is pending'  | raised(update: PENDING_UPDATE)                      | 3L           | 0L      || IllegalStateException   | 'The last update of CHG0031001 is still waiting for ProTech; change it again once ProTech has applied it'
     }
 
     def "an update is refused when ProTech #problem"() {

@@ -96,6 +96,10 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
         requireCurrent(command.version(), stored.version());
         requireDepartment(stored, command.departmentId());
+        if (stored.update() != null && stored.update().pending()) {
+            throw new IllegalStateException("The last update of " + stored.number()
+                    + " is still waiting for ProTech; change it again once ProTech has applied it");
+        }
         ProductionChange current = synced(stored);
         if (!current.state().isOpen()) {
             throw new IllegalStateException(current.number() + " is closed in ProTech and can no longer be changed");

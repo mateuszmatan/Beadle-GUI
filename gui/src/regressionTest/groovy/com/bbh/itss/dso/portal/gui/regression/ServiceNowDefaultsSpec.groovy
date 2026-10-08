@@ -4,6 +4,7 @@ import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 
 import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.CERT_TASKS
+import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.STALE
 import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.BUTTON
@@ -123,7 +124,7 @@ class ServiceNowDefaultsSpec extends EditorSpecification {
         button('Save the template', true).click()
 
         then:
-        assertThat(saveError()).hasText('The change template of Payments Hub was changed by someone else. Reload the page.')
+        assertThat(saveError()).hasText(STALE)
         awaitRequest('PUT', '/api/products/2/change-profile', 2).json().version == null
 
         when:
