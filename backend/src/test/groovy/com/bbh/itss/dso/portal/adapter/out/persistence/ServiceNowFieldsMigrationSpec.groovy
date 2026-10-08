@@ -7,21 +7,11 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Planning
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.RiskAssessment
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Timing
-import liquibase.Liquibase
-import liquibase.database.DatabaseFactory
-import liquibase.database.jvm.JdbcConnection
-import liquibase.resource.ClassLoaderResourceAccessor
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
 import org.springframework.context.annotation.Import
-import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.transaction.support.TransactionTemplate
-import spock.lang.Specification
-
-import javax.sql.DataSource
 
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.FIRST_USE_PLAN
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Type.NORMAL
@@ -39,36 +29,15 @@ import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORT
 @AutoConfigureTestDatabase(replace = NONE)
 @Transactional(propagation = NOT_SUPPORTED)
 @Import([ChangeProfilePersistenceAdapter, ProductionChangePersistenceAdapter])
-class ServiceNowFieldsMigrationSpec extends Specification {
+class ServiceNowFieldsMigrationSpec extends MigrationSpecification {
 
     static final List<String> DROPPED = ['RISK', 'IMPACT', 'RISK_ASSESSMENT', 'APPROVERS', 'TEST_PLAN']
-
-    @Autowired
-    DataSource dataSource
-
-    @Autowired
-    JdbcTemplate jdbc
-
-    @Autowired
-    PlatformTransactionManager transactionManager
 
     @Autowired
     ChangeProfilePersistenceAdapter profiles
 
     @Autowired
     ProductionChangePersistenceAdapter changes
-
-    Liquibase liquibase
-
-    def setup() {
-        System.setProperty('liquibase.analytics.enabled', 'false')
-        liquibase = new Liquibase('db/changelog/db.changelog-master.yaml', new ClassLoaderResourceAccessor(),
-                DatabaseFactory.instance.findCorrectDatabaseImplementation(new JdbcConnection(dataSource.connection)))
-    }
-
-    def cleanup() {
-        liquibase.close()
-    }
 
     def "profiles and changes stored before the ServiceNow fields keep their data, roll back and migrate again"() {
         given:
@@ -86,7 +55,7 @@ class ServiceNowFieldsMigrationSpec extends Specification {
         long productId = storedAsIn012()
         liquibase.update('')
         def profile = profiles.find(productId).get()
-        def change = new TransactionTemplate(transactionManager).execute { changes.findAll().first() }
+        def change = inTransaction { changes.findAll().first() }
 
         then:
         profile.version() == 2
@@ -150,11 +119,6 @@ class ServiceNowFieldsMigrationSpec extends Specification {
                 SHORT_DESCRIPTION, DESCRIPTION) SELECT ID, 0, 'CTASK0040001', 'gui', 'Deploy gui', 'Deploy gui.'
                 FROM DSO_PRODUCTION_CHANGE WHERE CHANGE_NUMBER = ?''', 'CHG0030001')
         productId
-    }
-
-    private int executedSince(String id) {
-        jdbc.queryForObject('''SELECT COUNT(*) FROM DATABASECHANGELOG WHERE ORDEREXECUTED >=
-                (SELECT MIN(ORDEREXECUTED) FROM DATABASECHANGELOG WHERE ID LIKE ?)''', Integer, id + '%')
     }
 
     private List<String> columns(String table) {

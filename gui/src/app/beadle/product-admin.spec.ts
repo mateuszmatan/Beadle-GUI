@@ -34,6 +34,8 @@ describe('ProductAdmin', () => {
     tool: 'GRADLE',
     target: 'VM',
     openShiftProject: '',
+    nexusIqApplication: '',
+    repositoryUrl: '',
   };
 
   beforeEach(() => {

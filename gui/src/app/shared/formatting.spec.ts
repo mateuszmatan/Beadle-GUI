@@ -1,4 +1,4 @@
-import { CountedPipe, counted, formatDuration, formatRelative } from './formatting';
+import { CountedPipe, capitalized, counted, formatDuration, formatRelative } from './formatting';
 
 describe('formatDuration', () => {
   it.each([
@@ -47,5 +47,13 @@ describe('counted', () => {
     expect(counted(1, 'recovery', 'recoveries')).toBe('1 recovery');
     expect(counted(3, 'recovery', 'recoveries')).toBe('3 recoveries');
     expect(new CountedPipe().transform(2, 'run')).toBe('2 runs');
+  });
+});
+
+describe('capitalized', () => {
+  it('starts a sentence with a capital and keeps the rest', () => {
+    expect(capitalized('sast')).toBe('Sast');
+    expect(capitalized('Nexus IQ GoldenFix')).toBe('Nexus IQ GoldenFix');
+    expect(capitalized('')).toBe('');
   });
 });
