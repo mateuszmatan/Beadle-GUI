@@ -10,7 +10,7 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 import static com.microsoft.playwright.options.AriaRole.BUTTON
 import static com.microsoft.playwright.options.AriaRole.OPTION
 
-class ServiceNowDefaultsSpec extends EditorSpecification {
+class ChangeTemplateAdminSpec extends EditorSpecification {
 
     def "an admin keeps the change template of a product section by section, privileged accounts and default change tasks included"() {
         when:

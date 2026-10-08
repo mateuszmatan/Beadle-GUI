@@ -9,6 +9,8 @@ import static com.bbh.itss.dso.portal.gui.support.StubApi.SIGNED_IN_USER
 import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
 import static com.bbh.itss.dso.portal.gui.support.StubResponse.json
 import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
+import static java.lang.String.format
+import static java.time.Instant.parse
 import static java.time.LocalDate.now
 import static java.time.temporal.ChronoUnit.DAYS
 import static java.time.temporal.ChronoUnit.HOURS
@@ -223,7 +225,7 @@ final class ChangeStubs {
         }
         def paths = differing(['shortDescription', 'description'], requested, held) { a, b -> a == b } +
                 differing(SCHEDULE, requested.schedule as Map, held.schedule as Map) { a, b ->
-                    a == b || (a && b && Instant.parse(a as String) == Instant.parse(b as String))
+                    a == b || (a && b && parse(a as String) == parse(b as String))
                 }.collect { "schedule.$it".toString() } +
                 differing(EDITABLE, requested.template as Map, held.template as Map) { a, b -> a == b }
                         .collect { "template.$it".toString() }
@@ -310,7 +312,7 @@ final class ChangeStubs {
         Map read(Map change) {
             if (applying && (change.update as Map)?.status == 'PENDING') {
                 change.tasks = (change.tasks as List<Map>).collect {
-                    it.number ? it : it + [number: String.format('CTASK%07d', taskNumbers.incrementAndGet())]
+                    it.number ? it : it + [number: format('CTASK%07d', taskNumbers.incrementAndGet())]
                 } + (canceling.remove(change.id as int) ?: [])
                 change.update = (change.update as Map) + [status: 'APPLIED', fields: [], checkedAt: stamp()]
                 change.version = (change.version as int) + 1
@@ -361,7 +363,7 @@ final class ChangeStubs {
                     shortDescription: asked.shortDescription ?: drafted.shortDescription,
                     description     : asked.description ?: drafted.description,
                     tasks           : (drafted.tasks as List<Map>).withIndex().collect { task, index ->
-                        task + [number: String.format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1)]
+                        task + [number: format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1)]
                     },
                     workflow        : [[state: 'DRAFT', enteredAt: raisedAt]], syncedAt: raisedAt, version: 0]
             changes << change
@@ -385,7 +387,7 @@ final class ChangeStubs {
             }
             drafted + [id      : id, number: number, createdAt: stamp(raisedAt), state: stages.last(), workflow: entered,
                        tasks   : texts.withIndex().collect { text, index ->
-                           task(String.format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1), text, taskState)
+                           task(format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1), text, taskState)
                        },
                        syncedAt: stamp(raisedAt), version: version]
         }

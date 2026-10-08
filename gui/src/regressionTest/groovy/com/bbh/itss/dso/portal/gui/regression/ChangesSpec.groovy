@@ -4,7 +4,6 @@ import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 import groovy.json.JsonSlurper
 
-import java.time.LocalDate
 import java.util.function.BooleanSupplier
 
 import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.CERT_TASKS
@@ -12,6 +11,7 @@ import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.CERT_TEMPLATE
 import static com.bbh.itss.dso.portal.gui.support.StubApi.SIGNED_IN_USER
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.BUTTON
+import static java.time.LocalDate.now
 import static java.time.ZoneOffset.UTC
 
 class ChangesSpec extends EditorSpecification {
@@ -168,7 +168,7 @@ class ChangesSpec extends EditorSpecification {
 
     def "a member of the department publishes an update to ProTech and sees that ProTech applied it"() {
         given:
-        def date = LocalDate.now(UTC).plusDays(3).toString()
+        def date = now(UTC).plusDays(3).toString()
 
         when:
         open('/beadle/changes')

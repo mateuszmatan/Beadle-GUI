@@ -2,8 +2,6 @@ package com.bbh.itss.dso.portal.gui.regression
 
 import com.microsoft.playwright.Locator
 
-import java.time.LocalDate
-
 import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.CERT_TASKS
 import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.PLANNING
 import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.RELEASE_DATE
@@ -13,8 +11,9 @@ import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.OPTION
 import static java.time.LocalDate.now
+import static java.time.LocalDate.parse
 
-class ProductionChangeSpec extends EditorSpecification {
+class NewChangeSpec extends EditorSpecification {
 
     static final List<String> STEPS = ['Request data', 'Jira', 'Approval', 'Schedule', 'Planning', 'Privileged access',
                                        'Risk assessment', 'Secure coding', 'Review', 'Raised']
@@ -284,7 +283,6 @@ class ProductionChangeSpec extends EditorSpecification {
             template.riskAssessment.businessImpact == 'High'
             template.secureCodingTicket == 'SEC-4711'
             tasks == CERT_TASKS
-            !it.containsKey('serviceIds')
         }
 
         when:
@@ -311,7 +309,6 @@ class ProductionChangeSpec extends EditorSpecification {
         assertThat(step().locator('.next-steps')).containsText('Grace Turner, Olivia Bennett, William Hayes approve the change in ProTech')
         with(awaitRequest('POST', '/api/changes').json()) {
             productId == 1
-            !it.containsKey('serviceIds')
             tasks == [CERT_TASKS[0], [shortDescription: 'Run the database scripts',
                                       description     : 'Run the Liquibase changesets of CertScanner.']]
             fixVersion == 'CERT 4.2'
@@ -543,7 +540,7 @@ class ProductionChangeSpec extends EditorSpecification {
     }
 
     static String nextDay() {
-        LocalDate.parse(RELEASE_DATE).plusDays(1).toString()
+        parse(RELEASE_DATE).plusDays(1).toString()
     }
 
     static String inDays(int days) {

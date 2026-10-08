@@ -179,7 +179,7 @@ describe('ChangeWizard', () => {
   const schedule = () => wizard()['schedule']()!;
   const details = () => wizard()['details']()!;
 
-  it('says that Jira and ServiceNow are demo ones and lists the products of the chosen department', async () => {
+  it('says that Jira and ProTech are demo ones and lists the products of the chosen department', async () => {
     expect(text(page().querySelector('dso-integration-note'))).toContain(
       'Jira is not connected yet',
     );
@@ -368,7 +368,6 @@ describe('ChangeWizard', () => {
     expect(wizard()['step']()).toBe(8);
 
     const preview = http.expectOne('/api/changes/preview');
-    expect(preview.request.body.serviceIds).toBeUndefined();
     expect(preview.request.body).toMatchObject({
       productId: 1,
       fixVersion: 'CERT 4.2',
