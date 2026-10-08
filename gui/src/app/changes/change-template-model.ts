@@ -3,7 +3,7 @@ import { FieldProblem } from '../core/models';
 import {
   INT_MAX,
   addItem,
-  applyFieldProblems,
+  applyProblemsAt,
   filled,
   flag,
   integer,
@@ -144,13 +144,5 @@ export function applyTemplateProblems(
   form: TemplateForm,
   problems: FieldProblem[],
 ): FieldProblem[] {
-  const own = problems.filter((problem) => problem.field.startsWith(TEMPLATE_PREFIX));
-  const unmatched = applyFieldProblems(
-    form,
-    own.map((problem) => ({ ...problem, field: problem.field.slice(TEMPLATE_PREFIX.length) })),
-  );
-  return [
-    ...problems.filter((problem) => !own.includes(problem)),
-    ...unmatched.map((problem) => ({ ...problem, field: TEMPLATE_PREFIX + problem.field })),
-  ];
+  return applyProblemsAt(form, TEMPLATE_PREFIX, problems);
 }

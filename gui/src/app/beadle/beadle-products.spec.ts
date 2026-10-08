@@ -75,7 +75,7 @@ describe('BeadleProducts', () => {
       profiles.flush(defaults);
     } else {
       profiles.flush(
-        { detail: 'ServiceNow defaults are not available' },
+        { detail: 'The change templates are not available' },
         { status: 500, statusText: 'Error' },
       );
     }
@@ -90,30 +90,27 @@ describe('BeadleProducts', () => {
     fixture.detectChanges();
   }
 
-  it('lists the products by department with their services and ServiceNow defaults', async () => {
+  it('lists the products by department with the state of their change template', async () => {
     await load();
 
     expect(cards().map((section) => text(section.querySelector('h2')))).toEqual([
       'Corporate Technology',
       'Fund Services',
     ]);
-    expect(text(card('Corporate Technology').querySelector('.tally'))).toBe(
-      '1 product · 2 services',
-    );
+    expect(text(card('Corporate Technology').querySelector('.tally'))).toBe('1 product');
     expect(text(page().querySelector('.count'))).toBe('2 products in 2 departments');
-    expect([...page().querySelectorAll('th')].map((th) => text(th)).slice(0, 4)).toEqual([
+    expect([...page().querySelectorAll('th')].map((th) => text(th)).slice(0, 3)).toEqual([
       'Product',
       'Owner team',
-      'Services',
-      'ServiceNow defaults',
+      'Change template',
     ]);
     expect(cells('CertScanner')).toEqual([
       'CertScannerCERT',
       'Technology Architecture',
-      '2',
       'Saved · 2 days ago',
     ]);
-    expect(cells('Payments Hub')).toEqual(['Payments HubPAYHUB', '–', '4', 'Suggested values']);
+    expect(cells('Payments Hub')).toEqual(['Payments HubPAYHUB', '–', 'Suggested values']);
+    expect(text(page())).not.toContain('service');
     expect(rowOf('CertScanner').querySelector('a')?.getAttribute('href')).toBe(
       '/beadle/admin/products/1',
     );
@@ -122,13 +119,13 @@ describe('BeadleProducts', () => {
     expect(navigate).toHaveBeenCalledWith(['/beadle/admin/products', 2]);
   });
 
-  it('still lists the products when their ServiceNow defaults cannot be loaded', async () => {
+  it('still lists the products when their change templates cannot be loaded', async () => {
     await load(undefined, undefined, null);
 
     expect(page().querySelector('.banner')).toBeNull();
-    const state = rowOf('CertScanner').querySelector('.mat-column-defaults span')!;
+    const state = rowOf('CertScanner').querySelector('.mat-column-template span')!;
     expect(text(state)).toBe('Unknown');
-    expect(state.getAttribute('title')).toBe('ServiceNow defaults are not available');
+    expect(state.getAttribute('title')).toBe('The change templates are not available');
   });
 
   it('gathers the products without a department in a last card', async () => {
@@ -139,7 +136,7 @@ describe('BeadleProducts', () => {
     const unassigned = cards().at(-1)!;
 
     expect(text(unassigned.querySelector('h2'))).toBe('Not in a department');
-    expect(text(unassigned.querySelector('.tally'))).toBe('1 product · 1 service');
+    expect(text(unassigned.querySelector('.tally'))).toBe('1 product');
     expect(text(unassigned.querySelector('.hint'))).toBe(
       'Change these products to choose their department.',
     );
@@ -170,6 +167,9 @@ describe('BeadleProducts', () => {
   it('invites to add the first product and shows why the products could not be loaded', async () => {
     await load([]);
     expect(text(page().querySelector('.empty-state h3'))).toBe('No products yet');
+    expect(text(page().querySelector('.empty-state p'))).toBe(
+      'Add the first product, then its change template.',
+    );
     expect(text(page().querySelector('.empty-state button'))).toBe('Add product');
 
     fixture.componentInstance['products'].reload();

@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { changeProfile, changeTemplate } from '../testing/change-fixtures';
+import { changeProfile, changeTemplate, taskText } from '../testing/change-fixtures';
 import { buttonOf, fieldOf, text } from '../testing/dom';
 import { product } from '../testing/fixtures';
 import { BeadleProduct } from './beadle-product';
@@ -16,6 +16,10 @@ describe('BeadleProduct', () => {
   const editor = () => fixture.componentInstance;
   const page = () => fixture.nativeElement as HTMLElement;
   const form = () => editor()['form']()!;
+  const snack = () =>
+    [...document.querySelectorAll('mat-snack-bar-container')].map((bar) => text(bar)).join(' ');
+  const template = () => form().controls.template;
+  const tasks = () => form().controls.tasks;
 
   async function settle() {
     TestBed.tick();
@@ -48,7 +52,7 @@ describe('BeadleProduct', () => {
 
   afterEach(() => http.verify());
 
-  it('shows suggested defaults that are not saved yet and saves them with the privileged users', async () => {
+  it('shows a suggested change template that is not saved yet and saves it with the privileged users and tasks', async () => {
     await open(changeProfile({ version: null, updatedAt: null }));
 
     expect(
@@ -56,32 +60,38 @@ describe('BeadleProduct', () => {
     ).toEqual(['Beadle Admin', 'Products', 'CertScanner']);
     expect(text(page().querySelector('h1'))).toBe('CertScanner');
     expect(text(page().querySelector('.banner.info'))).toContain('Not saved yet');
+    expect(text(page().querySelector('#defaults-title'))).toBe('Change template');
     expect(page().querySelector('dso-change-template-form')).not.toBeNull();
-    const access = form().controls.privilegedAccess.controls;
+    expect(text(page().querySelector('.default-tasks h3'))).toBe('Default change tasks');
+    expect(page().querySelectorAll('dso-change-tasks-form .task-row')).toHaveLength(2);
+    const access = template().controls.privilegedAccess.controls;
     access.required.setValue(true);
     access.users.at(0).setValue({ user: ' Jane Smith ', account: 'adm_jsmith' });
-    form().patchValue({ riskAssessment: { businessImpact: 'High' } });
-    form().markAsDirty();
+    template().patchValue({ riskAssessment: { businessImpact: 'High' } });
+    buttonOf(page(), 'Remove change task 2').click();
+    tasks().at(0).patchValue({ shortDescription: ' Deploy it ' });
     expect(editor().hasUnsavedChanges()).toBe(true);
 
-    editor()['save']();
+    buttonOf(page(), 'Save the template').click();
     const request = saved();
-    const template = changeTemplate({
+    const expected = changeTemplate({
       privilegedAccess: { required: true, users: [{ user: 'Jane Smith', account: 'adm_jsmith' }] },
       riskAssessment: { ...changeTemplate().riskAssessment, businessImpact: 'High' },
     });
-    expect(request.request.body).toEqual({ version: null, template });
-    request.flush(changeProfile({ version: 0, template }));
+    const savedTasks = [taskText('Deploy it', 'Deploy the release of CertScanner.')];
+    expect(request.request.body).toEqual({ version: null, template: expected, tasks: savedTasks });
+    request.flush(changeProfile({ version: 0, template: expected, tasks: savedTasks }));
     await settle();
+    expect(snack()).toContain('The change template of CertScanner is saved');
 
     expect(editor().hasUnsavedChanges()).toBe(false);
     expect(editor()['version']()).toBe(0);
     expect(page().querySelector('.banner.info')).toBeNull();
   });
 
-  it('shows the new name of a renamed product and keeps the unsaved defaults', async () => {
+  it('shows the new name of a renamed product and keeps the unsaved template', async () => {
     await open();
-    form().controls.category.setValue('Hardware');
+    template().controls.category.setValue('Hardware');
     form().markAsDirty();
 
     editor().renamed({ name: 'CertWatch' });
@@ -89,13 +99,13 @@ describe('BeadleProduct', () => {
 
     expect(text(page().querySelector('h1'))).toBe('CertWatch');
     expect(text(page().querySelector('.breadcrumb span:last-child'))).toBe('CertWatch');
-    expect(form().controls.category.value).toBe('Hardware');
+    expect(template().controls.category.value).toBe('Hardware');
     expect(editor().hasUnsavedChanges()).toBe(true);
   });
 
-  it('leaves a deleted product without asking about its unsaved defaults', async () => {
+  it('leaves a deleted product without asking about its unsaved template', async () => {
     await open();
-    form().controls.category.setValue('Hardware');
+    template().controls.category.setValue('Hardware');
     form().markAsDirty();
     vi.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
       afterClosed: () => of(true),
@@ -114,9 +124,10 @@ describe('BeadleProduct', () => {
     expect(unsaved).toEqual([false]);
   });
 
-  it('does not send defaults with missing values', async () => {
+  it('does not send a template with missing values or without a change task', async () => {
     await open();
-    form().patchValue({ jiraProjectKey: 'cert-1', planning: { backoutPlan: '' } });
+    template().patchValue({ jiraProjectKey: 'cert-1', planning: { backoutPlan: '' } });
+    tasks().at(1).controls.description.setValue(' ');
 
     editor()['save']();
     fixture.detectChanges();
@@ -127,6 +138,9 @@ describe('BeadleProduct', () => {
       '1 to 10 letters, digits or _, starting with a letter',
     );
     expect(text(fieldOf(page(), 'Backout plan')?.querySelector('mat-error'))).toBe('Required');
+    const second = page().querySelectorAll('.task-row')[1];
+    expect(text(fieldOf(second, 'Description')?.querySelector('mat-error'))).toBe('Required');
+    http.expectNone({ method: 'PUT', url: '/api/products/1/change-profile' });
   });
 
   it('marks the fields the portal refused and reports a conflict as it is', async () => {
@@ -143,7 +157,10 @@ describe('BeadleProduct', () => {
     second.flush(
       {
         detail: 'Invalid request',
-        errors: [{ field: 'template.riskAssessment.bbhUsers', message: 'must be at most 5000' }],
+        errors: [
+          { field: 'template.riskAssessment.bbhUsers', message: 'must be at most 5000' },
+          { field: 'tasks[1].shortDescription', message: 'is used twice' },
+        ],
       },
       { status: 400, statusText: 'Bad Request' },
     );
@@ -154,11 +171,19 @@ describe('BeadleProduct', () => {
     expect(text(fieldOf(page(), 'BBH users')?.querySelector('mat-error'))).toBe(
       'must be at most 5000',
     );
+    expect(
+      text(
+        fieldOf(page().querySelectorAll('.task-row')[1], 'Short description')?.querySelector(
+          'mat-error',
+        ),
+      ),
+    ).toBe('is used twice');
 
     editor()['save']();
     expect(editor()['saveError']()).toBe('Some fields need your attention.');
 
-    form().controls.riskAssessment.controls.bbhUsers.setValue(50);
+    template().controls.riskAssessment.controls.bbhUsers.setValue(50);
+    tasks().at(1).controls.shortDescription.setValue('Validate it');
     editor()['save']();
     saved().flush(
       { detail: 'Invalid request', errors: [{ field: 'version', message: 'is unknown' }] },
@@ -169,11 +194,11 @@ describe('BeadleProduct', () => {
 
     editor()['save']();
     saved().flush(
-      { detail: 'Someone else changed the defaults' },
+      { detail: 'Someone else changed the template' },
       { status: 409, statusText: 'Conflict' },
     );
     await settle();
-    expect(editor()['saveError']()).toBe('Someone else changed the defaults');
-    expect(text(page().querySelector('.save-error'))).toBe('Someone else changed the defaults');
+    expect(editor()['saveError']()).toBe('Someone else changed the template');
+    expect(text(page().querySelector('.save-error'))).toBe('Someone else changed the template');
   });
 });

@@ -1,10 +1,13 @@
 import {
   ChangeProfile,
   ChangeSchedule,
+  ChangeTask,
   ChangeTemplate,
+  ChangeUpdate,
   JiraIssue,
   JiraVersion,
   ProductionChange,
+  TaskText,
 } from '../changes/change-api';
 
 export function changeTemplate(overrides: Partial<ChangeTemplate> = {}): ChangeTemplate {
@@ -46,6 +49,32 @@ export function changeTemplate(overrides: Partial<ChangeTemplate> = {}): ChangeT
   };
 }
 
+export function taskText(shortDescription: string, description = `${shortDescription}.`): TaskText {
+  return { shortDescription, description };
+}
+
+export function changeTask(overrides: Partial<ChangeTask> = {}): ChangeTask {
+  return {
+    number: 'CTASK0020001',
+    state: 'OPEN',
+    shortDescription: 'Deploy CertScanner to production',
+    description: 'Deploy the release of CertScanner.',
+    ...overrides,
+  };
+}
+
+export function changeUpdate(overrides: Partial<ChangeUpdate> = {}): ChangeUpdate {
+  return {
+    status: 'PENDING',
+    requestedAt: '2026-10-08T09:30:00Z',
+    departmentName: 'Corporate Technology',
+    fields: ['schedule.installationStart', 'tasks'],
+    message: null,
+    checkedAt: '2026-10-08T09:30:05Z',
+    ...overrides,
+  };
+}
+
 export function changeProfile(overrides: Partial<ChangeProfile> = {}): ChangeProfile {
   return {
     productId: 1,
@@ -53,6 +82,10 @@ export function changeProfile(overrides: Partial<ChangeProfile> = {}): ChangePro
     version: 2,
     updatedAt: '2026-10-05T12:00:00Z',
     template: changeTemplate(),
+    tasks: [
+      taskText('Deploy CertScanner to production', 'Deploy the release of CertScanner.'),
+      taskText('Validate CertScanner in production', 'Run the smoke tests of CertScanner.'),
+    ],
     ...overrides,
   };
 }
@@ -91,6 +124,7 @@ export function productionChange(overrides: Partial<ProductionChange> = {}): Pro
     productId: 1,
     productCode: 'CERT',
     productName: 'CertScanner',
+    departmentId: 3,
     departmentName: 'Corporate Technology',
     fixVersion: 'CERT 4.2',
     schedule: changeSchedule(),
@@ -99,15 +133,18 @@ export function productionChange(overrides: Partial<ProductionChange> = {}): Pro
     template: changeTemplate({ release: 'CERT 4.2' }),
     epicKeys: ['CERT-1'],
     storyKeys: ['CERT-2'],
-    tasks: [
-      {
-        number: 'CTASK0020001',
-        serviceName: 'gui',
-        shortDescription: 'Deploy gui of CertScanner to production',
-        description: 'Deploy gui of CertScanner.',
-      },
-    ],
+    tasks: [changeTask()],
     url: null,
+    state: 'PRIMARY_APPROVAL',
+    workflow: [
+      { state: 'DRAFT', enteredAt: '2026-10-07T09:00:00Z' },
+      { state: 'BUSINESS_APPROVAL', enteredAt: '2026-10-07T09:02:00Z' },
+      { state: 'PRIMARY_APPROVAL', enteredAt: '2026-10-07T09:04:00Z' },
+    ],
+    syncedAt: '2026-10-08T09:00:00Z',
+    syncProblem: null,
+    update: null,
+    version: 4,
     createdAt: '2026-10-07T09:00:00Z',
     ...overrides,
   };

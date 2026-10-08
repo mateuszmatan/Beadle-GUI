@@ -65,7 +65,7 @@ export function storedRequest(product: Product): ProductRequest {
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
       <mat-dialog-content>
         @if (!product) {
-          <p class="intro">Add its services and its ServiceNow defaults on the product's page.</p>
+          <p class="intro">Add its change template on the product's page.</p>
         }
         <div class="fields">
           <mat-form-field>

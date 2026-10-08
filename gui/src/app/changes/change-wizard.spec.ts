@@ -12,10 +12,12 @@ import {
   jiraVersion,
   productionChange,
   story,
+  taskText,
 } from '../testing/change-fixtures';
 import { buttonOf, fieldOf, inputOf, text } from '../testing/dom';
-import { department, product, productSummary, service } from '../testing/fixtures';
-import { ChangeWizard, requestLabel } from './change-wizard';
+import { department, productSummary } from '../testing/fixtures';
+import { MY_DEPARTMENT_KEY } from '../beadle/my-department';
+import { ChangeWizard } from './change-wizard';
 
 describe('ChangeWizard', () => {
   let fixture: ComponentFixture<ChangeWizard>;
@@ -27,6 +29,7 @@ describe('ChangeWizard', () => {
   const local = (time: string) => new Date(time).toISOString();
 
   beforeEach(async () => {
+    localStorage.removeItem(MY_DEPARTMENT_KEY);
     TestBed.configureTestingModule({
       imports: [ChangeWizard],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
@@ -91,11 +94,6 @@ describe('ChangeWizard', () => {
     wizard()['departmentId'].setValue(3);
     wizard()['productId'].setValue(1);
     await settle();
-    http
-      .expectOne('/api/products/1')
-      .flush(
-        product({ services: [service(), service({ id: 11, name: 'api', description: null })] }),
-      );
     http.expectOne('/api/products/1/change-profile').flush(profile);
     await settle();
     jira('versions').flush([
@@ -177,7 +175,6 @@ describe('ChangeWizard', () => {
     wizard()['productId'].setValue(1);
     await settle();
     expect(wizard()['stepProblem']()).toBe('Wait until the product is loaded');
-    http.expectOne('/api/products/1').flush(product());
     http
       .expectOne('/api/products/1/change-profile')
       .flush({ detail: 'Product 1 is gone' }, { status: 404, statusText: 'Not Found' });
@@ -190,7 +187,7 @@ describe('ChangeWizard', () => {
     await chooseCertScanner(changeProfile({ version: null }));
 
     expect(text(page().querySelector('.defaults-note'))).toContain(
-      'CertScanner has no ServiceNow defaults yet, so the suggested values are filled in',
+      'CertScanner has no change template yet, so the suggested values are filled in',
     );
     expect(page().querySelector('.defaults-note a')?.getAttribute('href')).toBe(
       '/beadle/admin/products/1',
@@ -200,7 +197,7 @@ describe('ChangeWizard', () => {
     expect(wizard().hasUnsavedChanges()).toBe(true);
   });
 
-  it('raises a change from the FixVersion, the chosen epics, stories and services, the edited details and the schedule', async () => {
+  it('raises a change from the FixVersion, the chosen epics and stories, the edited details and tasks and the schedule', async () => {
     await chooseCertScanner();
     expect(text(page().querySelector('dl.rows'))).toContain('Olivia Bennett, James Carter');
     expect(page().querySelector('.defaults-note')).toBeNull();
@@ -226,13 +223,9 @@ describe('ChangeWizard', () => {
     expect(wizard()['storyKeys']()).toEqual(['CERT-2', 'CERT-3']);
     expect(text(page().querySelector('.story-group'))).toContain('CERT-1 Expiry alerts');
     wizard()['toggleStory']('CERT-3', false);
-    wizard()['toggleService'](11, false);
-    wizard()['toggleService'](10, false);
-    await next();
-    expect(wizard()['stepProblem']()).toBe('Choose at least one service');
-    wizard()['toggleService'](10, true);
     await next();
     expect(wizard()['step']()).toBe(2);
+    expect(text(page().querySelector('h2'))).toBe('Check the ProTech fields');
 
     const details = wizard()['details']()!;
     expect(details.controls.release.value).toBe('CERT 4.2');
@@ -246,6 +239,15 @@ describe('ChangeWizard', () => {
       riskAssessment: { businessImpact: 'High' },
       downtime: true,
     });
+    const tasks = wizard()['tasks']()!;
+    expect(page().querySelectorAll('dso-change-tasks-form .task-row').length).toBe(2);
+    tasks.at(1).controls.shortDescription.setValue(' ');
+    await next();
+    expect(wizard()['stepProblem']()).toBe('Some fields need your attention.');
+    tasks.at(1).controls.shortDescription.setValue('Validate it');
+    buttonOf(page(), 'Add a change task').click();
+    await settle();
+    tasks.at(2).patchValue({ shortDescription: 'Tell the users', description: 'Send the e-mail.' });
     await next();
     expect(wizard()['step']()).toBe(3);
 
@@ -265,9 +267,9 @@ describe('ChangeWizard', () => {
     expect(wizard()['step']()).toBe(4);
 
     const preview = http.expectOne('/api/changes/preview');
+    expect(preview.request.body.serviceIds).toBeUndefined();
     expect(preview.request.body).toMatchObject({
       productId: 1,
-      serviceIds: [10],
       fixVersion: 'CERT 4.2',
       epicKeys: ['CERT-1'],
       storyKeys: ['CERT-2'],
@@ -284,6 +286,11 @@ describe('ChangeWizard', () => {
         planning: { backoutPlan: 'Roll back with the previous image.' },
         riskAssessment: { businessImpact: 'High' },
       },
+      tasks: [
+        taskText('Deploy CertScanner to production', 'Deploy the release of CertScanner.'),
+        taskText('Validate it', 'Run the smoke tests of CertScanner.'),
+        taskText('Tell the users', 'Send the e-mail.'),
+      ],
     });
     preview.flush(productionChange({ id: null, number: null, createdAt: null }));
     await settle();
@@ -291,13 +298,11 @@ describe('ChangeWizard', () => {
     expect(text(page().querySelector('dso-change-summary dt:nth-of-type(3) + dd'))).toBe(
       'CERT 4.2',
     );
-    expect(text(page().querySelector('.tasks'))).toContain(
-      'Deploy gui of CertScanner to production',
-    );
+    expect(text(page().querySelector('.tasks'))).toContain('Deploy CertScanner to production');
     expect(text(page().querySelector('.scope'))).toBe('1 epic and 1 story of FixVersion CERT 4.2');
     wizard()['shortDescription'].setValue('CertScanner 4.2');
 
-    expect(wizard()['nextLabel']()).toBe('Raise the change in ServiceNow');
+    expect(wizard()['nextLabel']()).toBe('Raise the change in ProTech');
     await next();
     const raised = http.expectOne({ method: 'POST', url: '/api/changes' });
     expect(raised.request.body).toMatchObject({
@@ -310,9 +315,17 @@ describe('ChangeWizard', () => {
 
     expect(wizard()['step']()).toBe(5);
     expect(text(page().querySelector('h2'))).toBe('CHG0012345 is raised');
-    expect(text(page().querySelector('.next-steps'))).toContain(
-      'Olivia Bennett, James Carter approve the change in ServiceNow.',
+    expect(text(page().querySelector('.review-services'))).toBe(
+      'CTASK0020001 · Deploy CertScanner to production',
     );
+    expect(text(page().querySelector('.next-steps'))).toContain(
+      'Olivia Bennett, James Carter approve the change in ProTech.',
+    );
+    expect(
+      [...page().querySelectorAll<HTMLAnchorElement>('.step-actions a')]
+        .find((link) => text(link) === 'Open the change')
+        ?.getAttribute('href'),
+    ).toBe('/beadle/changes/7');
     expect(wizard().hasUnsavedChanges()).toBe(false);
 
     wizard()['restart']();
@@ -322,7 +335,7 @@ describe('ChangeWizard', () => {
     expect(wizard()['fixVersion'].value).toBe('');
   });
 
-  it('keeps the texts the user changed when the same change is previewed again and shows why ServiceNow refused it', async () => {
+  it('keeps the texts the user changed when the same change is previewed again and shows why ProTech refused it', async () => {
     await toSchedule();
     wizard()['installationDate'].setValue('2030-11-02');
     await next();
@@ -343,11 +356,12 @@ describe('ChangeWizard', () => {
     await next();
     http.expectOne({ method: 'POST', url: '/api/changes' }).flush(
       {
-        detail: '3 fields are invalid',
+        detail: '4 fields are invalid',
         errors: [
           { field: 'schedule.installationStart', message: 'must be in the future' },
           { field: 'template.planning.backoutPlan', message: 'must not be blank' },
           { field: 'epicKeys', message: 'CERT-1 is not in Jira project CERT' },
+          { field: 'tasks[1].description', message: 'must not be blank' },
         ],
       },
       { status: 400, statusText: 'Bad Request' },
@@ -359,9 +373,13 @@ describe('ChangeWizard', () => {
       'Installation start: must be in the future',
       'Backout plan: must not be blank',
       'Epics: CERT-1 is not in Jira project CERT',
+      'Change task 2: description: must not be blank',
     ]);
-    expect(text(page().querySelector('.save-problem'))).toContain('3 fields are invalid');
+    expect(text(page().querySelector('.save-problem'))).toContain('4 fields are invalid');
     expect(wizard()['details']()!.controls.planning.controls.backoutPlan.errors).toEqual({
+      server: 'must not be blank',
+    });
+    expect(wizard()['tasks']()!.at(1).controls.description.errors).toEqual({
       server: 'must not be blank',
     });
   });
@@ -620,7 +638,7 @@ describe('ChangeWizard', () => {
     expect(text(page().querySelector('.save-problem strong'))).toBe(
       'The change could not be previewed: Jira is down',
     );
-    expect(buttonOf(page(), 'Raise the change in ServiceNow').disabled).toBe(true);
+    expect(buttonOf(page(), 'Raise the change in ProTech').disabled).toBe(true);
 
     buttonOf(page(), 'Try again').click();
     await settle();
@@ -629,14 +647,37 @@ describe('ChangeWizard', () => {
 
     expect(page().querySelector('.save-problem')).toBeNull();
     expect(wizard()['shortDescription'].value).toBe('CertScanner CERT 4.2: Expiry alerts');
-    expect(buttonOf(page(), 'Raise the change in ServiceNow').disabled).toBe(false);
+    expect(buttonOf(page(), 'Raise the change in ProTech').disabled).toBe(false);
   });
+});
 
-  it('names the fields of the request in the problems it shows', () => {
-    expect(requestLabel('fixVersion')).toBe('FixVersion');
-    expect(requestLabel('schedule.firstUsage')).toBe('First usage');
-    expect(requestLabel('template.approvers.l2Manager')).toBe('L2 manager');
-    expect(requestLabel('somethingElse')).toBeNull();
+describe('ChangeWizard of a chosen department', () => {
+  it('preselects the department chosen in Changes', async () => {
+    localStorage.setItem(MY_DEPARTMENT_KEY, '3');
+    TestBed.configureTestingModule({
+      imports: [ChangeWizard],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    });
+    const http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(ChangeWizard);
+    fixture.detectChanges();
+    http.expectOne('/api/departments').flush([department()]);
+    http.expectOne('/api/products').flush([productSummary()]);
+    http
+      .expectOne('/api/changes/integrations')
+      .flush({ jiraConnected: false, serviceNowConnected: false });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const page = fixture.nativeElement as HTMLElement;
+    expect(text(fieldOf(page, 'Department')?.querySelector('.mat-mdc-select-value'))).toBe(
+      'Corporate Technology',
+    );
+    expect(text(fieldOf(page, 'Product')?.querySelector('mat-hint'))).toBe(
+      '1 product in the department',
+    );
+    http.verify();
+    localStorage.removeItem(MY_DEPARTMENT_KEY);
   });
 });
 

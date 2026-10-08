@@ -32,7 +32,7 @@ export class DepartmentsAdmin {
   protected readonly columns = computed(() =>
     this.pipelines()
       ? ['name', 'products', 'services', 'pipelines', 'actions']
-      : ['name', 'products', 'services', 'actions'],
+      : ['name', 'products', 'actions'],
   );
   protected readonly summary = computed(() => {
     const departments = this.departments.hasValue() ? this.departments.value() : [];
@@ -44,10 +44,14 @@ export class DepartmentsAdmin {
         sum((department) => department.productCount),
         'product',
       ),
-      counted(
-        sum((department) => department.serviceCount),
-        'service',
-      ),
+      ...(this.pipelines()
+        ? [
+            counted(
+              sum((department) => department.serviceCount),
+              'service',
+            ),
+          ]
+        : []),
     ].join(' · ');
   });
   protected readonly chart = computed<BarRow[]>(() =>

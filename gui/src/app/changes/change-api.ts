@@ -4,6 +4,20 @@ import { Observable } from 'rxjs';
 
 export type ChangeType = 'NORMAL' | 'STANDARD' | 'EMERGENCY';
 
+export type ChangeState =
+  | 'DRAFT'
+  | 'BUSINESS_APPROVAL'
+  | 'PRIMARY_APPROVAL'
+  | 'SECONDARY_APPROVAL'
+  | 'CTASK_APPROVAL'
+  | 'ESCALATED_APPROVAL'
+  | 'IMPLEMENTATION'
+  | 'CLOSED';
+
+export type TaskState = 'OPEN' | 'WORK_IN_PROGRESS' | 'CLOSED' | 'CANCELED';
+
+export type UpdateStatus = 'PENDING' | 'APPLIED' | 'NOT_APPLIED';
+
 export interface ChangeApprovers {
   l1Manager: string | null;
   l2Manager: string | null;
@@ -72,6 +86,7 @@ export interface ChangeProfile {
   version: number | null;
   updatedAt: string | null;
   template: ChangeTemplate;
+  tasks: TaskText[];
 }
 
 export interface ChangeProfileSummary {
@@ -103,11 +118,28 @@ export interface ChangeSchedule {
   firstUsage: string;
 }
 
-export interface ChangeTask {
-  number: string | null;
-  serviceName: string;
+export interface TaskText {
   shortDescription: string;
   description: string;
+}
+
+export interface ChangeTask extends TaskText {
+  number: string | null;
+  state: TaskState;
+}
+
+export interface WorkflowStep {
+  state: ChangeState;
+  enteredAt: string;
+}
+
+export interface ChangeUpdate {
+  status: UpdateStatus;
+  requestedAt: string;
+  departmentName: string | null;
+  fields: string[];
+  message: string | null;
+  checkedAt: string | null;
 }
 
 export interface ProductionChange {
@@ -116,6 +148,7 @@ export interface ProductionChange {
   productId: number | null;
   productCode: string;
   productName: string;
+  departmentId: number | null;
   departmentName: string | null;
   fixVersion: string;
   schedule: ChangeSchedule;
@@ -126,19 +159,39 @@ export interface ProductionChange {
   storyKeys: string[];
   tasks: ChangeTask[];
   url: string | null;
+  state: ChangeState;
+  workflow: WorkflowStep[];
+  syncedAt: string | null;
+  syncProblem: string | null;
+  update: ChangeUpdate | null;
+  version: number | null;
   createdAt: string | null;
 }
 
 export interface ChangeRequest {
   productId: number;
-  serviceIds: number[];
   fixVersion: string;
   epicKeys: string[];
   storyKeys: string[];
   schedule: ChangeSchedule;
   template: ChangeTemplate;
+  tasks: TaskText[];
   shortDescription?: string;
   description?: string;
+}
+
+export interface EditedTask extends TaskText {
+  number: string | null;
+}
+
+export interface ChangeEditRequest {
+  version: number;
+  departmentId: number;
+  shortDescription: string;
+  description: string;
+  schedule: ChangeSchedule;
+  template: ChangeTemplate;
+  tasks: EditedTask[];
 }
 
 export interface ChangeIntegrations {
@@ -151,6 +204,26 @@ export const TYPES: { value: ChangeType; label: string }[] = [
   { value: 'STANDARD', label: 'Standard' },
   { value: 'EMERGENCY', label: 'Emergency' },
 ];
+
+export const STATES: { value: ChangeState; label: string }[] = [
+  { value: 'DRAFT', label: 'Draft' },
+  { value: 'BUSINESS_APPROVAL', label: 'Business Approval' },
+  { value: 'PRIMARY_APPROVAL', label: 'Primary Approval' },
+  { value: 'SECONDARY_APPROVAL', label: 'Secondary Approval' },
+  { value: 'CTASK_APPROVAL', label: 'CTask approval' },
+  { value: 'ESCALATED_APPROVAL', label: 'Escalated approval' },
+  { value: 'IMPLEMENTATION', label: 'Implementation' },
+  { value: 'CLOSED', label: 'Closed' },
+];
+
+export const TASK_STATES: { value: TaskState; label: string }[] = [
+  { value: 'OPEN', label: 'Open' },
+  { value: 'WORK_IN_PROGRESS', label: 'Work in progress' },
+  { value: 'CLOSED', label: 'Closed' },
+  { value: 'CANCELED', label: 'Canceled' },
+];
+
+export const isOpen = (change: Pick<ProductionChange, 'state'>) => change.state !== 'CLOSED';
 
 const LEVELS = ['Low', 'Medium', 'High'];
 
@@ -180,12 +253,20 @@ function jira(fixVersion: string | null, project?: string, epicKeys?: readonly s
 export class ChangesApi {
   private readonly http = inject(HttpClient);
 
-  list(): Observable<ProductionChange[]> {
-    return this.http.get<ProductionChange[]>('/api/changes');
+  list(departmentId?: number): Observable<ProductionChange[]> {
+    const params =
+      departmentId === undefined
+        ? undefined
+        : new HttpParams().set('departmentId', String(departmentId));
+    return this.http.get<ProductionChange[]>('/api/changes', { params });
   }
 
   get(id: number): Observable<ProductionChange> {
     return this.http.get<ProductionChange>(`/api/changes/${id}`);
+  }
+
+  update(id: number, request: ChangeEditRequest): Observable<ProductionChange> {
+    return this.http.put<ProductionChange>(`/api/changes/${id}`, request);
   }
 
   integrations(): Observable<ChangeIntegrations> {
@@ -235,10 +316,12 @@ export class ChangesApi {
     productId: number,
     version: number | null,
     template: ChangeTemplate,
+    tasks: TaskText[],
   ): Observable<ChangeProfile> {
     return this.http.put<ChangeProfile>(`/api/products/${productId}/change-profile`, {
       version,
       template,
+      tasks,
     });
   }
 }

@@ -1,7 +1,18 @@
-import { changeTemplate, jiraVersion, story } from '../testing/change-fixtures';
 import {
+  changeSchedule,
+  changeTask,
+  changeTemplate,
+  jiraVersion,
+  productionChange,
+  story,
+  taskText,
+} from '../testing/change-fixtures';
+import {
+  Moments,
+  activeTasks,
   approverNames,
   changeRequest,
+  editHint,
   fromLocalInput,
   isoDate,
   matchingVersions,
@@ -9,6 +20,8 @@ import {
   momentText,
   plannedSchedule,
   readMoments,
+  scheduleForm,
+  scheduleOf,
   scheduleProblem,
   storiesFollowing,
   timeOf,
@@ -105,6 +118,7 @@ describe('change model', () => {
     expect(scheduleProblem(changed(0, '2026-10-07T09:00:00'), now)).toBe(
       'The installation must start in the future',
     );
+    expect(scheduleProblem(changed(0, '2026-10-07T09:00:00'), now, false)).toBeNull();
     expect(scheduleProblem(changed(1, '2026-10-20T18:00:00'), now)).toBe(
       'The installation must end after it starts',
     );
@@ -181,17 +195,16 @@ describe('change model', () => {
       changeRequest(
         {
           productId: 1,
-          serviceIds: [10, 11],
           fixVersion: ' CERT 4.2 ',
           epicKeys: ['CERT-1'],
           storyKeys: ['CERT-2'],
         },
         planned,
         template,
+        [taskText('Deploy it')],
       ),
     ).toEqual({
       productId: 1,
-      serviceIds: [10, 11],
       fixVersion: 'CERT 4.2',
       epicKeys: ['CERT-1'],
       storyKeys: ['CERT-2'],
@@ -203,6 +216,45 @@ describe('change model', () => {
         firstUsage: at('2026-10-20T21:00:00').toISOString(),
       },
       template,
+      tasks: [taskText('Deploy it')],
     });
+  });
+
+  it('fills the schedule inputs of a stored schedule and writes them back', () => {
+    const schedule = changeSchedule();
+    const form = scheduleForm(schedule);
+
+    expect(form.controls.installationStart.getRawValue().date).toBe(
+      isoDate(new Date(schedule.installationStart)),
+    );
+    expect(scheduleOf(readMoments(form.getRawValue()) as Moments)).toEqual({
+      installationStart: '2026-10-10T06:00:00.000Z',
+      installationEnd: '2026-10-10T08:00:00.000Z',
+      validationStart: '2026-10-10T08:00:00.000Z',
+      validationEnd: '2026-10-10T09:00:00.000Z',
+      firstUsage: '2026-10-12T08:00:00.000Z',
+    });
+    expect(scheduleForm().getRawValue().firstUsage).toEqual({ date: '', time: '' });
+  });
+
+  it('keeps the tasks ProTech has not canceled', () => {
+    const canceled = changeTask({ number: 'CTASK0020002', state: 'CANCELED' });
+    const closed = changeTask({ number: 'CTASK0020003', state: 'CLOSED' });
+
+    expect(activeTasks([changeTask(), canceled, closed])).toEqual([changeTask(), closed]);
+  });
+
+  it('says why a change cannot be edited by the chosen department', () => {
+    const change = productionChange();
+
+    expect(editHint(change, 3)).toBeNull();
+    expect(editHint(change, null)).toBe('Choose your department in Changes to change it');
+    expect(editHint(change, 5)).toBe('Only Corporate Technology can change it');
+    expect(editHint({ ...change, departmentName: null }, 5)).toBe(
+      'Only its department can change it',
+    );
+    expect(editHint({ ...change, departmentId: null }, 3)).toBe(
+      'No department owns CHG0012345, so it cannot be changed in Beadle',
+    );
   });
 });

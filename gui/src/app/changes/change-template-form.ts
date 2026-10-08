@@ -79,8 +79,15 @@ const RISK_CHOICES: Suggestion[] = [
 
 const BACKOUT_TESTING: Field[] = [area('backoutTesting', 'Backout testing & duration', '', 12)];
 
+const SECTIONS: Pick<Field, 'key' | 'label'>[] = [
+  { key: 'approvers', label: 'Approvers' },
+  { key: 'planning', label: 'Planning' },
+  { key: 'privilegedAccess', label: 'Privileged access' },
+  { key: 'riskAssessment', label: 'Risk assessment' },
+];
+
 const LABELS: [string, readonly Pick<Field, 'key' | 'label'>[]][] = [
-  ['', [...CHANGE, ...DOWNTIME]],
+  ['', [...CHANGE, ...DOWNTIME, ...SECTIONS]],
   ['approvers.', APPROVERS],
   ['timing.', [INSTALLATION_START, ...TIMING]],
   ['planning.', PLANNING],
@@ -127,35 +134,37 @@ export function templateLabel(path: string): string | null {
           <dso-fields [group]="f" [fields]="change()" />
         </div>
       </section>
-      <section class="card template-card">
+      <section class="card template-card" [class.wide]="!scheduleDefaults()">
         <header>
           <h3>Approvers</h3>
           <p>Who approves the change.</p>
         </header>
         <div class="form-fields">
-          <dso-fields [group]="f.controls.approvers" [fields]="approvers" />
+          <dso-fields [group]="f.controls.approvers" [fields]="approvers()" />
         </div>
       </section>
-      <section class="card template-card">
-        <header>
-          <h3>Schedule defaults</h3>
-          <p>The change starts on the installation date at this time, in local time.</p>
-        </header>
-        <div class="form-fields">
-          <dso-fields [group]="f" [fields]="downtime" />
-          <mat-form-field class="span-4">
-            <mat-label>{{ installationStart.label }}</mat-label>
-            <input
-              matInput
-              type="time"
-              required
-              [formControl]="timing.controls.installationStart"
-            />
-            <mat-error>{{ errorText(timing.controls.installationStart, timeError) }}</mat-error>
-          </mat-form-field>
-          <dso-fields [group]="timing" [fields]="timingFields" />
-        </div>
-      </section>
+      @if (scheduleDefaults()) {
+        <section class="card template-card">
+          <header>
+            <h3>Schedule defaults</h3>
+            <p>The change starts on the installation date at this time, in local time.</p>
+          </header>
+          <div class="form-fields">
+            <dso-fields [group]="f" [fields]="downtime" />
+            <mat-form-field class="span-4">
+              <mat-label>{{ installationStart.label }}</mat-label>
+              <input
+                matInput
+                type="time"
+                required
+                [formControl]="timing.controls.installationStart"
+              />
+              <mat-error>{{ errorText(timing.controls.installationStart, timeError) }}</mat-error>
+            </mat-form-field>
+            <dso-fields [group]="timing" [fields]="timingFields" />
+          </div>
+        </section>
+      }
       <section class="card template-card wide">
         <header>
           <h3>Planning</h3>
@@ -308,11 +317,19 @@ export function templateLabel(path: string): string | null {
 export class ChangeTemplateForm {
   readonly form = input.required<TemplateForm>();
   readonly jiraProject = input(true);
+  readonly changeType = input(true);
+  readonly scheduleDefaults = input(true);
 
   protected readonly change = computed(() =>
-    this.jiraProject() ? CHANGE : CHANGE.filter((field) => field.key !== 'jiraProjectKey'),
+    CHANGE.filter(
+      (field) =>
+        (this.jiraProject() || field.key !== 'jiraProjectKey') &&
+        (this.changeType() || field.key !== 'type'),
+    ),
   );
-  protected readonly approvers = APPROVERS;
+  protected readonly approvers = computed(() =>
+    this.scheduleDefaults() ? APPROVERS : APPROVERS.map((field) => ({ ...field, span: 4 })),
+  );
   protected readonly downtime = DOWNTIME;
   protected readonly installationStart = INSTALLATION_START;
   protected readonly timingFields = TIMING;

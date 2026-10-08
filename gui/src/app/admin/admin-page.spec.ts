@@ -110,7 +110,7 @@ describe('AdminPage', () => {
     expect(TestBed.inject(Router).url).toBe('/beadle/admin/products');
     expect(text(page().querySelector('h1'))).toBe('Beadle Admin');
     expect(text(page().querySelector('.page-description'))).toBe(
-      'Departments, products, services and the defaults of their ServiceNow changes',
+      'Departments, products and the change template of each product',
     );
     expect(tabs().map(text)).toEqual(['Departments', 'Products']);
     expect(tabs().map((link) => link.getAttribute('href'))).toEqual([

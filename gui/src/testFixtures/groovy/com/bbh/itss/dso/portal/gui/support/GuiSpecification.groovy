@@ -17,6 +17,7 @@ import java.util.function.BooleanSupplier
 import java.util.function.Consumer
 import java.util.function.Predicate
 
+import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.BUTTON
 import static com.microsoft.playwright.options.AriaRole.CHECKBOX
 import static com.microsoft.playwright.options.AriaRole.COMBOBOX
@@ -33,7 +34,7 @@ abstract class GuiSpecification extends Specification {
     static final int HEIGHT = 1000
 
     static final Map<String, List<String>> MENUS = [
-            'Beadle'              : ['Overview', 'Production Change', 'Admin'],
+            'Beadle'              : ['Changes', 'New Change', 'Admin'],
             'DevSecOps Management': ['Self-service', 'Pipeline Monitoring', 'Change Evidence', 'Admin']]
 
     static final String CLIPBOARD_RECORDER = '''
@@ -239,6 +240,7 @@ abstract class GuiSpecification extends Specification {
     void choose(Locator scope, String label, String option) {
         select(scope, label).click()
         page.getByRole(OPTION, new Page.GetByRoleOptions().setName(option).setExact(true)).click()
+        assertThat(page.locator('.mat-mdc-select-panel')).hasCount(0)
     }
 
     Locator checkbox(Locator scope, String label) {
