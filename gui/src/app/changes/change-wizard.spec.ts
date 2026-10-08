@@ -315,7 +315,7 @@ describe('ChangeWizard', () => {
 
     expect(wizard()['step']()).toBe(5);
     expect(text(page().querySelector('h2'))).toBe('CHG0012345 is raised');
-    expect(text(page().querySelector('.review-services'))).toBe(
+    expect(text(page().querySelector('.review-list'))).toBe(
       'CTASK0020001 · Deploy CertScanner to production',
     );
     expect(text(page().querySelector('.next-steps'))).toContain(

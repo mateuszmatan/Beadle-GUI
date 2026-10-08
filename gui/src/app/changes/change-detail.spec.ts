@@ -48,13 +48,13 @@ describe('the text of an update', () => {
         changeUpdate({
           status: 'NOT_APPLIED',
           fields: ['schedule.installationStart', 'template.approvers', 'unknown'],
-          message: 'ProTech did not apply the update within a minute',
+          message: 'A minute later ProTech still held its own values, so Beadle shows those.',
         }),
         NOW,
       ),
     ).toBe(
       `ProTech did not apply the update of ${requested}: Installation start, Approvers, unknown. ` +
-        'ProTech did not apply the update within a minute',
+        'A minute later ProTech still held its own values, so Beadle shows those.',
     );
     expect(updateText(changeUpdate({ status: 'NOT_APPLIED', fields: ['tasks'] }), NOW)).toBe(
       `ProTech did not apply the update of ${requested}: Change tasks.`,
@@ -286,7 +286,7 @@ describe('ChangeDetail', () => {
         update: changeUpdate({
           status: 'NOT_APPLIED',
           fields: ['schedule.installationStart'],
-          message: 'ProTech did not apply the update within a minute',
+          message: 'A minute later ProTech still held its own values, so Beadle shows those.',
         }),
       }),
     );
@@ -295,7 +295,7 @@ describe('ChangeDetail', () => {
     expect(banner?.classList).toContain('danger');
     expect(text(banner)).toBe(
       `ProTech did not apply the update of ${requested}: Installation start. ` +
-        'ProTech did not apply the update within a minute',
+        'A minute later ProTech still held its own values, so Beadle shows those.',
     );
   });
 

@@ -448,6 +448,7 @@ class ProductionChangeRegressionSpec extends PortalSpecification {
 
         then:
         response.status == status
+        response.json.title == (status == 400 ? 'Validation failed' : 'Forbidden')
         (status == 400 ? response.json.errors*.field : response.json.detail) == expected(raised)
         api.get("/api/changes/$raised.id").json.version == 0
 

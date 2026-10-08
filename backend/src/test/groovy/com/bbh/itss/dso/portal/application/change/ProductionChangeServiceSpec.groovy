@@ -39,6 +39,7 @@ import static com.bbh.itss.dso.portal.domain.change.ChangeUpdate.Status.NOT_APPL
 import static com.bbh.itss.dso.portal.domain.change.ChangeUpdate.Status.PENDING
 import static com.bbh.itss.dso.portal.domain.change.TaskState.OPEN
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
+import static com.bbh.itss.dso.portal.domain.shared.Failures.staleVersion
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.FIX_VERSION
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.RAISED
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.epic
@@ -550,6 +551,8 @@ class ProductionChangeServiceSpec extends Specification {
         where:
         problem                  | reply                                                                     || failure               | message
         'has closed the change'  | { [CHG0031001: raised(state: CLOSED)] }                                   || IllegalStateException | 'CHG0031001 is closed in ProTech and can no longer be changed'
+        'changed its texts'      | { [CHG0031001: raised(description: 'Edited in ProTech')] }               || IllegalStateException | STALE_VERSION
+        'added a change task'    | { [CHG0031001: raised(tasks: raised().tasks() + NEW_TASK.numbered('CTASK0041009'))] } || IllegalStateException | STALE_VERSION
         'cannot be reached'      | { throw new UncheckedIOException('Read timed out', new IOException()) }  || UncheckedIOException  | 'Read timed out'
     }
 
@@ -571,6 +574,51 @@ class ProductionChangeServiceSpec extends Specification {
                                new FieldProblem('schedule.installationStart', 'must be in the future'),
                                new FieldProblem('tasks[1].number', 'is listed more than once'),
                                new FieldProblem('tasks[2].number', 'is not a change task of CHG0031001')]
+    }
+
+    def "an opened change another request synced in the meantime is shown as that request stored it"() {
+        given:
+        def theirs = raised(shortDescription: 'Renamed in ProTech', version: 1L)
+
+        when:
+        def loaded = service.get(7L)
+
+        then:
+        1 * changes.load(7L) >> Optional.of(raised())
+        1 * serviceNow.read(_) >> [CHG0031001: raised(shortDescription: 'Renamed in ProTech')]
+        1 * changes.save(_) >> { throw staleVersion() }
+
+        then:
+        1 * changes.load(7L) >> Optional.of(theirs)
+        0 * changes._
+        loaded == theirs
+    }
+
+    def "a published update is stored on the latest version when a sync stored the change in the meantime"() {
+        when:
+        def updated = service.update(7L, edit(shortDescription: 'Renamed'))
+
+        then:
+        1 * changes.load(7L) >> Optional.of(raised())
+        1 * serviceNow.read(_) >> [CHG0031001: raised()]
+        1 * changes.synced(7L, NOW)
+
+        then:
+        1 * serviceNow.update(_)
+
+        then:
+        1 * serviceNow.read(_) >> [CHG0031001: raised(shortDescription: 'Renamed')]
+        1 * changes.save({ it.version() == 0L }) >> { throw staleVersion() }
+
+        then:
+        1 * changes.load(7L) >> Optional.of(raised(version: 1L))
+
+        then:
+        1 * changes.save({ it.version() == 1L && it.shortDescription() == 'Renamed' }) >>
+                { ProductionChange change -> change.toBuilder().version(2L).build() }
+        0 * changes._
+        updated.version() == 2L
+        updated.update().status() == APPLIED
     }
 
     def "a refusal of ProTech is passed on and nothing is stored"() {

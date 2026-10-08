@@ -273,7 +273,7 @@ class ChangesSpec extends EditorSpecification {
         assertThat(page.locator('h1')).hasText('CHG0030995')
         assertThat(updateBanner()).hasClass(~/\bdanger\b/)
         assertThat(updateBanner()).containsText('ProTech did not apply the update of')
-        assertThat(updateBanner()).containsText(': Installation start, Installation end. ProTech did not apply the update within a minute')
+        assertThat(updateBanner()).containsText(': Installation start, Installation end. A minute later ProTech still held its own values, so Beadle shows those.')
         assertThat(page.locator('dso-workflow-progress li[aria-current=step] .label')).hasText('Implementation')
         assertThat(stages().nth(5)).hasClass(~/\bskipped\b/)
         assertThat(stages().nth(5).locator('.when')).hasText('Skipped')

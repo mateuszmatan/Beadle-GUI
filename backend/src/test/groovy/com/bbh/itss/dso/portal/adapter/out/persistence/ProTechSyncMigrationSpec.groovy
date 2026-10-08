@@ -71,6 +71,9 @@ class ProTechSyncMigrationSpec extends MigrationSpecification {
         profiles.save(ChangeProfile.create(product.id(), template(), tasks(3)))
         profiles.save(ChangeProfile.create(ledger, template(jiraProjectKey: 'LED'), tasks(1)))
         def raised = inTransaction { changes.save(changeOf(product)) }
+        def moved = inTransaction {
+            changes.save(changeOf(product, 'CHG0031002', 'CTASK0041011', 'Fund Services'))
+        }
 
         when:
         liquibase.rollback(executedSince('016-'), '')
@@ -79,8 +82,8 @@ class ProTechSyncMigrationSpec extends MigrationSpecification {
         !tables().any { it in ['DSO_CHANGE_PROFILE_TASK', 'DSO_PRODUCTION_CHANGE_STAGE'] }
         !columns('DSO_PRODUCTION_CHANGE').any { it in SYNC_COLUMNS }
         !columns('DSO_PRODUCTION_CHANGE_TASK').contains('STATE')
-        jdbc.queryForList('SELECT TASK_NUMBER, SERVICE_NAME FROM DSO_PRODUCTION_CHANGE_TASK ORDER BY TASK_ORDER') ==
-                [[TASK_NUMBER: 'CTASK0041001', SERVICE_NAME: 'Not recorded']]
+        jdbc.queryForList('SELECT TASK_NUMBER, SERVICE_NAME FROM DSO_PRODUCTION_CHANGE_TASK WHERE CHANGE_ID = ?',
+                raised.id()) == [[TASK_NUMBER: 'CTASK0041001', SERVICE_NAME: 'Not recorded']]
         !nullable('DSO_PRODUCTION_CHANGE_TASK', 'SERVICE_NAME')
         !nullable('DSO_PRODUCTION_CHANGE_TASK', 'TASK_NUMBER')
 
@@ -95,6 +98,7 @@ class ProTechSyncMigrationSpec extends MigrationSpecification {
         }
         profiles.find(ledger).get().tasks() == suggestedTasks('Ledger')
         change.departmentId() == 3L
+        inTransaction { changes.load(moved.id()).get() }.departmentId() == 5L
         change.state() == DRAFT
         change.workflow() == [new WorkflowStep(DRAFT, RAISED)]
         change.syncedAt() == null
@@ -106,10 +110,11 @@ class ProTechSyncMigrationSpec extends MigrationSpecification {
         !nullable('DSO_PRODUCTION_CHANGE', 'STATE')
     }
 
-    private static ProductionChange changeOf(Product product) {
-        ProductionChange draft = ProductionChange.draft(product, 3L, 'Corporate Technology', tasks(2), FIX_VERSION,
+    private static ProductionChange changeOf(Product product, String number = 'CHG0031001',
+                                             String task = 'CTASK0041001', String department = 'Corporate Technology') {
+        ProductionChange draft = ProductionChange.draft(product, 3L, department, tasks(2), FIX_VERSION,
                 schedule(), template(), [epic('CERT-1', 'Expiry alerts')], [], null, null).raisedAt(RAISED)
-                .numbered('CHG0031001', ['CTASK0041001', 'CTASK0041002'], null)
+                .numbered(number, [task, task + '2'], null)
         draft.toBuilder().state(IMPLEMENTATION)
                 .workflow([new WorkflowStep(DRAFT, RAISED), new WorkflowStep(BUSINESS_APPROVAL, RAISED.plusSeconds(120)),
                            new WorkflowStep(IMPLEMENTATION, RAISED.plusSeconds(600))])

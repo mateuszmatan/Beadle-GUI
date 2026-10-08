@@ -18,7 +18,7 @@ final class ChangeStubs {
 
     static final String STALE = 'The record was changed by someone else in the meantime. Reload it and apply your change again.'
 
-    static final String NOT_APPLIED = 'ProTech did not apply the update within a minute'
+    static final String NOT_APPLIED = 'A minute later ProTech still held its own values, so Beadle shows those.'
 
     static final List<String> SCHEDULE = ['installationStart', 'installationEnd', 'validationStart', 'validationEnd', 'firstUsage']
 

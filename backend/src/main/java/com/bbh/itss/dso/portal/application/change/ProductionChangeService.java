@@ -43,6 +43,7 @@ import static com.bbh.itss.dso.portal.domain.change.ProductionChange.FIX_VERSION
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.SHORT_DESCRIPTION_MAX;
 import static com.bbh.itss.dso.portal.domain.change.TaskText.validateTasks;
 import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
+import static com.bbh.itss.dso.portal.domain.shared.Failures.staleVersion;
 import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_1000;
 import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_4000;
 import static com.bbh.itss.dso.portal.domain.shared.Text.bytes;
@@ -66,6 +67,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     private final Clock clock;
 
     @Override
+    @WithoutTransaction
     public List<ProductionChange> list(Long departmentId) {
         List<ProductionChange> stored = departmentId == null ? changes.findAll()
                 : changes.findByDepartment(departmentId);
@@ -78,6 +80,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     @Override
+    @WithoutTransaction
     public ProductionChange get(long id) {
         ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
         try {
@@ -88,6 +91,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     @Override
+    @WithoutTransaction
     public ProductionChange update(long id, ChangeEditCommand command) {
         ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
         requireCurrent(command.version(), stored.version());
@@ -96,13 +100,16 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         if (!current.state().isOpen()) {
             throw new IllegalStateException(current.number() + " is closed in ProTech and can no longer be changed");
         }
+        if (!current.unappliedIn(stored).isEmpty()) {
+            throw staleVersion();
+        }
         Instant now = now(clock);
         ProductionChange edited = current.edited(command.shortDescription(), command.description(),
                 command.schedule(), command.template(), command.tasks(), now);
         serviceNow.update(edited);
         ProductionChange published = edited.toBuilder().update(requested(now, current.departmentName())).build();
         ProductionChange verified = verified(published, current, now);
-        return changes.save(verified).withSyncProblem(verified.syncProblem());
+        return recorded(verified).withSyncProblem(verified.syncProblem());
     }
 
     @Override
@@ -213,10 +220,23 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         }
         ProductionChange synced = stored.synced(read, now);
         if (synced.differsFrom(stored)) {
-            return changes.save(synced);
+            try {
+                return changes.save(synced);
+            } catch (IllegalStateException stale) {
+                return changes.load(stored.id()).orElseThrow(() -> stale);
+            }
         }
         changes.synced(stored.id(), now);
         return synced;
+    }
+
+    private ProductionChange recorded(ProductionChange verified) {
+        try {
+            return changes.save(verified);
+        } catch (IllegalStateException stale) {
+            ProductionChange latest = changes.load(verified.id()).orElseThrow(() -> stale);
+            return changes.save(verified.toBuilder().version(latest.version()).build());
+        }
     }
 
     private ProductionChange verified(ProductionChange published, ProductionChange current, Instant now) {

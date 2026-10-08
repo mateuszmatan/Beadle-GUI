@@ -351,7 +351,8 @@ implements a `port.in` interface. The key generator's port, `KeyGenerator`, live
   `@UtilityClass`, whose members javac cannot import statically. Entities never get `@Data` or `@EqualsAndHashCode`.
 - No exception classes that only add a name. The code throws JDK exceptions with a message, and
   `ApiExceptionHandler` maps them: `NoSuchElementException` is 404, `IllegalStateException` is 409 (a clash with
-  stored data or an outdated `version`), `SecurityException` is 403 (an invalidated pipeline key) and
+  stored data or an outdated `version`), `SecurityException` is 403 (an invalidated pipeline key, or a Beadle change
+  of another department) and
   `InvalidRequestException`, the one portal exception because it carries the failing fields, is 400. An
   `UncheckedIOException` from the metrics store becomes the metrics error of the page; anything else is a 500 and
   is logged, so a programming error throws `IllegalArgumentException` (for example `Validate.isTrue`), never
@@ -611,9 +612,11 @@ approval (only for a change at short notice), Implementation and Closed.
 An open change (any state but Closed) can be changed by a user of its department: the texts, the schedule, the
 template fields except the Jira project, the type and the schedule defaults, and the change tasks. A task that ProTech
 has not created yet is added, a task left out is canceled in ProTech, a canceled task cannot be sent again, and a
-closed task can neither be changed nor removed. Beadle first reads the change from ProTech (a change closed meanwhile
-is refused), checks the version the user read, publishes the update to ProTech at once and reads the change back. The
-change then carries the status of the update, with the department that sent it and the fields ProTech has not applied:
+closed task can neither be changed nor removed. Beadle checks the version the user read, then reads the change from
+ProTech: a change closed meanwhile is refused, and so is one whose texts, fields or tasks ProTech changed since the user
+opened it, so the update never overwrites them. Beadle then publishes the update to ProTech at once and reads the
+change back. The change carries the status of the update, with the department that sent it and the fields ProTech has
+not applied:
 
 - **PENDING**: ProTech has not applied every field yet; the change shows the values that were sent, and every later
   read checks again.
@@ -622,7 +625,9 @@ change then carries the status of the update, with the department that sent it a
   change shows ProTech's values and the fields that were not applied.
 
 Only the department of the change may update it (403 otherwise; a change whose department was deleted cannot be
-changed in Beadle), a stale version or a closed change is refused with 409, and an unreachable ProTech with 503.
+changed in Beadle), a stale version, a change ProTech changed meanwhile or a closed change is refused with 409, and an
+unreachable ProTech with 503. Reading and publishing hold no database transaction while ProTech answers; when two
+requests store the same change at once, a read shows the copy the other request stored.
 
 ### Demo ProTech and the real adapters
 

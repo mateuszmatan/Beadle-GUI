@@ -168,7 +168,7 @@ class ProductionChangeSpec extends EditorSpecification {
 
         then:
         assertThat(step().locator('h2')).hasText('CHG0031002 is raised')
-        assertThat(step().locator('.review-services li')).hasText(['CTASK0310021 · Deploy CertScanner to production',
+        assertThat(step().locator('.review-list li')).hasText(['CTASK0310021 · Deploy CertScanner to production',
                                                                    'CTASK0310022 · Run the database scripts'] as String[])
         assertThat(step().locator('.next-steps')).containsText('Olivia Bennett, James Carter, Grace Turner approve the change in ProTech')
         with(awaitRequest('POST', '/api/changes').json()) {

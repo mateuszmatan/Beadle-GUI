@@ -3,17 +3,21 @@ package com.bbh.itss.dso.portal.adapter.out.persistence;
 import com.bbh.itss.dso.portal.application.change.port.out.ProductionChangeRepositoryPort;
 import com.bbh.itss.dso.portal.domain.change.ProductionChange;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
 import static com.bbh.itss.dso.portal.adapter.out.persistence.AuditedEntity.current;
+import static com.bbh.itss.dso.portal.domain.shared.Failures.staleVersion;
 import static org.springframework.data.domain.Sort.Direction.DESC;
 
 @Component
+@Transactional
 @RequiredArgsConstructor
 class ProductionChangePersistenceAdapter implements ProductionChangeRepositoryPort {
 
@@ -43,7 +47,11 @@ class ProductionChangePersistenceAdapter implements ProductionChangeRepositoryPo
         }
         ProductionChangeEntity entity = current(changes.findById(change.id()), change.version()).apply(change);
         entity.touch();
-        return changes.saveAndFlush(entity).toDomain();
+        try {
+            return changes.saveAndFlush(entity).toDomain();
+        } catch (OptimisticLockingFailureException e) {
+            throw staleVersion();
+        }
     }
 
     @Override
