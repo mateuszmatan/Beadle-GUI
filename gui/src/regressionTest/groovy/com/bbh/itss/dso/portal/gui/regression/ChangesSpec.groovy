@@ -9,6 +9,7 @@ import java.util.function.BooleanSupplier
 
 import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.CERT_TASKS
 import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.CERT_TEMPLATE
+import static com.bbh.itss.dso.portal.gui.support.StubApi.SIGNED_IN_USER
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.BUTTON
 import static java.time.ZoneOffset.UTC
@@ -111,7 +112,7 @@ class ChangesSpec extends EditorSpecification {
         page.waitForURL('**/beadle/new-change')
 
         then:
-        assertThat(select(page.locator('section.step'), 'Department')).hasText('Fund Services')
+        assertThat(select(page.locator('section.step'), 'Your department')).hasText('Fund Services')
         assertThat(hintOf(page.locator('section.step'), 'Product')).hasText('1 product in the department')
         ownErrors().isEmpty()
     }
@@ -178,16 +179,36 @@ class ChangesSpec extends EditorSpecification {
         then:
         assertThat(page.locator('h1')).hasText('Edit CHG0031001')
         assertThat(input(texts(), 'Short description')).hasValue('CertScanner CERT 4.1: Upgrade to Java 21')
-        hasValues(schedule(), ['Installation start date': date, 'Installation start time': '17:00',
-                               'Installation end time'  : '19:00'])
-        hasValues(fields(), ['Assignment group': 'Technology Architecture', 'L1 manager': 'Olivia Bennett'])
+        assertThat(fields().locator('.template-card h3')).hasText(['Generic request data', 'Approval and Notification', 'Schedule',
+                                                                  'Planning', 'Privileged access', 'Risk assessment',
+                                                                  'Secure coding'] as String[])
+        hasValues(request(), ['Change number'   : 'CHG0031001', 'Approval': 'Requested', 'Opened By': SIGNED_IN_USER,
+                              'State'           : 'Secondary Approval', 'Requested For': SIGNED_IN_USER,
+                              'Department'      : 'Corporate Technology', 'Assignment group': 'Technology Architecture',
+                              'Release'         : 'CERT 4.1', 'Risk': 'Moderate'])
+        assertThat(select(request(), 'Type')).isDisabled()
+        hasValues(schedule(), ['Installation start'           : "${date}T17:00", 'Installation hours': '2',
+                               'Post-install validation start': "${date}T19:00", 'Validation hours': '1',
+                               'First use'                    : "${date}T20:00"])
+        assertThat(select(schedule(), 'Downtime')).hasText('No')
+        hasValues(fields(), ['L1 approver': 'Olivia Bennett'])
         assertThat(input(fields(), 'Jira project')).hasCount(0)
-        assertThat(input(fields(), 'Installation hours')).hasCount(0)
         assertThat(editedTasks().locator('.number')).hasText(['CTASK0310011', 'CTASK0310012'] as String[])
 
         when:
-        input(schedule(), 'Installation start time').fill('16:00')
-        input(fields(), 'Assignment group').fill('Certificate Services')
+        input(request(), 'Assignment group').fill('Certificate Services')
+        lookUp(request(), 'Incident', 'cert', 'INC0105126')
+        choose(schedule(), 'Downtime', 'Yes')
+        input(schedule(), 'Downtime hours').fill('1')
+        choose(templateCard('Risk assessment'), 'Business impact', 'High')
+
+        then:
+        assertThat(input(request(), 'Incident')).hasValue('INC0105126')
+        assertThat(input(schedule(), 'Downtime start')).hasValue("${date}T17:00")
+        assertThat(hintOf(schedule(), 'Downtime hours')).hasText(~/^until .+, 18:00$/)
+        assertThat(input(request(), 'Risk')).hasValue('High')
+
+        when:
         button('Remove change task 2', true).click()
         button('Add a change task', true).click()
         fillIn(editedTasks().nth(1), ['Short description': 'Notify the users',
@@ -200,14 +221,20 @@ class ChangesSpec extends EditorSpecification {
         page.evaluate('window.scrollY') == 0
         assertThat(snackBar()).containsText('Your update of CHG0031001 is published to ProTech')
         assertThat(updateBanner()).hasClass(~/\binfo\b/)
-        assertThat(updateBanner()).containsText('is waiting for ProTech: Installation start, Assignment group, Change tasks.')
+        assertThat(updateBanner()).containsText('is waiting for ProTech: Downtime start, Downtime end, Assignment group, Incident, '
+                + 'Downtime, Risk assessment, Change tasks.')
         with(awaitRequest('PUT', '/api/changes/4').json()) {
             version == 3
             departmentId == 3
             shortDescription == 'CertScanner CERT 4.1: Upgrade to Java 21'
-            schedule.installationStart == "${date}T16:00:00.000Z".toString()
-            schedule.installationEnd == "${date}T19:00:00.000Z".toString()
-            template == CERT_TEMPLATE + [release: 'CERT 4.1', assignmentGroup: 'Certificate Services']
+            schedule == [installationStart: "${date}T17:00:00.000Z".toString(), installationEnd: "${date}T19:00:00.000Z".toString(),
+                         validationStart  : "${date}T19:00:00.000Z".toString(), validationEnd: "${date}T20:00:00.000Z".toString(),
+                         firstUsage       : "${date}T20:00:00.000Z".toString(), downtimeStart: "${date}T17:00:00.000Z".toString(),
+                         downtimeEnd      : "${date}T18:00:00.000Z".toString()]
+            template == CERT_TEMPLATE + [release       : 'CERT 4.1', requestedFor: SIGNED_IN_USER, requestedBy: SIGNED_IN_USER,
+                                         assignedTo    : SIGNED_IN_USER, department: 'Corporate Technology', risk: null,
+                                         assignmentGroup: 'Certificate Services', incident: 'INC0105126', downtime: true,
+                                         riskAssessment: (CERT_TEMPLATE.riskAssessment as Map) + [businessImpact: 'High']]
             tasks == [[number: 'CTASK0310011'] + CERT_TASKS[0],
                       [number: null, shortDescription: 'Notify the users', description: 'Send the release notes to the users.']]
         }
@@ -226,6 +253,8 @@ class ChangesSpec extends EditorSpecification {
         assertThat(page.locator('.tasks li').nth(1)).containsText('Notify the users')
         assertThat(page.locator('.tasks li.canceled')).containsText('CTASK0310012')
         assertThat(term(page.locator('dso-change-summary'), 'Assignment group')).hasText('Certificate Services')
+        assertThat(term(page.locator('dso-change-summary'), 'Risk')).hasText('High')
+        assertThat(term(page.locator('dso-change-summary'), 'Downtime')).hasText(~/, 17:00 to 18:00$/)
 
         when:
         link('Edit', true).click()
@@ -233,6 +262,7 @@ class ChangesSpec extends EditorSpecification {
 
         then:
         assertThat(editedTasks().locator('.number')).hasText(['CTASK0310011', 'CTASK0320001'] as String[])
+        hasValues(schedule(), ['Downtime start': "${date}T17:00", 'Downtime hours': '1'])
         ownErrors().isEmpty()
     }
 
@@ -355,7 +385,11 @@ class ChangesSpec extends EditorSpecification {
     }
 
     Locator schedule() {
-        holding(page.locator('section.block'), "h2:text-is('Schedule')")
+        templateCard('Schedule')
+    }
+
+    Locator request() {
+        templateCard('Generic request data')
     }
 
     Locator fields() {

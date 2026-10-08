@@ -1,4 +1,5 @@
 import {
+  ChangeOptions,
   ChangeProfile,
   ChangeSchedule,
   ChangeTask,
@@ -10,19 +11,67 @@ import {
   TaskText,
 } from '../changes/change-api';
 
+export function changeOptions(): ChangeOptions {
+  return {
+    categories: [
+      'Application',
+      'Hardware',
+      'Infrastructure',
+      'System Software',
+      'Network',
+      'Telecom',
+      'Data Amendment',
+      'Desktop Software',
+      'Storage',
+      'Facilities',
+      'Other',
+      'Database',
+    ],
+    types: [
+      { value: 'STANDARD', label: 'Standard' },
+      { value: 'EMERGENCY', label: 'Emergency' },
+      { value: 'BUSINESS_CRITICAL', label: 'Business Critical' },
+      { value: 'MODEL', label: 'Model' },
+    ],
+    risk: {
+      bbhWorkgroups: ['Single', '2-3', 'More than 3'],
+      changeComplexity: ['Simple', 'Moderate', 'Very'],
+      bbhUsers: ['Less than 5', '5-25', '26-250', 'All users'],
+      validationComplexity: ['Simple', 'Moderate', 'Very'],
+      bbhApplications: ['Single', 'Two', 'More than 2'],
+      backoutTesting: [
+        'Less than 30 minutes',
+        '30 mins - 2 hours',
+        'Greater than 2 hours',
+        'Unable to test',
+      ],
+      clientsOutsideBbh: ['No clients', 'Single', 'More than one but not all', 'All clients'],
+      platformStatus: ['Existing', 'New', 'Decommissioned'],
+      businessImpact: ['None', 'Low', 'Medium', 'High'],
+    },
+  };
+}
+
 export function changeTemplate(overrides: Partial<ChangeTemplate> = {}): ChangeTemplate {
   return {
     jiraProjectKey: 'CERT',
+    requestedFor: null,
+    requestedBy: null,
+    department: null,
     assignmentGroup: 'Technology Architecture',
-    category: 'Software',
-    type: 'NORMAL',
-    configurationItem: 'CertScanner',
+    category: 'Application',
+    assignedTo: null,
+    type: 'STANDARD',
     release: null,
+    configurationItem: 'CertScanner',
     incident: null,
+    directBusinessService: null,
     problem: null,
+    risk: null,
     affectedClients: null,
+    usersAffected: null,
     description: 'Watches TLS certificates.',
-    approvers: { l1Manager: 'Olivia Bennett', l2Manager: 'James Carter', businessApprover: null },
+    approvers: { businessApprover: null, l1Manager: 'Olivia Bennett', l2Manager: 'James Carter' },
     downtime: false,
     timing: { installationStart: '18:00', installationHours: 2, validationHours: 1 },
     planning: {
@@ -34,17 +83,17 @@ export function changeTemplate(overrides: Partial<ChangeTemplate> = {}): ChangeT
     },
     privilegedAccess: { required: false, users: [] },
     riskAssessment: {
-      bbhWorkgroups: 1,
-      bbhUsers: 10,
-      bbhApplications: 1,
-      clients: 0,
-      clientsOutsideBbh: 0,
+      bbhWorkgroups: 'Single',
+      changeComplexity: 'Simple',
+      bbhUsers: '5-25',
+      validationComplexity: 'Simple',
+      bbhApplications: 'Single',
+      backoutTesting: 'Less than 30 minutes',
+      clientsOutsideBbh: 'No clients',
+      platformStatus: 'Existing',
       businessImpact: 'Low',
-      changeComplexity: 'Low',
-      validationComplexity: 'Low',
-      backoutTesting: 'Tested on QC, about 15 minutes',
-      platformStatus: 'Existing platform',
     },
+    secureCodingTicket: null,
     ...overrides,
   };
 }
@@ -113,6 +162,8 @@ export function changeSchedule(overrides: Partial<ChangeSchedule> = {}): ChangeS
     validationStart: '2026-10-10T08:00:00Z',
     validationEnd: '2026-10-10T09:00:00Z',
     firstUsage: '2026-10-12T08:00:00Z',
+    downtimeStart: null,
+    downtimeEnd: null,
     ...overrides,
   };
 }
@@ -146,6 +197,7 @@ export function productionChange(overrides: Partial<ProductionChange> = {}): Pro
     update: null,
     version: 4,
     createdAt: '2026-10-07T09:00:00Z',
+    openedBy: 'Mateusz Matan',
     ...overrides,
   };
 }

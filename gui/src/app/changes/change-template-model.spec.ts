@@ -1,21 +1,43 @@
-import { changeTemplate } from '../testing/change-fixtures';
+import { changeOptions, changeTemplate } from '../testing/change-fixtures';
+import { RiskAssessment } from './change-api';
 import {
   MAX_PRIVILEGED_USERS,
-  addPrivilegedUser,
   applyTemplateProblems,
+  riskOf,
   templateForm,
   toTemplate,
+  withDefaults,
 } from './change-template-model';
+
+const NOTHING: RiskAssessment = {
+  bbhWorkgroups: null,
+  changeComplexity: null,
+  bbhUsers: null,
+  validationComplexity: null,
+  bbhApplications: null,
+  backoutTesting: null,
+  clientsOutsideBbh: null,
+  platformStatus: null,
+  businessImpact: null,
+};
 
 describe('change template model', () => {
   it('gives the template it was built from back', () => {
     const template = changeTemplate({
+      requestedFor: 'Grace Turner',
+      requestedBy: 'Mateusz Matan',
+      department: 'Corporate Technology',
+      assignedTo: 'James Carter',
+      type: 'EMERGENCY',
       release: 'CERT 4.2',
       incident: 'INC0012345',
+      directBusinessService: 'Certificate Management',
+      usersAffected: 'Operations',
       privilegedAccess: {
         required: true,
         users: [{ user: 'Jane Smith', account: 'adm_jsmith' }],
       },
+      secureCodingTicket: 'SEC-12',
     });
 
     expect(toTemplate(templateForm(template))).toEqual(template);
@@ -25,29 +47,30 @@ describe('change template model', () => {
     const form = templateForm(changeTemplate());
     form.patchValue({
       jiraProjectKey: ' cert ',
+      requestedFor: ' Grace Turner ',
       assignmentGroup: ' Technology Architecture ',
       release: '  ',
       affectedClients: ' Funds ',
+      secureCodingTicket: ' ',
       approvers: { l1Manager: ' ', businessApprover: ' Ann Lee ' },
       planning: { backoutPlan: ' Redeploy. ' },
-      riskAssessment: { bbhUsers: null, businessImpact: ' ', platformStatus: 'New platform ' },
+      riskAssessment: { bbhUsers: null, platformStatus: 'New' },
     });
 
     expect(form.valid).toBe(true);
     const template = toTemplate(form);
     expect(template).toMatchObject({
       jiraProjectKey: 'CERT',
+      requestedFor: 'Grace Turner',
       assignmentGroup: 'Technology Architecture',
       release: null,
       affectedClients: 'Funds',
+      secureCodingTicket: null,
+      risk: null,
       approvers: { l1Manager: null, l2Manager: 'James Carter', businessApprover: 'Ann Lee' },
     });
     expect(template.planning.backoutPlan).toBe('Redeploy.');
-    expect(template.riskAssessment).toMatchObject({
-      bbhUsers: null,
-      businessImpact: null,
-      platformStatus: 'New platform',
-    });
+    expect(template.riskAssessment).toMatchObject({ bbhUsers: null, platformStatus: 'New' });
   });
 
   it('checks the values as the portal does', () => {
@@ -56,76 +79,155 @@ describe('change template model', () => {
     const invalid = () =>
       [
         c.jiraProjectKey,
+        c.requestedFor,
         c.assignmentGroup,
+        c.category,
         c.incident,
         c.timing.controls.installationStart,
         c.timing.controls.installationHours,
         c.timing.controls.validationHours,
         c.planning.controls.firstUsePlan,
-        c.riskAssessment.controls.bbhWorkgroups,
-        c.riskAssessment.controls.clients,
+        c.secureCodingTicket,
       ]
         .filter((control) => control.invalid)
         .map((control) => Object.keys(control.errors!)[0]);
 
     form.patchValue({
       jiraProjectKey: 'CERT-1',
+      requestedFor: 'R'.repeat(201),
       assignmentGroup: '  ',
+      category: '',
       incident: 'I'.repeat(41),
       timing: { installationStart: '25:00', installationHours: 0, validationHours: 73 },
       planning: { firstUsePlan: '' },
-      riskAssessment: { bbhWorkgroups: -1, clients: 1.5 },
+      secureCodingTicket: 'S'.repeat(41),
     });
     expect(invalid()).toEqual([
       'pattern',
+      'maxlength',
+      'required',
       'required',
       'maxlength',
       'pattern',
       'min',
       'max',
       'required',
-      'min',
-      'integer',
+      'maxlength',
     ]);
 
     form.patchValue({
       jiraProjectKey: 'A',
+      requestedFor: '',
       assignmentGroup: 'Ops',
+      category: 'Network',
       incident: '',
       timing: { installationStart: '23:59', installationHours: 72, validationHours: 0 },
       planning: { firstUsePlan: 'Confirmed.' },
-      riskAssessment: { bbhWorkgroups: 0, clients: null },
+      secureCodingTicket: '',
     });
     expect(invalid()).toEqual([]);
     c.timing.controls.installationHours.setValue(null);
     expect(c.timing.controls.installationHours.hasError('required')).toBe(true);
   });
 
-  it('asks for the privileged users only while privileged access is needed', () => {
+  it('asks for as many privileged accounts as chosen', () => {
     const form = templateForm(changeTemplate());
     const access = form.controls.privilegedAccess.controls;
 
-    expect(access.users.disabled).toBe(true);
-    access.required.setValue(true);
-    expect(access.users.length).toBe(1);
-    expect(access.users.enabled).toBe(true);
+    expect(access.count.value).toBe(0);
+    expect(access.users.length).toBe(0);
+    access.count.setValue(2);
+    expect(access.users.length).toBe(2);
+    expect(access.users.dirty).toBe(true);
     expect(form.valid).toBe(false);
 
-    access.users.at(0).setValue({ user: 'Jane Smith', account: 'adm_jsmith' });
+    access.users.setValue([
+      { user: ' Jane Smith ', account: 'adm_jsmith' },
+      { user: 'Tom Brown', account: 'adm_tbrown' },
+    ]);
     expect(form.valid).toBe(true);
-    access.users.removeAt(0);
-    expect(access.users.errors).toEqual({ rule: 'Add at least one user' });
+    expect(toTemplate(form).privilegedAccess).toEqual({
+      required: true,
+      users: [
+        { user: 'Jane Smith', account: 'adm_jsmith' },
+        { user: 'Tom Brown', account: 'adm_tbrown' },
+      ],
+    });
 
-    for (let i = 0; i < MAX_PRIVILEGED_USERS + 2; i++) {
-      addPrivilegedUser(form);
-    }
+    access.count.setValue(MAX_PRIVILEGED_USERS + 2);
     expect(access.users.length).toBe(MAX_PRIVILEGED_USERS);
-    expect(access.users.dirty).toBe(true);
+    access.count.setValue(1);
+    expect(access.users.getRawValue()).toEqual([{ user: ' Jane Smith ', account: 'adm_jsmith' }]);
 
-    access.required.setValue(false);
-    expect(access.users.disabled).toBe(true);
+    access.count.setValue(0);
     expect(form.valid).toBe(true);
     expect(toTemplate(form).privilegedAccess).toEqual({ required: false, users: [] });
+  });
+
+  it('counts the stored privileged accounts only while privileged access is required', () => {
+    const users = [{ user: 'Jane Smith', account: 'adm_jsmith' }];
+
+    expect(
+      templateForm(changeTemplate({ privilegedAccess: { required: true, users } })).controls
+        .privilegedAccess.controls.count.value,
+    ).toBe(1);
+    expect(
+      templateForm(changeTemplate({ privilegedAccess: { required: false, users } })).controls
+        .privilegedAccess.controls.users.length,
+    ).toBe(0);
+  });
+
+  it('clears the direct business service when the affected CI is typed by hand', () => {
+    const form = templateForm(changeTemplate({ directBusinessService: 'Certificate Management' }));
+    const { configurationItem, directBusinessService } = form.controls;
+
+    expect(directBusinessService.value).toBe('Certificate Management');
+    configurationItem.setValue('CertScanner');
+    expect(directBusinessService.value).toBe('Certificate Management');
+    configurationItem.setValue('CertScanne');
+    expect(directBusinessService.value).toBe('');
+  });
+
+  it('fills the empty request fields with the user who opens the change and the department', () => {
+    expect(withDefaults(changeTemplate(), 'Mateusz Matan', 'Corporate Technology')).toMatchObject({
+      requestedFor: 'Mateusz Matan',
+      requestedBy: 'Mateusz Matan',
+      assignedTo: 'Mateusz Matan',
+      department: 'Corporate Technology',
+    });
+    expect(
+      withDefaults(
+        changeTemplate({
+          requestedFor: 'Grace Turner',
+          requestedBy: 'James Carter',
+          assignedTo: 'Olivia Bennett',
+          department: 'Operations',
+        }),
+        'Mateusz Matan',
+        'Corporate Technology',
+      ),
+    ).toMatchObject({
+      requestedFor: 'Grace Turner',
+      requestedBy: 'James Carter',
+      assignedTo: 'Olivia Bennett',
+      department: 'Operations',
+    });
+    expect(withDefaults(changeTemplate(), null, null).requestedFor).toBeNull();
+  });
+
+  it('computes the risk from the answers', () => {
+    const lists = changeOptions().risk;
+
+    expect(riskOf(NOTHING, lists)).toBeNull();
+    expect(riskOf({ ...NOTHING, bbhUsers: 'Unknown' }, lists)).toBeNull();
+    expect(riskOf({ ...NOTHING, bbhWorkgroups: 'Single', bbhUsers: 'Less than 5' }, lists)).toBe(
+      'Low',
+    );
+    expect(riskOf(changeTemplate().riskAssessment, lists)).toBe('Moderate');
+    expect(riskOf({ ...NOTHING, bbhWorkgroups: 'Single', bbhUsers: 'All users' }, lists)).toBe(
+      'High',
+    );
+    expect(riskOf({ ...NOTHING, platformStatus: 'Decommissioned' }, lists)).toBe('High');
   });
 
   it('marks the fields the portal refused and hands back the problems of other fields', () => {
@@ -144,7 +246,7 @@ describe('change template model', () => {
     const left = applyTemplateProblems(form, [
       { field: 'template.planning.backoutPlan', message: 'must not be blank' },
       { field: 'template.privilegedAccess.users[1].account', message: 'is not an admin account' },
-      { field: 'template.riskAssessment.bbhUsers', message: 'must be at least 0' },
+      { field: 'template.riskAssessment.bbhUsers', message: 'is not one of the options' },
       { field: 'template.unknown', message: 'is odd' },
       { field: 'schedule.installationEnd', message: 'must be after the start' },
     ]);
@@ -156,7 +258,7 @@ describe('change template model', () => {
       server: 'is not an admin account',
     });
     expect(form.controls.riskAssessment.controls.bbhUsers.errors).toEqual({
-      server: 'must be at least 0',
+      server: 'is not one of the options',
     });
     expect(left).toEqual([
       { field: 'schedule.installationEnd', message: 'must be after the start' },

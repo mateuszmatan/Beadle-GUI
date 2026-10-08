@@ -15,6 +15,8 @@ class StubApi {
 
     static final String FIXTURES = '/com/bbh/itss/dso/portal/gui/api/'
 
+    static final String SIGNED_IN_USER = 'Mateusz Matan'
+
     private final List<Route> routes = new CopyOnWriteArrayList<>()
     private final List<RecordedRequest> recorded = new CopyOnWriteArrayList<>()
     ChangeStubs.ProTech protech
@@ -32,6 +34,7 @@ class StubApi {
     }
 
     private void loadDemoData() {
+        get('/api/me') { [name: SIGNED_IN_USER] }
         get('/api/products') { RecordedRequest request ->
             def search = request.params().search?.toLowerCase()
             def products = fixture('products.json') as List<Map>

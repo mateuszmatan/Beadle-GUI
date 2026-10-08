@@ -8,10 +8,11 @@ import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.STALE
 import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.BUTTON
+import static com.microsoft.playwright.options.AriaRole.OPTION
 
 class ServiceNowDefaultsSpec extends EditorSpecification {
 
-    def "an admin keeps the change template of a product, privileged users and default change tasks included"() {
+    def "an admin keeps the change template of a product section by section, privileged accounts and default change tasks included"() {
         when:
         open('/beadle/admin/products/1')
 
@@ -20,37 +21,54 @@ class ServiceNowDefaultsSpec extends EditorSpecification {
                 .hasText(['Beadle Admin', 'Products', 'CertScanner'] as String[])
         assertThat(page.locator('h1')).hasText('CertScanner')
         assertThat(page.locator('.banner.info')).hasCount(0)
-        assertThat(defaults().locator('.template-card h3')).hasText(['Change', 'Approvers', 'Schedule defaults',
-                                                                     'Planning', 'Privileged access', 'Risk assessment'] as String[])
-        hasValues(defaults(), ['Jira project'      : 'CERT', 'Assignment group': 'Technology Architecture',
-                               'Affected CI'       : 'CertScanner', 'L1 manager': 'Olivia Bennett',
-                               'Business approver' : 'Grace Turner', 'Installation start': '18:00',
-                               'Installation hours': '2', 'Validation hours': '1', 'BBH users': '25',
-                               'Platform status'   : 'Existing platform'])
-        assertThat(checkbox(defaults(), 'Privileged access needed')).not().isChecked()
-        assertThat(defaults().locator('.user-row')).hasCount(0)
+        assertThat(defaults().locator('.template-card h3')).hasText(['Generic request data', 'Jira', 'Approval and Notification',
+                                                                     'Schedule', 'Planning', 'Privileged access',
+                                                                     'Risk assessment', 'Secure coding'] as String[])
+        assertThat(input(defaults(), 'Change number')).hasCount(0)
+        hasValues(defaults(), ['Requested For'     : '', 'Department': '', 'Assignment group': 'Technology Architecture',
+                               'Affected CI'       : 'CertScanner', 'Direct business service': 'Certificate Management',
+                               'Risk'              : 'Moderate', 'Jira project': 'CERT', 'Business approver': 'Grace Turner',
+                               'L1 approver'       : 'Olivia Bennett', 'L2 approver': 'James Carter',
+                               'Installation start': '18:00', 'Installation hours': '2', 'Validation hours': '1'])
+        assertThat(hintOf(defaults(), 'Requested For')).hasText('left empty: the user who opens the change')
+        assertThat(hintOf(defaults(), 'Assigned to')).hasText('left empty: the user who opens the change')
+        assertThat(hintOf(defaults(), 'Department')).hasText('left empty: the department of the product')
+        assertThat(select(defaults(), 'Downtime')).hasText('No')
+        assertThat(select(defaults(), 'How many privileged accounts')).hasText('None')
+        assertThat(defaults().locator('fieldset.account')).hasCount(0)
+        assertThat(select(defaults(), 'Number of BBH users impacted')).hasText('5-25')
+        assertThat(select(defaults(), 'Platform status')).hasText('Existing')
         assertThat(page.locator('.default-tasks h3')).hasText('Default change tasks')
         assertThat(taskRows()).hasCount(2)
         hasValues(taskRows().nth(1), ['Short description': 'Validate CertScanner in production',
                                       'Description'      : CERT_TASKS[1].description])
 
         when:
-        fillIn(defaults(), ['Assignment group': 'Certificate Services', 'Problem': 'PRB0001234',
-                            'Installation hours': '3', 'First use plan': 'The security office confirms the first scan.'])
-        input(defaults(), 'Change complexity').click()
+        fillIn(defaults(), ['Assignment group': 'Certificate Services', 'Installation hours': '3',
+                            'First use plan'  : 'The security office confirms the first scan.',
+                            'Secure coding ticket number': 'SEC-1234'])
+        lookUp(defaults(), 'Problem', 'tls', 'PRB0040319')
+        choose(defaults(), 'Downtime', 'Yes')
+        select(defaults(), 'Complexity of the change').click()
 
         then:
-        assertThat(page.locator('mat-option')).hasText(['Low', 'Medium', 'High'] as String[])
+        assertThat(input(defaults(), 'Problem')).hasValue('PRB0040319')
+        assertThat(page.getByRole(OPTION)).hasText(['Not assessed', 'Simple', 'Moderate', 'Very'] as String[])
 
         when:
-        page.locator('mat-option').filter(new Locator.FilterOptions().setHasText('Medium')).click()
-        checkbox(defaults(), 'Privileged access needed').check()
-        fillIn(userRow(0), ['User': 'Jane Smith', 'Privileged account': 'adm_jsmith'])
-        button('Add user', true).click()
-        fillIn(userRow(1), ['User': 'Tom Brown', 'Privileged account': 'adm_tbrown'])
+        page.getByRole(OPTION, new Page.GetByRoleOptions().setName('Very').setExact(true)).click()
+        choose(defaults(), 'How many privileged accounts', '2')
+        fillIn(account(defaults(), 0), ['Person': 'Jane Smith', 'Privileged account': 'adm_jsmith'])
+        fillIn(account(defaults(), 1), ['Person': 'Tom Brown', 'Privileged account': 'adm_tbrown'])
         button('Add a change task', true).click()
         fillIn(taskRows().nth(2), ['Short description': 'Run the database scripts',
                                    'Description'      : 'Run the Liquibase changesets of CertScanner.'])
+
+        then:
+        assertThat(input(defaults(), 'Risk')).hasValue('High')
+        assertThat(account(defaults(), 1).locator('legend')).hasText('Privileged account 2')
+
+        when:
         button('Save the template', true).click()
 
         then:
@@ -58,25 +76,29 @@ class ServiceNowDefaultsSpec extends EditorSpecification {
         with(awaitRequest('PUT', '/api/products/1/change-profile').json()) {
             version == 2
             template.assignmentGroup == 'Certificate Services'
-            template.problem == 'PRB0001234'
+            template.problem == 'PRB0040319'
+            template.requestedFor == null
+            template.downtime
+            template.risk == null
             template.timing == [installationStart: '18:00', installationHours: 3, validationHours: 1]
             template.planning.firstUsePlan == 'The security office confirms the first scan.'
-            template.riskAssessment.changeComplexity == 'Medium'
+            template.riskAssessment.changeComplexity == 'Very'
             template.privilegedAccess == [required: true, users: [[user: 'Jane Smith', account: 'adm_jsmith'],
                                                                   [user: 'Tom Brown', account: 'adm_tbrown']]]
+            template.secureCodingTicket == 'SEC-1234'
             tasks == CERT_TASKS + [[shortDescription: 'Run the database scripts',
                                     description     : 'Run the Liquibase changesets of CertScanner.']]
         }
 
         when:
-        button('Remove user 1', true).click()
+        choose(defaults(), 'How many privileged accounts', '1')
         button('Remove change task 1', true).click()
         button('Save the template', true).click()
 
         then:
         with(awaitRequest('PUT', '/api/products/1/change-profile', 2).json()) {
             version == 3
-            template.privilegedAccess.users == [[user: 'Tom Brown', account: 'adm_tbrown']]
+            template.privilegedAccess.users == [[user: 'Jane Smith', account: 'adm_jsmith']]
             tasks*.shortDescription == ['Validate CertScanner in production', 'Run the database scripts']
         }
 
@@ -84,8 +106,11 @@ class ServiceNowDefaultsSpec extends EditorSpecification {
         open('/beadle/admin/products/1')
 
         then:
-        hasValues(defaults(), ['Assignment group': 'Certificate Services', 'User': 'Tom Brown',
-                               'Privileged account': 'adm_tbrown', 'Change complexity': 'Medium'])
+        hasValues(defaults(), ['Assignment group': 'Certificate Services', 'Person': 'Jane Smith',
+                               'Privileged account': 'adm_jsmith', 'Risk': 'High'])
+        assertThat(select(defaults(), 'How many privileged accounts')).hasText('1')
+        assertThat(select(defaults(), 'Complexity of the change')).hasText('Very')
+        assertThat(select(defaults(), 'Downtime')).hasText('Yes')
         assertThat(taskRows()).hasCount(2)
         hasValues(taskRows().nth(0), ['Short description': 'Validate CertScanner in production'])
         ownErrors().isEmpty()
@@ -99,26 +124,29 @@ class ServiceNowDefaultsSpec extends EditorSpecification {
         assertThat(page.locator('h1')).hasText('Payments Hub')
         assertThat(page.locator('.banner.info')).containsText('Not saved yet')
         hasValues(defaults(), ['Jira project': 'PAYHUB', 'Assignment group': 'Payments Engineering',
-                               'Affected CI' : 'Payments Hub', 'L1 manager': '', 'BBH users': '', 'Business impact': ''])
+                               'Affected CI' : 'Payments Hub', 'L1 approver': '', 'Risk': ''])
+        assertThat(select(defaults(), 'Number of BBH users impacted')).hasText('Not assessed')
+        assertThat(select(defaults(), 'Business impact')).hasText('Not assessed')
         hasValues(taskRows().nth(0), ['Short description': 'Deploy Payments Hub to production'])
 
         when:
         input(defaults(), 'Backout plan').fill('')
         input(defaults(), 'Installation start').fill('')
-        checkbox(defaults(), 'Privileged access needed').check()
+        choose(defaults(), 'How many privileged accounts', '1')
         input(taskRows().nth(1), 'Short description').fill(' ')
         button('Save the template', true).click()
 
         then:
-        hasErrors(defaults(), ['Backout plan': 'Required', 'Installation start': 'Required', 'User': 'Required',
+        hasErrors(defaults(), ['Backout plan': 'Required', 'Installation start': 'Required', 'Person': 'Required',
                                'Privileged account': 'Required'])
         assertThat(errorOf(taskRows().nth(1), 'Short description')).hasText('Required')
         assertThat(saveError()).hasText('Some fields need your attention.')
         api.requests('PUT', '/api/products/2/change-profile').isEmpty()
 
         when:
-        fillIn(defaults(), ['Backout plan': 'Switch the gateway back to the previous release.', 'Installation start': '19:30',
-                            'User': 'Ann Lee', 'Privileged account': 'alee'])
+        fillIn(defaults(), ['Backout plan': 'Switch the gateway back to the previous release.', 'Installation start': '19:30'])
+        lookUp(defaults(), 'Person', 'ann', 'Ann Lee')
+        input(defaults(), 'Privileged account').fill('alee')
         input(taskRows().nth(1), 'Short description').fill('Validate the gateway')
         saveFromAnotherTab('/beadle/admin/products/2')
         button('Save the template', true).click()
@@ -149,10 +177,6 @@ class ServiceNowDefaultsSpec extends EditorSpecification {
 
     Locator taskRows() {
         page.locator('.default-tasks .task-row')
-    }
-
-    Locator userRow(int index) {
-        defaults().locator('.user-row').nth(index)
     }
 
     void saveFromAnotherTab(String path) {

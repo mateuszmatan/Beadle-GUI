@@ -84,7 +84,7 @@ export type ProfileForm = ReturnType<typeof profileForm>;
             </div>
           }
           <form [formGroup]="group" (ngSubmit)="save()" novalidate>
-            <dso-change-template-form [form]="group.controls.template" />
+            <dso-change-template-form [form]="group.controls.template" [admin]="true" />
             <section class="card default-tasks" aria-labelledby="tasks-title">
               <header>
                 <h3 id="tasks-title">Default change tasks</h3>
