@@ -42,21 +42,42 @@ Beadle, in three tabs:
   it) and see its changes in a table you can sort and filter in the header: change number, product, FixVersion, the
   ProTech workflow state, the installation window, the short description, the number of change tasks and when it was
   raised. Opening a change reads it from ProTech first, so what was changed there (texts, schedule, fields, CTASKs and
-  their states) shows at once, with the workflow progress through Draft, Business Approval, Primary Approval,
-  Secondary Approval, CTask approval, Escalated approval, Implementation and Closed. An open change can be edited by
-  its department: the update is published to ProTech at once, and Beadle checks and shows whether ProTech applied it.
+  their states) shows at once, with its change number, approval (Not Yet Requested in Draft, Requested in the
+  approval stages, Approved from Implementation on), who opened it, its state and the workflow progress through
+  Draft, Business Approval, Primary Approval, Secondary Approval, CTask approval, Escalated approval, Implementation
+  and Closed. An open change can be edited by its department, in the same sections as New Change: the update is
+  published to ProTech at once, and Beadle checks and shows whether ProTech applied it.
   See [ProTech production changes](#protech-production-changes).
-- **New Change**: the step-by-step wizard that raises a change for a production release. Choose the department and the
-  product, then type the Jira FixVersion of the release (the known versions are offered, unreleased first): its epics
-  are listed, and choosing epics loads their stories. Then check the ProTech fields and the change tasks, filled in
-  from the product's change template and editable for this change, and the schedule: the installation date turns the
-  default start time and durations into the installation, post-install validation and first usage times, each
-  editable. The portal writes the short description and the description from Jira, lets you edit them, and raises one
-  change (CHG) with its change tasks (CTASK) in ProTech.
+- **New Change**: the guided wizard that raises a change for a production release. Choose the department and the
+  product: the product's change template fills in every step, and each value can be changed for this change. A
+  magnifier next to a person, the department, the assignment group, the release, the affected CI, the incident, the
+  problem and the affected clients searches ProTech (see [Lookups](#lookups)) and fills the field with the value
+  picked (affected clients adds it to the list); every such field also takes free text. The steps:
+  1. **Generic request data**, in two columns: the change number (given by ProTech when the change is raised),
+     approval (Not Yet Requested), Opened By (the signed-in user) and state (Draft), all read-only; then requested
+     for, requested by, department, assignment group, category, assigned to, type, release, affected CI, incident,
+     direct business service, problem, risk, affected clients and users affected. Requested for, requested by and
+     assigned to default to the signed-in user and the department to the product's department; the direct business
+     service comes with the CI picked from the search and the risk is worked out from the risk assessment, so neither
+     is typed.
+  2. **Jira**: type the FixVersion of the release (the known versions are offered, unreleased first); its epics are
+     listed, and choosing epics loads their stories. The short description and the description are written from the
+     choice and stay editable.
+  3. **Approval and Notification**: business approver, L1 approver and L2 approver.
+  4. **Schedule**: the installation start and its hours, the post-install validation start and its hours, the first
+     use and, when the change has downtime, the downtime start and its hours, which default to the installation
+     window. The template's start time and hours are the defaults.
+  5. **Planning**: test summary, implementation plan, validation plan, backout plan and first use plan.
+  6. **Privileged access**: how many privileged accounts (none to seven), each with its person and its account name.
+  7. **Risk assessment**: nine questions in two columns, each answered from a fixed list.
+  8. **Secure coding**: the secure coding ticket number.
+  9. **Review**: every value with the change tasks, which stay editable; raising it creates one change (CHG) with its
+     change tasks (CTASK) in ProTech.
 - **Admin**, in two tabs: **Departments** (the same departments as DevSecOps Admin, without the pipeline counts) and
   **Products**: every product by department with the state of its change template. Add a product; on its page change
   its name, department, owner team and contact e-mail, delete it, and keep its **change template**: the ProTech
-  fields and the default change tasks of its changes (see [ProTech production changes](#protech-production-changes)).
+  fields in the sections and order of New Change, and the default change tasks of its changes (see
+  [ProTech production changes](#protech-production-changes)).
 
 Departments and products are one data set: both Admin areas edit the same records. Services stay in DevSecOps
 Management, where the pipelines need them; ProTech has no such thing, so Beadle neither shows nor uses them.
@@ -117,18 +138,23 @@ loader (`adapter/in/startup/DemoDataLoader.java`) adds the demo products that ar
 database holds all of them or any product of its own; it also sets the Jenkins URL of the library defaults to
 `https://jenkins.bbh.com` when none is set, so that job and build links work. `rd`, `qc` and `prod` (Oracle) get only
 the five departments, from Liquibase, and the BBH library defaults; no product, service, pipeline or metric is
-seeded there. Every demo product also gets a filled change template
-(`adapter/in/startup/DemoChangeProfiles.java`): approvers, schedule defaults, planning texts and a risk assessment,
-picked with a fixed seed per product code, privileged access for Payments Hub, and two or three default change tasks
-("Deploy <product> to production", "Run the database scripts of <product>" for the products with a medium or high
-business impact, "Validate <product> in production"). The demo Jira knows two released and one or two unreleased
-FixVersions per project, for example `PAYHUB 2.4`. When no production change is stored yet, twelve demo changes are
-raised in the demo ProTech (`adapter/out/servicenow/DemoProTechChanges.java`), spread over the departments and their
-products, with real demo epics and stories, past raise times and schedules chosen so that at start-up three are
-Closed (installed last week), three are in Implementation (one of them installing right now), one is in Escalated
-approval (raised 30 minutes ago, installed in 20 hours) and five were raised one to nine minutes ago and move from
-Draft to CTask approval while the portal runs. One of them carries an applied update and one an update ProTech did not
-apply (a schedule change while its installation ran).
+seeded there. Every demo product without a saved change template gets a filled one
+(`adapter/in/startup/DemoChangeProfiles.java`), picked with a fixed seed per product code: the assignment group of
+its owner team, its direct business service from the configuration item search, approvers, schedule defaults,
+planning texts, a risk assessment from the fixed answers, affected clients and users affected that match the
+answers, downtime for the products whose risk is High, a secure coding ticket, privileged access for Payments Hub,
+and two or three default change tasks ("Deploy <product> to production", "Run the database scripts of <product>"
+for the products whose risk is Moderate or High, "Validate <product> in production"). Requested for, requested by,
+the department and assigned to stay empty, so each change takes the signed-in user and the product's department.
+The demo Jira knows two released and one or two unreleased FixVersions per project, for example `PAYHUB 2.4`.
+At start-up twelve demo changes are raised in the demo ProTech (`adapter/out/servicenow/DemoProTechChanges.java`),
+skipping those of a product that already has a change, so a database from an earlier version gets them too when the
+portal is updated. They are spread over the departments and their products, with real demo epics and stories, the
+installation window as the downtime window of the products with downtime, and past raise times and schedules chosen
+so that on a new database three are Closed (installed last week), three are in Implementation (one of them
+installing right now), one is in Escalated approval (raised 30 minutes ago, installed in 20 hours) and five were
+raised one to nine minutes ago and move from Draft to CTask approval while the portal runs. One of them carries an
+applied update and one an update ProTech did not apply (a schedule change while its installation ran).
 
 | Department | Product (code) | Services | Build and deploy | Pipelines |
 |------------|----------------|----------|------------------|-----------|
@@ -231,6 +257,7 @@ start over with a new catalogue and a history that ends at the new start.
 | `GRAFANA_DASHBOARD_URL` | empty | link to the DSOEnhanced pipeline dashboard; empty hides the dashboard |
 | `GRAFANA_SECURITY_DASHBOARD_URL` | empty | link to the security dashboard for `SECURITY`, `SAST` and `NEXUS_IQ` pipelines; empty uses the pipeline dashboard |
 | `DSO_DEMO_DATA` | `true` with `local` | create the demo products when the database holds no other product, and without `INFLUX_URL` a run history; see [Demo data](#demo-data) |
+| `DSO_SIGNED_IN_USER` | `Mateusz Matan` | the user Beadle names as the signed-in user (`GET /api/me`, Opened By of a new change and the default requester and assignee) until BBH single sign-on exists |
 
 ```bash
 SPRING_PROFILES_ACTIVE=qc DB_URL=jdbc:oracle:thin:@//<host>:1521/<service> DB_USERNAME=DSO_PORTAL DB_PASSWORD=... \
@@ -442,6 +469,10 @@ tasks (`DSO_CHANGE_PROFILE_PRIVILEGED_USER`, `DSO_CHANGE_PROFILE_TASK`), and eve
 `UPDATE_REQUESTED_AT`, `UPDATE_DEPARTMENT`, `UPDATE_FIELDS`, `UPDATE_MESSAGE`, `UPDATE_CHECKED_AT`), with its change
 tasks and their states (`DSO_PRODUCTION_CHANGE_TASK`, `TASK_NUMBER` empty until ProTech created the task), the stages
 it entered (`DSO_PRODUCTION_CHANGE_STAGE`) and its privileged users (`DSO_PRODUCTION_CHANGE_PRIVILEGED_USER`).
+Both tables hold the request fields of the wizard (`REQUESTED_FOR`, `REQUESTED_BY`, `REQUEST_DEPARTMENT`,
+`ASSIGNED_TO`, `DIRECT_BUSINESS_SERVICE`, `USERS_AFFECTED`, `SECURE_CODING_TICKET`) and the nine risk answers as
+their list values (`RISK_*`); the computed risk is not stored. A change also keeps who opened it (`OPENED_BY`) and
+its downtime window (`DOWNTIME_START`, `DOWNTIME_END`).
 
 ## DevSecOps integration
 
@@ -558,40 +589,96 @@ never does.
 ProTech is BBH's ServiceNow. Every product has a **change template**, kept by the administrator in Beadle Admin on the
 product's page:
 
-- **Change**: Jira project key, assignment group, category, type (normal, standard or emergency), affected CI,
-  release, incident, problem, affected clients and a description of the product.
-- **Approvers**: L1 manager, L2 manager and business approver.
+- **Generic request data**: Jira project key, requested for, requested by, department, assignment group, category,
+  assigned to, type, release, affected CI, incident, direct business service, problem, affected clients, users
+  affected and a description of the product. The category is one of Application, Hardware, Infrastructure, System
+  Software, Network, Telecom, Data Amendment, Desktop Software, Storage, Facilities, Other and Database, and the type
+  one of Standard, Emergency, Business Critical and Model. An empty requested for, requested by or assigned to means
+  the user who raises the change, and an empty department the department of the product.
+- **Approval and Notification**: business approver, L1 approver and L2 approver.
 - **Schedule defaults**: downtime yes or no, the installation start time, how many hours the installation takes and
   how many hours the post-install validation takes.
 - **Planning**: test summary, implementation plan, validation plan, backout plan and first use plan.
 - **Privileged access**: yes or no; when yes, up to seven users, each with the name of their privileged account.
-- **Risk assessment**: the numbers of BBH workgroups, BBH users and BBH applications impacted, of impacted clients and
-  of impacted clients outside BBH, the business impact, the complexity of the change and of its validation, backout
-  testing and duration, and the platform status. Business impact, the two complexities and the platform status offer
-  Low/Medium/High and Existing platform/New platform/Platform upgrade as suggestions until the ProTech value lists are
-  known; any text is accepted.
+- **Risk assessment**: nine questions, each answered from its list or left open (below).
+- **Secure coding**: the secure coding ticket number.
 - **Change tasks**: the default CTASKs of a change, one to fifty, each with a short description (up to 160 bytes) and
   a description (up to 4000 bytes).
 
-A product without a saved template gets suggested values from its code, name, owner team and description, and two
-suggested change tasks: "Deploy <product> to production" and "Validate <product> in production". The demo data fills
-in every demo product. Templates saved before change tasks existed got one task per service of the product
-("Deploy <service> of <product> to production") when the portal was updated.
+| Question | Answers |
+|----------|---------|
+| Number of BBH workgroups impacted (`bbhWorkgroups`) | Single, 2-3, More than 3 |
+| Complexity of the change (`changeComplexity`) | Simple, Moderate, Very |
+| Number of BBH users impacted (`bbhUsers`) | Less than 5, 5-25, 26-250, All users |
+| Complexity of validation (`validationComplexity`) | Simple, Moderate, Very |
+| Number of applications impacted (`bbhApplications`) | Single, Two, More than 2 |
+| Backout testing & duration (`backoutTesting`) | Less than 30 minutes, 30 mins - 2 hours, Greater than 2 hours, Unable to test |
+| Number of impacted clients outside BBH (`clientsOutsideBbh`) | No clients, Single, More than one but not all, All clients |
+| Platform status (`platformStatus`) | Existing, New, Decommissioned |
+| Business impact (`businessImpact`) | None, Low, Medium, High |
+
+A category, a type or an answer off its list is refused with 400 on that field, for example
+`riskAssessment.bbhUsers`. The lists live once in the domain (`ChangeTemplate`, `RiskAssessment`) and reach the GUI
+through `GET /api/changes/options`. Nobody types the **risk**: the portal works it out from the answers whenever a
+template or a change is read or saved, and ignores a risk it is sent. It is **High** when any answer is the last of
+its list (More than 3, Very, All users, More than 2, Unable to test, All clients, Decommissioned, High), else
+**Moderate** when any answer is past the first of its list, else **Low**; with no answer at all the risk is empty
+("not assessed" in the description).
+
+A product without a saved template gets suggested values from its code, name, owner team and description (category
+Application, type Standard, the product as affected CI), and two suggested change tasks: "Deploy <product> to
+production" and "Validate <product> in production". The demo data fills in every demo product. Templates saved
+before change tasks existed got one task per service of the product ("Deploy <service> of <product> to production")
+when the portal was updated.
+
+Templates and changes stored before the guided wizard were moved onto the lists by Liquibase
+(`017-beadle-wizard-fields.sql`): the type Normal became Standard; a category that matches the list ignoring case
+takes its spelling, Software and Apps became Application and any other category Other; the old numbers became the
+answer they fall in (workgroups up to 1 Single, 2 or 3 2-3, more More than 3; users under 5, 5-25, 26-250, more All
+users; applications up to 1 Single, 2 Two, more More than 2; clients outside BBH 0 No clients, 1 Single, more More
+than one but not all); Low, Medium or Moderate and High or Very became Simple, Moderate and Very; a platform status
+that names an existing, new or decommissioned platform became Existing, New or Decommissioned; a business impact of
+None, Low, Medium or High and a backout testing answer spelt as in its list were kept; anything else was emptied,
+and the number of impacted clients was dropped. A change with downtime got its installation window as its downtime
+window. Changes raised before keep an empty Opened By, requested for, requested by, department and assigned to.
+
+### Lookups
+
+The magnifiers of the wizard and of the template form search ProTech through the out port `ProTechLookupPort` with
+`GET /api/lookups/{kind}?q=`: `users`, `departments`, `assignment-groups`, `releases`, `configuration-items`,
+`incidents`, `problems` and `clients`. Each answer holds at most 20 entries that contain the text, ignoring case,
+in their `value` (what fills the field) or their `detail` (an e-mail address, a cost centre, the department, the
+product code, the business service or a short description); an empty text lists the first 20. The portal ships a
+demo adapter (`DemoProTechLookups`) only: BBH people (the signed-in user and the demo approvers among them),
+the departments of the portal and a few more, an application support group per owner team and the infrastructure
+groups, three releases per product, the products as configuration items with their owner team (or department) as
+their business service, and a steady set of incidents, problems and clients; nothing reaches ProTech yet.
+
+### Signed-in user
+
+Until BBH single sign-on exists, the signed-in user is the name in `dso.signed-in-user` (`DSO_SIGNED_IN_USER`,
+`Mateusz Matan` by default), behind the out port `SignedInUserPort` and served at `GET /api/me`. The wizard shows it
+as Opened By, raising a change stores it as the change's `openedBy`, and it fills an empty requested for, requested
+by and assigned to of the template; an empty department becomes the product's department.
 
 ### Raising a change
 
 New Change starts from the template and lets the app owner change any field and the change tasks for this change. It
 adds what changes this time: the Jira FixVersion with its epics (the epics that carry the FixVersion or have a story
 that does) and the chosen epics' stories that carry it, and the schedule: installation start and end, post-install
-validation start and end and first usage, in that order, the installation in the future. The portal asks Jira again
+validation start and end and first usage, in that order, the installation in the future, and the downtime window.
+A change with downtime needs the downtime start and end, the end after the start ("choose when the downtime starts");
+a change without downtime must leave both empty ("must be empty without downtime"). The portal asks Jira again
 when the change is previewed or raised and refuses an epic or story the FixVersion does not list. The release is the
-FixVersion unless the template or the user name another.
+FixVersion unless the template or the user name another, and the people and the department left empty are filled as
+[Signed-in user](#signed-in-user) describes.
 The short description names the product, the FixVersion and the epics; the description names the product, its
-department, the schedule, downtime and the change tasks, lists every epic with its chosen stories, then the planning
-texts, privileged access, the risk assessment and the product description, cut to the 160 and 4000 characters
-ProTech takes. Both stay editable until the change is raised. The change belongs to the department of its product.
-A raised change is stored in the portal with its numbers, its texts, its tasks and a copy of the fields it used, so it
-outlives later edits of the template and the product itself; it starts in Draft.
+department, the schedule with the downtime window (or "No downtime") and the change tasks, lists every epic with its
+chosen stories, then the planning texts, privileged access, the risk with every answer given, the users affected,
+the secure coding ticket and the product description, cut to the 160 and 4000 characters ProTech takes. Both stay
+editable until the change is raised. The change belongs to the department of its product.
+A raised change is stored in the portal with its numbers, who opened it, its texts, its tasks and a copy of the fields
+it used, so it outlives later edits of the template and the product itself; it starts in Draft.
 
 ### Synchronisation and the workflow
 
@@ -611,10 +698,10 @@ approval (only for a change at short notice), Implementation and Closed.
 
 ### Editing a change
 
-An open change (any state but Closed) can be changed by a user of its department: the texts, the schedule, the
-template fields except the Jira project, the type and the schedule defaults, and the change tasks. A task that ProTech
-has not created yet is added, a task left out is canceled in ProTech, a canceled task cannot be sent again, and a
-closed task can neither be changed nor removed. Beadle checks that nobody changed the edited fields since the version
+An open change (any state but Closed) can be changed by a user of its department: the texts, the schedule with its
+downtime window, the template fields except the Jira project, the type and the schedule defaults, and the change
+tasks. A task that ProTech has not created yet is added, a task left out is canceled in ProTech, a canceled task
+cannot be sent again, and a closed task can neither be changed nor removed. Beadle checks that nobody changed the edited fields since the version
 the user read and that the last update is no longer pending, then reads the change from ProTech: a change closed meanwhile is refused, and so is one whose texts, fields or tasks ProTech changed since the user
 opened it, so the update never overwrites them. Beadle then publishes the update to ProTech at once and reads the
 change back. The change carries the status of the update, with the department that sent it and the fields ProTech has
@@ -634,7 +721,8 @@ requests store the same change at once, a read shows the copy the other request 
 
 ### Demo ProTech and the real adapters
 
-Jira and ProTech sit behind two ports, `JiraPort` and `ServiceNowPort`. The portal ships demo adapters only, and the
+Jira and ProTech sit behind three ports, `JiraPort`, `ServiceNowPort` and `ProTechLookupPort` (see
+[Lookups](#lookups)), and the signed-in user behind `SignedInUserPort`. The portal ships demo adapters only, and the
 pages say so: the Jira one makes up a steady set of epics and stories per project key, and the ProTech one
 (`DemoServiceNowAdapter`) keeps the changes in memory, hands out demo `CHG` and `CTASK` numbers and moves every change
 through the workflow by the clock: Business Approval 2 minutes after it was raised, Primary Approval after 4, Secondary
@@ -651,7 +739,10 @@ asked for. Connecting the real systems needs:
   stories, the epics by that FixVersion or as the parents of those stories, and the stories of the chosen epics), the Jira base URL and a service account token in an OpenShift secret,
   and HTTPS access from the portal pods to Jira.
 - **ProTech**: an adapter that creates the change with the Change Management API
-  (`POST /api/sn_chg_rest/change/normal`, or `standard`/`emergency` by type) and its change tasks; reads
+  (`POST /api/sn_chg_rest/change/emergency` for an Emergency change, and for Standard, Business Critical and Model
+  the endpoint or change model ProTech uses for them) and its change tasks, with the wizard fields (requested for and by, department, assigned to, the
+  direct business service, the risk and its answers, users affected, the secure coding ticket and the downtime
+  window) mapped to ProTech's fields; reads
   `change_request` and `change_task` by number with the Table API (`GET /api/now/table/change_request?number=...`,
   `change_task?change_request.number=...`), maps ProTech's state values to the eight stages and takes the stage
   history from the audit of the state field (`sys_audit` or the change's history); updates the change and its tasks
@@ -660,6 +751,11 @@ asked for. Connecting the real systems needs:
   an integration user allowed to read, create and change changes and change tasks (OAuth client or basic credentials
   in a secret), the lookup of the configuration item and the assignment group by name, and BBH's rule for approvals
   (the approval policy of the change model, or the approvers sent as approval records).
+- **Lookups**: an adapter of `ProTechLookupPort` that searches ProTech with the Table API and `sysparm_limit=20`
+  (`sys_user`, `cmn_department`, `sys_user_group`, `cmdb_ci` with its business service, `incident`, `problem`, and
+  the tables BBH keeps its releases and clients in), with the same integration user.
+- **Single sign-on**: an adapter of `SignedInUserPort` that names the user of the BBH sign-on session instead of
+  `dso.signed-in-user`.
 
 ## Accepted differences from config.yaml
 
@@ -713,11 +809,14 @@ secrets.
 | `GET /api/monitoring/activity?range=30d` | the DORA summary and the daily activity of all pipelines together, as `{pipelines, dora, metricsError}`: the number of pipelines, the DORA metrics over the range with `dora.daily` (runs, failures and deployments per day), and the metrics error, if any |
 | `GET /api/evidence/products/{id}` | the change evidence of a product's pipelines |
 | `GET`/`PUT /api/settings` | the DSOEnhanced library defaults (Admin > Library defaults); `PUT` carries the `version` it was read at |
-| `GET`/`PUT /api/products/{id}/change-profile` | the change template of a product: `template` with the ProTech fields and `tasks`, its default change tasks (`shortDescription`, `description`; one to fifty); `version` is `null` until it is saved (it then holds the suggestion), and `PUT` carries `version`, `template` and `tasks` |
+| `GET`/`PUT /api/products/{id}/change-profile` | the change template of a product: `template` with the ProTech fields (among them `requestedFor`, `requestedBy`, `department`, `assignedTo`, `directBusinessService`, `usersAffected`, `secureCodingTicket`, `riskAssessment` with the nine answers and `risk`, which is computed and ignored when sent) and `tasks`, its default change tasks (`shortDescription`, `description`; one to fifty); `version` is `null` until it is saved (it then holds the suggestion), and `PUT` carries `version`, `template` and `tasks` |
 | `GET /api/change-profiles` | the products with a saved change template: `productId`, `productName`, `version`, `updatedAt` |
 | `GET /api/products/{id}/jira/versions`, `/jira/epics?fixVersion=`, `/jira/stories?fixVersion=&epics=` | the FixVersions of the product's Jira project (unreleased first), the epics of a FixVersion and the stories of the chosen epics that carry it; `project=` names another Jira project key |
-| `POST /api/changes/preview`, `POST /api/changes` | draft a production change, or raise it in ProTech (`productId`, `fixVersion`, `epicKeys`, `storyKeys`, `schedule` with `installationStart`, `installationEnd`, `validationStart`, `validationEnd` and `firstUsage`, the ProTech fields as `template`, the change tasks as `tasks` with `shortDescription` and `description`, and optionally the edited `shortDescription` and `description`) |
-| `GET /api/changes?departmentId=`, `GET /api/changes/{id}` | the raised changes, newest first, all or of one department, and one change, each read from ProTech first (closed changes of the list are not read again): with `departmentId`, `state`, `workflow` (each stage with `enteredAt`), the tasks with their `number` and `state`, `syncedAt`, `syncProblem` when ProTech could not be read, `update` (the status of the last update from Beadle), `version` and `editedVersion` |
+| `GET /api/me` | the signed-in user, `{name}`; `dso.signed-in-user` until BBH single sign-on |
+| `GET /api/changes/options` | the lists of the wizard: `categories`, `types` (each `value` and `label`) and `risk`, the answers of each of the nine risk questions |
+| `GET /api/lookups/{kind}?q=` | at most 20 ProTech entries (`value`, `detail`) that contain `q` in either, ignoring case, for `users`, `departments`, `assignment-groups`, `releases`, `configuration-items`, `incidents`, `problems` or `clients`; 404 for any other kind |
+| `POST /api/changes/preview`, `POST /api/changes` | draft a production change, or raise it in ProTech (`productId`, `fixVersion`, `epicKeys`, `storyKeys`, `schedule` with `installationStart`, `installationEnd`, `validationStart`, `validationEnd`, `firstUsage` and, only with `template.downtime`, `downtimeStart` and `downtimeEnd`, the ProTech fields as `template`, the change tasks as `tasks` with `shortDescription` and `description`, and optionally the edited `shortDescription` and `description`) |
+| `GET /api/changes?departmentId=`, `GET /api/changes/{id}` | the raised changes, newest first, all or of one department, and one change, each read from ProTech first (closed changes of the list are not read again): with `departmentId`, `openedBy`, `state`, `workflow` (each stage with `enteredAt`), the tasks with their `number` and `state`, `syncedAt`, `syncProblem` when ProTech could not be read, `update` (the status of the last update from Beadle), `version` and `editedVersion` |
 | `PUT /api/changes/{id}` | update an open change in ProTech: `version`, `departmentId` (the user's department, which must own the change), `shortDescription`, `description`, `schedule`, `template` and `tasks` (each with its `number`, or none for a new task); answers the change with `update.status` `PENDING`, `APPLIED` or `NOT_APPLIED`; 403 for another department, 409 when stale or closed, 503 when ProTech cannot be reached |
 | `GET /api/changes/integrations` | whether Jira and ProTech are connected (`jiraConnected`, `serviceNowConnected`) |
 
@@ -755,9 +854,12 @@ detail, including its development server.
 ## Known gaps
 
 - The portal has no sign-in yet; see the preconditions above.
-- Production changes use demo Jira and ProTech adapters until the real ones are connected; see
-  [ProTech production changes](#protech-production-changes). Until BBH single sign-on exists, "your department" in
-  Beadle is the department the user picks in Changes.
+- Production changes use demo Jira and ProTech adapters, and the wizard's searches demo ProTech data, until the real
+  ones are connected; see [ProTech production changes](#protech-production-changes). Until BBH single sign-on exists,
+  "your department" in Beadle is the department the user picks in Changes, and the signed-in user is the one name in
+  `dso.signed-in-user`, the same for everybody.
+- The category, type and risk answer lists are written into the portal and change only with a new version of it,
+  until ProTech's value lists can be read.
 - The change evidence of runs made by a library older than the portal integration has no unit test counts, artifact
   version, SonarQube quality gate, report links or configuration hint, so its links are built from the global settings
   and the Jenkins build number.

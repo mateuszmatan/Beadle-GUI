@@ -53,6 +53,7 @@ public class ProductionChangeEntity extends AuditedEntity {
     private String productName;
     private Long departmentId;
     private String departmentName;
+    private String openedBy;
     private String fixVersion;
     private ScheduleEmbeddable schedule;
     private String shortDescription;
@@ -109,6 +110,7 @@ public class ProductionChangeEntity extends AuditedEntity {
         productName = change.productName();
         departmentId = change.departmentId();
         departmentName = change.departmentName();
+        openedBy = change.openedBy();
         fixVersion = change.fixVersion();
         schedule = map(change.schedule(), ScheduleEmbeddable.class);
         shortDescription = change.shortDescription();
@@ -153,7 +155,8 @@ public class ProductionChangeEntity extends AuditedEntity {
 
     @Embeddable
     public record ScheduleEmbeddable(Instant installationStart, Instant installationEnd, Instant validationStart,
-                                     Instant validationEnd, Instant firstUsage) {
+                                     Instant validationEnd, Instant firstUsage, Instant downtimeStart,
+                                     Instant downtimeEnd) {
     }
 
     @Embeddable

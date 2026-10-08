@@ -15,6 +15,7 @@ import com.bbh.itss.dso.portal.application.change.port.out.JiraPort;
 import com.bbh.itss.dso.portal.application.change.port.out.ProductionChangeRepositoryPort;
 import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort;
 import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort.RaisedChange;
+import com.bbh.itss.dso.portal.application.user.port.in.SignedInUserUseCase;
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.change.ChangeSchedule;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
@@ -66,6 +67,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     private final ProductionChangeRepositoryPort changes;
     private final JiraPort jira;
     private final ServiceNowPort serviceNow;
+    private final SignedInUserUseCase users;
     private final Clock clock;
 
     @Override
@@ -189,9 +191,9 @@ public class ProductionChangeService implements ProductionChangesUseCase {
                 .fits("description", command.description(), DESCRIPTION_MAX);
         validateTasks(command.tasks(), problems);
         problems.throwIfAny();
-        return ProductionChange.draft(product, product.departmentId(), departmentOf(product), command.tasks(),
-                command.fixVersion(), schedule, template, epics, stories, command.shortDescription(),
-                command.description());
+        return ProductionChange.draft(product, product.departmentId(), departmentOf(product),
+                users.signedInUser().name(), command.tasks(), command.fixVersion(), schedule, template, epics,
+                stories, command.shortDescription(), command.description());
     }
 
     private UnaryOperator<ProductionChange> syncOf(List<ProductionChange> open) {

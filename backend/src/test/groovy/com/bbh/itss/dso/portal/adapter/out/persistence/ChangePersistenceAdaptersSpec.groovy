@@ -4,15 +4,16 @@ import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileSummary
 import com.bbh.itss.dso.portal.domain.catalog.Product
 import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile
+import com.bbh.itss.dso.portal.domain.change.ChangeSchedule
 import com.bbh.itss.dso.portal.domain.change.ChangeTask
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Approvers
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedUser
-import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.RiskAssessment
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Timing
 import com.bbh.itss.dso.portal.domain.change.ChangeUpdate
 import com.bbh.itss.dso.portal.domain.change.ProductionChange
+import com.bbh.itss.dso.portal.domain.change.RiskAssessment
 import com.bbh.itss.dso.portal.domain.change.TaskText
 import com.bbh.itss.dso.portal.domain.change.WorkflowStep
 import org.springframework.beans.factory.annotation.Autowired
@@ -36,6 +37,7 @@ import static com.bbh.itss.dso.portal.support.ChangeFixtures.FIX_VERSION
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.RAISED
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.epic
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.privileged
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.risk
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.schedule
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.story
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasks
@@ -52,10 +54,16 @@ import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTest
 @Import([ChangeProfilePersistenceAdapter, ProductionChangePersistenceAdapter, ProductPersistenceAdapter])
 class ChangePersistenceAdaptersSpec extends Specification {
 
-    static final ChangeTemplate FULL = template(release: 'R 4.2', incident: 'INC0012345', problem: 'PRB0001234',
-            affectedClients: 'Fund administration clients', downtime: true, timing: new Timing('20:30', 3, 2),
-            privilegedAccess: new PrivilegedAccess(true, [new PrivilegedUser('Jane Smith', 'adm_jsmith'),
-                                                          new PrivilegedUser('Ann Lee', 'adm_alee')]))
+    static final ChangeTemplate FULL = template(requestedFor: 'Ann Lee', requestedBy: 'Jane Smith',
+            department: 'Corporate Technology', assignedTo: 'Grace Turner', release: 'R 4.2', incident: 'INC0012345',
+            directBusinessService: 'Certificate management', problem: 'PRB0001234',
+            affectedClients: 'Fund administration clients', usersAffected: 'Fund accountants', downtime: true,
+            timing: new Timing('20:30', 3, 2), privilegedAccess: new PrivilegedAccess(true, [
+            new PrivilegedUser('Jane Smith', 'adm_jsmith'), new PrivilegedUser('Ann Lee', 'adm_alee')]),
+            riskAssessment: risk(bbhUsers: 'All users', backoutTesting: 'Unable to test'),
+            secureCodingTicket: 'APPSEC-1234')
+    static final ChangeSchedule DOWNTIME = schedule(downtimeStart: '2026-10-10T06:00:00Z',
+            downtimeEnd: '2026-10-10T08:30:00Z')
 
     @Autowired
     ChangeProfilePersistenceAdapter profiles
@@ -94,6 +102,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         then:
         created.version() == 0
         created.template() == FULL
+        created.template().risk() == 'High'
         created.tasks() == tasks()
         created.updatedAt() != null
         changed.version() == 1
@@ -101,9 +110,11 @@ class ChangePersistenceAdaptersSpec extends Specification {
         changed.template().privilegedAccess() == privileged(3)
         changed.tasks() == tasks(3).reverse()
         jdbc.queryForMap('''SELECT L1_MANAGER, L2_MANAGER, TIMING_INSTALLATION_START, TEST_SUMMARY, DOWNTIME,
-                PRIVILEGED_ACCESS_REQUIRED, RISK_BBH_USERS FROM DSO_CHANGE_PROFILE WHERE PRODUCT_ID = ?''', product.id()) ==
+                PRIVILEGED_ACCESS_REQUIRED, RISK_BBH_USERS, REQUEST_DEPARTMENT FROM DSO_CHANGE_PROFILE
+                WHERE PRODUCT_ID = ?''', product.id()) ==
                 [L1_MANAGER: 'Emma Brooks', L2_MANAGER: null, TIMING_INSTALLATION_START: '18:00',
-                 TEST_SUMMARY: TEST_SUMMARY, DOWNTIME: 0, PRIVILEGED_ACCESS_REQUIRED: 1, RISK_BBH_USERS: 10]
+                 TEST_SUMMARY: TEST_SUMMARY, DOWNTIME: 0, PRIVILEGED_ACCESS_REQUIRED: 1, RISK_BBH_USERS: '5-25',
+                 REQUEST_DEPARTMENT: null]
         jdbc.queryForList('''SELECT u.POSITION, u.USER_NAME, u.ACCOUNT_NAME FROM DSO_CHANGE_PROFILE_PRIVILEGED_USER u
                 JOIN DSO_CHANGE_PROFILE p ON p.ID = u.PROFILE_ID WHERE p.PRODUCT_ID = ? ORDER BY u.POSITION''',
                 product.id()) == (1..3).collect { [POSITION: it - 1, USER_NAME: "User $it".toString(),
@@ -140,7 +151,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         save('LEDGER', 'Ledger', 3L)
         profiles.save(ChangeProfile.create(product.id(), FULL, tasks()))
         def stored = profiles.save(ChangeProfile.create(access.id(), template(), tasks()))
-        profiles.save(profiles.find(access.id()).get().change(0L, template(category: 'Apps'), tasks()))
+        profiles.save(profiles.find(access.id()).get().change(0L, template(category: 'Hardware'), tasks()))
         entities.clear()
 
         when:
@@ -169,7 +180,9 @@ class ChangePersistenceAdaptersSpec extends Specification {
         loaded == saved
         loaded == raised.toBuilder().id(saved.id()).version(0L).build()
         [loaded.productId(), loaded.productCode(), loaded.productName(), loaded.departmentId(),
-         loaded.departmentName()] == [product.id(), 'CERT', 'CertScanner', 3L, 'Corporate Technology']
+         loaded.departmentName(), loaded.openedBy()] == [product.id(), 'CERT', 'CertScanner', 3L,
+                                                         'Corporate Technology', 'Mateusz Matan']
+        loaded.schedule() == DOWNTIME
         loaded.createdAt() == RAISED
         loaded.state() == DRAFT
         loaded.workflow() == [new WorkflowStep(DRAFT, RAISED)]
@@ -188,6 +201,35 @@ class ChangePersistenceAdaptersSpec extends Specification {
         changes.load(9999L) == Optional.empty()
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PRODUCTION_CHANGE_PRIVILEGED_USER WHERE CHANGE_ID = ?', Integer,
                 saved.id()) == 2
+        jdbc.queryForMap('''SELECT OPENED_BY, REQUESTED_FOR, REQUESTED_BY, REQUEST_DEPARTMENT, ASSIGNED_TO,
+                DIRECT_BUSINESS_SERVICE, USERS_AFFECTED, SECURE_CODING_TICKET, CHANGE_TYPE, CATEGORY, RISK_BBH_USERS,
+                RISK_BACKOUT_TESTING FROM DSO_PRODUCTION_CHANGE WHERE ID = ?''', saved.id()) ==
+                [OPENED_BY: 'Mateusz Matan', REQUESTED_FOR: 'Ann Lee', REQUESTED_BY: 'Jane Smith',
+                 REQUEST_DEPARTMENT: 'Corporate Technology', ASSIGNED_TO: 'Grace Turner',
+                 DIRECT_BUSINESS_SERVICE: 'Certificate management', USERS_AFFECTED: 'Fund accountants',
+                 SECURE_CODING_TICKET: 'APPSEC-1234', CHANGE_TYPE: 'STANDARD', CATEGORY: 'Application',
+                 RISK_BBH_USERS: 'All users', RISK_BACKOUT_TESTING: 'Unable to test']
+    }
+
+    def "a change raised with the empty people of its template names the signed-in user and its department"() {
+        given:
+        def bare = template(riskAssessment: RiskAssessment.NONE)
+
+        when:
+        def saved = changes.save(ProductionChange.draft(product, 3L, 'Corporate Technology', 'Mateusz Matan',
+                tasks(1), FIX_VERSION, schedule(), bare, [epic('CERT-1', 'Expiry alerts')], [], null, null)
+                .raisedAt(RAISED)
+                .numbered('CHG0001009', ['CTASK0002019'], null))
+        entities.clear()
+
+        then:
+        with(changes.load(saved.id()).get()) {
+            [it.template().requestedFor(), it.template().requestedBy(), it.template().assignedTo()] ==
+                    ['Mateusz Matan'] * 3
+            it.template().department() == 'Corporate Technology'
+            it.template().risk() == null
+            it.schedule() == schedule()
+        }
     }
 
     def "a synced change is stored at a new version with its stages, its task states and its update status"() {
@@ -242,11 +284,19 @@ class ChangePersistenceAdaptersSpec extends Specification {
         entities.clear()
         def edited = changes.save(stored.toBuilder().description('Changed in ProTech.').build())
         entities.clear()
+        def assessed = changes.save(edited.toBuilder().template(edited.template().toBuilder()
+                .usersAffected('All fund accountants').build()).build())
+        entities.clear()
+        def windowed = changes.save(assessed.toBuilder().schedule(schedule(downtimeStart: '2026-10-10T07:00:00Z',
+                downtimeEnd: '2026-10-10T08:00:00Z')).build())
+        entities.clear()
 
         then:
         [stored.version(), stored.editedVersion()] == [1L, 0L]
         [edited.version(), edited.editedVersion()] == [2L, 2L]
-        changes.load(saved.id()).get() == edited
+        [assessed.version(), assessed.editedVersion()] == [3L, 3L]
+        [windowed.version(), windowed.editedVersion()] == [4L, 4L]
+        changes.load(saved.id()).get() == windowed
     }
 
     def "a change task added in Beadle is stored without a number, then with the number ProTech gave it"() {
@@ -335,8 +385,9 @@ class ChangePersistenceAdaptersSpec extends Specification {
     private ProductionChange raise(String number, List<String> taskNumbers, Product owner) {
         List<TaskText> texts = tasks(taskNumbers.size())
         String department = owner.departmentId() == 3L ? 'Corporate Technology' : 'Custody'
-        ProductionChange.draft(owner, owner.departmentId(), department, texts, FIX_VERSION, schedule(), FULL,
-                [epic('CERT-1', 'Expiry alerts')], [story('CERT-2', 'E-mail', 'CERT-1')], null, null).raisedAt(RAISED)
+        ProductionChange.draft(owner, owner.departmentId(), department, 'Mateusz Matan', texts, FIX_VERSION, DOWNTIME,
+                FULL, [epic('CERT-1', 'Expiry alerts')], [story('CERT-2', 'E-mail', 'CERT-1')], null, null)
+                .raisedAt(RAISED)
                 .numbered(number, taskNumbers, "https://snow/$number".toString())
     }
 

@@ -15,6 +15,7 @@ import static java.time.temporal.ChronoUnit.HOURS
 abstract class ChangeRegressionSpecification extends PortalSpecification {
 
     static final Instant START = Instant.now().plus(3, DAYS).truncatedTo(HOURS)
+    static final String SIGNED_IN = 'Mateusz Matan'
 
     protected Map raise(Map product) {
         String key = 'CHG' + product.id
@@ -36,6 +37,12 @@ abstract class ChangeRegressionSpecification extends PortalSpecification {
     protected static Map change(Map product, String fixVersion, List epicKeys, List storyKeys = [], Map edits = [:]) {
         [productId: product.id, fixVersion: fixVersion, epicKeys: epicKeys, storyKeys: storyKeys,
          schedule: scheduleJson(START), template: templateJson(), tasks: tasksJson()] + edits
+    }
+
+    protected static Map raisedAs(Map template, String release, String department = 'Corporate Technology') {
+        template + [release: release, requestedFor: template.requestedFor ?: SIGNED_IN,
+                    requestedBy: template.requestedBy ?: SIGNED_IN, department: template.department ?: department,
+                    assignedTo: template.assignedTo ?: SIGNED_IN]
     }
 
     protected static String enc(String text) {
