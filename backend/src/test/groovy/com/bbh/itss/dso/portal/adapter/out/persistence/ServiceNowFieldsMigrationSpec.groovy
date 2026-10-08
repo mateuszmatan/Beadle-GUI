@@ -5,8 +5,8 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Approvers
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Planning
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess
-import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.RiskAssessment
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Timing
+import com.bbh.itss.dso.portal.domain.change.RiskAssessment
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Transactional
 
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.FIRST_USE_PLAN
-import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Type.NORMAL
+import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Type.STANDARD
 import static com.bbh.itss.dso.portal.domain.change.TaskText.suggestedTasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.at
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.privileged
@@ -62,7 +62,7 @@ class ServiceNowFieldsMigrationSpec extends MigrationSpecification {
         then:
         profile.version() == 2
         profile.template() == ChangeTemplate.builder().jiraProjectKey('CERT')
-                .assignmentGroup('Technology Architecture').category('Software').type(NORMAL)
+                .assignmentGroup('Technology Architecture').category('Application').type(STANDARD)
                 .configurationItem('CertScanner').description('Watches TLS certificates.')
                 .approvers(new Approvers('Olivia Bennett', 'James Carter', 'Emma Brooks')).downtime(false)
                 .timing(Timing.SUGGESTED)
@@ -73,7 +73,7 @@ class ServiceNowFieldsMigrationSpec extends MigrationSpecification {
         change.number() == 'CHG0030001'
         change.fixVersion() == 'Not recorded'
         change.schedule() == new ChangeSchedule(at('2026-03-02T06:00:00Z'), at('2026-03-02T08:00:00Z'),
-                at('2026-03-02T08:00:00Z'), at('2026-03-02T08:00:00Z'), at('2026-03-02T08:00:00Z'))
+                at('2026-03-02T08:00:00Z'), at('2026-03-02T08:00:00Z'), at('2026-03-02T08:00:00Z'), null, null)
         change.template().approvers() == new Approvers('Ann Lee', null, null)
         change.template().riskAssessment() == impact('Medium')
         change.template().planning() == new Planning('Tested.', 'Deploy.', 'Not recorded', 'Back out.',

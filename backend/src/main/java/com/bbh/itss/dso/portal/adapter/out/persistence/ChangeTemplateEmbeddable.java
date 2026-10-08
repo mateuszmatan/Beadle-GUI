@@ -16,21 +16,28 @@ import static jakarta.persistence.EnumType.STRING;
 @Embeddable
 public record ChangeTemplateEmbeddable(
         String jiraProjectKey,
+        String requestedFor,
+        String requestedBy,
+        @Column(name = "REQUEST_DEPARTMENT") String department,
         String assignmentGroup,
         String category,
+        String assignedTo,
         @Enumerated(STRING) @Column(name = "CHANGE_TYPE") ChangeTemplate.Type type,
-        String configurationItem,
         @Column(name = "RELEASE_NAME") String release,
+        String configurationItem,
         @Column(name = "INCIDENT_NUMBER") String incident,
+        String directBusinessService,
         @Column(name = "PROBLEM_NUMBER") String problem,
         String affectedClients,
+        String usersAffected,
         String description,
         ApproversEmbeddable approvers,
         Boolean downtime,
         @EmbeddedColumnNaming("TIMING_%s") TimingEmbeddable timing,
         PlanningEmbeddable planning,
         PrivilegedAccessEmbeddable privilegedAccess,
-        @EmbeddedColumnNaming("RISK_%s") RiskAssessmentEmbeddable riskAssessment) {
+        @EmbeddedColumnNaming("RISK_%s") RiskAssessmentEmbeddable riskAssessment,
+        String secureCodingTicket) {
 
     static ChangeTemplateEmbeddable of(ChangeTemplate template) {
         return map(template, ChangeTemplateEmbeddable.class);
@@ -73,9 +80,9 @@ public record ChangeTemplateEmbeddable(
     }
 
     @Embeddable
-    public record RiskAssessmentEmbeddable(Integer bbhWorkgroups, Integer bbhUsers, Integer bbhApplications,
-                                           Integer clients, Integer clientsOutsideBbh, String businessImpact,
-                                           String changeComplexity, String validationComplexity,
-                                           String backoutTesting, String platformStatus) {
+    public record RiskAssessmentEmbeddable(String bbhWorkgroups, String changeComplexity, String bbhUsers,
+                                           String validationComplexity, String bbhApplications,
+                                           String backoutTesting, String clientsOutsideBbh, String platformStatus,
+                                           String businessImpact) {
     }
 }

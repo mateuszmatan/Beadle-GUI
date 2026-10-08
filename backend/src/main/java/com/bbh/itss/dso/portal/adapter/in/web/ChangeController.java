@@ -1,6 +1,8 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeIntegrations;
+import com.bbh.itss.dso.portal.application.change.port.in.ChangeOptions;
+import com.bbh.itss.dso.portal.application.change.port.in.ChangeOptionsUseCase;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileSummary;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileView;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfilesUseCase;
@@ -34,6 +36,7 @@ public class ChangeController {
 
     private final ProductionChangesUseCase changes;
     private final ChangeProfilesUseCase profiles;
+    private final ChangeOptionsUseCase options;
     private final LookupsUseCase lookups;
 
     @GetMapping("/changes")
@@ -54,6 +57,11 @@ public class ChangeController {
     @GetMapping("/changes/integrations")
     public ChangeIntegrations integrations() {
         return changes.integrations();
+    }
+
+    @GetMapping("/changes/options")
+    public ChangeOptions options() {
+        return options.options();
     }
 
     @GetMapping("/lookups/{kind}")
