@@ -17,7 +17,7 @@ import { CHANGES, NEW_CHANGE, beadleChange } from '../core/sections';
 import { text } from '../shared/form-controls';
 import { RelativeTimePipe, counted } from '../shared/formatting';
 import { ChangeState, ChangesApi, ProductionChange, STATES, isOpen, labelOf } from './change-api';
-import { TIME_ZONE_NOTE, activeTasks, windowText } from './change-model';
+import { TIME_ZONE_NOTE, activeTasks, editHint, windowText } from './change-model';
 import { IntegrationNote } from './integration-note';
 
 export type StateFilter = 'ALL' | 'OPEN' | ChangeState;
@@ -60,11 +60,11 @@ const SORT_KEYS: Record<string, (row: ChangeRow) => string | number> = {
   raised: (row) => Date.parse(row.change.createdAt ?? '') || 0,
 };
 
-export function changeRow(change: ProductionChange): ChangeRow {
+export function changeRow(change: ProductionChange, departmentId: number | null): ChangeRow {
   return {
     change,
     open: isOpen(change),
-    editable: isOpen(change) && change.update?.status !== 'PENDING',
+    editable: isOpen(change) && !editHint(change, departmentId),
     state: labelOf(STATES, change.state),
     installation: windowText(change.schedule.installationStart, change.schedule.installationEnd),
     tasks: activeTasks(change.tasks).length,
@@ -453,7 +453,9 @@ export class ChangesList {
   protected readonly sort = signal<Sort>({ active: '', direction: '' });
 
   private readonly all = computed(() =>
-    (this.changes.hasValue() ? this.changes.value() : []).map(changeRow),
+    (this.changes.hasValue() ? this.changes.value() : []).map((change) =>
+      changeRow(change, this.departmentId()),
+    ),
   );
   protected readonly rows = computed(() =>
     sorted(

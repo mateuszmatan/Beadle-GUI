@@ -1,16 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import {
-  ChangePlanning,
-  ChangeType,
-  ProductionChange,
-  RiskQuestion,
-  STATES,
-  approvalOf,
-  labelOf,
-} from './change-api';
+import { ChangePlanning, ChangeType, ProductionChange, RiskQuestion } from './change-api';
 import { TIME_ZONE_NOTE, momentText, windowText } from './change-model';
 import { ChangeOptionLists } from './change-options';
-import { NUMBER_PENDING, RISK_FIELDS, templateLabel } from './change-sections';
+import { Fact, RISK_FIELDS, changeFacts, templateLabel } from './change-sections';
 
 interface Row {
   term: string;
@@ -33,6 +25,12 @@ const PLANS: (keyof ChangePlanning)[] = [
 ];
 
 const RISKS = RISK_FIELDS.map((field) => field.key as RiskQuestion);
+
+const factRow = ({ label, value, placeholder, mono }: Fact): Row => ({
+  term: label,
+  value: value ?? placeholder ?? null,
+  mono: mono && value !== null,
+});
 
 const row = (path: string, value: string | null, mono = false): Row => ({
   term: templateLabel(path) ?? path,
@@ -60,10 +58,7 @@ export function summaryColumns(
       {
         title: 'Generic request data',
         rows: [
-          { term: 'Change number', value: change.number ?? NUMBER_PENDING, mono: !!change.number },
-          { term: 'Approval', value: approvalOf(change.state) },
-          { term: 'Opened By', value: change.openedBy },
-          { term: 'State', value: labelOf(STATES, change.state) },
+          ...changeFacts(change).map(factRow),
           row('requestedFor', t.requestedFor),
           row('requestedBy', t.requestedBy),
           row('department', t.department),

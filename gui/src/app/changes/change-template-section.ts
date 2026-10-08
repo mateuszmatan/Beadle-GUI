@@ -17,6 +17,7 @@ import {
   NOT_ASSESSED,
   PLANNING_FIELDS,
   REQUEST_FIELDS,
+  RISK,
   RISK_FIELDS,
   SECURE_FIELDS,
   SectionKey,
@@ -63,9 +64,9 @@ function listed(field: Field, options: ChangeOptions | null): Field {
           }
           <dso-fields [group]="f" [fields]="requestFields()" />
           <mat-form-field class="span-6 read-only">
-            <mat-label>Risk</mat-label>
+            <mat-label>{{ riskField.label }}</mat-label>
             <input matInput readonly [value]="risk() ?? ''" />
-            <mat-hint>from the risk assessment</mat-hint>
+            <mat-hint>{{ riskField.hint }}</mat-hint>
           </mat-form-field>
           <dso-fields [group]="f" [fields]="closingFields" />
         </div>
@@ -181,6 +182,7 @@ export class ChangeTemplateSection {
   protected readonly countFields = COUNT_FIELDS;
   protected readonly userFields = USER_FIELDS;
   protected readonly secureFields = SECURE_FIELDS;
+  protected readonly riskField = RISK;
 
   protected readonly requestFields = computed(() => {
     const options = this.lists.options();

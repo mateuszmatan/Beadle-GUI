@@ -1,5 +1,5 @@
 import { changeTemplate } from '../testing/change-fixtures';
-import { sectionControls, templateLabel } from './change-sections';
+import { NUMBER_PENDING, changeFacts, sectionControls, templateLabel } from './change-sections';
 import { templateForm } from './change-template-model';
 
 describe('change sections', () => {
@@ -22,6 +22,20 @@ describe('change sections', () => {
     expect(templateLabel('privilegedAccess')).toBe('Privileged access');
     expect(templateLabel('riskAssessment')).toBe('Risk assessment');
     expect(templateLabel('unknown')).toBeNull();
+  });
+
+  it('states the number, approval, opener and state of a change, raised or not', () => {
+    expect(
+      changeFacts({ number: 'CHG0012345', state: 'PRIMARY_APPROVAL', openedBy: 'Grace Turner' }),
+    ).toEqual([
+      { label: 'Change number', value: 'CHG0012345', placeholder: NUMBER_PENDING, mono: true },
+      { label: 'Approval', value: 'Requested' },
+      { label: 'Opened By', value: 'Grace Turner' },
+      { label: 'State', value: 'Primary Approval' },
+    ]);
+    expect(
+      changeFacts({ number: null, state: 'DRAFT', openedBy: null }).map((fact) => fact.value),
+    ).toEqual([null, 'Not Yet Requested', null, 'Draft']);
   });
 
   it('gives the controls each section shows', () => {

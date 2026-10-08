@@ -40,15 +40,7 @@ import { byDepartment } from '../products/departments';
 import { applyProblemsAt, filled } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
-import {
-  ChangeRequest,
-  ChangesApi,
-  JiraIssue,
-  ProductionChange,
-  STATES,
-  approvalOf,
-  labelOf,
-} from './change-api';
+import { ChangeRequest, ChangesApi, JiraIssue, ProductionChange } from './change-api';
 import {
   approverNames,
   changeRequest,
@@ -70,7 +62,7 @@ import {
   scheduleForm,
   scheduleValue,
 } from './change-schedule-model';
-import { Fact, NUMBER_PENDING, SECTIONS, SectionKey, sectionControls } from './change-sections';
+import { SECTIONS, SectionKey, changeFacts, sectionControls } from './change-sections';
 import { ChangeSummary } from './change-summary';
 import { ChangeTasksForm } from './change-tasks-form';
 import { TasksForm, applyTaskProblems, tasksForm, toTaskTexts } from './change-tasks-model';
@@ -201,12 +193,9 @@ export class ChangeWizard implements HasUnsavedChanges {
     }
     return this.me.error() ? null : undefined;
   });
-  protected readonly facts = computed<Fact[]>(() => [
-    { label: 'Change number', value: null, placeholder: NUMBER_PENDING },
-    { label: 'Approval', value: approvalOf('DRAFT') },
-    { label: 'Opened By', value: this.openedBy() ?? null },
-    { label: 'State', value: labelOf(STATES, 'DRAFT') },
-  ]);
+  protected readonly facts = computed(() =>
+    changeFacts({ number: null, state: 'DRAFT', openedBy: this.openedBy() ?? null }),
+  );
 
   protected readonly profile = rxResource({
     params: () => this.chosenProduct() ?? undefined,

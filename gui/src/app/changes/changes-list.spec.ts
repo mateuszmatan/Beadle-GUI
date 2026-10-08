@@ -56,21 +56,22 @@ const noFilters: ChangeFilters = {
 };
 
 describe('the rows of the changes table', () => {
-  const rows = [certScanner, payments, draft].map(changeRow);
+  const row = (change: ProductionChange) => changeRow(change, 3);
+  const rows = [certScanner, payments, draft].map(row);
   const numbers = (list: { change: ProductionChange }[]) => list.map((row) => row.change.number);
 
   it('counts the tasks that are not canceled and names the state', () => {
-    expect(changeRow(payments)).toMatchObject({ open: false, state: 'Closed', tasks: 1 });
-    expect(changeRow(draft)).toMatchObject({ open: true, state: 'Draft', tasks: 2 });
+    expect(row(payments)).toMatchObject({ open: false, state: 'Closed', tasks: 1 });
+    expect(row(draft)).toMatchObject({ open: true, state: 'Draft', tasks: 2 });
   });
 
-  it('lets an open change be edited unless its last update still waits for ProTech', () => {
-    expect(changeRow(draft).editable).toBe(true);
-    expect(changeRow(payments).editable).toBe(false);
-    expect(changeRow({ ...draft, update: changeUpdate() }).editable).toBe(false);
-    expect(changeRow({ ...draft, update: changeUpdate({ status: 'NOT_APPLIED' }) }).editable).toBe(
-      true,
-    );
+  it('lets the department edit an open change unless its last update still waits for ProTech', () => {
+    expect(row(draft).editable).toBe(true);
+    expect(row(payments).editable).toBe(false);
+    expect(row({ ...draft, update: changeUpdate() }).editable).toBe(false);
+    expect(row({ ...draft, update: changeUpdate({ status: 'NOT_APPLIED' }) }).editable).toBe(true);
+    expect(changeRow(draft, 5).editable).toBe(false);
+    expect(changeRow(draft, null).editable).toBe(false);
   });
 
   it('filters by every column, the state by stage or by being open', () => {
