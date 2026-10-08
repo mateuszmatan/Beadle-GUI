@@ -5,6 +5,7 @@ import com.microsoft.playwright.Locator
 
 import java.time.Instant
 
+import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.CERT_TASKS
 import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.CERT_TEMPLATE
 import static com.bbh.itss.dso.portal.gui.support.StubApi.fixture
 import static com.bbh.itss.dso.portal.gui.support.StubResponse.empty
@@ -16,7 +17,6 @@ class BeadleAdminSpec extends EditorSpecification {
 
     static final List<String> DEPARTMENTS = ['AI Lab', 'Capital Partners', 'Corporate Technology', 'Custody', 'Fund Services']
     static final String APP_SCAN_KEY = 'bbh_7d1e2f3a-0000-4abc-9def-123456789abc'
-    static final String SCANNER_APPLICATION = '209f44ac-dd06-4ca0-884e-d944904f8099'
 
     def setup() {
         api.get('/api/change-profiles') {
@@ -24,9 +24,10 @@ class BeadleAdminSpec extends EditorSpecification {
         }
     }
 
-    def "Beadle Admin has a Departments and a Products tab, and its departments have no pipeline columns"() {
+    def "Beadle Admin has a Departments and a Products tab, and its departments have no pipeline or service columns"() {
         when:
         open('/beadle')
+        page.waitForURL('**/beadle/changes')
         menuLink('Beadle', 'Admin').click()
         page.waitForURL('**/beadle/admin/products')
 
@@ -40,9 +41,9 @@ class BeadleAdminSpec extends EditorSpecification {
         page.waitForURL('**/beadle/admin/departments')
 
         then:
-        assertThat(page.locator('th.mat-mdc-header-cell')).hasText(['Department', 'Products', 'Services', ''] as String[])
+        assertThat(page.locator('th.mat-mdc-header-cell')).hasText(['Department', 'Products', ''] as String[])
         assertThat(page.locator('section.chart')).hasCount(0)
-        assertThat(page.locator('.toolbar .count')).hasText('5 departments · 2 products · 6 services')
+        assertThat(page.locator('.toolbar .count')).hasText('5 departments · 2 products')
 
         when:
         button('Add department', true).click()
@@ -56,19 +57,19 @@ class BeadleAdminSpec extends EditorSpecification {
         ownErrors().isEmpty()
     }
 
-    def "the Products tab lists the products by department with the state of their ServiceNow defaults"() {
+    def "the Products tab lists the products by department with the state of their change template"() {
         when:
         open('/beadle/admin/products')
 
         then:
         assertThat(cardNames()).hasText(DEPARTMENTS as String[])
-        assertThat(card('Corporate Technology').locator('.tally')).hasText('1 product · 2 services')
+        assertThat(card('Corporate Technology').locator('.tally')).hasText('1 product')
         assertThat(card('Custody').locator('.no-products')).hasText('No products in Custody yet.')
         assertThat(page.locator('.toolbar .count')).hasText('2 products in 5 departments')
-        assertThat(card('Fund Services').locator('th')).hasText(['Product', 'Owner team', 'Services', 'ServiceNow defaults'] as String[])
-        assertThat(productRow('CertScanner').locator('td')).hasText(['CertScannerCERTSCANNER', 'Technology Architecture', '2',
+        assertThat(card('Fund Services').locator('th')).hasText(['Product', 'Owner team', 'Change template'] as String[])
+        assertThat(productRow('CertScanner').locator('td')).hasText(['CertScannerCERTSCANNER', 'Technology Architecture',
                                                                     'Saved · 2 days ago'] as String[])
-        assertThat(productRow('Payments Hub').locator('.mat-column-defaults')).hasText('Suggested values')
+        assertThat(productRow('Payments Hub').locator('.mat-column-template')).hasText('Suggested values')
 
         when:
         page.locator('input[aria-label="Search products"]').fill('pay')
@@ -78,20 +79,22 @@ class BeadleAdminSpec extends EditorSpecification {
         assertThat(page.locator('.toolbar .count')).hasText('1 product in 1 department')
 
         when:
-        api.respond('GET', '/api/change-profiles', problem(503, 'Unavailable', 'The ServiceNow defaults are not available'))
+        api.respond('GET', '/api/change-profiles', problem(503, 'Unavailable', 'The change templates are not available'))
         open('/beadle/admin/products')
 
         then:
-        assertThat(productRow('CertScanner').locator('.mat-column-defaults')).hasText('Unknown')
-        assertThat(productRow('CertScanner').locator('.mat-column-defaults span')).hasAttribute('title', 'The ServiceNow defaults are not available')
+        assertThat(productRow('CertScanner').locator('.mat-column-template')).hasText('Unknown')
+        assertThat(productRow('CertScanner').locator('.mat-column-template span')).hasAttribute('title', 'The change templates are not available')
 
         when:
-        productRow('Payments Hub').locator('td.mat-column-services').click()
+        productRow('Payments Hub').locator('td.mat-column-ownerTeam').click()
 
         then:
         page.waitForURL('**/beadle/admin/products/2')
         assertThat(facts()).hasText(['PAYHUB', 'Fund Services', 'Payments Engineering', 'payments-eng@bbh.com'] as String[])
-        assertThat(serviceNames()).hasText(['gateway', 'ledger', 'notifications', 'mobile-app'] as String[])
+        assertThat(page.locator('section.defaults h2')).hasText('Change template')
+        assertThat(page.locator('dso-product-admin table')).hasCount(0)
+        assertThat(page.getByText('mobile-app')).hasCount(0)
         ownErrors().findAll { !it.contains('503') }.isEmpty()
     }
 
@@ -100,7 +103,7 @@ class BeadleAdminSpec extends EditorSpecification {
         api.respond('POST', '/api/products', problem(400, 'Bad Request', 'The portal did not accept some values.',
                 [errors: [[field: 'appScan.keyId', message: 'is not an AppScan API key ID']]]))
         api.get('/api/products/3/change-profile') {
-            [productId: 3, productName: 'Trade Archive', version: null, updatedAt: null, template: CERT_TEMPLATE]
+            [productId: 3, productName: 'Trade Archive', version: null, updatedAt: null, template: CERT_TEMPLATE, tasks: CERT_TASKS]
         }
 
         when:
@@ -147,7 +150,8 @@ class BeadleAdminSpec extends EditorSpecification {
                            appScan     : [keyId: APP_SCAN_KEY, secretCredentialsId: null], version: null, services: []]
         store.product.name == 'Trade Archive'
         assertThat(facts()).hasText(['TRADEARCHIVE', 'Custody', 'Custody Technology', '–'] as String[])
-        assertThat(page.locator('dso-product-admin .none')).hasText('Trade Archive has no services yet.')
+        assertThat(page.locator('section.defaults .banner.info')).containsText('Not saved yet')
+        assertThat(page.locator('dso-change-tasks-form .task-row')).hasCount(2)
         ownErrors().findAll { !it.contains('400') }.isEmpty()
     }
 
@@ -189,6 +193,7 @@ class BeadleAdminSpec extends EditorSpecification {
         store.product.version = 4
         store.product.ownerTeam = 'Security Engineering'
         buttonIn(factsCard(), 'Change').click()
+        assertThat(input(dialog(), 'Product name')).isFocused()
         input(dialog(), 'Contact e-mail').fill('certs@bbh.com')
         dialogButton('Save').click()
 
@@ -200,6 +205,7 @@ class BeadleAdminSpec extends EditorSpecification {
 
         when:
         buttonIn(factsCard(), 'Change').click()
+        assertThat(input(dialog(), 'Product name')).isFocused()
         input(dialog(), 'Contact e-mail').fill('certs@bbh.com')
         dialogButton('Save').click()
 
@@ -211,91 +217,7 @@ class BeadleAdminSpec extends EditorSpecification {
         ownErrors().findAll { !it.contains('409') }.isEmpty()
     }
 
-    def "an administrator adds, changes and removes the services of a product, each saved at once"() {
-        given:
-        def store = ProductStore.recorded(api, 1)
-        def stored = fixture('product-1.json').services as List<Map>
-
-        when:
-        open('/beadle/admin/products/1')
-
-        then:
-        assertThat(serviceNames()).hasText(['gui', 'backend-api'] as String[])
-        assertThat(serviceRow('backend-api').locator('td')).hasText(['backend-api', 'REST API and certificate scanner', 'Maven',
-                                                                     'OpenShift', 'Change Remove'] as String[])
-
-        when:
-        button('Add service', true).click()
-        fillIn(dialog(), ['Service name': 'scanner', 'What it does': 'Nightly certificate scan',
-                          'AppScan application ID': SCANNER_APPLICATION])
-        dialogButton('Next').click()
-        radio(dialog(), 'Gradle').click()
-        radio(dialog(), 'Virtual machines').click()
-        dialogButton('Add service').click()
-
-        then:
-        assertThat(snackBar()).containsText('scanner added to CertScanner')
-        assertThat(serviceNames()).hasText(['gui', 'backend-api', 'scanner'] as String[])
-        def added = awaitRequest('PUT', '/api/products/1')
-        added.params() == [:]
-        with(added.json() as Map) {
-            version == 0
-            it.services.take(2) == stored
-            it.services[2].subMap('id', 'name', 'description') == [id: null, name: 'scanner', description: 'Nightly certificate scan']
-            it.services[2].appScan.applicationId == BeadleAdminSpec.SCANNER_APPLICATION
-            it.services[2].build.tool == 'GRADLE'
-            it.services[2].deployment.target == 'VM'
-        }
-        store.services.find { it.serviceName == 'scanner' }.pipelines*.type == ['FULL']
-
-        when:
-        def scanner = store.product.services[2]
-        buttonIn(serviceRow('backend-api'), 'Change backend-api').click()
-
-        then:
-        assertThat(dialog().locator('h2')).hasText('Change backend-api')
-
-        when:
-        input(dialog(), 'What it does').fill('Certificate scanner API')
-        dialogButton('Next').click()
-        dialogButton('Save service').click()
-
-        then:
-        assertThat(snackBar()).containsText('backend-api saved')
-        assertThat(serviceRow('backend-api').locator('td').nth(1)).hasText('Certificate scanner API')
-        with(awaitRequest('PUT', '/api/products/1', 2).json() as Map) {
-            version == 1
-            it.services*.name == ['gui', 'backend-api', 'scanner']
-            it.services[0] == stored[0]
-            it.services[1].subMap('id', 'description') == [id: 2, description: 'Certificate scanner API']
-            it.services[1].build.tool == 'MAVEN'
-            it.services[1].deployment.target == 'OPENSHIFT'
-            it.services[2] == scanner
-        }
-
-        when:
-        buttonIn(serviceRow('gui'), 'Remove gui').click()
-
-        then:
-        assertThat(dialog().locator('h2')).hasText('Remove gui?')
-        assertThat(dialog().locator('.message')).hasText('gui is removed from CertScanner with its pipelines and their keys. ' +
-                'Jenkins jobs using those keys stop working.')
-
-        when:
-        dialogButton('Remove service').click()
-
-        then:
-        assertThat(snackBar()).containsText('gui removed from CertScanner')
-        assertThat(serviceNames()).hasText(['backend-api', 'scanner'] as String[])
-        with(awaitRequest('PUT', '/api/products/1', 3).json() as Map) {
-            version == 2
-            it.services*.id == [2, scanner.id]
-        }
-        store.services*.serviceName == ['backend-api', 'scanner']
-        ownErrors().isEmpty()
-    }
-
-    def "an administrator deletes a product with its services after confirming it"() {
+    def "an administrator deletes a product with its change template after confirming it"() {
         given:
         ProductStore.recorded(api, 1)
         api.on('DELETE', '/api/products/1') { empty() }
@@ -306,8 +228,8 @@ class BeadleAdminSpec extends EditorSpecification {
 
         then:
         assertThat(dialog().locator('h2')).hasText('Delete CertScanner?')
-        assertThat(dialog().locator('.message')).hasText('CertScanner is deleted with its services, their pipelines and keys, ' +
-                'and its ServiceNow defaults. Jenkins jobs using those keys stop working. This cannot be undone.')
+        assertThat(dialog().locator('.message')).hasText('CertScanner is deleted with its change template and its DevSecOps ' +
+                'pipelines and keys. Jenkins jobs using those keys stop working. This cannot be undone.')
 
         when:
         dialogButton('Cancel').click()
@@ -346,13 +268,5 @@ class BeadleAdminSpec extends EditorSpecification {
 
     Locator facts() {
         factsCard().locator('dd')
-    }
-
-    Locator serviceNames() {
-        page.locator('dso-product-admin td.name')
-    }
-
-    Locator serviceRow(String name) {
-        holding(page.locator('dso-product-admin tr.mat-mdc-row'), "td.name:text-is('${name}')")
     }
 }

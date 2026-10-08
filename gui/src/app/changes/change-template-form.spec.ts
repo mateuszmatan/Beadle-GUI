@@ -20,7 +20,7 @@ describe('ChangeTemplateForm', () => {
     await fixture.whenStable();
   }
 
-  it('shows every ServiceNow field in its card', async () => {
+  it('shows every ProTech field in its card', async () => {
     await render();
 
     expect([...page().querySelectorAll('.template-card h3')].map(text)).toEqual([
@@ -52,6 +52,28 @@ describe('ChangeTemplateForm', () => {
 
     expect(fieldOf(page(), 'Jira project')).toBeNull();
     expect(inputOf(page(), 'Assignment group').value).toBe('Technology Architecture');
+    expect(fieldOf(page(), 'Type')).not.toBeNull();
+  });
+
+  it('leaves out the type and the schedule defaults of a change that is raised', async () => {
+    await render(changeTemplate(), false);
+    fixture.componentRef.setInput('changeType', false);
+    fixture.componentRef.setInput('scheduleDefaults', false);
+    fixture.detectChanges();
+
+    expect(fieldOf(page(), 'Type')).toBeNull();
+    expect(fieldOf(page(), 'Installation start')).toBeNull();
+    expect([...page().querySelectorAll('.template-card h3')].map(text)).toEqual([
+      'Change',
+      'Approvers',
+      'Planning',
+      'Privileged access',
+      'Risk assessment',
+    ]);
+    const approvers = [...page().querySelectorAll('.template-card')].find(
+      (card) => text(card.querySelector('h3')) === 'Approvers',
+    );
+    expect(approvers?.classList).toContain('wide');
   });
 
   it('adds up to seven privileged users and removes them again', async () => {
@@ -122,6 +144,10 @@ describe('ChangeTemplateForm', () => {
     expect(templateLabel('privilegedAccess.users')).toBe('Privileged users');
     expect(templateLabel('privilegedAccess.users[2].account')).toBe('Privileged account');
     expect(templateLabel('riskAssessment.platformStatus')).toBe('Platform status');
+    expect(templateLabel('approvers')).toBe('Approvers');
+    expect(templateLabel('planning')).toBe('Planning');
+    expect(templateLabel('privilegedAccess')).toBe('Privileged access');
+    expect(templateLabel('riskAssessment')).toBe('Risk assessment');
     expect(templateLabel('unknown')).toBeNull();
   });
 });

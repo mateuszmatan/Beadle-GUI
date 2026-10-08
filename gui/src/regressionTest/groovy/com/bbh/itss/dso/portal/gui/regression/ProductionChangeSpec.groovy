@@ -4,7 +4,9 @@ import com.microsoft.playwright.Locator
 
 import java.time.LocalDate
 
+import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.CERT_TASKS
 import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.RELEASE_DATE
+import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.suggestedTasks
 import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.OPTION
@@ -12,20 +14,20 @@ import static java.time.LocalDate.now
 
 class ProductionChangeSpec extends EditorSpecification {
 
-    def "a release manager raises a production change from a FixVersion with the ServiceNow fields and the schedule"() {
+    def "a release manager raises a ProTech change from a FixVersion with the ProTech fields, the change tasks and the schedule"() {
         when:
         open('/beadle')
-        menuLink('Production Change').click()
-        page.waitForURL('**/beadle/changes')
+        menuLink('New Change').click()
+        page.waitForURL('**/beadle/new-change')
 
         then:
-        assertThat(page.locator('h1')).hasText('Production Change')
+        assertThat(page.locator('h1')).hasText('New ProTech Change')
+        assertThat(page.locator('.page-header .page-description'))
+                .hasText('Raise a ProTech change (CHG) with its change tasks (CTASK), written from Jira')
         assertThat(page.locator('dso-integration-note')).containsText('Jira is not connected yet')
-        assertThat(page.locator('tbody tr td:first-child')).hasText(['CHG0031001'] as String[])
-        assertThat(page.locator('tbody tr td:nth-child(3)')).hasText(['CERT 4.1'] as String[])
+        assertThat(page.locator('dso-integration-note')).containsText('ProTech is not connected yet')
 
         when:
-        link('Raise a production change', true).click()
         button('Continue', true).click()
 
         then:
@@ -77,13 +79,22 @@ class ProductionChangeSpec extends EditorSpecification {
 
         when:
         checkbox(step(), 'CERT-122').uncheck()
-        checkbox(step(), 'backend-api').uncheck()
+
+        then:
+        assertThat(step().locator("h3:text-is('Services')")).hasCount(0)
+        assertThat(step().locator('mat-checkbox')).hasCount(4)
+
+        when:
         button('Continue', true).click()
 
         then:
         assertThat(currentStep()).hasText('Details')
+        assertThat(step().locator('h2')).hasText('Check the ProTech fields')
         hasValues(step(), ['Release': 'CERT 4.2', 'Assignment group': 'Technology Architecture', 'L1 manager': 'Olivia Bennett',
                            'Installation start': '18:00', 'BBH users': '25'])
+        assertThat(taskRows()).hasCount(2)
+        hasValues(taskRows().nth(0), ['Short description': 'Deploy CertScanner to production',
+                                      'Description'      : CERT_TASKS[0].description])
 
         when:
         fillIn(step(), ['Incident': 'INC0012345', 'Backout plan': ''])
@@ -91,15 +102,20 @@ class ProductionChangeSpec extends EditorSpecification {
         select(step(), 'Business impact').press('Escape')
         checkbox(step(), 'Privileged access needed').check()
         fillIn(step(), ['User': 'Jane Smith', 'Privileged account': 'adm_jsmith'])
+        button('Remove change task 2', true).click()
+        button('Add a change task', true).click()
+        input(taskRows().nth(1), 'Short description').fill('Run the database scripts')
         button('Continue', true).click()
 
         then:
         assertThat(currentStep()).hasText('Details')
         assertThat(errorOf(step(), 'Backout plan')).hasText('Required')
+        assertThat(errorOf(taskRows().nth(1), 'Description')).hasText('Required')
         assertThat(choiceError()).hasText('Some fields need your attention.')
 
         when:
         input(step(), 'Backout plan').fill('Redeploy CERT 4.1 from Nexus.')
+        input(taskRows().nth(1), 'Description').fill('Run the Liquibase changesets of CertScanner.')
         button('Continue', true).click()
 
         then:
@@ -125,7 +141,8 @@ class ProductionChangeSpec extends EditorSpecification {
         assertThat(review('Business impact')).hasText('Medium')
         assertThat(review('Jane Smith')).hasText('adm_jsmith')
         assertThat(review('Downtime')).hasText('Yes')
-        assertThat(step().locator('.tasks strong')).hasText(['Deploy gui of CertScanner to production'] as String[])
+        assertThat(step().locator('.tasks strong'))
+                .hasText(['Deploy CertScanner to production', 'Run the database scripts'] as String[])
         assertThat(step().locator('.scope')).hasText('1 epic and 1 story of FixVersion CERT 4.2')
         with(awaitRequest('POST', '/api/changes/preview').json()) {
             fixVersion == 'CERT 4.2'
@@ -140,19 +157,24 @@ class ProductionChangeSpec extends EditorSpecification {
             template.planning.backoutPlan == 'Redeploy CERT 4.1 from Nexus.'
             template.privilegedAccess == [required: true, users: [[user: 'Jane Smith', account: 'adm_jsmith']]]
             template.riskAssessment.businessImpact == 'Medium'
+            tasks == [CERT_TASKS[0], [shortDescription: 'Run the database scripts',
+                                      description     : 'Run the Liquibase changesets of CertScanner.']]
+            !it.containsKey('serviceIds')
         }
 
         when:
         input(step(), 'Short description').fill('CertScanner 4.2 release')
-        button('Raise the change in ServiceNow', true).click()
+        button('Raise the change in ProTech', true).click()
 
         then:
         assertThat(step().locator('h2')).hasText('CHG0031002 is raised')
-        assertThat(step().locator('.review-services li')).hasText(['CTASK0310021 · Deploy gui of CertScanner to production'] as String[])
-        assertThat(step().locator('.next-steps')).containsText('Olivia Bennett, James Carter, Grace Turner approve the change')
+        assertThat(step().locator('.review-services li')).hasText(['CTASK0310021 · Deploy CertScanner to production',
+                                                                   'CTASK0310022 · Run the database scripts'] as String[])
+        assertThat(step().locator('.next-steps')).containsText('Olivia Bennett, James Carter, Grace Turner approve the change in ProTech')
         with(awaitRequest('POST', '/api/changes').json()) {
             productId == 1
-            serviceIds == [1]
+            !it.containsKey('serviceIds')
+            tasks*.shortDescription == ['Deploy CertScanner to production', 'Run the database scripts']
             fixVersion == 'CERT 4.2'
             epicKeys == ['CERT-120']
             storyKeys == ['CERT-121']
@@ -164,22 +186,27 @@ class ProductionChangeSpec extends EditorSpecification {
         link('Open the change', true).click()
 
         then:
+        page.waitForURL('**/beadle/changes/5')
         assertThat(page.locator('h1')).hasText('CHG0031002')
         assertThat(page.locator('.tasks')).containsText('CTASK0310021')
+        assertThat(page.locator('dso-workflow-progress li[aria-current=step]')).containsText('Draft')
+        assertThat(page.locator('.note.sync')).hasText('Read from ProTech just now')
         assertThat(term(page.locator('dso-change-summary'), 'Jane Smith')).hasText('adm_jsmith')
         assertThat(term(page.locator('dso-change-summary'), 'FixVersion')).hasText('CERT 4.2')
         ownErrors().isEmpty()
     }
 
-    def "a product without ServiceNow defaults raises a change with the suggested values from another Jira project"() {
+    def "a product without a change template raises a change with the suggested values from another Jira project"() {
         when:
         open('/beadle/changes/new')
+        page.waitForURL('**/beadle/new-change')
         choose(step(), 'Department', 'Fund Services')
         choose(step(), 'Product', 'Payments Hub (PAYHUB)')
 
         then:
         assertThat(step().locator('.defaults-note')).containsText(
-                'Payments Hub has no ServiceNow defaults yet, so the suggested values are filled in.')
+                'Payments Hub has no change template yet, so the suggested values are filled in. An admin can set it in Beadle Admin.')
+        assertThat(link('Set the template', true)).isVisible()
         assertThat(step().locator('.defaults-note a')).hasAttribute('href', '/beadle/admin/products/2')
         assertThat(review('Approvers')).hasText('not set')
 
@@ -231,7 +258,7 @@ class ProductionChangeSpec extends EditorSpecification {
         assertThat(currentStep()).hasText('Review')
         with(awaitRequest('POST', '/api/changes/preview').json()) {
             productId == 2
-            serviceIds == [3, 4, 5, 6]
+            tasks == suggestedTasks(2)
             epicKeys == ['PAY-130']
             storyKeys == ['PAY-132']
             template.jiraProjectKey == 'PAY'
@@ -255,14 +282,15 @@ class ProductionChangeSpec extends EditorSpecification {
         ownErrors().isEmpty()
     }
 
-    def "a change ServiceNow refuses stays on the review with the reasons, marked on the fields"() {
+    def "a change ProTech refuses stays on the review with the reasons, marked on the fields"() {
         given:
-        api.respond('POST', '/api/changes', problem(400, 'Bad Request', '2 fields are invalid',
+        api.respond('POST', '/api/changes', problem(400, 'Bad Request', '3 fields are invalid',
                 [errors: [[field: 'schedule.installationStart', message: 'must be in the future'],
-                          [field: 'template.planning.backoutPlan', message: 'must not mention Nexus']]]))
+                          [field: 'template.planning.backoutPlan', message: 'must not mention Nexus'],
+                          [field: 'tasks[1].shortDescription', message: 'is used twice']]]))
 
         when:
-        open('/beadle/changes/new')
+        open('/beadle/new-change')
         choose(step(), 'Department', 'Corporate Technology')
         choose(step(), 'Product', 'CertScanner (CERTSCANNER)')
         button('Continue', true).click()
@@ -278,12 +306,13 @@ class ProductionChangeSpec extends EditorSpecification {
         assertThat(review('Jira')).hasText('CERT-130 CERT-131')
 
         when:
-        button('Raise the change in ServiceNow', true).click()
+        button('Raise the change in ProTech', true).click()
 
         then:
-        assertThat(page.locator('.save-problem strong')).hasText('2 fields are invalid')
+        assertThat(page.locator('.save-problem strong')).hasText('3 fields are invalid')
         assertThat(page.locator('.save-problem li'))
-                .hasText(['Installation start: must be in the future', 'Backout plan: must not mention Nexus'] as String[])
+                .hasText(['Installation start: must be in the future', 'Backout plan: must not mention Nexus',
+                          'Change task 2: short description: is used twice'] as String[])
         assertThat(currentStep()).hasText('Review')
 
         when:
@@ -291,9 +320,11 @@ class ProductionChangeSpec extends EditorSpecification {
 
         then:
         assertThat(errorOf(step(), 'Backout plan')).hasText('must not mention Nexus')
+        assertThat(errorOf(taskRows().nth(1), 'Short description')).hasText('is used twice')
 
         when:
         input(step(), 'Backout plan').fill('Redeploy the previous release.')
+        input(taskRows().nth(1), 'Short description').fill('Validate CertScanner after the release')
         button('Continue', true).click()
         input(step(), 'Installation date').fill(inDays(30))
 
@@ -305,6 +336,10 @@ class ProductionChangeSpec extends EditorSpecification {
 
     Locator step() {
         page.locator('section.step')
+    }
+
+    Locator taskRows() {
+        step().locator('dso-change-tasks-form .task-row')
     }
 
     Locator currentStep() {

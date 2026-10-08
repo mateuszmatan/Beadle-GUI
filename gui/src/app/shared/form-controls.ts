@@ -204,6 +204,22 @@ export function applyFieldProblems(
   return unmatched;
 }
 
+export function applyProblemsAt(
+  form: AbstractControl,
+  prefix: string,
+  problems: FieldProblem[],
+): FieldProblem[] {
+  const own = problems.filter((problem) => problem.field.startsWith(prefix));
+  const unmatched = applyFieldProblems(
+    form,
+    own.map((problem) => ({ ...problem, field: problem.field.slice(prefix.length) })),
+  );
+  return [
+    ...problems.filter((problem) => !own.includes(problem)),
+    ...unmatched.map((problem) => ({ ...problem, field: prefix + problem.field })),
+  ];
+}
+
 const serverValidators = new WeakMap<AbstractControl, ValidatorFn>();
 
 function showServerError(control: AbstractControl, message: string, scope: AbstractControl): void {
@@ -270,14 +286,14 @@ export function revalidateAll(control: AbstractControl): void {
 
 export function controlAt(form: AbstractControl, field: string): AbstractControl | null {
   const path = field.split('.').flatMap((segment) => {
-    const match = /^([\w-]+)((?:\[[^\]]+])+)$/.exec(segment);
+    const match = /^([\w-]*)((?:\[[^\]]+])+)$/.exec(segment);
     if (!match) {
       return [segment];
     }
     const keys = [...match[2].matchAll(/\[([^\]]+)]/g)].map(([, key]) =>
       /^\d+$/.test(key) ? Number(key) : key,
     );
-    return [match[1], ...keys];
+    return match[1] ? [match[1], ...keys] : keys;
   });
   for (let length = path.length; length > 0; length--) {
     const control = form.get(path.slice(0, length));

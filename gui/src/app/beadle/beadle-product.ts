@@ -10,25 +10,32 @@ import {
   signal,
 } from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ReactiveFormsModule } from '@angular/forms';
+import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
-import { ChangesApi } from '../changes/change-api';
+import { ChangeProfile, ChangesApi } from '../changes/change-api';
+import { ChangeTasksForm } from '../changes/change-tasks-form';
+import { tasksForm, toTaskTexts } from '../changes/change-tasks-model';
 import { ChangeTemplateForm } from '../changes/change-template-form';
-import {
-  TemplateForm,
-  applyTemplateProblems,
-  templateForm,
-  toTemplate,
-} from '../changes/change-template-model';
+import { templateForm, toTemplate } from '../changes/change-template-model';
 import { errorMessage, fieldProblems } from '../core/errors';
 import { Notifier } from '../core/notifier';
 import { BEADLE_ADMIN, BEADLE_PRODUCTS } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
+import { applyFieldProblems } from '../shared/form-controls';
 import { ProductAdmin } from './product-admin';
+
+export function profileForm(profile: ChangeProfile) {
+  return new FormGroup({
+    template: templateForm(profile.template),
+    tasks: tasksForm(profile.tasks),
+  });
+}
+
+export type ProfileForm = ReturnType<typeof profileForm>;
 
 @Component({
   selector: 'dso-beadle-product',
@@ -38,6 +45,7 @@ import { ProductAdmin } from './product-admin';
     MatButtonModule,
     MatProgressBarModule,
     MatProgressSpinnerModule,
+    ChangeTasksForm,
     ChangeTemplateForm,
     ProductAdmin,
   ],
@@ -55,8 +63,8 @@ import { ProductAdmin } from './product-admin';
         <div>
           <h1>{{ productName() }}</h1>
           <p>
-            The product, its services and the ServiceNow defaults of its production changes. The app
-            owner who raises a change sees the defaults filled in and can change any of them.
+            The product and the change template of its ProTech changes. Whoever raises a change sees
+            the template filled in and can change any of it.
           </p>
         </div>
       </header>
@@ -69,14 +77,21 @@ import { ProductAdmin } from './product-admin';
       }
       @if (form(); as group) {
         <section class="defaults" aria-labelledby="defaults-title">
-          <h2 id="defaults-title">ServiceNow defaults</h2>
+          <h2 id="defaults-title">Change template</h2>
           @if (version() === null) {
             <div class="banner info" role="status">
               Not saved yet. The values below are suggestions from the product.
             </div>
           }
           <form [formGroup]="group" (ngSubmit)="save()" novalidate>
-            <dso-change-template-form [form]="group" />
+            <dso-change-template-form [form]="group.controls.template" />
+            <section class="card default-tasks" aria-labelledby="tasks-title">
+              <header>
+                <h3 id="tasks-title">Default change tasks</h3>
+                <p>Every new change of the product starts with these change tasks.</p>
+              </header>
+              <dso-change-tasks-form [tasks]="group.controls.tasks" />
+            </section>
             <div class="save-bar">
               @if (saveError(); as error) {
                 <span class="save-error" role="alert">{{ error }}</span>
@@ -89,13 +104,39 @@ import { ProductAdmin } from './product-admin';
                 @if (saving()) {
                   <mat-spinner diameter="18" />
                 }
-                Save defaults
+                Save the template
               </button>
             </div>
           </form>
         </section>
       }
     </div>
+  `,
+  styles: `
+    .default-tasks {
+      margin-top: 10px;
+      padding: 8px 14px 10px;
+
+      > header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 2px 10px;
+        margin-bottom: 6px;
+
+        h3 {
+          margin: 0;
+          font-size: 14px;
+          font-weight: 600;
+        }
+
+        p {
+          margin: 0;
+          font-size: 11.5px;
+          color: var(--dso-muted);
+        }
+      }
+    }
   `,
 })
 export class BeadleProduct implements HasUnsavedChanges {
@@ -118,7 +159,7 @@ export class BeadleProduct implements HasUnsavedChanges {
     () =>
       this.newName() ?? (this.profile.hasValue() ? this.profile.value().productName : 'Product'),
   );
-  protected readonly form = signal<TemplateForm | null>(null);
+  protected readonly form = signal<ProfileForm | null>(null);
   protected readonly version = signal<number | null>(null);
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
@@ -127,7 +168,7 @@ export class BeadleProduct implements HasUnsavedChanges {
     effect(() => {
       if (this.profile.hasValue()) {
         this.version.set(this.profile.value().version);
-        this.form.set(templateForm(this.profile.value().template));
+        this.form.set(profileForm(this.profile.value()));
       }
     });
   }
@@ -155,7 +196,12 @@ export class BeadleProduct implements HasUnsavedChanges {
     }
     this.saving.set(true);
     this.api
-      .saveProfile(this.id(), this.version(), toTemplate(form))
+      .saveProfile(
+        this.id(),
+        this.version(),
+        toTemplate(form.controls.template),
+        toTaskTexts(form.controls.tasks),
+      )
       .pipe(
         finalize(() => this.saving.set(false)),
         takeUntilDestroyed(this.destroyRef),
@@ -164,11 +210,11 @@ export class BeadleProduct implements HasUnsavedChanges {
         next: (saved) => {
           this.version.set(saved.version);
           form.markAsPristine();
-          this.notifier.success(`The ServiceNow defaults of ${saved.productName} are saved`);
+          this.notifier.success(`The change template of ${saved.productName} is saved`);
         },
         error: (error) => {
           const problems = fieldProblems(error);
-          const unmatched = applyTemplateProblems(form, problems);
+          const unmatched = applyFieldProblems(form, problems);
           this.saveError.set(
             unmatched.length || !problems.length
               ? errorMessage(error)

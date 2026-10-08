@@ -6,11 +6,14 @@
   align-items: start;
 }
 
-.checks,
 .issues {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.tasks-title {
+  margin-top: 6px;
 }
 
 .issues {

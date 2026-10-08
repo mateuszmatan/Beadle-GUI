@@ -83,7 +83,8 @@ describe('DepartmentsAdmin', () => {
     create(false);
     await load();
 
-    expect(headers()).toEqual(['Department', 'Products', 'Services', '']);
+    expect(headers()).toEqual(['Department', 'Products', '']);
+    expect(text(page().querySelector('.count'))).toBe('2 departments · 1 product');
     expect(page().querySelector('section.chart')).toBeNull();
   });
 
@@ -92,7 +93,7 @@ describe('DepartmentsAdmin', () => {
     await load([]);
 
     expect(text(page().querySelector('.empty-state h3'))).toBe('No departments yet');
-    expect(text(page().querySelector('.count'))).toBe('0 departments · 0 products · 0 services');
+    expect(text(page().querySelector('.count'))).toBe('0 departments · 0 products');
   });
 
   it('shows why the departments could not be loaded', async () => {

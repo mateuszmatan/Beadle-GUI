@@ -28,7 +28,7 @@
         <p>Try another name, code, team or department.</p>
       } @else {
         <h3>No products yet</h3>
-        <p>Add the first product, then its services and the defaults of its ServiceNow changes.</p>
+        <p>Add the first product, then its change template.</p>
         <button mat-flat-button type="button" (click)="add()">Add product</button>
       }
     </section>
@@ -74,19 +74,12 @@
               <td mat-cell *matCellDef="let product">{{ product.ownerTeam ?? '–' }}</td>
             </ng-container>
 
-            <ng-container matColumnDef="services">
-              <th mat-header-cell *matHeaderCellDef class="number">Services</th>
-              <td mat-cell *matCellDef="let product" class="number">
-                {{ product.serviceCount }}
-              </td>
-            </ng-container>
-
-            <ng-container matColumnDef="defaults">
-              <th mat-header-cell *matHeaderCellDef>ServiceNow defaults</th>
+            <ng-container matColumnDef="template">
+              <th mat-header-cell *matHeaderCellDef>Change template</th>
               <td mat-cell *matCellDef="let product">
-                @if (defaults.error(); as error) {
+                @if (templates.error(); as error) {
                   <span class="muted" [title]="errorMessage(error)">Unknown</span>
-                } @else if (defaults.hasValue()) {
+                } @else if (templates.hasValue()) {
                   @if (stored().get(product.id); as saved) {
                     <span class="saved">Saved</span>
                     <span class="muted"> · {{ saved.updatedAt | relative }}</span>

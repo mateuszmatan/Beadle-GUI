@@ -3,6 +3,7 @@ import {
   HTTP_URL,
   addItem,
   applyFieldProblems,
+  applyProblemsAt,
   controlAt,
   eachItem,
   filled,
@@ -191,6 +192,23 @@ describe('field problems', () => {
 
     applyFieldProblems(f, [{ field: 'limits[SAST].maxHigh', message: 'is stale' }]);
     expect(maxHigh.errors).toEqual({ server: 'is stale' });
+  });
+
+  it('marks the problems under a prefix on a part of the form and keeps the others', () => {
+    const f = form();
+
+    expect(
+      applyProblemsAt(f.controls.jobs, 'jobs', [
+        { field: 'jobs[0].job', message: 'is used twice' },
+        { field: 'jobs', message: 'is too long' },
+        { field: 'platform.proxyPort', message: 'is required' },
+      ]),
+    ).toEqual([
+      { field: 'platform.proxyPort', message: 'is required' },
+      { field: 'jobs', message: 'is too long' },
+    ]);
+    expect(f.controls.jobs.at(0).controls.job.errors).toEqual({ server: 'is used twice' });
+    expect(controlAt(f.controls.jobs, '[0].job')).toBe(f.controls.jobs.at(0).controls.job);
   });
 });
 
