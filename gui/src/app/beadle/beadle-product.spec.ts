@@ -208,6 +208,7 @@ describe('BeadleProduct', () => {
     );
     await settle();
     expect(editor()['saveError']()).toBe('Invalid request');
+    expect(buttonOf(page(), 'Reload')).toBeUndefined();
 
     editor()['save']();
     saved().flush(
@@ -217,5 +218,18 @@ describe('BeadleProduct', () => {
     await settle();
     expect(editor()['saveError']()).toBe('Someone else changed the template');
     expect(text(page().querySelector('.save-error'))).toBe('Someone else changed the template');
+
+    buttonOf(page(), 'Reload').click();
+    await settle();
+    http
+      .expectOne('/api/products/1/change-profile')
+      .flush(changeProfile({ version: 5, template: changeTemplate({ category: 'Network' }) }));
+    await settle();
+    expect(page().querySelector('.save-error')).toBeNull();
+    expect(buttonOf(page(), 'Reload')).toBeUndefined();
+    expect(template().controls.category.value).toBe('Network');
+    expect(editor().hasUnsavedChanges()).toBe(false);
+    editor()['save']();
+    expect(saved().request.body.version).toBe(5);
   });
 });

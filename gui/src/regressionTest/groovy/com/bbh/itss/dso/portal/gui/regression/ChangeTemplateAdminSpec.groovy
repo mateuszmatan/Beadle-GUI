@@ -116,7 +116,7 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         ownErrors().isEmpty()
     }
 
-    def "a suggested change template is checked, a value the portal refuses is marked on its field and a conflict is reported"() {
+    def "a suggested change template is checked, a value the portal refuses is marked on its field and a conflict is reloaded"() {
         when:
         open('/beadle/admin/products/2')
 
@@ -156,6 +156,20 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         awaitRequest('PUT', '/api/products/2/change-profile', 2).json().version == null
 
         when:
+        button('Reload', true).click()
+
+        then:
+        assertThat(saveError()).hasCount(0)
+        assertThat(page.locator('.banner.info')).hasCount(0)
+        hasValues(defaults(), ['Installation start': '18:00'])
+        assertThat(select(defaults(), 'How many privileged accounts')).hasText('None')
+
+        when:
+        fillIn(defaults(), ['Backout plan': 'Switch the gateway back to the previous release.', 'Installation start': '19:30'])
+        choose(defaults(), 'How many privileged accounts', '1')
+        lookUp(defaults(), 'Person', 'ann', 'Ann Lee')
+        input(defaults(), 'Privileged account').fill('alee')
+        input(taskRows().nth(1), 'Short description').fill('Validate the gateway')
         api.respond('PUT', '/api/products/2/change-profile', problem(400, 'Bad Request', '1 field is invalid',
                 [errors: [[field: 'template.privilegedAccess.users[0].account', message: 'must be a privileged account']]]))
         button('Save the template', true).click()
@@ -164,6 +178,7 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         assertThat(errorOf(defaults(), 'Privileged account')).hasText('must be a privileged account')
         assertThat(saveError()).hasText('The portal did not accept some values. They are marked below.')
         with(awaitRequest('PUT', '/api/products/2/change-profile', 3).json()) {
+            version == 0
             template.timing.installationStart == '19:30'
             template.privilegedAccess.users == [[user: 'Ann Lee', account: 'alee']]
             tasks*.shortDescription == ['Deploy Payments Hub to production', 'Validate the gateway']
