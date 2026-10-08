@@ -1,133 +1,101 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { changeTemplate } from '../testing/change-fixtures';
-import { buttonOf, checkboxOf, fieldOf, inputOf, text } from '../testing/dom';
-import { ChangeTemplateForm, templateLabel } from './change-template-form';
+import { changeOptions, changeSchedule, changeTemplate } from '../testing/change-fixtures';
+import { fieldOf, inputOf, text } from '../testing/dom';
+import { scheduleForm } from './change-schedule-model';
+import { ChangeTemplateForm } from './change-template-form';
 import { TemplateForm, templateForm } from './change-template-model';
 
 describe('ChangeTemplateForm', () => {
   let fixture: ComponentFixture<ChangeTemplateForm>;
+  let http: HttpTestingController;
   let form: TemplateForm;
 
   const page = () => fixture.nativeElement as HTMLElement;
-  const component = () => fixture.componentInstance;
+  const titles = () => [...page().querySelectorAll('.template-card h3')].map(text);
+  const leadOf = (title: string) =>
+    text(page().querySelector(`.template-card[aria-label="${title}"] header p`));
 
-  async function render(template = changeTemplate(), jiraProject = true) {
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [ChangeTemplateForm],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => http.verify());
+
+  async function settle() {
+    TestBed.tick();
+    await new Promise((resolve) => setTimeout(resolve));
+    TestBed.tick();
+    fixture.detectChanges();
+  }
+
+  async function render(
+    inputs: (form: TemplateForm) => Record<string, unknown>,
+    template = changeTemplate(),
+  ) {
     form = templateForm(template);
     fixture = TestBed.createComponent(ChangeTemplateForm);
     fixture.componentRef.setInput('form', form);
-    fixture.componentRef.setInput('jiraProject', jiraProject);
+    Object.entries(inputs(form)).forEach(([name, value]) =>
+      fixture.componentRef.setInput(name, value),
+    );
     fixture.detectChanges();
-    await fixture.whenStable();
+    await settle();
+    http.expectOne('/api/changes/options').flush(changeOptions());
+    await settle();
+    await settle();
   }
 
-  it('shows every ProTech field in its card', async () => {
-    await render();
+  it('shows the admin every section of the wizard with the Jira project and the schedule defaults', async () => {
+    await render(() => ({ admin: true }));
 
-    expect([...page().querySelectorAll('.template-card h3')].map(text)).toEqual([
-      'Change',
-      'Approvers',
-      'Schedule defaults',
+    expect(titles()).toEqual([
+      'Generic request data',
+      'Jira',
+      'Approval and Notification',
+      'Schedule',
       'Planning',
       'Privileged access',
       'Risk assessment',
+      'Secure coding',
     ]);
+    expect(leadOf('Jira')).toBe('The Jira project the epics and stories of a release come from.');
+    expect(leadOf('Schedule')).toBe(
+      'A new change starts on the release date of its FixVersion at this time, in local time.',
+    );
     expect(inputOf(page(), 'Jira project').value).toBe('CERT');
-    expect(inputOf(page(), 'Affected CI').value).toBe('CertScanner');
-    expect(inputOf(page(), 'L1 manager').value).toBe('Olivia Bennett');
     expect(inputOf(page(), 'Installation start').value).toBe('18:00');
-    expect(inputOf(page(), 'Installation hours').value).toBe('2');
-    expect(inputOf(page(), 'First use plan').value).toBe(
-      'The business owner confirms the first use.',
-    );
-    expect(inputOf(page(), 'BBH users').value).toBe('10');
-    expect(inputOf(page(), 'Platform status').value).toBe('Existing platform');
-    expect(inputOf(page(), 'Backout testing & duration').value).toBe(
-      'Tested on QC, about 15 minutes',
-    );
-    expect(fieldOf(page(), 'User')).toBeNull();
+    expect(fieldOf(page(), 'Change number')).toBeNull();
+    expect(fieldOf(page(), 'Installation hours')).not.toBeNull();
   });
 
-  it('leaves out the Jira project when the page asks for it elsewhere', async () => {
-    await render(changeTemplate(), false);
+  it('shows the edit page the facts of the change and its schedule instead of the defaults', async () => {
+    await render((template) => ({
+      facts: [{ label: 'Change number', value: 'CHG0012345' }],
+      schedule: scheduleForm(template.controls.downtime, changeSchedule()),
+    }));
 
+    expect(titles()).not.toContain('Jira');
+    expect(titles()).toHaveLength(7);
+    expect(leadOf('Schedule')).toBe(
+      'When the change is installed, validated and first used, and whether it brings downtime.',
+    );
+    expect(inputOf(page(), 'Change number').value).toBe('CHG0012345');
     expect(fieldOf(page(), 'Jira project')).toBeNull();
-    expect(inputOf(page(), 'Assignment group').value).toBe('Technology Architecture');
-    expect(fieldOf(page(), 'Type')).not.toBeNull();
-  });
-
-  it('leaves out the type and the schedule defaults of a change that is raised', async () => {
-    await render(changeTemplate(), false);
-    fixture.componentRef.setInput('changeType', false);
-    fixture.componentRef.setInput('scheduleDefaults', false);
-    fixture.detectChanges();
-
-    expect(fieldOf(page(), 'Type')).toBeNull();
-    expect(fieldOf(page(), 'Installation start')).toBeNull();
-    expect([...page().querySelectorAll('.template-card h3')].map(text)).toEqual([
-      'Change',
-      'Approvers',
-      'Planning',
-      'Privileged access',
-      'Risk assessment',
-    ]);
-    const approvers = [...page().querySelectorAll('.template-card')].find(
-      (card) => text(card.querySelector('h3')) === 'Approvers',
-    );
-    expect(approvers?.classList).toContain('wide');
-  });
-
-  it('adds up to seven privileged users and removes them again', async () => {
-    await render();
-
-    checkboxOf(page(), 'Privileged access needed').click();
-    fixture.detectChanges();
-    expect(page().querySelectorAll('.user-row')).toHaveLength(1);
-    inputOf(page(), 'User').value = 'Jane Smith';
-    inputOf(page(), 'User').dispatchEvent(new Event('input'));
-    expect(form.controls.privilegedAccess.value.users).toEqual([
-      { user: 'Jane Smith', account: '' },
-    ]);
-
-    for (let i = 0; i < 6; i++) {
-      buttonOf(page(), 'Add user').click();
-    }
-    fixture.detectChanges();
-    expect(page().querySelectorAll('.user-row')).toHaveLength(7);
-    expect(buttonOf(page(), 'Add user').disabled).toBe(true);
-    expect(text(page().querySelector('.user-actions'))).toContain('7 of 7');
-
-    for (let i = 7; i > 0; i--) {
-      buttonOf(page(), `Remove user ${i}`).click();
-    }
-    fixture.detectChanges();
-    expect(page().querySelectorAll('.user-row')).toHaveLength(0);
-    expect(text(page().querySelector('.template-card [role="alert"]'))).toBe(
-      'Add at least one user',
-    );
-  });
-
-  it('suggests the usual risk values and allows any other text', async () => {
-    await render();
-    const suggestions = (key: 'businessImpact' | 'platformStatus', value: string) =>
-      component()['suggestions'](key, value);
-
-    expect(suggestions('businessImpact', '')).toEqual(['Low', 'Medium', 'High']);
-    expect(suggestions('businessImpact', 'hi')).toEqual(['High']);
-    expect(suggestions('businessImpact', 'low')).toEqual(['Low', 'Medium', 'High']);
-    expect(suggestions('platformStatus', 'up')).toEqual(['Platform upgrade']);
-    expect(suggestions('platformStatus', 'Decommissioned')).toEqual([]);
-
-    const input = inputOf(page(), 'Change complexity');
-    input.value = 'Very high';
-    input.dispatchEvent(new Event('input'));
-    expect(form.controls.riskAssessment.controls.changeComplexity.value).toBe('Very high');
+    expect(inputOf(page(), 'Installation start').type).toBe('datetime-local');
+    expect(fieldOf(page(), 'Post-install validation start')).not.toBeNull();
   });
 
   it('shows why a value is refused', async () => {
-    await render(changeTemplate({ jiraProjectKey: 'CERT-1' }));
+    await render(() => ({ admin: true }), changeTemplate({ jiraProjectKey: 'CERT-1' }));
     form.controls.timing.controls.installationStart.setValue('');
     form.markAllAsTouched();
-    fixture.detectChanges();
+    await settle();
 
     expect(text(fieldOf(page(), 'Jira project')?.querySelector('mat-error'))).toBe(
       '1 to 10 letters, digits or _, starting with a letter',
@@ -135,19 +103,5 @@ describe('ChangeTemplateForm', () => {
     expect(text(fieldOf(page(), 'Installation start')?.querySelector('mat-error'))).toBe(
       'Required',
     );
-  });
-
-  it('names the fields by their path', () => {
-    expect(templateLabel('configurationItem')).toBe('Affected CI');
-    expect(templateLabel('approvers.businessApprover')).toBe('Business approver');
-    expect(templateLabel('timing.installationStart')).toBe('Installation start');
-    expect(templateLabel('privilegedAccess.users')).toBe('Privileged users');
-    expect(templateLabel('privilegedAccess.users[2].account')).toBe('Privileged account');
-    expect(templateLabel('riskAssessment.platformStatus')).toBe('Platform status');
-    expect(templateLabel('approvers')).toBe('Approvers');
-    expect(templateLabel('planning')).toBe('Planning');
-    expect(templateLabel('privilegedAccess')).toBe('Privileged access');
-    expect(templateLabel('riskAssessment')).toBe('Risk assessment');
-    expect(templateLabel('unknown')).toBeNull();
   });
 });

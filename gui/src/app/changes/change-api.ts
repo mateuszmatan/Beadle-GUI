@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
-export type ChangeType = 'NORMAL' | 'STANDARD' | 'EMERGENCY';
+export type ChangeType = 'STANDARD' | 'EMERGENCY' | 'BUSINESS_CRITICAL' | 'MODEL';
 
 export type ChangeState =
   | 'DRAFT'
@@ -19,9 +19,9 @@ export type TaskState = 'OPEN' | 'WORK_IN_PROGRESS' | 'CLOSED' | 'CANCELED';
 export type UpdateStatus = 'PENDING' | 'APPLIED' | 'NOT_APPLIED';
 
 export interface ChangeApprovers {
+  businessApprover: string | null;
   l1Manager: string | null;
   l2Manager: string | null;
-  businessApprover: string | null;
 }
 
 export interface ChangeTiming {
@@ -49,28 +49,36 @@ export interface PrivilegedAccess {
 }
 
 export interface RiskAssessment {
-  bbhWorkgroups: number | null;
-  bbhUsers: number | null;
-  bbhApplications: number | null;
-  clients: number | null;
-  clientsOutsideBbh: number | null;
-  businessImpact: string | null;
+  bbhWorkgroups: string | null;
   changeComplexity: string | null;
+  bbhUsers: string | null;
   validationComplexity: string | null;
+  bbhApplications: string | null;
   backoutTesting: string | null;
+  clientsOutsideBbh: string | null;
   platformStatus: string | null;
+  businessImpact: string | null;
 }
+
+export type RiskQuestion = keyof RiskAssessment;
 
 export interface ChangeTemplate {
   jiraProjectKey: string;
+  requestedFor: string | null;
+  requestedBy: string | null;
+  department: string | null;
   assignmentGroup: string;
   category: string;
+  assignedTo: string | null;
   type: ChangeType;
-  configurationItem: string;
   release: string | null;
+  configurationItem: string;
   incident: string | null;
+  directBusinessService: string | null;
   problem: string | null;
+  risk: string | null;
   affectedClients: string | null;
+  usersAffected: string | null;
   description: string | null;
   approvers: ChangeApprovers;
   downtime: boolean;
@@ -78,6 +86,18 @@ export interface ChangeTemplate {
   planning: ChangePlanning;
   privilegedAccess: PrivilegedAccess;
   riskAssessment: RiskAssessment;
+  secureCodingTicket: string | null;
+}
+
+export interface TypeOption {
+  value: ChangeType;
+  label: string;
+}
+
+export interface ChangeOptions {
+  categories: string[];
+  types: TypeOption[];
+  risk: Record<RiskQuestion, string[]>;
 }
 
 export interface ChangeProfile {
@@ -116,6 +136,8 @@ export interface ChangeSchedule {
   validationStart: string;
   validationEnd: string;
   firstUsage: string;
+  downtimeStart: string | null;
+  downtimeEnd: string | null;
 }
 
 export interface TaskText {
@@ -166,6 +188,7 @@ export interface ProductionChange {
   update: ChangeUpdate | null;
   version: number | null;
   createdAt: string | null;
+  openedBy: string | null;
 }
 
 export interface ChangeRequest {
@@ -199,12 +222,6 @@ export interface ChangeIntegrations {
   serviceNowConnected: boolean;
 }
 
-export const TYPES: { value: ChangeType; label: string }[] = [
-  { value: 'NORMAL', label: 'Normal' },
-  { value: 'STANDARD', label: 'Standard' },
-  { value: 'EMERGENCY', label: 'Emergency' },
-];
-
 export const STATES: { value: ChangeState; label: string }[] = [
   { value: 'DRAFT', label: 'Draft' },
   { value: 'BUSINESS_APPROVAL', label: 'Business Approval' },
@@ -225,28 +242,25 @@ export const TASK_STATES: { value: TaskState; label: string }[] = [
 
 export const isOpen = (change: Pick<ProductionChange, 'state'>) => change.state !== 'CLOSED';
 
-const LEVELS = ['Low', 'Medium', 'High'];
-
-export const SUGGESTIONS = {
-  businessImpact: LEVELS,
-  changeComplexity: LEVELS,
-  validationComplexity: LEVELS,
-  platformStatus: ['Existing platform', 'New platform', 'Platform upgrade'],
-} satisfies Partial<Record<keyof RiskAssessment, readonly string[]>>;
+export function approvalOf(state: ChangeState): string {
+  switch (state) {
+    case 'DRAFT':
+      return 'Not Yet Requested';
+    case 'IMPLEMENTATION':
+    case 'CLOSED':
+      return 'Approved';
+    default:
+      return 'Requested';
+  }
+}
 
 export function labelOf<T>(options: readonly { value: T; label: string }[], value: T): string {
   return options.find((option) => option.value === value)?.label ?? String(value);
 }
 
-function jira(fixVersion: string | null, project?: string, epicKeys?: readonly string[]) {
-  let params = new HttpParams();
-  if (fixVersion !== null) {
-    params = params.set('fixVersion', fixVersion);
-  }
-  if (epicKeys) {
-    params = params.set('epics', epicKeys.join(','));
-  }
-  return project ? params.set('project', project) : params;
+function jira(fixVersion: string, epicKeys?: readonly string[]) {
+  const params = new HttpParams().set('fixVersion', fixVersion);
+  return epicKeys ? params.set('epics', epicKeys.join(',')) : params;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -273,15 +287,17 @@ export class ChangesApi {
     return this.http.get<ChangeIntegrations>('/api/changes/integrations');
   }
 
-  versions(productId: number, project?: string): Observable<JiraVersion[]> {
-    return this.http.get<JiraVersion[]>(`/api/products/${productId}/jira/versions`, {
-      params: jira(null, project),
-    });
+  options(): Observable<ChangeOptions> {
+    return this.http.get<ChangeOptions>('/api/changes/options');
   }
 
-  epics(productId: number, fixVersion: string, project?: string): Observable<JiraIssue[]> {
+  versions(productId: number): Observable<JiraVersion[]> {
+    return this.http.get<JiraVersion[]>(`/api/products/${productId}/jira/versions`);
+  }
+
+  epics(productId: number, fixVersion: string): Observable<JiraIssue[]> {
     return this.http.get<JiraIssue[]>(`/api/products/${productId}/jira/epics`, {
-      params: jira(fixVersion, project),
+      params: jira(fixVersion),
     });
   }
 
@@ -289,10 +305,9 @@ export class ChangesApi {
     productId: number,
     fixVersion: string,
     epicKeys: readonly string[],
-    project?: string,
   ): Observable<JiraIssue[]> {
     return this.http.get<JiraIssue[]>(`/api/products/${productId}/jira/stories`, {
-      params: jira(fixVersion, project, epicKeys),
+      params: jira(fixVersion, epicKeys),
     });
   }
 

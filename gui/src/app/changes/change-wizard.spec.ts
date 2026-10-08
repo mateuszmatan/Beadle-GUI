@@ -5,9 +5,15 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { provideRouter } from '@angular/router';
+import { of } from 'rxjs';
+import { MY_DEPARTMENT_KEY } from '../beadle/my-department';
+import { LookupItem } from '../core/models';
 import {
+  changeOptions,
   changeProfile,
+  changeTemplate,
   epic,
   jiraVersion,
   productionChange,
@@ -16,8 +22,30 @@ import {
 } from '../testing/change-fixtures';
 import { buttonOf, fieldOf, inputOf, text } from '../testing/dom';
 import { department, productSummary } from '../testing/fixtures';
-import { MY_DEPARTMENT_KEY } from '../beadle/my-department';
 import { ChangeWizard } from './change-wizard';
+
+const ME = { name: 'Mateusz Matan' };
+
+function configure() {
+  TestBed.configureTestingModule({
+    imports: [ChangeWizard],
+    providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+  });
+  return TestBed.inject(HttpTestingController);
+}
+
+async function settled(fixture: ComponentFixture<ChangeWizard>) {
+  TestBed.tick();
+  await new Promise((resolve) => setTimeout(resolve));
+  TestBed.tick();
+  fixture.detectChanges();
+}
+
+function flushIntegrations(http: HttpTestingController) {
+  http
+    .expectOne('/api/changes/integrations')
+    .flush({ jiraConnected: false, serviceNowConnected: false });
+}
 
 describe('ChangeWizard', () => {
   let fixture: ComponentFixture<ChangeWizard>;
@@ -30,11 +58,7 @@ describe('ChangeWizard', () => {
 
   beforeEach(async () => {
     localStorage.removeItem(MY_DEPARTMENT_KEY);
-    TestBed.configureTestingModule({
-      imports: [ChangeWizard],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
-    });
-    http = TestBed.inject(HttpTestingController);
+    http = configure();
     fixture = TestBed.createComponent(ChangeWizard);
     fixture.detectChanges();
     http
@@ -50,20 +74,15 @@ describe('ChangeWizard', () => {
         departmentName: null,
       }),
     ]);
-    http
-      .expectOne('/api/changes/integrations')
-      .flush({ jiraConnected: false, serviceNowConnected: false });
-    await fixture.whenStable();
+    flushIntegrations(http);
+    await settle();
+    http.expectOne('/api/me').flush(ME);
+    await settle();
   });
 
   afterEach(() => http.verify());
 
-  async function settle() {
-    TestBed.tick();
-    await new Promise((resolve) => setTimeout(resolve));
-    TestBed.tick();
-    fixture.detectChanges();
-  }
+  const settle = () => settled(fixture);
 
   async function next() {
     wizard()['next']();
@@ -77,7 +96,8 @@ describe('ChangeWizard', () => {
   async function chooseOption(label: string, option: string) {
     fieldOf(page(), label)!.querySelector<HTMLElement>('mat-select')!.click();
     await settle();
-    [...document.querySelectorAll<HTMLElement>('mat-option')]
+    const panels = document.querySelectorAll('.mat-mdc-select-panel');
+    [...panels[panels.length - 1].querySelectorAll<HTMLElement>('mat-option')]
       .find((element) => text(element) === option)!
       .click();
     await settle();
@@ -90,17 +110,25 @@ describe('ChangeWizard', () => {
     await settle();
   }
 
+  function picking(item: LookupItem) {
+    vi.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
+      afterClosed: () => of(item),
+    } as unknown as MatDialogRef<unknown>);
+  }
+
   async function chooseCertScanner(profile = changeProfile()) {
     wizard()['departmentId'].setValue(3);
     wizard()['productId'].setValue(1);
     await settle();
     http.expectOne('/api/products/1/change-profile').flush(profile);
     await settle();
+    http.expectOne('/api/changes/options').flush(changeOptions());
     jira('versions').flush([
       jiraVersion('CERT 4.2', false, '2030-10-20'),
       jiraVersion('CERT 4.3', false, '2030-12-01'),
       jiraVersion('CERT 4.1', true, '2026-09-01'),
     ]);
+    await settle();
     await settle();
   }
 
@@ -131,15 +159,29 @@ describe('ChangeWizard', () => {
     await next();
   }
 
+  async function toReview() {
+    await toSchedule();
+    for (let step = 3; step < 8; step++) {
+      await next();
+    }
+  }
+
+  const schedule = () => wizard()['schedule']()!;
+  const details = () => wizard()['details']()!;
+
   it('says that Jira and ServiceNow are demo ones and lists the products of the chosen department', async () => {
     expect(text(page().querySelector('dso-integration-note'))).toContain(
       'Jira is not connected yet',
     );
     expect([...page().querySelectorAll('.step-label')].map(text)).toEqual([
-      'Product',
-      'Jira scope',
-      'Details',
+      'Request data',
+      'Jira',
+      'Approval',
       'Schedule',
+      'Planning',
+      'Privileged access',
+      'Risk assessment',
+      'Secure coding',
       'Review',
       'Raised',
     ]);
@@ -150,8 +192,8 @@ describe('ChangeWizard', () => {
     ).toEqual(['Corporate Technology', 'Not in a department']);
 
     expect(wizard()['productsInDepartment']()).toEqual([]);
-    await chooseOption('Department', 'Not in a department');
-    expect(text(fieldOf(page(), 'Department')?.querySelector('.mat-mdc-select-value'))).toBe(
+    await chooseOption('Your department', 'Not in a department');
+    expect(text(fieldOf(page(), 'Your department')?.querySelector('.mat-mdc-select-value'))).toBe(
       'Not in a department',
     );
     expect(
@@ -170,7 +212,7 @@ describe('ChangeWizard', () => {
     ).toEqual(['CertScanner']);
 
     await next();
-    expect(text(page().querySelector('.choice-error'))).toBe('Choose the product');
+    expect(text(page().querySelector('.step-problem'))).toBe('Choose the product');
 
     wizard()['productId'].setValue(1);
     await settle();
@@ -197,12 +239,53 @@ describe('ChangeWizard', () => {
     expect(wizard().hasUnsavedChanges()).toBe(true);
   });
 
-  it('raises a change from the FixVersion, the chosen epics and stories, the edited details and tasks and the schedule', async () => {
+  it('shows the request data of a new change with the signed-in user and the product department', async () => {
+    await chooseCertScanner(
+      changeProfile({ template: changeTemplate({ requestedBy: 'Grace Turner' }) }),
+    );
+
+    expect(text(page().querySelector('h2'))).toBe('Generic request data');
+    expect(inputOf(page(), 'Change number').value).toBe('');
+    expect(inputOf(page(), 'Change number').placeholder).toBe('Given by ProTech when raised');
+    expect(inputOf(page(), 'Approval').value).toBe('Not Yet Requested');
+    expect(inputOf(page(), 'Opened By').value).toBe('Mateusz Matan');
+    expect(inputOf(page(), 'State').value).toBe('Draft');
+    expect(inputOf(page(), 'Requested For').value).toBe('Mateusz Matan');
+    expect(inputOf(page(), 'Requested By').value).toBe('Grace Turner');
+    expect(inputOf(page(), 'Assigned to').value).toBe('Mateusz Matan');
+    expect(inputOf(page(), 'Department').value).toBe('Corporate Technology');
+    expect(inputOf(page(), 'Risk').value).toBe('Moderate');
+
+    details().controls.riskAssessment.controls.bbhUsers.setValue('All users');
+    await settle();
+    expect(inputOf(page(), 'Risk').value).toBe('High');
+
+    picking({ value: 'Payments Hub', detail: 'Payments' });
+    buttonOf(page(), 'Find Affected CI').click();
+    await settle();
+    expect(inputOf(page(), 'Affected CI').value).toBe('Payments Hub');
+    expect(inputOf(page(), 'Direct business service').value).toBe('Payments');
+    await type('Affected CI', 'Payments Hu');
+    expect(inputOf(page(), 'Direct business service').value).toBe('');
+
+    await type('Assignment group', ' ');
+    await next();
+    expect(wizard()['step']()).toBe(0);
+    expect(text(page().querySelector('.step-problem'))).toBe('Some fields need your attention.');
+    expect(text(fieldOf(page(), 'Assignment group')?.querySelector('mat-error'))).toBe('Required');
+  });
+
+  it('raises a change from the request data, the Jira scope, the schedule and the other sections', async () => {
     await chooseCertScanner();
-    expect(text(page().querySelector('dl.rows'))).toContain('Olivia Bennett, James Carter');
+    picking({ value: 'Payments Hub', detail: 'Payments' });
+    buttonOf(page(), 'Find Affected CI').click();
+    await settle();
     expect(page().querySelector('.defaults-note')).toBeNull();
     await next();
     expect(wizard()['step']()).toBe(1);
+    expect(text(page().querySelector('h2'))).toBe('Jira');
+    expect(inputOf(page(), 'Jira project').value).toBe('CERT');
+    expect(inputOf(page(), 'Jira project').readOnly).toBe(true);
 
     await next();
     expect(wizard()['stepProblem']()).toBe('Enter the FixVersion of the release');
@@ -225,46 +308,54 @@ describe('ChangeWizard', () => {
     wizard()['toggleStory']('CERT-3', false);
     await next();
     expect(wizard()['step']()).toBe(2);
-    expect(text(page().querySelector('h2'))).toBe('Check the ProTech fields');
+    expect(text(page().querySelector('h2'))).toBe('Approval and Notification');
+    expect(details().controls.release.value).toBe('CERT 4.2');
+    expect(inputOf(page(), 'L1 approver').value).toBe('Olivia Bennett');
+    await type('Business approver', 'Grace Turner');
 
-    const details = wizard()['details']()!;
-    expect(details.controls.release.value).toBe('CERT 4.2');
-    expect(page().querySelector('dso-change-template-form')).not.toBeNull();
-    details.controls.planning.controls.backoutPlan.setValue('');
-    await next();
-    expect(wizard()['step']()).toBe(2);
-    expect(wizard()['stepProblem']()).toBe('Some fields need your attention.');
-    details.patchValue({
-      planning: { backoutPlan: 'Roll back with the previous image.' },
-      riskAssessment: { businessImpact: 'High' },
-      downtime: true,
-    });
-    const tasks = wizard()['tasks']()!;
-    expect(page().querySelectorAll('dso-change-tasks-form .task-row').length).toBe(2);
-    tasks.at(1).controls.shortDescription.setValue(' ');
-    await next();
-    expect(wizard()['stepProblem']()).toBe('Some fields need your attention.');
-    tasks.at(1).controls.shortDescription.setValue('Validate it');
-    buttonOf(page(), 'Add a change task').click();
-    await settle();
-    tasks.at(2).patchValue({ shortDescription: 'Tell the users', description: 'Send the e-mail.' });
     await next();
     expect(wizard()['step']()).toBe(3);
-
-    expect(wizard()['installationDate'].value).toBe('2030-10-20');
-    expect(wizard()['schedule'].getRawValue()).toEqual({
-      installationStart: { date: '2030-10-20', time: '18:00' },
-      installationEnd: { date: '2030-10-20', time: '20:00' },
-      validationStart: { date: '2030-10-20', time: '20:00' },
-      validationEnd: { date: '2030-10-20', time: '21:00' },
-      firstUsage: { date: '2030-10-20', time: '21:00' },
+    expect(schedule().getRawValue()).toEqual({
+      installationStart: '2030-10-20T18:00',
+      installationHours: 2,
+      validationStart: '2030-10-20T20:00',
+      validationHours: 1,
+      firstUsage: '2030-10-20T21:00',
+      downtimeStart: '2030-10-20T18:00',
+      downtimeHours: 2,
     });
-    expect(text(page().querySelector('.window-text'))).toBe(
-      'Installation Sun, 20 Oct 2030, 18:00 to 20:00',
-    );
-    wizard()['schedule'].controls.firstUsage.setValue({ date: '2030-10-21', time: '08:00' });
+    expect(fieldOf(page(), 'Downtime start')).toBeNull();
+    await chooseOption('Downtime', 'Yes');
+    expect(inputOf(page(), 'Downtime start').value).toBe('2030-10-20T18:00');
+    await type('Downtime hours', '1');
+    await type('First use', '2030-10-21T08:00');
+
     await next();
     expect(wizard()['step']()).toBe(4);
+    expect(text(page().querySelector('h2'))).toBe('Planning');
+    await type('Backout plan', '');
+    await next();
+    expect(wizard()['step']()).toBe(4);
+    expect(wizard()['stepProblem']()).toBe('Some fields need your attention.');
+    await type('Backout plan', 'Roll back with the previous image.');
+
+    await next();
+    expect(wizard()['step']()).toBe(5);
+    await chooseOption('How many privileged accounts', '1');
+    await next();
+    expect(wizard()['step']()).toBe(5);
+    await type('Person', 'Jane Smith');
+    await type('Privileged account', 'adm_jsmith');
+
+    await next();
+    expect(wizard()['step']()).toBe(6);
+    await chooseOption('Business impact', 'High');
+
+    await next();
+    expect(wizard()['step']()).toBe(7);
+    await type('Secure coding ticket number', 'SEC-12');
+    await next();
+    expect(wizard()['step']()).toBe(8);
 
     const preview = http.expectOne('/api/changes/preview');
     expect(preview.request.body.serviceIds).toBeUndefined();
@@ -279,28 +370,53 @@ describe('ChangeWizard', () => {
         validationStart: local('2030-10-20T20:00:00'),
         validationEnd: local('2030-10-20T21:00:00'),
         firstUsage: local('2030-10-21T08:00:00'),
+        downtimeStart: local('2030-10-20T18:00:00'),
+        downtimeEnd: local('2030-10-20T19:00:00'),
       },
       template: {
+        requestedFor: 'Mateusz Matan',
+        requestedBy: 'Mateusz Matan',
+        assignedTo: 'Mateusz Matan',
+        department: 'Corporate Technology',
+        configurationItem: 'Payments Hub',
+        directBusinessService: 'Payments',
         release: 'CERT 4.2',
+        risk: null,
         downtime: true,
+        approvers: { businessApprover: 'Grace Turner', l1Manager: 'Olivia Bennett' },
         planning: { backoutPlan: 'Roll back with the previous image.' },
-        riskAssessment: { businessImpact: 'High' },
+        privilegedAccess: {
+          required: true,
+          users: [{ user: 'Jane Smith', account: 'adm_jsmith' }],
+        },
+        riskAssessment: { businessImpact: 'High', bbhUsers: '5-25' },
+        secureCodingTicket: 'SEC-12',
       },
       tasks: [
         taskText('Deploy CertScanner to production', 'Deploy the release of CertScanner.'),
-        taskText('Validate it', 'Run the smoke tests of CertScanner.'),
-        taskText('Tell the users', 'Send the e-mail.'),
+        taskText('Validate CertScanner in production', 'Run the smoke tests of CertScanner.'),
       ],
     });
-    preview.flush(productionChange({ id: null, number: null, createdAt: null }));
+    preview.flush(
+      productionChange({ id: null, number: null, createdAt: null, state: 'DRAFT', workflow: [] }),
+    );
     await settle();
     expect(wizard()['shortDescription'].value).toBe('CertScanner CERT 4.2: Expiry alerts');
-    expect(text(page().querySelector('dso-change-summary dt:nth-of-type(3) + dd'))).toBe(
-      'CERT 4.2',
-    );
-    expect(text(page().querySelector('.tasks'))).toContain('Deploy CertScanner to production');
     expect(text(page().querySelector('.scope'))).toBe('1 epic and 1 story of FixVersion CERT 4.2');
+    expect(text(page().querySelector('dso-change-summary'))).toContain(
+      'Change numberGiven by ProTech when raisedApprovalNot Yet Requested',
+    );
     wizard()['shortDescription'].setValue('CertScanner 4.2');
+
+    const tasks = wizard()['tasks']()!;
+    expect(page().querySelectorAll('dso-change-tasks-form .task-row').length).toBe(2);
+    tasks.at(1).controls.shortDescription.setValue(' ');
+    await next();
+    expect(wizard()['stepProblem']()).toBe('Check the change tasks');
+    tasks.at(1).controls.shortDescription.setValue('Validate it');
+    buttonOf(page(), 'Add a change task').click();
+    await settle();
+    tasks.at(2).patchValue({ shortDescription: 'Tell the users', description: 'Send the e-mail.' });
 
     expect(wizard()['nextLabel']()).toBe('Raise the change in ProTech');
     await next();
@@ -309,11 +425,16 @@ describe('ChangeWizard', () => {
       fixVersion: 'CERT 4.2',
       shortDescription: 'CertScanner 4.2',
       description: 'Production release of CertScanner (CERT).',
+      tasks: [
+        taskText('Deploy CertScanner to production', 'Deploy the release of CertScanner.'),
+        taskText('Validate it', 'Run the smoke tests of CertScanner.'),
+        taskText('Tell the users', 'Send the e-mail.'),
+      ],
     });
     raised.flush(productionChange({ shortDescription: 'CertScanner 4.2' }));
     await settle();
 
-    expect(wizard()['step']()).toBe(5);
+    expect(wizard()['step']()).toBe(9);
     expect(text(page().querySelector('h2'))).toBe('CHG0012345 is raised');
     expect(text(page().querySelector('.review-list'))).toBe(
       'CTASK0020001 · Deploy CertScanner to production',
@@ -336,9 +457,7 @@ describe('ChangeWizard', () => {
   });
 
   it('keeps the texts the user changed when the same change is previewed again and shows why ProTech refused it', async () => {
-    await toSchedule();
-    wizard()['installationDate'].setValue('2030-11-02');
-    await next();
+    await toReview();
     http.expectOne('/api/changes/preview').flush(productionChange({ id: null, number: null }));
     await settle();
     await type('Description', 'Mine');
@@ -356,9 +475,10 @@ describe('ChangeWizard', () => {
     await next();
     http.expectOne({ method: 'POST', url: '/api/changes' }).flush(
       {
-        detail: '4 fields are invalid',
+        detail: '5 fields are invalid',
         errors: [
           { field: 'schedule.installationStart', message: 'must be in the future' },
+          { field: 'schedule.installationEnd', message: 'must be after the start' },
           { field: 'template.planning.backoutPlan', message: 'must not be blank' },
           { field: 'epicKeys', message: 'CERT-1 is not in Jira project CERT' },
           { field: 'tasks[1].description', message: 'must not be blank' },
@@ -368,46 +488,59 @@ describe('ChangeWizard', () => {
     );
     await settle();
 
-    expect(wizard()['step']()).toBe(4);
+    expect(wizard()['step']()).toBe(8);
     expect(wizard()['problems']()).toEqual([
       'Installation start: must be in the future',
+      'Installation end: must be after the start',
       'Backout plan: must not be blank',
       'Epics: CERT-1 is not in Jira project CERT',
       'Change task 2: description: must not be blank',
     ]);
-    expect(text(page().querySelector('.save-problem'))).toContain('4 fields are invalid');
-    expect(wizard()['details']()!.controls.planning.controls.backoutPlan.errors).toEqual({
+    expect(text(page().querySelector('.save-problem'))).toContain('5 fields are invalid');
+    expect(details().controls.planning.controls.backoutPlan.errors).toEqual({
       server: 'must not be blank',
+    });
+    expect(schedule().controls.installationStart.errors).toEqual({
+      server: 'must be in the future',
+    });
+    expect(schedule().controls.installationHours.errors).toEqual({
+      server: 'must be after the start',
     });
     expect(wizard()['tasks']()!.at(1).controls.description.errors).toEqual({
       server: 'must not be blank',
     });
   });
 
-  it('asks Jira about the project the user typed and keeps the epics found until they are found again', async () => {
-    await chooseCertScanner();
-    await next();
-    const key = wizard()['details']()!.controls.jiraProjectKey;
-
-    key.setValue(' pay ');
+  it('asks Jira about the project of the product and keeps the epics found until they are found again', async () => {
+    wizard()['departmentId'].setValue(3);
+    wizard()['productId'].setValue(1);
     await settle();
+    http.expectOne('/api/products/1/change-profile').flush(changeProfile());
+    await settle();
+    http.expectOne('/api/changes/options').flush(changeOptions());
     const versions = jira('versions');
-    expect(versions.request.params.get('project')).toBe('PAY');
-    versions.flush([jiraVersion('PAY 1.0')]);
-    await findEpics('PAY 1.0');
+    expect(versions.request.params.keys()).toEqual([]);
+    versions.flush({ detail: 'Jira is down' }, { status: 502, statusText: 'Bad Gateway' });
+    await settle();
+    await next();
+
+    expect(text(page().querySelector('.choice-error'))).toBe(
+      'The FixVersions could not be loaded: Jira is down. Type the FixVersion.',
+    );
+    await findEpics('CERT 4.2');
     expect(wizard()['stepProblem']()).toBe('Wait until the epics and stories are loaded');
     const epics = jira('epics');
-    expect(epics.request.params.get('fixVersion')).toBe('PAY 1.0');
-    expect(epics.request.params.get('project')).toBe('PAY');
-    epics.flush([epic('PAY-1', 'Ledger')]);
+    expect(epics.request.params.get('fixVersion')).toBe('CERT 4.2');
+    expect(epics.request.params.has('project')).toBe(false);
+    epics.flush([epic('CERT-1', 'Expiry alerts')]);
     await settle();
-    wizard()['toggleEpic']('PAY-1', true);
+    wizard()['toggleEpic']('CERT-1', true);
     await settle();
     expect(text(page().querySelector('.story-group'))).toContain('Loading its stories');
     expect(wizard()['stepProblem']()).toBe('Wait until the epics and stories are loaded');
     const stories = jira('stories');
-    expect(stories.request.params.get('epics')).toBe('PAY-1');
-    expect(stories.request.params.get('project')).toBe('PAY');
+    expect(stories.request.params.get('epics')).toBe('CERT-1');
+    expect(stories.request.params.has('project')).toBe(false);
     stories.flush([]);
     await settle();
     expect(text(page().querySelector('.story-group'))).toContain(
@@ -415,34 +548,11 @@ describe('ChangeWizard', () => {
     );
     expect(wizard()['stepProblem']()).toBeNull();
 
-    key.setValue('pay-1');
-    key.markAsTouched();
-    await settle();
-    jira('versions').flush({ detail: 'Jira is down' }, { status: 502, statusText: 'Bad Gateway' });
-    await settle();
-    expect(wizard()['epicKeys']()).toEqual(['PAY-1']);
-    expect(wizard()['stepProblem']()).toBe('Check the Jira project');
-    expect(text(page().querySelector('mat-error'))).toBe(
-      '1 to 10 letters, digits or _, starting with a letter',
-    );
-    expect(text(page().querySelector('.choice-error'))).toBe(
-      'The FixVersions could not be loaded: Jira is down. Type the FixVersion.',
-    );
-
-    key.setValue('ledg');
-    await settle();
-    jira('versions').flush([]);
-    await settle();
-    expect(wizard()['stepProblem']()).toBe('Find the epics of this FixVersion');
-
-    key.setValue('PAY');
-    await settle();
-    jira('versions').flush([jiraVersion('PAY 1.0')]);
     await next();
     expect(wizard()['step']()).toBe(2);
-    expect(fieldOf(page(), 'Jira project')).toBeNull();
-    expect(fieldOf(page(), 'Assignment group')).not.toBeNull();
-    expect(wizard()['epicKeys']()).toEqual(['PAY-1']);
+    wizard()['goTo'](1);
+    await settle();
+    expect(wizard()['epicKeys']()).toEqual(['CERT-1']);
   });
 
   it('chooses every epic or none and forgets the stories of an epic it drops', async () => {
@@ -522,41 +632,43 @@ describe('ChangeWizard', () => {
     expect(wizard().hasUnsavedChanges()).toBe(true);
   });
 
-  it('turns the installation date into the times, follows the timing defaults and refuses times out of order', async () => {
+  it('plans the schedule from the release date, moves the later windows along and refuses times out of order', async () => {
     await toSchedule();
-    const schedule = wizard()['schedule'].controls;
+    expect(text(fieldOf(page(), 'Installation hours')?.querySelector('mat-hint'))).toBe(
+      'until Sun, 20 Oct 2030, 20:00',
+    );
 
-    wizard()['installationDate'].setValue('2030-11-02');
-    expect(schedule.installationEnd.getRawValue()).toEqual({ date: '2030-11-02', time: '20:00' });
-    schedule.installationEnd.setValue({ date: '2030-11-02', time: '17:00' });
+    await type('Installation hours', '0');
     await next();
     expect(wizard()['step']()).toBe(3);
-    expect(text(page().querySelector('.choice-error'))).toBe(
+    expect(text(page().querySelector('dso-change-schedule [role="alert"]'))).toBe(
       'The installation must end after it starts',
     );
+    expect(text(page().querySelector('.step-problem'))).toBe('Some fields need your attention.');
     expect(wizard().hasUnsavedChanges()).toBe(true);
 
-    wizard()['goTo'](2);
-    await settle();
-    wizard()['details']()!.controls.timing.patchValue({
-      installationStart: '22:00',
-      installationHours: 4,
+    await type('Installation hours', '4');
+    expect(schedule().getRawValue()).toMatchObject({
+      validationStart: '2030-10-20T22:00',
+      firstUsage: '2030-10-20T23:00',
+      downtimeHours: 4,
     });
-    expect(schedule.installationEnd.getRawValue()).toEqual({ date: '2030-11-03', time: '02:00' });
-    expect(schedule.firstUsage.getRawValue()).toEqual({ date: '2030-11-03', time: '03:00' });
+    await next();
+    expect(wizard()['step']()).toBe(4);
 
+    wizard()['goTo'](3);
+    await settle();
+    await type('First use', '');
     await next();
-    expect(wizard()['step']()).toBe(3);
-    schedule.firstUsage.setValue({ date: '2030-11-03', time: '' });
-    await next();
-    expect(wizard()['stepProblem']()).toBe('Enter the date and time of the first usage');
+    expect(text(page().querySelector('dso-change-schedule [role="alert"]'))).toBe(
+      'Enter the date and time of the first use',
+    );
   });
 
-  it('moves the installation date it filled in to the release date of another FixVersion', async () => {
+  it('moves the installation start it filled in to the release date of another FixVersion', async () => {
     await toSchedule();
-    const date = wizard()['installationDate'];
-    const start = () => wizard()['schedule'].controls.installationStart.getRawValue();
-    expect(date.value).toBe('2030-10-20');
+    const start = () => schedule().controls.installationStart.value;
+    expect(start()).toBe('2030-10-20T18:00');
 
     async function rescope(version: string) {
       wizard()['goTo'](1);
@@ -573,30 +685,25 @@ describe('ChangeWizard', () => {
 
     await rescope('CERT 4.3');
     expect(wizard()['step']()).toBe(3);
-    expect(wizard()['details']()!.controls.release.value).toBe('CERT 4.3');
-    expect(date.value).toBe('2030-12-01');
-    expect(start()).toEqual({ date: '2030-12-01', time: '18:00' });
+    expect(details().controls.release.value).toBe('CERT 4.3');
+    expect(start()).toBe('2030-12-01T18:00');
 
     await rescope('CERT 4.1');
-    expect(date.value).toBe('');
-    expect(start()).toEqual({ date: '', time: '' });
+    expect(start()).toBe('');
 
-    date.setValue('2030-11-02');
+    schedule().controls.installationStart.setValue('2030-11-02T18:00');
     await rescope('CERT 4.2');
-    expect(date.value).toBe('2030-11-02');
-    expect(start()).toEqual({ date: '2030-11-02', time: '18:00' });
+    expect(start()).toBe('2030-11-02T18:00');
   });
 
   it('keeps a text the user edited when the change is previewed anew and offers the new text', async () => {
-    await toSchedule();
-    await next();
+    await toReview();
     http.expectOne('/api/changes/preview').flush(productionChange({ id: null, number: null }));
     await settle();
     expect(buttonOf(page(), 'Use the generated text')).toBeUndefined();
     await type('Description', 'Mine');
 
     wizard()['back']();
-    wizard()['installationDate'].setValue('2030-11-02');
     await next();
     http.expectOne('/api/changes/preview').flush(
       productionChange({
@@ -628,8 +735,7 @@ describe('ChangeWizard', () => {
   });
 
   it('says why the change could not be previewed and previews it again on request', async () => {
-    await toSchedule();
-    await next();
+    await toReview();
     http
       .expectOne('/api/changes/preview')
       .flush({ detail: 'Jira is down' }, { status: 502, statusText: 'Bad Gateway' });
@@ -654,23 +760,18 @@ describe('ChangeWizard', () => {
 describe('ChangeWizard of a chosen department', () => {
   it('preselects the department chosen in Changes', async () => {
     localStorage.setItem(MY_DEPARTMENT_KEY, '3');
-    TestBed.configureTestingModule({
-      imports: [ChangeWizard],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
-    });
-    const http = TestBed.inject(HttpTestingController);
+    const http = configure();
     const fixture = TestBed.createComponent(ChangeWizard);
     fixture.detectChanges();
     http.expectOne('/api/departments').flush([department()]);
     http.expectOne('/api/products').flush([productSummary()]);
-    http
-      .expectOne('/api/changes/integrations')
-      .flush({ jiraConnected: false, serviceNowConnected: false });
-    await fixture.whenStable();
-    fixture.detectChanges();
+    flushIntegrations(http);
+    await settled(fixture);
+    http.expectOne('/api/me').flush(ME);
+    await settled(fixture);
 
     const page = fixture.nativeElement as HTMLElement;
-    expect(text(fieldOf(page, 'Department')?.querySelector('.mat-mdc-select-value'))).toBe(
+    expect(text(fieldOf(page, 'Your department')?.querySelector('.mat-mdc-select-value'))).toBe(
       'Corporate Technology',
     );
     expect(text(fieldOf(page, 'Product')?.querySelector('mat-hint'))).toBe(
@@ -681,23 +782,48 @@ describe('ChangeWizard of a chosen department', () => {
   });
 });
 
+describe('ChangeWizard without the signed-in user', () => {
+  it('leaves Opened By and the people of the request empty', async () => {
+    localStorage.removeItem(MY_DEPARTMENT_KEY);
+    const http = configure();
+    const fixture = TestBed.createComponent(ChangeWizard);
+    const settle = () => settled(fixture);
+    fixture.detectChanges();
+    http.expectOne('/api/departments').flush([department()]);
+    http.expectOne('/api/products').flush([productSummary()]);
+    flushIntegrations(http);
+    await settle();
+    http.expectOne('/api/me').flush({ detail: 'Sign in' }, { status: 401, statusText: 'No' });
+    fixture.componentInstance['departmentId'].setValue(3);
+    fixture.componentInstance['productId'].setValue(1);
+    await settle();
+    http.expectOne('/api/products/1/change-profile').flush(changeProfile());
+    await settle();
+    http.expectOne('/api/changes/options').flush(changeOptions());
+    http.expectOne('/api/products/1/jira/versions').flush([]);
+    await settle();
+
+    const page = fixture.nativeElement as HTMLElement;
+    expect(inputOf(page, 'Opened By').value).toBe('');
+    expect(inputOf(page, 'Requested For').value).toBe('');
+    expect(inputOf(page, 'Department').value).toBe('Corporate Technology');
+    http.verify();
+  });
+});
+
 describe('ChangeWizard without products', () => {
   it('says why no product can be chosen', async () => {
-    TestBed.configureTestingModule({
-      imports: [ChangeWizard],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
-    });
-    const http = TestBed.inject(HttpTestingController);
+    const http = configure();
     const fixture = TestBed.createComponent(ChangeWizard);
     fixture.detectChanges();
     http.expectOne('/api/departments').flush([department()]);
     http
       .expectOne('/api/products')
       .flush({ detail: 'Database unavailable' }, { status: 500, statusText: 'Server Error' });
-    http
-      .expectOne('/api/changes/integrations')
-      .flush({ jiraConnected: false, serviceNowConnected: false });
-    await fixture.whenStable();
+    flushIntegrations(http);
+    await settled(fixture);
+    http.expectOne('/api/me').flush(ME);
+    await settled(fixture);
 
     expect(text((fixture.nativeElement as HTMLElement).querySelector('.choice-error'))).toBe(
       'The products could not be loaded: Database unavailable',

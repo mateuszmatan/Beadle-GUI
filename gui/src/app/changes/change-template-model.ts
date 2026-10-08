@@ -1,19 +1,25 @@
-import { FormArray, FormControl, FormGroup, ValidatorFn, Validators } from '@angular/forms';
+import { FormArray, FormControl, FormGroup, Validators } from '@angular/forms';
+import { distinctUntilChanged, skip, startWith } from 'rxjs';
 import { FieldProblem } from '../core/models';
 import {
-  INT_MAX,
   addItem,
   applyProblemsAt,
   filled,
   flag,
   integer,
   max,
-  optional,
+  removeItem,
   sent,
-  setEnabled,
   text,
 } from '../shared/form-controls';
-import { ChangeTemplate, ChangeType, PrivilegedUser } from './change-api';
+import {
+  ChangeOptions,
+  ChangeTemplate,
+  ChangeType,
+  PrivilegedUser,
+  RiskAssessment,
+  RiskQuestion,
+} from './change-api';
 
 export const JIRA_KEY = /^\s*[A-Za-z][A-Za-z0-9_]{0,9}\s*$/;
 export const JIRA_KEY_ERROR = '1 to 10 letters, digits or _, starting with a letter';
@@ -25,10 +31,7 @@ export const TEMPLATE_PREFIX = 'template.';
 const required = (value: string | null | undefined, length: number) =>
   text(value, filled, max(length));
 
-const count = (value: number | null) => integer(value, 0, INT_MAX);
-
-const someUsers: ValidatorFn = (users) =>
-  (users as FormArray).length ? null : { rule: 'Add at least one user' };
+const answer = (value: string | null) => new FormControl<string | null>(value);
 
 export function privilegedUserForm(user?: PrivilegedUser) {
   return new FormGroup({
@@ -41,21 +44,28 @@ export type PrivilegedUserForm = ReturnType<typeof privilegedUserForm>;
 
 export function templateForm(template: ChangeTemplate) {
   const { approvers, timing, planning, privilegedAccess, riskAssessment: risk } = template;
+  const users = privilegedAccess.required ? privilegedAccess.users : [];
   const form = new FormGroup({
     jiraProjectKey: text(template.jiraProjectKey, filled, Validators.pattern(JIRA_KEY)),
+    requestedFor: text(template.requestedFor, max(200)),
+    requestedBy: text(template.requestedBy, max(200)),
+    department: text(template.department, max(100)),
     assignmentGroup: required(template.assignmentGroup, 200),
-    category: required(template.category, 100),
+    category: text(template.category, filled),
+    assignedTo: text(template.assignedTo, max(200)),
     type: new FormControl<ChangeType>(template.type, { nonNullable: true }),
-    configurationItem: required(template.configurationItem, 200),
     release: text(template.release, max(100)),
+    configurationItem: required(template.configurationItem, 200),
     incident: text(template.incident, max(40)),
+    directBusinessService: text(template.directBusinessService, max(200)),
     problem: text(template.problem, max(40)),
     affectedClients: text(template.affectedClients, max(2000)),
+    usersAffected: text(template.usersAffected, max(2000)),
     description: text(template.description, max(2000)),
     approvers: new FormGroup({
+      businessApprover: text(approvers.businessApprover, max(200)),
       l1Manager: text(approvers.l1Manager, max(200)),
       l2Manager: text(approvers.l2Manager, max(200)),
-      businessApprover: text(approvers.businessApprover, max(200)),
     }),
     downtime: flag(template.downtime),
     timing: new FormGroup({
@@ -71,73 +81,94 @@ export function templateForm(template: ChangeTemplate) {
       firstUsePlan: required(planning.firstUsePlan, 2000),
     }),
     privilegedAccess: new FormGroup({
-      required: flag(privilegedAccess.required),
-      users: new FormArray(privilegedAccess.users.map(privilegedUserForm), [someUsers]),
+      count: new FormControl(users.length, { nonNullable: true }),
+      users: new FormArray(users.map(privilegedUserForm)),
     }),
     riskAssessment: new FormGroup({
-      bbhWorkgroups: count(risk.bbhWorkgroups),
-      bbhUsers: count(risk.bbhUsers),
-      bbhApplications: count(risk.bbhApplications),
-      clients: count(risk.clients),
-      clientsOutsideBbh: count(risk.clientsOutsideBbh),
-      businessImpact: text(risk.businessImpact, max(100)),
-      changeComplexity: text(risk.changeComplexity, max(100)),
-      validationComplexity: text(risk.validationComplexity, max(100)),
-      backoutTesting: text(risk.backoutTesting, max(2000)),
-      platformStatus: text(risk.platformStatus, max(100)),
+      bbhWorkgroups: answer(risk.bbhWorkgroups),
+      changeComplexity: answer(risk.changeComplexity),
+      bbhUsers: answer(risk.bbhUsers),
+      validationComplexity: answer(risk.validationComplexity),
+      bbhApplications: answer(risk.bbhApplications),
+      backoutTesting: answer(risk.backoutTesting),
+      clientsOutsideBbh: answer(risk.clientsOutsideBbh),
+      platformStatus: answer(risk.platformStatus),
+      businessImpact: answer(risk.businessImpact),
     }),
+    secureCodingTicket: text(template.secureCodingTicket, max(40)),
   });
   const access = form.controls.privilegedAccess.controls;
-  const follow = (on: boolean) => {
-    if (on && !access.users.length) {
-      access.users.push(privilegedUserForm(), { emitEvent: false });
-    }
-    setEnabled(access.users, on);
-  };
-  access.required.valueChanges.subscribe(follow);
-  follow(access.required.value);
+  access.count.valueChanges.subscribe((count) => resizeUsers(access.users, count));
+  const { configurationItem, directBusinessService } = form.controls;
+  configurationItem.valueChanges
+    .pipe(startWith(configurationItem.value), distinctUntilChanged(), skip(1))
+    .subscribe(() => directBusinessService.setValue(''));
   return form;
 }
 
 export type TemplateForm = ReturnType<typeof templateForm>;
 
-export function addPrivilegedUser(form: TemplateForm): void {
-  const users = form.controls.privilegedAccess.controls.users;
-  if (users.length < MAX_PRIVILEGED_USERS) {
+function resizeUsers(users: FormArray<PrivilegedUserForm>, count: number): void {
+  const wanted = Math.min(Math.max(count, 0), MAX_PRIVILEGED_USERS);
+  while (users.length < wanted) {
     addItem(users, privilegedUserForm());
+  }
+  while (users.length > wanted) {
+    removeItem(users, users.length - 1);
   }
 }
 
 export function toTemplate(form: TemplateForm): ChangeTemplate {
-  const value = form.getRawValue();
-  const access = value.privilegedAccess;
+  const { approvers, timing, planning, privilegedAccess, riskAssessment, ...fields } =
+    form.getRawValue();
+  const users = privilegedAccess.users.map((user) => ({
+    user: user.user.trim(),
+    account: user.account.trim(),
+  }));
   return {
-    jiraProjectKey: value.jiraProjectKey.trim().toUpperCase(),
-    assignmentGroup: value.assignmentGroup.trim(),
-    category: value.category.trim(),
-    type: value.type,
-    configurationItem: value.configurationItem.trim(),
-    release: optional(value.release),
-    incident: optional(value.incident),
-    problem: optional(value.problem),
-    affectedClients: optional(value.affectedClients),
-    description: optional(value.description),
-    approvers: sent(value.approvers),
-    downtime: value.downtime,
+    ...sent(fields),
+    jiraProjectKey: fields.jiraProjectKey.trim().toUpperCase(),
+    risk: null,
+    approvers: sent(approvers),
     timing: {
-      installationStart: value.timing.installationStart,
-      installationHours: value.timing.installationHours ?? 0,
-      validationHours: value.timing.validationHours ?? 0,
+      installationStart: timing.installationStart,
+      installationHours: timing.installationHours ?? 0,
+      validationHours: timing.validationHours ?? 0,
     },
-    planning: sent(value.planning),
-    privilegedAccess: {
-      required: access.required,
-      users: access.required
-        ? access.users.map((user) => ({ user: user.user.trim(), account: user.account.trim() }))
-        : [],
-    },
-    riskAssessment: sent(value.riskAssessment),
+    planning: sent(planning),
+    privilegedAccess: { required: users.length > 0, users },
+    riskAssessment,
   };
+}
+
+export function withDefaults(
+  template: ChangeTemplate,
+  openedBy: string | null,
+  department: string | null,
+): ChangeTemplate {
+  return {
+    ...template,
+    requestedFor: template.requestedFor ?? openedBy,
+    requestedBy: template.requestedBy ?? openedBy,
+    assignedTo: template.assignedTo ?? openedBy,
+    department: template.department ?? department,
+  };
+}
+
+export function riskOf(assessment: RiskAssessment, lists: ChangeOptions['risk']): string | null {
+  const answers = (Object.keys(lists) as RiskQuestion[])
+    .map((question) => ({
+      at: lists[question].indexOf(assessment[question] ?? ''),
+      last: lists[question].length - 1,
+    }))
+    .filter(({ at }) => at >= 0);
+  if (!answers.length) {
+    return null;
+  }
+  if (answers.some(({ at, last }) => at === last)) {
+    return 'High';
+  }
+  return answers.some(({ at }) => at > 0) ? 'Moderate' : 'Low';
 }
 
 export function applyTemplateProblems(

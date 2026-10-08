@@ -1,5 +1,15 @@
+.wizard {
+  max-width: 1120px;
+}
+
 .step-bar {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+
+  button {
+    align-items: flex-start;
+    height: 100%;
+    line-height: 1.25;
+  }
 }
 
 .fields {
@@ -69,17 +79,10 @@
   }
 }
 
-.moments {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 220px));
-  gap: 10px 14px;
-}
-
 .defaults-note {
   margin-bottom: 0;
 }
 
-.window-text,
 .scope {
   margin: 0;
 }
@@ -99,26 +102,8 @@
   }
 }
 
-.tasks {
-  margin: 0;
-  padding-left: 22px;
-  font-size: 12.5px;
-
-  li + li {
-    margin-top: 6px;
-  }
-
-  span {
-    display: block;
-  }
-}
-
 @media (max-width: 760px) {
   .step-bar {
-    grid-template-columns: repeat(6, auto);
-  }
-
-  .moments {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(10, auto);
   }
 }

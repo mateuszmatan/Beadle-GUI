@@ -1,7 +1,16 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { ChangePlanning, ProductionChange, RiskAssessment, TYPES, labelOf } from './change-api';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import {
+  ChangePlanning,
+  ChangeType,
+  ProductionChange,
+  RiskQuestion,
+  STATES,
+  approvalOf,
+  labelOf,
+} from './change-api';
 import { TIME_ZONE_NOTE, momentText, windowText } from './change-model';
-import { templateLabel } from './change-template-form';
+import { ChangeOptionLists } from './change-options';
+import { NUMBER_PENDING, RISK_FIELDS, templateLabel } from './change-sections';
 
 interface Row {
   term: string;
@@ -23,67 +32,90 @@ const PLANS: (keyof ChangePlanning)[] = [
   'firstUsePlan',
 ];
 
-const RISKS: (keyof RiskAssessment)[] = [
-  'bbhWorkgroups',
-  'bbhUsers',
-  'bbhApplications',
-  'clients',
-  'clientsOutsideBbh',
-  'businessImpact',
-  'changeComplexity',
-  'validationComplexity',
-  'platformStatus',
-  'backoutTesting',
-];
+const RISKS = RISK_FIELDS.map((field) => field.key as RiskQuestion);
 
-const row = (path: string, value: string | number | null, mono = false): Row => ({
+const row = (path: string, value: string | null, mono = false): Row => ({
   term: templateLabel(path) ?? path,
-  value: value === null ? null : String(value),
+  value,
   mono,
 });
 
-export function summaryColumns(change: ProductionChange): Block[][] {
+function downtimeText(change: ProductionChange): string {
+  const { downtimeStart, downtimeEnd } = change.schedule;
+  if (!change.template.downtime) {
+    return 'No';
+  }
+  return downtimeStart && downtimeEnd ? windowText(downtimeStart, downtimeEnd) : 'Yes';
+}
+
+export function summaryColumns(
+  change: ProductionChange,
+  typeLabel: (type: ChangeType) => string,
+): Block[][] {
   const t = change.template;
   const s = change.schedule;
   const access = t.privilegedAccess;
   return [
     [
       {
-        title: 'Change',
+        title: 'Generic request data',
         rows: [
-          { term: 'Product', value: `${change.productName} (${change.productCode})` },
-          { term: 'Department', value: change.departmentName },
-          { term: 'FixVersion', value: change.fixVersion, mono: true },
-          { term: 'Type', value: `${labelOf(TYPES, t.type)} · ${t.category}` },
+          { term: 'Change number', value: change.number ?? NUMBER_PENDING, mono: !!change.number },
+          { term: 'Approval', value: approvalOf(change.state) },
+          { term: 'Opened By', value: change.openedBy },
+          { term: 'State', value: labelOf(STATES, change.state) },
+          row('requestedFor', t.requestedFor),
+          row('requestedBy', t.requestedBy),
+          row('department', t.department),
           row('assignmentGroup', t.assignmentGroup),
-          row('configurationItem', t.configurationItem),
+          row('category', t.category),
+          row('assignedTo', t.assignedTo),
+          { term: 'Type', value: typeLabel(t.type) },
           row('release', t.release),
+          row('configurationItem', t.configurationItem),
           row('incident', t.incident, true),
+          row('directBusinessService', t.directBusinessService),
           row('problem', t.problem, true),
+          row('risk', t.risk),
           row('affectedClients', t.affectedClients),
-          row('jiraProjectKey', t.jiraProjectKey, true),
-          { term: 'Jira', value: [...change.epicKeys, ...change.storyKeys].join(' '), mono: true },
+          row('usersAffected', t.usersAffected),
         ],
       },
     ],
     [
       {
+        title: 'Jira',
+        rows: [
+          { term: 'Product', value: `${change.productName} (${change.productCode})` },
+          { term: 'Product department', value: change.departmentName },
+          { term: 'FixVersion', value: change.fixVersion, mono: true },
+          row('jiraProjectKey', t.jiraProjectKey, true),
+          { term: 'Jira', value: [...change.epicKeys, ...change.storyKeys].join(' '), mono: true },
+        ],
+      },
+      {
         title: 'Schedule',
         rows: [
           { term: 'Installation', value: windowText(s.installationStart, s.installationEnd) },
           { term: 'Validation', value: windowText(s.validationStart, s.validationEnd) },
-          { term: 'First usage', value: momentText(s.firstUsage) },
-          { term: 'Downtime', value: t.downtime ? 'Yes' : 'No' },
+          { term: 'First use', value: momentText(s.firstUsage) },
+          { term: 'Downtime', value: downtimeText(change) },
         ],
         note: TIME_ZONE_NOTE,
       },
       {
-        title: 'Approvers',
+        title: 'Approval and Notification',
         rows: [
+          row('approvers.businessApprover', t.approvers.businessApprover),
           row('approvers.l1Manager', t.approvers.l1Manager),
           row('approvers.l2Manager', t.approvers.l2Manager),
-          row('approvers.businessApprover', t.approvers.businessApprover),
         ],
+      },
+    ],
+    [
+      {
+        title: 'Risk assessment',
+        rows: RISKS.map((key) => row(`riskAssessment.${key}`, t.riskAssessment[key])),
       },
       {
         title: 'Privileged access',
@@ -91,11 +123,9 @@ export function summaryColumns(change: ProductionChange): Block[][] {
           ? access.users.map((user) => ({ term: user.user, value: user.account, mono: true }))
           : [{ term: 'Needed', value: 'No' }],
       },
-    ],
-    [
       {
-        title: 'Risk assessment',
-        rows: RISKS.map((key) => row(`riskAssessment.${key}`, t.riskAssessment[key])),
+        title: 'Secure coding',
+        rows: [row('secureCodingTicket', t.secureCodingTicket, true)],
       },
     ],
   ];
@@ -193,7 +223,11 @@ export function summaryColumns(change: ProductionChange): Block[][] {
 export class ChangeSummary {
   readonly change = input.required<ProductionChange>();
 
-  protected readonly columns = computed(() => summaryColumns(this.change()));
+  private readonly lists = inject(ChangeOptionLists);
+
+  protected readonly columns = computed(() =>
+    summaryColumns(this.change(), (type) => this.lists.typeLabel(type)),
+  );
   protected readonly plans = computed(() =>
     PLANS.map((key) => row(`planning.${key}`, this.change().template.planning[key])),
   );

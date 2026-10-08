@@ -11,9 +11,8 @@ import {
   signal,
 } from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormGroup, ReactiveFormsModule, ValidatorFn } from '@angular/forms';
+import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -27,20 +26,11 @@ import { CHANGES, beadleChange } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { applyFieldProblems, filled, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
-import { ChangeSchedule, ChangesApi, ProductionChange, isOpen } from './change-api';
-import {
-  MOMENTS,
-  Moments,
-  TIME_ZONE_NOTE,
-  activeTasks,
-  editHint,
-  fits,
-  readMoments,
-  scheduleForm,
-  scheduleOf,
-  scheduleProblem,
-} from './change-model';
+import { ChangesApi, ProductionChange, STATES, approvalOf, isOpen, labelOf } from './change-api';
+import { activeTasks, editHint, fits } from './change-model';
 import { problemText } from './change-problems';
+import { onHours, scheduleForm, scheduleValue } from './change-schedule-model';
+import { Fact } from './change-sections';
 import { ChangeTasksForm } from './change-tasks-form';
 import { tasksForm, toEditedTasks } from './change-tasks-model';
 import { ChangeTemplateForm } from './change-template-form';
@@ -56,26 +46,25 @@ interface Failure {
   reload: boolean;
 }
 
-function scheduleRule(stored: ChangeSchedule): ValidatorFn {
-  return (group) => {
-    const moments = readMoments(group.getRawValue());
-    const moved = moments.installationStart?.getTime() !== Date.parse(stored.installationStart);
-    const problem = scheduleProblem(moments, new Date(), moved);
-    return problem ? { rule: problem } : null;
-  };
-}
-
 export function editForm(change: ProductionChange) {
-  const schedule = scheduleForm(change.schedule);
-  schedule.addValidators(scheduleRule(change.schedule));
-  schedule.updateValueAndValidity();
+  const template = templateForm(change.template);
+  template.controls.type.disable();
   return new FormGroup({
     shortDescription: text(change.shortDescription, filled, fits(160)),
     description: text(change.description, filled, fits(4000)),
-    schedule,
-    template: templateForm(change.template),
+    schedule: scheduleForm(template.controls.downtime, change.schedule),
+    template,
     tasks: tasksForm(activeTasks(change.tasks)),
   });
+}
+
+export function changeFacts(change: ProductionChange): Fact[] {
+  return [
+    { label: 'Change number', value: change.number },
+    { label: 'Approval', value: approvalOf(change.state) },
+    { label: 'Opened By', value: change.openedBy },
+    { label: 'State', value: labelOf(STATES, change.state) },
+  ];
 }
 
 export type EditForm = ReturnType<typeof editForm>;
@@ -86,7 +75,6 @@ export type EditForm = ReturnType<typeof editForm>;
     ReactiveFormsModule,
     RouterLink,
     MatButtonModule,
-    MatCheckboxModule,
     MatFormFieldModule,
     MatInputModule,
     MatProgressBarModule,
@@ -136,7 +124,6 @@ export type EditForm = ReturnType<typeof editForm>;
             <a mat-button [routerLink]="changeLink(id())">Back to the change</a>
           </div>
         } @else if (form(); as f) {
-          @let schedule = f.controls.schedule;
           <form [formGroup]="f" (ngSubmit)="publish()" novalidate>
             <section class="card block texts">
               <h2>Texts</h2>
@@ -155,36 +142,12 @@ export type EditForm = ReturnType<typeof editForm>;
                 <mat-error>{{ errorText(f.controls.description) }}</mat-error>
               </mat-form-field>
             </section>
-            <section class="card block">
-              <h2>Schedule</h2>
-              <p class="note">{{ timeZoneNote }}</p>
-              <div class="moments">
-                @for (moment of moments; track moment.key) {
-                  @let pair = schedule.controls[moment.key].controls;
-                  <mat-form-field>
-                    <mat-label>{{ moment.label }} date</mat-label>
-                    <input matInput type="date" [formControl]="pair.date" />
-                  </mat-form-field>
-                  <mat-form-field>
-                    <mat-label>{{ moment.label }} time</mat-label>
-                    <input matInput type="time" [formControl]="pair.time" />
-                  </mat-form-field>
-                }
-              </div>
-              <mat-checkbox [formControl]="f.controls.template.controls.downtime">
-                Downtime during the installation
-              </mat-checkbox>
-              @if (schedule.errors && schedule.touched) {
-                <p class="choice-error" role="alert">{{ errorText(schedule) }}</p>
-              }
-            </section>
             <section class="fields" aria-labelledby="protech-fields">
               <h2 id="protech-fields">ProTech fields</h2>
               <dso-change-template-form
                 [form]="f.controls.template"
-                [jiraProject]="false"
-                [changeType]="false"
-                [scheduleDefaults]="false"
+                [facts]="facts()"
+                [schedule]="f.controls.schedule"
               />
             </section>
             <section class="card block">
@@ -248,13 +211,6 @@ export type EditForm = ReturnType<typeof editForm>;
       }
     }
 
-    .moments {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 220px));
-      gap: 10px 14px;
-      margin: 8px 0 4px;
-    }
-
     .fields {
       margin-bottom: 12px;
 
@@ -271,12 +227,6 @@ export type EditForm = ReturnType<typeof editForm>;
     .refused {
       flex-wrap: wrap;
     }
-
-    @media (max-width: 760px) {
-      .moments {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
   `,
 })
 export class ChangeEdit implements HasUnsavedChanges {
@@ -290,8 +240,6 @@ export class ChangeEdit implements HasUnsavedChanges {
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly section = CHANGES;
-  protected readonly moments = MOMENTS;
-  protected readonly timeZoneNote = TIME_ZONE_NOTE;
   protected readonly changeLink = beadleChange;
   protected readonly errorMessage = errorMessage;
   protected readonly errorText = errorText;
@@ -303,6 +251,9 @@ export class ChangeEdit implements HasUnsavedChanges {
   protected readonly open = computed(() => this.change.hasValue() && isOpen(this.change.value()));
   protected readonly hint = computed(() =>
     this.change.hasValue() ? editHint(this.change.value(), this.myDepartment.departmentId()) : null,
+  );
+  protected readonly facts = computed(() =>
+    this.change.hasValue() ? changeFacts(this.change.value()) : [],
   );
   protected readonly form = signal<EditForm | null>(null);
   protected readonly saving = signal(false);
@@ -346,7 +297,7 @@ export class ChangeEdit implements HasUnsavedChanges {
         departmentId: this.myDepartment.departmentId()!,
         shortDescription: value.shortDescription.trim(),
         description: value.description,
-        schedule: scheduleOf(readMoments(value.schedule) as Moments),
+        schedule: scheduleValue(form.controls.schedule, value.template.downtime),
         template: toTemplate(form.controls.template),
         tasks: toEditedTasks(form.controls.tasks),
       })
@@ -367,7 +318,7 @@ export class ChangeEdit implements HasUnsavedChanges {
 
   private failed(form: EditForm, error: unknown): void {
     const problems = fieldProblems(error);
-    applyFieldProblems(form, problems);
+    applyFieldProblems(form, problems.map(onHours));
     const conflict = error instanceof HttpErrorResponse && error.status === 409;
     const message = errorMessage(error);
     this.failure.set({

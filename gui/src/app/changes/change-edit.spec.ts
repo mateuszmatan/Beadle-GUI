@@ -4,7 +4,12 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { MyDepartment } from '../beadle/my-department';
 import { Notifier } from '../core/notifier';
-import { changeTask, productionChange } from '../testing/change-fixtures';
+import {
+  changeOptions,
+  changeSchedule,
+  changeTask,
+  productionChange,
+} from '../testing/change-fixtures';
 import { buttonOf, fieldOf, inputOf, text } from '../testing/dom';
 import { ProductionChange } from './change-api';
 import { ChangeEdit, STALE } from './change-edit';
@@ -39,6 +44,8 @@ describe('ChangeEdit', () => {
     fixture.componentRef.setInput('id', 7);
     await settle();
     http.expectOne('/api/changes/7').flush(change);
+    await settle();
+    http.match('/api/changes/options').forEach((request) => request.flush(changeOptions()));
     await settle();
   }
 
@@ -75,8 +82,15 @@ describe('ChangeEdit', () => {
     expect(text(page().querySelector('.breadcrumb'))).toBe('Changes/CHG0012345/Edit');
     expect(inputOf(page(), 'Short description').value).toBe('CertScanner CERT 4.2: Expiry alerts');
     expect(fieldOf(page(), 'Jira project')).toBeNull();
-    expect(fieldOf(page(), 'Type')).toBeNull();
-    expect(fieldOf(page(), 'Installation hours')).toBeNull();
+    expect(inputOf(page(), 'Change number').value).toBe('CHG0012345');
+    expect(inputOf(page(), 'Approval').value).toBe('Requested');
+    expect(inputOf(page(), 'Opened By').value).toBe('Mateusz Matan');
+    expect(inputOf(page(), 'State').value).toBe('Primary Approval');
+    expect(
+      fieldOf(page(), 'Type')?.querySelector('mat-select')?.getAttribute('aria-disabled'),
+    ).toBe('true');
+    expect(inputOf(page(), 'Installation hours').value).toBe('2');
+    expect(fieldOf(page(), 'Downtime start')).toBeNull();
     expect([...page().querySelectorAll('dso-change-tasks-form .number')].map(text)).toEqual([
       'CTASK0020001',
       'CTASK0020003',
@@ -85,6 +99,11 @@ describe('ChangeEdit', () => {
 
     await type('Short description', ' CertScanner 4.2 ');
     await type('Assignment group', 'Platform Team');
+    form().controls.template.controls.downtime.setValue(true);
+    await settle();
+    expect(inputOf(page(), 'Downtime start').value).toBe(
+      inputOf(page(), 'Installation start').value,
+    );
     buttonOf(page(), 'Add a change task').click();
     await settle();
     form()
@@ -105,8 +124,10 @@ describe('ChangeEdit', () => {
         validationStart: '2026-10-10T08:00:00.000Z',
         validationEnd: '2026-10-10T09:00:00.000Z',
         firstUsage: '2026-10-12T08:00:00.000Z',
+        downtimeStart: '2026-10-10T06:00:00.000Z',
+        downtimeEnd: '2026-10-10T08:00:00.000Z',
       },
-      template: { ...stored.template, assignmentGroup: 'Platform Team' },
+      template: { ...stored.template, assignmentGroup: 'Platform Team', downtime: true },
       tasks: [
         {
           number: 'CTASK0020001',
@@ -135,16 +156,13 @@ describe('ChangeEdit', () => {
     await show();
     await type('Short description', ' ');
     form().controls.tasks.at(0).controls.description.setValue('');
-    form().controls.schedule.controls.installationStart.setValue({
-      date: '2020-01-01',
-      time: '10:00',
-    });
+    form().controls.schedule.controls.installationStart.setValue('2020-01-01T10:00');
     await publish();
 
     http.expectNone({ method: 'PUT', url: '/api/changes/7' });
     expect(text(page().querySelector('.save-error'))).toBe('Some fields need your attention.');
     expect(text(fieldOf(page(), 'Short description')?.querySelector('mat-error'))).toBe('Required');
-    expect(text(page().querySelector('.block .choice-error'))).toBe(
+    expect(text(page().querySelector('dso-change-schedule .choice-error'))).toBe(
       'The installation must start in the future',
     );
   });
@@ -152,21 +170,18 @@ describe('ChangeEdit', () => {
   it('keeps an installation start that already passed when it is not moved', async () => {
     const running = productionChange({
       state: 'IMPLEMENTATION',
-      schedule: {
+      schedule: changeSchedule({
         installationStart: '2020-01-01T08:00:00Z',
-        installationEnd: '2099-01-01T10:00:00Z',
-        validationStart: '2099-01-01T10:00:00Z',
-        validationEnd: '2099-01-01T11:00:00Z',
-        firstUsage: '2099-01-01T12:00:00Z',
-      },
+        installationEnd: '2020-01-01T10:00:00Z',
+        validationStart: '2020-01-01T10:00:00Z',
+        validationEnd: '2020-01-01T11:00:00Z',
+        firstUsage: '2020-01-01T12:00:00Z',
+      }),
     });
     await show(running);
 
     expect(form().controls.schedule.valid).toBe(true);
-    form().controls.schedule.controls.installationEnd.setValue({
-      date: '2019-12-31',
-      time: '10:00',
-    });
+    form().controls.schedule.controls.installationHours.setValue(0);
     expect(form().controls.schedule.errors).toEqual({
       rule: 'The installation must end after it starts',
     });
@@ -179,6 +194,7 @@ describe('ChangeEdit', () => {
       {
         detail: '2 fields are invalid',
         errors: [
+          { field: 'schedule.validationEnd', message: 'must be after the start' },
           { field: 'tasks[0].shortDescription', message: 'is used twice' },
           { field: 'tasks', message: 'CTASK0020009 is closed in ProTech and cannot be removed' },
         ],
@@ -189,11 +205,15 @@ describe('ChangeEdit', () => {
 
     expect(text(page().querySelector('.save-error'))).toBe('2 fields are invalid');
     expect([...page().querySelectorAll('.problems li')].map(text)).toEqual([
+      'Validation end: must be after the start',
       'Change task 1: short description: is used twice',
       'Change tasks: CTASK0020009 is closed in ProTech and cannot be removed',
     ]);
     expect(form().controls.tasks.at(0).controls.shortDescription.errors).toEqual({
       server: 'is used twice',
+    });
+    expect(form().controls.schedule.controls.validationHours.errors).toEqual({
+      server: 'must be after the start',
     });
     expect(buttonOf(page(), 'Reload')).toBeUndefined();
   });

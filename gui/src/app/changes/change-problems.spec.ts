@@ -4,8 +4,10 @@ describe('change problems', () => {
   it('names the fields of a change request', () => {
     expect(requestLabel('fixVersion')).toBe('FixVersion');
     expect(requestLabel('departmentId')).toBe('Department');
-    expect(requestLabel('schedule.firstUsage')).toBe('First usage');
-    expect(requestLabel('template.approvers.l2Manager')).toBe('L2 manager');
+    expect(requestLabel('schedule.firstUsage')).toBe('First use');
+    expect(requestLabel('schedule.downtimeEnd')).toBe('Downtime end');
+    expect(requestLabel('template.approvers.l2Manager')).toBe('L2 approver');
+    expect(requestLabel('template.secureCodingTicket')).toBe('Secure coding ticket number');
     expect(requestLabel('template.approvers')).toBe('Approvers');
     expect(requestLabel('template.riskAssessment')).toBe('Risk assessment');
     expect(requestLabel('tasks')).toBe('Change tasks');
