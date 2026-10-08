@@ -104,7 +104,7 @@ export function sorted(rows: readonly ChangeRow[], sort: Sort): ChangeRow[] {
 }
 
 @Component({
-  selector: 'dso-production-changes',
+  selector: 'dso-changes-list',
   imports: [
     ReactiveFormsModule,
     RouterLink,
@@ -380,7 +380,7 @@ export function sorted(rows: readonly ChangeRow[], sort: Sort): ChangeRow[] {
     }
   `,
 })
-export class ProductionChanges {
+export class ChangesList {
   private readonly api = inject(ChangesApi);
   private readonly departmentsApi = inject(DepartmentsApi);
   private readonly router = inject(Router);

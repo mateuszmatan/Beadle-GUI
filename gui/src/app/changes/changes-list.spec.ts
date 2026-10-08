@@ -12,7 +12,7 @@ import {
 import { text } from '../testing/dom';
 import { department } from '../testing/fixtures';
 import { ProductionChange } from './change-api';
-import { ChangeFilters, ProductionChanges, changeRow, matches, sorted } from './production-changes';
+import { ChangeFilters, ChangesList, changeRow, matches, sorted } from './changes-list';
 
 const zoneNote = `Times are in your time zone, ${Intl.DateTimeFormat().resolvedOptions().timeZone}.`;
 
@@ -117,9 +117,9 @@ describe('the rows of the changes table', () => {
   });
 });
 
-describe('ProductionChanges', () => {
+describe('ChangesList', () => {
   let http: HttpTestingController;
-  let fixture: ComponentFixture<ProductionChanges>;
+  let fixture: ComponentFixture<ChangesList>;
 
   const page = () => fixture.nativeElement as HTMLElement;
   const shownNumbers = () => [...page().querySelectorAll('tbody tr td:first-child')].map(text);
@@ -141,7 +141,7 @@ describe('ProductionChanges', () => {
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     http = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent(ProductionChanges);
+    fixture = TestBed.createComponent(ChangesList);
     await settle();
     http
       .expectOne('/api/changes/integrations')
@@ -327,7 +327,7 @@ describe('ProductionChanges', () => {
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     http = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent(ProductionChanges);
+    fixture = TestBed.createComponent(ChangesList);
     await settle();
     http
       .expectOne('/api/changes/integrations')
