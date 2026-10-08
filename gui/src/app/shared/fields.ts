@@ -1,12 +1,26 @@
-import { ChangeDetectionStrategy, Component, Signal, effect, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  Signal,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { BuildTool, DeployTarget } from '../core/models';
 import { filled } from './form-controls';
 import { errorText } from './form-errors';
+import { Lookup, openLookup, pickInto } from './lookup-dialog';
 
 export interface FieldOption {
   value: unknown;
@@ -29,6 +43,9 @@ export interface Field {
   multiple?: boolean;
   min?: number;
   max?: number;
+  step?: number;
+  readonly?: boolean;
+  lookup?: Lookup;
 }
 
 export const TOOL_LABELS: Record<BuildTool, string> = {
@@ -113,8 +130,10 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
   selector: 'dso-fields',
   imports: [
     ReactiveFormsModule,
+    MatButtonModule,
     MatCheckboxModule,
     MatFormFieldModule,
+    MatIconModule,
     MatInputModule,
     MatSelectModule,
   ],
@@ -128,7 +147,7 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
           <span [innerHTML]="label(field)"></span>
         </mat-checkbox>
       } @else {
-        <mat-form-field [class]="span(field, 6)">
+        <mat-form-field [class]="span(field, 6)" [class.read-only]="field.readonly">
           <mat-label>{{ field.label }}</mat-label>
           @switch (field.kind) {
             @case ('area') {
@@ -162,6 +181,7 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
                 [required]="mandatory"
                 [attr.min]="field.min"
                 [attr.max]="field.max"
+                [attr.step]="field.step"
               />
             }
             @default {
@@ -172,9 +192,22 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
                 [required]="mandatory"
                 [class.mono]="field.mono"
                 [placeholder]="field.placeholder ?? ''"
-                [attr.type]="field.type"
+                [type]="field.type ?? 'text'"
                 [attr.maxlength]="field.maxLength"
+                [readonly]="field.readonly"
               />
+              @if (field.lookup; as lookup) {
+                <button
+                  mat-icon-button
+                  matSuffix
+                  type="button"
+                  class="lookup"
+                  [attr.aria-label]="'Find ' + field.label"
+                  (click)="find(field, lookup)"
+                >
+                  <mat-icon>search</mat-icon>
+                </button>
+              }
             }
           }
           @if (field.code || field.hint) {
@@ -195,7 +228,20 @@ export class Fields {
   readonly group = input.required<AbstractControl>();
   readonly fields = input.required<readonly Field[]>();
 
+  private readonly dialog = inject(MatDialog);
+  private readonly destroyRef = inject(DestroyRef);
+
   protected readonly errorText = errorText;
+
+  protected find(field: Field, lookup: Lookup): void {
+    openLookup(this.dialog, { kind: lookup.kind, label: field.label })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((item) => {
+        if (item) {
+          pickInto(this.group(), field.key, lookup, item);
+        }
+      });
+  }
 
   protected controlOf(field: Field): FormControl {
     return this.group().get(field.key) as FormControl;
