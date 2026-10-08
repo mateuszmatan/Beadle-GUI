@@ -2,8 +2,6 @@ package com.bbh.itss.dso.portal.gui.regression
 
 import com.microsoft.playwright.Locator
 
-import java.time.LocalDate
-
 import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.CERT_TASKS
 import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.PLANNING
 import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.RELEASE_DATE
@@ -13,8 +11,9 @@ import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.OPTION
 import static java.time.LocalDate.now
+import static java.time.LocalDate.parse
 
-class ProductionChangeSpec extends EditorSpecification {
+class NewChangeSpec extends EditorSpecification {
 
     static final List<String> STEPS = ['Request data', 'Jira', 'Approval', 'Schedule', 'Planning', 'Privileged access',
                                        'Risk assessment', 'Secure coding', 'Review', 'Raised']
@@ -239,7 +238,8 @@ class ProductionChangeSpec extends EditorSpecification {
         assertThat(currentStep()).hasText('Review')
         assertThat(input(texts(), 'Short description')).hasValue('CertScanner CERT 4.2: Expiry alerts for certificates')
         assertThat(input(texts(), 'Description')).hasValue(
-                'Production release of CertScanner (CERTSCANNER), FixVersion CERT 4.2.\n\nEpics:\n'
+                'Production release of CertScanner (CERTSCANNER), FixVersion CERT 4.2.\n'
+                        + 'Change tasks: Deploy CertScanner to production; Validate CertScanner in production.\n\nEpics:\n'
                         + 'CERT-120 Expiry alerts for certificates (In Review)\n\nStories:\nCERT-121 E-mail the certificate owner')
         assertThat(taskRows()).hasCount(2)
         hasValues(taskRows().nth(0), ['Short description': 'Deploy CertScanner to production',
@@ -284,7 +284,6 @@ class ProductionChangeSpec extends EditorSpecification {
             template.riskAssessment.businessImpact == 'High'
             template.secureCodingTicket == 'SEC-4711'
             tasks == CERT_TASKS
-            !it.containsKey('serviceIds')
         }
 
         when:
@@ -301,6 +300,15 @@ class ProductionChangeSpec extends EditorSpecification {
 
         when:
         input(taskRows().nth(1), 'Description').fill('Run the Liquibase changesets of CertScanner.')
+
+        then:
+        assertThat(input(texts(), 'Description')).hasValue(
+                ~/\nChange tasks: Deploy CertScanner to production; Run the database scripts\.\n/)
+        with(api.requests('POST', '/api/changes/preview').last().json()) {
+            tasks*.shortDescription == ['Deploy CertScanner to production', 'Run the database scripts']
+        }
+
+        when:
         input(texts(), 'Short description').fill('CertScanner 4.2 release')
         button('Raise the change in ProTech', true).click()
 
@@ -309,15 +317,17 @@ class ProductionChangeSpec extends EditorSpecification {
         assertThat(step().locator('.review-list li')).hasText(['CTASK0310021 · Deploy CertScanner to production',
                                                                    'CTASK0310022 · Run the database scripts'] as String[])
         assertThat(step().locator('.next-steps')).containsText('Grace Turner, Olivia Bennett, William Hayes approve the change in ProTech')
+        assertThat(step().locator('.next-steps a')).hasText(['CHG0031002', 'Changes'] as String[])
+        assertThat(step().locator('.next-steps a').first()).hasAttribute('href', '/beadle/changes/5')
         with(awaitRequest('POST', '/api/changes').json()) {
             productId == 1
-            !it.containsKey('serviceIds')
             tasks == [CERT_TASKS[0], [shortDescription: 'Run the database scripts',
                                       description     : 'Run the Liquibase changesets of CertScanner.']]
             fixVersion == 'CERT 4.2'
             epicKeys == ['CERT-120']
             storyKeys == ['CERT-121']
             shortDescription == 'CertScanner 4.2 release'
+            description.contains('\nChange tasks: Deploy CertScanner to production; Run the database scripts.\n')
             schedule.downtimeEnd == "${RELEASE_DATE}T19:30:00.000Z"
             template.secureCodingTicket == 'SEC-4711'
         }
@@ -543,7 +553,7 @@ class ProductionChangeSpec extends EditorSpecification {
     }
 
     static String nextDay() {
-        LocalDate.parse(RELEASE_DATE).plusDays(1).toString()
+        parse(RELEASE_DATE).plusDays(1).toString()
     }
 
     static String inDays(int days) {

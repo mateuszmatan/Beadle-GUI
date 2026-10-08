@@ -15,6 +15,8 @@ public interface ProductRepositoryPort extends ProductDirectory {
 
     List<Product> findAll();
 
+    List<Product> findByDepartmentId(long departmentId);
+
     List<ProductSummary> summaries();
 
     Map<Long, Long> servicesPerProduct();

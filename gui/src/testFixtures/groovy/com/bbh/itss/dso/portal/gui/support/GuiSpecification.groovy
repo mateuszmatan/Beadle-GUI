@@ -35,7 +35,7 @@ abstract class GuiSpecification extends Specification {
 
     static final Map<String, List<String>> MENUS = [
             'Beadle'              : ['Changes', 'New Change', 'Admin'],
-            'DevSecOps Management': ['Self-service', 'Pipeline Monitoring', 'Change Evidence', 'Admin']]
+            'DevSecOps Management': ['Pipelines', 'Self-service', 'Pipeline Monitoring', 'Change Evidence', 'Admin']]
 
     static final String CLIPBOARD_RECORDER = '''
         window.dsoCopiedTexts = [];

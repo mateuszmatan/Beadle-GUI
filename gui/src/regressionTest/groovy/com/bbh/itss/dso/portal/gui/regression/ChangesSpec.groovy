@@ -4,7 +4,6 @@ import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 import groovy.json.JsonSlurper
 
-import java.time.LocalDate
 import java.util.function.BooleanSupplier
 
 import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.CERT_TASKS
@@ -12,6 +11,7 @@ import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.CERT_TEMPLATE
 import static com.bbh.itss.dso.portal.gui.support.StubApi.SIGNED_IN_USER
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.BUTTON
+import static java.time.LocalDate.now
 import static java.time.ZoneOffset.UTC
 
 class ChangesSpec extends EditorSpecification {
@@ -168,7 +168,7 @@ class ChangesSpec extends EditorSpecification {
 
     def "a member of the department publishes an update to ProTech and sees that ProTech applied it"() {
         given:
-        def date = LocalDate.now(UTC).plusDays(3).toString()
+        def date = now(UTC).plusDays(3).toString()
 
         when:
         open('/beadle/changes')
@@ -295,6 +295,23 @@ class ChangesSpec extends EditorSpecification {
         assertThat(page.locator('.page-header p')).hasText('CertScanner 4.1 with Java 21')
         awaitRequest('PUT', '/api/changes/4', 3).json().version == 5
         ownErrors().findAll { !it.contains('409') }.isEmpty()
+    }
+
+    def "an update is taken when ProTech only moved the change through its workflow meanwhile"() {
+        when:
+        open('/beadle/changes')
+        choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
+        open('/beadle/changes/4/edit')
+        input(texts(), 'Short description').fill('CertScanner 4.1 with Java 21')
+        api.protech.advance(4, 'CTASK_APPROVAL')
+        button('Publish to ProTech', true).click()
+        page.waitForURL('**/beadle/changes/4')
+
+        then:
+        awaitRequest('PUT', '/api/changes/4').json().version == 3
+        assertThat(page.locator('.page-header p')).hasText('CertScanner 4.1 with Java 21')
+        assertThat(page.locator('dso-workflow-progress li[aria-current=step] .label')).hasText('CTask approval')
+        ownErrors().isEmpty()
     }
 
     def "a change ProTech did not update says what it kept, and a closed change cannot be edited"() {

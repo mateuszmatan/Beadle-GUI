@@ -20,17 +20,14 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-}
-
-.tasks-title {
-  margin-top: 6px;
-}
-
-.issues {
   max-height: 300px;
   overflow-y: auto;
   padding: 4px 8px;
   border: 1px solid var(--dso-border);
+}
+
+.tasks-title {
+  margin-top: 6px;
 }
 
 .find {

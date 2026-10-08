@@ -20,25 +20,27 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { EMPTY, catchError, finalize, of, switchMap } from 'rxjs';
+import {
+  EMPTY,
+  Observable,
+  Subject,
+  catchError,
+  filter,
+  finalize,
+  of,
+  switchMap,
+  timer,
+} from 'rxjs';
 import { MyDepartment } from '../beadle/my-department';
 import { DepartmentsApi, ProductsApi, UserApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
-import { NEW_CHANGE, beadleChange, beadleProduct } from '../core/sections';
+import { CHANGES, NEW_CHANGE, beadleChange, beadleProduct } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
-import { DepartmentGroup, byDepartment } from '../products/departments';
-import { applyProblemsAt, filled, max } from '../shared/form-controls';
+import { byDepartment } from '../products/departments';
+import { applyProblemsAt, byteLength, filled } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
-import {
-  ChangeRequest,
-  ChangesApi,
-  JiraIssue,
-  ProductionChange,
-  STATES,
-  approvalOf,
-  labelOf,
-} from './change-api';
+import { ChangeRequest, ChangesApi, JiraIssue, ProductionChange } from './change-api';
 import {
   approverNames,
   changeRequest,
@@ -60,7 +62,7 @@ import {
   scheduleForm,
   scheduleValue,
 } from './change-schedule-model';
-import { Fact, NUMBER_PENDING, SECTIONS, SectionKey, sectionControls } from './change-sections';
+import { SECTIONS, SectionKey, changeFacts, sectionControls } from './change-sections';
 import { ChangeSummary } from './change-summary';
 import { ChangeTasksForm } from './change-tasks-form';
 import { TasksForm, applyTaskProblems, tasksForm, toTaskTexts } from './change-tasks-model';
@@ -86,11 +88,9 @@ export const STEPS = [...SECTIONS.map((section) => section.step), 'Review', 'Rai
 
 const RAISED = STEP_KEYS.indexOf('raised');
 
-const NO_DEPARTMENT = -1;
+export const PREVIEW_DELAY = 400;
 
 const ATTENTION = 'Some fields need your attention.';
-
-const departmentKey = (group: DepartmentGroup) => group.department?.id ?? NO_DEPARTMENT;
 
 @Component({
   selector: 'dso-change-wizard',
@@ -121,6 +121,7 @@ export class ChangeWizard implements HasUnsavedChanges {
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly section = NEW_CHANGE;
+  protected readonly changes = CHANGES;
   protected readonly steps = STEPS;
   protected readonly errorText = errorText;
   protected readonly errorMessage = errorMessage;
@@ -128,9 +129,9 @@ export class ChangeWizard implements HasUnsavedChanges {
   protected readonly versionText = versionText;
   protected readonly approverNames = approverNames;
   protected readonly counted = counted;
+  protected readonly byteLength = byteLength;
   protected readonly templateLink = beadleProduct;
   protected readonly changeLink = beadleChange;
-  protected readonly departmentKey = departmentKey;
 
   protected readonly step = signal(0);
   protected readonly stepKey = computed(() => STEP_KEYS[this.step()]);
@@ -169,12 +170,20 @@ export class ChangeWizard implements HasUnsavedChanges {
     ),
     { initialValue: [] },
   );
+  private readonly grouped = computed(() => byDepartment(this.departments(), this.catalogue()));
   protected readonly groups = computed(() =>
-    byDepartment(this.departments(), this.catalogue()).filter((group) => group.products.length),
+    this.grouped().flatMap(({ department, products }) =>
+      department && products.length ? [{ department, products }] : [],
+    ),
+  );
+  protected readonly unplaced = computed(() =>
+    (this.grouped().find((group) => !group.department)?.products ?? [])
+      .map((product) => product.name)
+      .join(', '),
   );
   protected readonly productsInDepartment = computed(() => {
     const id = this.chosenDepartment();
-    return this.groups().find((group) => departmentKey(group) === id)?.products ?? [];
+    return this.groups().find((group) => group.department.id === id)?.products ?? [];
   });
 
   private readonly userApi = inject(UserApi);
@@ -185,12 +194,9 @@ export class ChangeWizard implements HasUnsavedChanges {
     }
     return this.me.error() ? null : undefined;
   });
-  protected readonly facts = computed<Fact[]>(() => [
-    { label: 'Change number', value: null, placeholder: NUMBER_PENDING },
-    { label: 'Approval', value: approvalOf('DRAFT') },
-    { label: 'Opened By', value: this.openedBy() ?? null },
-    { label: 'State', value: labelOf(STATES, 'DRAFT') },
-  ]);
+  protected readonly facts = computed(() =>
+    changeFacts({ number: null, state: 'DRAFT', openedBy: this.openedBy() ?? null }),
+  );
 
   protected readonly profile = rxResource({
     params: () => this.chosenProduct() ?? undefined,
@@ -202,7 +208,7 @@ export class ChangeWizard implements HasUnsavedChanges {
 
   protected readonly fixVersion = new FormControl('', {
     nonNullable: true,
-    validators: [filled, max(100)],
+    validators: [filled, fits(100)],
   });
   private readonly fixVersionText = toSignal(this.fixVersion.valueChanges, { initialValue: '' });
   protected readonly searched = signal<string | null>(null);
@@ -257,6 +263,7 @@ export class ChangeWizard implements HasUnsavedChanges {
   });
   protected readonly preview = signal<ProductionChange | null>(null);
   protected readonly previewing = signal(false);
+  private readonly reviews = new Subject<number | null>();
   private readonly jiraScope = computed(() =>
     this.stepKey() === 'jira' && this.epicKeys().length && this.stories.status() === 'resolved'
       ? [...this.epicKeys(), ...this.storyKeys()].join()
@@ -284,6 +291,19 @@ export class ChangeWizard implements HasUnsavedChanges {
         takeUntilDestroyed(),
       )
       .subscribe((draft) => this.showTexts(draft));
+    this.reviews
+      .pipe(
+        switchMap((wait) => (wait === null ? EMPTY : this.previewAfter(wait))),
+        takeUntilDestroyed(),
+      )
+      .subscribe((draft) => this.showTexts(draft));
+    toObservable(this.tasks)
+      .pipe(
+        switchMap((tasks) => tasks?.valueChanges ?? EMPTY),
+        filter(() => this.stepKey() === 'review' && !this.raising()),
+        takeUntilDestroyed(),
+      )
+      .subscribe(() => this.reviews.next(this.tasks()!.valid ? PREVIEW_DELAY : null));
     this.departmentId.valueChanges.pipe(takeUntilDestroyed()).subscribe((id) => {
       this.myDepartment.choose(id);
       this.productId.setValue(null);
@@ -379,6 +399,9 @@ export class ChangeWizard implements HasUnsavedChanges {
       case 'schedule':
         return this.schedule()!.invalid ? ATTENTION : null;
       case 'review':
+        if (this.previewing()) {
+          return 'Wait until the change is previewed';
+        }
         if (!this.preview() || this.shortDescription.invalid || this.description.invalid) {
           return 'Check the short description and the description';
         }
@@ -560,23 +583,24 @@ export class ChangeWizard implements HasUnsavedChanges {
   }
 
   protected loadPreview(): void {
-    const request = this.request();
+    this.reviews.next(0);
+  }
+
+  private previewAfter(wait: number): Observable<ProductionChange> {
     this.previewing.set(true);
-    this.problem.set(null);
-    this.problems.set([]);
-    this.changesApi
-      .preview(request)
-      .pipe(
-        finalize(() => this.previewing.set(false)),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe({
-        next: (preview) => this.showTexts(preview),
-        error: (error) => {
-          this.preview.set(null);
-          this.fail(error, 'The change could not be previewed: ');
-        },
-      });
+    return (wait ? timer(wait) : of(0)).pipe(
+      switchMap(() => {
+        this.problem.set(null);
+        this.problems.set([]);
+        return this.changesApi.preview(this.request());
+      }),
+      catchError((error) => {
+        this.preview.set(null);
+        this.fail(error, 'The change could not be previewed: ');
+        return EMPTY;
+      }),
+      finalize(() => this.previewing.set(false)),
+    );
   }
 
   private raise(): void {

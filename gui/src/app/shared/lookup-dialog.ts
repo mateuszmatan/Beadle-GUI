@@ -1,5 +1,12 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { rxResource, toSignal } from '@angular/core/rxjs-interop';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
+import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import {
@@ -187,6 +194,22 @@ export class LookupDialog {
     params: () => ({ text: this.searched() }),
     stream: ({ params }) => this.api.find(this.data.kind, params.text),
   });
+  private readonly entered = signal<string | null>(null);
+
+  constructor() {
+    this.query.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.entered.set(null));
+    effect(() => {
+      if (this.entered() === this.searched() && !this.results.isLoading()) {
+        untracked(() => {
+          this.entered.set(null);
+          const first = this.results.hasValue() ? this.results.value()[0] : undefined;
+          if (first) {
+            this.pick(first);
+          }
+        });
+      }
+    });
+  }
 
   protected pick(item: LookupItem): void {
     this.ref.close(item);
@@ -194,9 +217,6 @@ export class LookupDialog {
 
   protected pickFirst(event: Event): void {
     event.preventDefault();
-    const first = this.results.hasValue() ? this.results.value()[0] : undefined;
-    if (first) {
-      this.pick(first);
-    }
+    this.entered.set(this.query.value.trim());
   }
 }

@@ -7,7 +7,6 @@ import {
   filled,
   flag,
   integer,
-  max,
   removeItem,
   sent,
   text,
@@ -20,6 +19,7 @@ import {
   RiskAssessment,
   RiskQuestion,
 } from './change-api';
+import { fits } from './change-model';
 
 export const JIRA_KEY = /^\s*[A-Za-z][A-Za-z0-9_]{0,9}\s*$/;
 export const JIRA_KEY_ERROR = '1 to 10 letters, digits or _, starting with a letter';
@@ -29,7 +29,7 @@ export const MAX_PRIVILEGED_USERS = 7;
 export const TEMPLATE_PREFIX = 'template.';
 
 const required = (value: string | null | undefined, length: number) =>
-  text(value, filled, max(length));
+  text(value, filled, fits(length));
 
 const answer = (value: string | null) => new FormControl<string | null>(value);
 
@@ -47,25 +47,25 @@ export function templateForm(template: ChangeTemplate) {
   const users = privilegedAccess.required ? privilegedAccess.users : [];
   const form = new FormGroup({
     jiraProjectKey: text(template.jiraProjectKey, filled, Validators.pattern(JIRA_KEY)),
-    requestedFor: text(template.requestedFor, max(200)),
-    requestedBy: text(template.requestedBy, max(200)),
-    department: text(template.department, max(100)),
+    requestedFor: text(template.requestedFor, fits(200)),
+    requestedBy: text(template.requestedBy, fits(200)),
+    department: text(template.department, fits(100)),
     assignmentGroup: required(template.assignmentGroup, 200),
     category: text(template.category, filled),
-    assignedTo: text(template.assignedTo, max(200)),
+    assignedTo: text(template.assignedTo, fits(200)),
     type: new FormControl<ChangeType>(template.type, { nonNullable: true }),
-    release: text(template.release, max(100)),
+    release: text(template.release, fits(100)),
     configurationItem: required(template.configurationItem, 200),
-    incident: text(template.incident, max(40)),
-    directBusinessService: text(template.directBusinessService, max(200)),
-    problem: text(template.problem, max(40)),
-    affectedClients: text(template.affectedClients, max(2000)),
-    usersAffected: text(template.usersAffected, max(2000)),
-    description: text(template.description, max(2000)),
+    incident: text(template.incident, fits(40)),
+    directBusinessService: text(template.directBusinessService, fits(200)),
+    problem: text(template.problem, fits(40)),
+    affectedClients: text(template.affectedClients, fits(2000)),
+    usersAffected: text(template.usersAffected, fits(2000)),
+    description: text(template.description, fits(2000)),
     approvers: new FormGroup({
-      businessApprover: text(approvers.businessApprover, max(200)),
-      l1Manager: text(approvers.l1Manager, max(200)),
-      l2Manager: text(approvers.l2Manager, max(200)),
+      businessApprover: text(approvers.businessApprover, fits(200)),
+      l1Manager: text(approvers.l1Manager, fits(200)),
+      l2Manager: text(approvers.l2Manager, fits(200)),
     }),
     downtime: flag(template.downtime),
     timing: new FormGroup({
@@ -95,7 +95,7 @@ export function templateForm(template: ChangeTemplate) {
       platformStatus: answer(risk.platformStatus),
       businessImpact: answer(risk.businessImpact),
     }),
-    secureCodingTicket: text(template.secureCodingTicket, max(40)),
+    secureCodingTicket: text(template.secureCodingTicket, fits(40)),
   });
   const access = form.controls.privilegedAccess.controls;
   access.count.valueChanges.subscribe((count) => resizeUsers(access.users, count));

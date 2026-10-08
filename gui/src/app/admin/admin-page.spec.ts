@@ -59,13 +59,19 @@ describe('AdminPage', () => {
 
     expect(text(page().querySelector('h1'))).toBe('DevSecOps Admin');
     expect(text(page().querySelector('.page-header .page-description'))).toBe(
-      'Departments, products, services and the DSOEnhanced library defaults',
+      'Departments, products, services, the template of a new service and the DSOEnhanced library defaults',
     );
     expect(page().querySelector('nav.tab-bar')?.getAttribute('aria-label')).toBe('DevSecOps Admin');
-    expect(tabs().map(text)).toEqual(['Departments', 'Products', 'Library defaults']);
+    expect(tabs().map(text)).toEqual([
+      'Departments',
+      'Products',
+      'Service template',
+      'Library defaults',
+    ]);
     expect(tabs().map((link) => link.getAttribute('href'))).toEqual([
       '/admin/departments',
       '/admin/products',
+      '/admin/template',
       '/admin/settings',
     ]);
     expect(text(page().querySelector('.tab-content'))).toBe('Departments');
@@ -75,6 +81,7 @@ describe('AdminPage', () => {
   it.each([
     ['/admin/departments', 'Departments'],
     ['/admin/products', 'Products'],
+    ['/admin/template', 'Service template'],
     ['/admin/settings', 'Library defaults'],
   ])('marks the tab of %s as the current page', async (url, label) => {
     await harness.navigateByUrl(url);

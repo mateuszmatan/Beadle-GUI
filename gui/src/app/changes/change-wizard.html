@@ -42,8 +42,8 @@
           <mat-form-field>
             <mat-label>Your department</mat-label>
             <mat-select [formControl]="departmentId">
-              @for (group of groups(); track group.name) {
-                <mat-option [value]="departmentKey(group)">{{ group.name }}</mat-option>
+              @for (group of groups(); track group.department.id) {
+                <mat-option [value]="group.department.id">{{ group.department.name }}</mat-option>
               }
             </mat-select>
           </mat-form-field>
@@ -63,6 +63,12 @@
             }
           </mat-form-field>
         </div>
+        @if (unplaced(); as names) {
+          <p class="hint unplaced">
+            Products without a department are not listed; an admin must place them in a department
+            in Beadle Admin first: {{ names }}.
+          </p>
+        }
         @if (profile.isLoading()) {
           <mat-progress-bar mode="indeterminate" />
         }
@@ -300,10 +306,12 @@
               </p>
             </li>
             <li>
-              <h3>Attach the evidence</h3>
+              <h3>Follow the change</h3>
               <p>
-                <a routerLink="/evidence">Change Evidence</a> holds the builds, tests and scans of
-                every pipeline for the change.
+                <a [routerLink]="changeLink(change.id!)">{{ change.number }}</a> shows the
+                approvals, the workflow and the change tasks as ProTech holds them, and
+                <a [routerLink]="changes.path">{{ changes.label }}</a> lists every change of your
+                department.
               </p>
             </li>
           </ol>
@@ -359,7 +367,7 @@
     <mat-form-field>
       <mat-label>Short description</mat-label>
       <input matInput [formControl]="shortDescription" maxlength="160" />
-      <mat-hint align="end">{{ shortDescription.value.length }} / 160</mat-hint>
+      <mat-hint align="end">{{ byteLength(shortDescription.value) }} / 160</mat-hint>
       <mat-error>{{ errorText(shortDescription) }}</mat-error>
     </mat-form-field>
     @if (description.value !== draft.description) {
@@ -375,7 +383,7 @@
     <mat-form-field>
       <mat-label>Description</mat-label>
       <textarea matInput rows="11" [formControl]="description"></textarea>
-      <mat-hint align="end">{{ description.value.length }} / 4000</mat-hint>
+      <mat-hint align="end">{{ byteLength(description.value) }} / 4000</mat-hint>
       <mat-error>{{ errorText(description) }}</mat-error>
     </mat-form-field>
   </div>
