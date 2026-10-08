@@ -1,3 +1,4 @@
+import { ValidatorFn } from '@angular/forms';
 import { fitsColumn } from '../shared/form-controls';
 import {
   ChangeRequest,
@@ -27,7 +28,10 @@ export function timeOf(time: Date): string {
   return `${pad(time.getHours())}:${pad(time.getMinutes())}`;
 }
 
-export const fits = (length: number) => fitsColumn((value) => [value], '', length);
+export function fits(length: number): ValidatorFn {
+  const column = fitsColumn((value) => [value.trim()], '', length);
+  return (control) => (column(control) ? { bytes: { max: length } } : null);
+}
 
 const DAY = new Intl.DateTimeFormat('en-GB', {
   weekday: 'short',

@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { changeOptions, changeTemplate } from '../testing/change-fixtures';
-import { fieldOf, inputOf, text } from '../testing/dom';
+import { buttonOf, fieldOf, inputOf, text } from '../testing/dom';
 import { SectionKey } from './change-sections';
 import { ChangeTemplateSection } from './change-template-section';
 import { TemplateForm, templateForm } from './change-template-model';
@@ -261,5 +261,20 @@ describe('ChangeTemplateSection', () => {
     fixture.componentRef.setInput('section', 'planning');
     await settle();
     expect(page().querySelector('.choice-error')).toBeNull();
+
+    fixture.componentRef.setInput('section', 'risk');
+    await settle();
+    buttonOf(page(), 'Try again').click();
+    await settle();
+    http.expectOne('/api/changes/options').flush(changeOptions());
+    await settle();
+    expect(page().querySelector('.lists-error')).toBeNull();
+    expect(await chooseOption('Business impact', 'High')).toEqual([
+      'Not assessed',
+      'None',
+      'Low',
+      'Medium',
+      'High',
+    ]);
   });
 });

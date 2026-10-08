@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -95,6 +96,9 @@ export type ProfileForm = ReturnType<typeof profileForm>;
             <div class="save-bar">
               @if (saveError(); as error) {
                 <span class="save-error" role="alert">{{ error }}</span>
+                @if (conflict()) {
+                  <button mat-button type="button" (click)="reload()">Reload</button>
+                }
               } @else if (group.dirty) {
                 <span class="muted">Unsaved changes</span>
               }
@@ -163,6 +167,7 @@ export class BeadleProduct implements HasUnsavedChanges {
   protected readonly version = signal<number | null>(null);
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
+  protected readonly conflict = signal(false);
 
   constructor() {
     effect(() => {
@@ -178,7 +183,7 @@ export class BeadleProduct implements HasUnsavedChanges {
   }
 
   hasUnsavedChanges(): boolean {
-    return !!this.form()?.dirty && !this.saving();
+    return !!this.form()?.dirty;
   }
 
   protected leave(): void {
@@ -186,9 +191,16 @@ export class BeadleProduct implements HasUnsavedChanges {
     this.router.navigate([this.products.path]);
   }
 
+  protected reload(): void {
+    this.saveError.set(null);
+    this.conflict.set(false);
+    this.profile.reload();
+  }
+
   protected save(): void {
     const form = this.form()!;
     this.saveError.set(null);
+    this.conflict.set(false);
     form.markAllAsTouched();
     if (form.invalid) {
       this.saveError.set('Some fields need your attention.');
@@ -220,6 +232,7 @@ export class BeadleProduct implements HasUnsavedChanges {
               ? errorMessage(error)
               : 'The portal did not accept some values. They are marked below.',
           );
+          this.conflict.set(error instanceof HttpErrorResponse && error.status === 409);
         },
       });
   }

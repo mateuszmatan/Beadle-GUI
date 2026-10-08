@@ -113,6 +113,7 @@ describe('ChangeEdit', () => {
     await publish();
 
     const put = http.expectOne({ method: 'PUT', url: '/api/changes/7' });
+    expect(edit().hasUnsavedChanges()).toBe(true);
     expect(put.request.body).toEqual({
       version: 4,
       departmentId: 3,

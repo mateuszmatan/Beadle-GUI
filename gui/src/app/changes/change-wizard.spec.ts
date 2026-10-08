@@ -22,7 +22,7 @@ import {
 } from '../testing/change-fixtures';
 import { buttonOf, fieldOf, inputOf, text } from '../testing/dom';
 import { department, productSummary } from '../testing/fixtures';
-import { ChangeWizard } from './change-wizard';
+import { ChangeWizard, PREVIEW_DELAY } from './change-wizard';
 
 const ME = { name: 'Mateusz Matan' };
 
@@ -84,6 +84,11 @@ describe('ChangeWizard', () => {
 
   const settle = () => settled(fixture);
 
+  async function waited(ms: number) {
+    await new Promise((resolve) => setTimeout(resolve, ms + 20));
+    await settle();
+  }
+
   async function next() {
     wizard()['next']();
     await settle();
@@ -97,10 +102,11 @@ describe('ChangeWizard', () => {
     fieldOf(page(), label)!.querySelector<HTMLElement>('mat-select')!.click();
     await settle();
     const panels = document.querySelectorAll('.mat-mdc-select-panel');
-    [...panels[panels.length - 1].querySelectorAll<HTMLElement>('mat-option')]
-      .find((element) => text(element) === option)!
-      .click();
+    const options = [...panels[panels.length - 1].querySelectorAll<HTMLElement>('mat-option')];
+    const choices = options.map(text);
+    options.find((element) => text(element) === option)!.click();
     await settle();
+    return choices;
   }
 
   async function type(label: string, value: string) {
@@ -179,7 +185,7 @@ describe('ChangeWizard', () => {
   const schedule = () => wizard()['schedule']()!;
   const details = () => wizard()['details']()!;
 
-  it('says that Jira and ServiceNow are demo ones and lists the products of the chosen department', async () => {
+  it('says that Jira and ProTech are demo ones and lists the products of the chosen department', async () => {
     expect(text(page().querySelector('dso-integration-note'))).toContain(
       'Jira is not connected yet',
     );
@@ -198,28 +204,28 @@ describe('ChangeWizard', () => {
     expect(
       wizard()
         ['groups']()
-        .map((group) => group.name),
-    ).toEqual(['Corporate Technology', 'Not in a department']);
+        .map((group) => group.department.name),
+    ).toEqual(['Corporate Technology']);
+    expect(text(page().querySelector('.unplaced'))).toBe(
+      'Products without a department are not listed; an admin must place them in a department in Beadle Admin first: Payments Hub.',
+    );
 
     expect(wizard()['productsInDepartment']()).toEqual([]);
-    await chooseOption('Your department', 'Not in a department');
+    expect(await chooseOption('Your department', 'Corporate Technology')).toEqual([
+      'Corporate Technology',
+    ]);
     expect(text(fieldOf(page(), 'Your department')?.querySelector('.mat-mdc-select-value'))).toBe(
-      'Not in a department',
+      'Corporate Technology',
     );
-    expect(
-      wizard()
-        ['productsInDepartment']()
-        .map((p) => p.name),
-    ).toEqual(['Payments Hub']);
-    expect(text(fieldOf(page(), 'Product')?.querySelector('mat-hint'))).toBe(
-      '1 product in the department',
-    );
-    wizard()['departmentId'].setValue(3);
+    expect(wizard()['departmentId'].value).toBe(3);
     expect(
       wizard()
         ['productsInDepartment']()
         .map((p) => p.name),
     ).toEqual(['CertScanner']);
+    expect(text(fieldOf(page(), 'Product')?.querySelector('mat-hint'))).toBe(
+      '1 product in the department',
+    );
 
     await next();
     expect(text(page().querySelector('.step-problem'))).toBe('Choose the product');
@@ -368,7 +374,6 @@ describe('ChangeWizard', () => {
     expect(wizard()['step']()).toBe(8);
 
     const preview = http.expectOne('/api/changes/preview');
-    expect(preview.request.body.serviceIds).toBeUndefined();
     expect(preview.request.body).toMatchObject({
       productId: 1,
       fixVersion: 'CERT 4.2',
@@ -416,7 +421,7 @@ describe('ChangeWizard', () => {
     expect(text(page().querySelector('dso-change-summary'))).toContain(
       'Change numberGiven by ProTech when raisedApprovalNot Yet Requested',
     );
-    wizard()['shortDescription'].setValue('CertScanner 4.2');
+    await type('Short description', 'CertScanner 4.2');
 
     const tasks = wizard()['tasks']()!;
     expect(page().querySelectorAll('dso-change-tasks-form .task-row').length).toBe(2);
@@ -427,6 +432,10 @@ describe('ChangeWizard', () => {
     buttonOf(page(), 'Add a change task').click();
     await settle();
     tasks.at(2).patchValue({ shortDescription: 'Tell the users', description: 'Send the e-mail.' });
+    await settle();
+    expect(text(page().querySelector('.step-problem'))).toBe('Wait until the change is previewed');
+    await waited(PREVIEW_DELAY);
+    await texts();
 
     expect(wizard()['nextLabel']()).toBe('Raise the change in ProTech');
     await next();
@@ -452,6 +461,12 @@ describe('ChangeWizard', () => {
     expect(text(page().querySelector('.next-steps'))).toContain(
       'Olivia Bennett, James Carter approve the change in ProTech.',
     );
+    expect(text(page().querySelector('.next-steps li:last-child p'))).toBe(
+      'CHG0012345 shows the approvals, the workflow and the change tasks as ProTech holds them, and Changes lists every change of your department.',
+    );
+    expect(
+      [...page().querySelectorAll('.next-steps a')].map((link) => link.getAttribute('href')),
+    ).toEqual(['/beadle/changes/7', '/beadle/changes']);
     expect(
       [...page().querySelectorAll<HTMLAnchorElement>('.step-actions a')]
         .find((link) => text(link) === 'Open the change')
@@ -503,7 +518,11 @@ describe('ChangeWizard', () => {
     expect(others).toEqual([]);
     expect(again.request.body.storyKeys).toEqual(['CERT-2']);
     again.flush(
-      productionChange({ id: null, number: null, shortDescription: 'CertScanner CERT 4.2: Alerts' }),
+      productionChange({
+        id: null,
+        number: null,
+        shortDescription: 'CertScanner CERT 4.2: Alerts',
+      }),
     );
     await settle();
     expect(inputOf(page(), 'Short description').value).toBe('Mine');
@@ -520,9 +539,11 @@ describe('ChangeWizard', () => {
     await settle();
     await type('Description', 'Mine');
     wizard()['shortDescription'].setValue('é'.repeat(81));
-    expect(wizard()['shortDescription'].hasError('columnLength')).toBe(true);
+    expect(wizard()['shortDescription'].hasError('bytes')).toBe(true);
     wizard()['shortDescription'].setValue('é'.repeat(80));
     expect(wizard()['shortDescription'].valid).toBe(true);
+    await settle();
+    expect(text(fieldOf(page(), 'Short description')?.querySelector('mat-hint'))).toBe('160 / 160');
 
     wizard()['back']();
     await next();
@@ -792,6 +813,64 @@ describe('ChangeWizard', () => {
     http.expectOne('/api/changes/preview').flush(productionChange({ id: null, number: null }));
     await settle();
     expect(wizard()['description'].value).toBe('Production release of CertScanner (CERT).');
+  });
+
+  it('previews the change again when its change tasks change on the review, the latest tasks only', async () => {
+    await toReview();
+    http.expectOne('/api/changes/preview').flush(productionChange({ id: null, number: null }));
+    await settle();
+    const tasks = wizard()['tasks']()!;
+    const raise = () => buttonOf(page(), 'Raise the change in ProTech');
+    const written = (...names: string[]) =>
+      `Production release of CertScanner (CERT).\nChange tasks: ${names.join('; ')}.`;
+
+    tasks.at(1).controls.shortDescription.setValue('Validate');
+    await settle();
+    tasks.at(1).controls.shortDescription.setValue('Validate it');
+    await settle();
+    expect(previews()).toEqual([]);
+    expect(raise().disabled).toBe(true);
+    await waited(PREVIEW_DELAY);
+    const [first, ...more] = previews();
+    expect(more).toEqual([]);
+    expect(
+      first.request.body.tasks.map((task: { shortDescription: string }) => task.shortDescription),
+    ).toEqual(['Deploy CertScanner to production', 'Validate it']);
+
+    tasks.at(0).controls.shortDescription.setValue(' ');
+    await settle();
+    expect(first.cancelled).toBe(true);
+    await waited(PREVIEW_DELAY);
+    expect(previews()).toEqual([]);
+    expect(wizard()['previewing']()).toBe(false);
+
+    tasks.at(0).controls.shortDescription.setValue('Deploy it');
+    await waited(PREVIEW_DELAY);
+    const [second] = previews();
+    second.flush(
+      productionChange({
+        id: null,
+        number: null,
+        description: written('Deploy it', 'Validate it'),
+      }),
+    );
+    await settle();
+    expect(wizard()['description'].value).toBe(written('Deploy it', 'Validate it'));
+    expect(raise().disabled).toBe(false);
+
+    await type('Description', 'Mine');
+    buttonOf(page(), 'Remove change task 2').click();
+    await waited(PREVIEW_DELAY);
+    const [third] = previews();
+    expect(third.request.body.tasks).toEqual([
+      taskText('Deploy it', 'Deploy the release of CertScanner.'),
+    ]);
+    third.flush(productionChange({ id: null, number: null, description: written('Deploy it') }));
+    await settle();
+    expect(wizard()['description'].value).toBe('Mine');
+    buttonOf(page(), 'Use the generated text for the description').click();
+    await settle();
+    expect(wizard()['description'].value).toBe(written('Deploy it'));
   });
 
   it('says why the change could not be previewed and previews it again on request', async () => {

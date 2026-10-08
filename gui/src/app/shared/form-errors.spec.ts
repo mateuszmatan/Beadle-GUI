@@ -28,6 +28,7 @@ describe('errorText', () => {
       new FormControl('x', () => ({ columnLength: { max: 2000 } })),
       'Too long: at most 2000 characters in total',
     ],
+    [new FormControl('x', () => ({ bytes: { max: 160 } })), 'Too long: at most 160 bytes'],
     [
       new FormControl('x', () => ({ item: { value: 'ENV rd', message: 'Write NAME=value' } })),
       'Write NAME=value: ENV rd',
