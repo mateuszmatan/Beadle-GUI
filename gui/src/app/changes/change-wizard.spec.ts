@@ -97,10 +97,11 @@ describe('ChangeWizard', () => {
     fieldOf(page(), label)!.querySelector<HTMLElement>('mat-select')!.click();
     await settle();
     const panels = document.querySelectorAll('.mat-mdc-select-panel');
-    [...panels[panels.length - 1].querySelectorAll<HTMLElement>('mat-option')]
-      .find((element) => text(element) === option)!
-      .click();
+    const options = [...panels[panels.length - 1].querySelectorAll<HTMLElement>('mat-option')];
+    const choices = options.map(text);
+    options.find((element) => text(element) === option)!.click();
     await settle();
+    return choices;
   }
 
   async function type(label: string, value: string) {
@@ -198,28 +199,28 @@ describe('ChangeWizard', () => {
     expect(
       wizard()
         ['groups']()
-        .map((group) => group.name),
-    ).toEqual(['Corporate Technology', 'Not in a department']);
+        .map((group) => group.department.name),
+    ).toEqual(['Corporate Technology']);
+    expect(text(page().querySelector('.unplaced'))).toBe(
+      'Products without a department are not listed; an admin must place them in a department in Beadle Admin first: Payments Hub.',
+    );
 
     expect(wizard()['productsInDepartment']()).toEqual([]);
-    await chooseOption('Your department', 'Not in a department');
+    expect(await chooseOption('Your department', 'Corporate Technology')).toEqual([
+      'Corporate Technology',
+    ]);
     expect(text(fieldOf(page(), 'Your department')?.querySelector('.mat-mdc-select-value'))).toBe(
-      'Not in a department',
+      'Corporate Technology',
     );
-    expect(
-      wizard()
-        ['productsInDepartment']()
-        .map((p) => p.name),
-    ).toEqual(['Payments Hub']);
-    expect(text(fieldOf(page(), 'Product')?.querySelector('mat-hint'))).toBe(
-      '1 product in the department',
-    );
-    wizard()['departmentId'].setValue(3);
+    expect(wizard()['departmentId'].value).toBe(3);
     expect(
       wizard()
         ['productsInDepartment']()
         .map((p) => p.name),
     ).toEqual(['CertScanner']);
+    expect(text(fieldOf(page(), 'Product')?.querySelector('mat-hint'))).toBe(
+      '1 product in the department',
+    );
 
     await next();
     expect(text(page().querySelector('.step-problem'))).toBe('Choose the product');

@@ -26,7 +26,7 @@ import { DepartmentsApi, ProductsApi, UserApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
 import { NEW_CHANGE, beadleChange, beadleProduct } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
-import { DepartmentGroup, byDepartment } from '../products/departments';
+import { byDepartment } from '../products/departments';
 import { applyProblemsAt, filled, max } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
@@ -86,11 +86,7 @@ export const STEPS = [...SECTIONS.map((section) => section.step), 'Review', 'Rai
 
 const RAISED = STEP_KEYS.indexOf('raised');
 
-const NO_DEPARTMENT = -1;
-
 const ATTENTION = 'Some fields need your attention.';
-
-const departmentKey = (group: DepartmentGroup) => group.department?.id ?? NO_DEPARTMENT;
 
 @Component({
   selector: 'dso-change-wizard',
@@ -130,7 +126,6 @@ export class ChangeWizard implements HasUnsavedChanges {
   protected readonly counted = counted;
   protected readonly templateLink = beadleProduct;
   protected readonly changeLink = beadleChange;
-  protected readonly departmentKey = departmentKey;
 
   protected readonly step = signal(0);
   protected readonly stepKey = computed(() => STEP_KEYS[this.step()]);
@@ -169,12 +164,20 @@ export class ChangeWizard implements HasUnsavedChanges {
     ),
     { initialValue: [] },
   );
+  private readonly grouped = computed(() => byDepartment(this.departments(), this.catalogue()));
   protected readonly groups = computed(() =>
-    byDepartment(this.departments(), this.catalogue()).filter((group) => group.products.length),
+    this.grouped().flatMap(({ department, products }) =>
+      department && products.length ? [{ department, products }] : [],
+    ),
+  );
+  protected readonly unplaced = computed(() =>
+    (this.grouped().find((group) => !group.department)?.products ?? [])
+      .map((product) => product.name)
+      .join(', '),
   );
   protected readonly productsInDepartment = computed(() => {
     const id = this.chosenDepartment();
-    return this.groups().find((group) => departmentKey(group) === id)?.products ?? [];
+    return this.groups().find((group) => group.department.id === id)?.products ?? [];
   });
 
   private readonly userApi = inject(UserApi);
