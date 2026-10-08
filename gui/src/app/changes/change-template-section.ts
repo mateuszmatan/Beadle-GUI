@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { errorMessage } from '../core/errors';
@@ -42,7 +43,7 @@ function listed(field: Field, options: ChangeOptions | null): Field {
 
 @Component({
   selector: 'dso-template-section',
-  imports: [MatFormFieldModule, MatInputModule, Fields],
+  imports: [MatButtonModule, MatFormFieldModule, MatInputModule, Fields],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     @let f = form();
@@ -119,9 +120,12 @@ function listed(field: Field, options: ChangeOptions | null): Field {
       }
     }
     @if (listsError(); as error) {
-      <p class="choice-error" role="alert">
-        The lists of the ProTech fields could not be loaded: {{ errorMessage(error) }}
-      </p>
+      <div class="lists-error" role="alert">
+        <p class="choice-error">
+          The lists of the ProTech fields could not be loaded: {{ errorMessage(error) }}
+        </p>
+        <button mat-button type="button" (click)="reloadLists()">Try again</button>
+      </div>
     }
   `,
   styles: `
@@ -131,6 +135,13 @@ function listed(field: Field, options: ChangeOptions | null): Field {
 
     .accounts {
       padding-top: 2px;
+    }
+
+    .lists-error {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0 8px;
     }
 
     .account {
@@ -205,4 +216,8 @@ export class ChangeTemplateSection {
     this.accessRevision();
     return [...this.form().controls.privilegedAccess.controls.users.controls];
   });
+
+  protected reloadLists(): void {
+    this.lists.loaded.reload();
+  }
 }
