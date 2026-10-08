@@ -306,10 +306,12 @@
               </p>
             </li>
             <li>
-              <h3>Attach the evidence</h3>
+              <h3>Follow the change</h3>
               <p>
-                <a routerLink="/evidence">Change Evidence</a> holds the builds, tests and scans of
-                every pipeline for the change.
+                <a [routerLink]="changeLink(change.id!)">{{ change.number }}</a> shows the
+                approvals, the workflow and the change tasks as ProTech holds them, and
+                <a [routerLink]="changes.path">{{ changes.label }}</a> lists every change of your
+                department.
               </p>
             </li>
           </ol>

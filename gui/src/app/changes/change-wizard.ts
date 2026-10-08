@@ -34,7 +34,7 @@ import {
 import { MyDepartment } from '../beadle/my-department';
 import { DepartmentsApi, ProductsApi, UserApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
-import { NEW_CHANGE, beadleChange, beadleProduct } from '../core/sections';
+import { CHANGES, NEW_CHANGE, beadleChange, beadleProduct } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { byDepartment } from '../products/departments';
 import { applyProblemsAt, filled } from '../shared/form-controls';
@@ -129,6 +129,7 @@ export class ChangeWizard implements HasUnsavedChanges {
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly section = NEW_CHANGE;
+  protected readonly changes = CHANGES;
   protected readonly steps = STEPS;
   protected readonly errorText = errorText;
   protected readonly errorMessage = errorMessage;

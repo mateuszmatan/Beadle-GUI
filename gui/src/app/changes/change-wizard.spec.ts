@@ -461,6 +461,12 @@ describe('ChangeWizard', () => {
     expect(text(page().querySelector('.next-steps'))).toContain(
       'Olivia Bennett, James Carter approve the change in ProTech.',
     );
+    expect(text(page().querySelector('.next-steps li:last-child p'))).toBe(
+      'CHG0012345 shows the approvals, the workflow and the change tasks as ProTech holds them, and Changes lists every change of your department.',
+    );
+    expect(
+      [...page().querySelectorAll('.next-steps a')].map((link) => link.getAttribute('href')),
+    ).toEqual(['/beadle/changes/7', '/beadle/changes']);
     expect(
       [...page().querySelectorAll<HTMLAnchorElement>('.step-actions a')]
         .find((link) => text(link) === 'Open the change')

@@ -317,6 +317,8 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(step().locator('.review-list li')).hasText(['CTASK0310021 · Deploy CertScanner to production',
                                                                    'CTASK0310022 · Run the database scripts'] as String[])
         assertThat(step().locator('.next-steps')).containsText('Grace Turner, Olivia Bennett, William Hayes approve the change in ProTech')
+        assertThat(step().locator('.next-steps a')).hasText(['CHG0031002', 'Changes'] as String[])
+        assertThat(step().locator('.next-steps a').first()).hasAttribute('href', '/beadle/changes/5')
         with(awaitRequest('POST', '/api/changes').json()) {
             productId == 1
             tasks == [CERT_TASKS[0], [shortDescription: 'Run the database scripts',
