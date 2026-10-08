@@ -1,8 +1,8 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
-import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileSummary;
 import com.bbh.itss.dso.portal.application.change.port.out.ChangeProfileRepositoryPort;
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile;
+import com.bbh.itss.dso.portal.domain.change.ChangeProfileSummary;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
