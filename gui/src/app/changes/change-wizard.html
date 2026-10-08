@@ -25,11 +25,12 @@
   </ol>
 
   <section class="card step">
-    @switch (step()) {
-      @case (0) {
-        <h2>Which product goes to production?</h2>
+    @switch (stepKey()) {
+      @case ('request') {
+        <h2>{{ current()!.title }}</h2>
         <p class="lead">
-          Choose the department and the product. Its change template fills in the change.
+          Choose your department and the product that goes to production. Its change template fills
+          in the change; change any value for this change.
         </p>
         @if (departmentsError(); as error) {
           <p class="choice-error">The departments could not be loaded: {{ error }}</p>
@@ -39,7 +40,7 @@
         }
         <div class="fields">
           <mat-form-field>
-            <mat-label>Department</mat-label>
+            <mat-label>Your department</mat-label>
             <mat-select [formControl]="departmentId">
               @for (group of groups(); track group.name) {
                 <mat-option [value]="departmentKey(group)">{{ group.name }}</mat-option>
@@ -68,9 +69,8 @@
         @if (profile.error()) {
           <p class="choice-error">The product could not be loaded.</p>
         }
-        @if (profile.hasValue()) {
+        @if (profile.hasValue() && details(); as form) {
           @let chosen = profile.value();
-          @let t = chosen.template;
           @if (chosen.version === null) {
             <div class="banner info defaults-note" role="note">
               <span
@@ -81,35 +81,21 @@
               <a mat-button [routerLink]="templateLink(chosen.productId)">Set the template</a>
             </div>
           }
-          <dl class="rows">
-            <dt>Jira project</dt>
-            <dd class="mono">{{ t.jiraProjectKey }}</dd>
-            <dt>Assignment group</dt>
-            <dd>{{ t.assignmentGroup }}</dd>
-            <dt>Affected CI</dt>
-            <dd>{{ t.configurationItem }}</dd>
-            <dt>Approvers</dt>
-            <dd>{{ approverNames(t).join(', ') || 'not set' }}</dd>
-          </dl>
+          <dso-template-section [form]="form" section="request" [facts]="facts()" />
         }
       }
-      @case (1) {
-        <h2>What goes into the release?</h2>
-        <p class="lead">
-          Give the Jira FixVersion of the release and pick its epics and stories. They write the
-          short description and the description of the change.
-        </p>
-        @let form = details()!;
+      @case ('jira') {
+        <h2>{{ current()!.title }}</h2>
+        <p class="lead">{{ current()!.lead }}</p>
         <div class="find">
-          <mat-form-field class="project">
+          <mat-form-field class="project read-only">
             <mat-label>Jira project</mat-label>
             <input
               matInput
+              readonly
               class="mono"
-              autocomplete="off"
-              [formControl]="form.controls.jiraProjectKey"
+              [value]="details()!.controls.jiraProjectKey.value"
             />
-            <mat-error>{{ errorText(form.controls.jiraProjectKey, jiraKeyError) }}</mat-error>
           </mat-form-field>
           <mat-form-field class="version">
             <mat-label>FixVersion</mat-label>
@@ -165,7 +151,7 @@
               }
             </div>
           } @else {
-            <p class="empty">No epic carries FixVersion {{ searched()?.fixVersion }}.</p>
+            <p class="empty">No epic carries FixVersion {{ searched() }}.</p>
           }
         }
         <h3>Stories of the chosen epics</h3>
@@ -202,62 +188,19 @@
           <p class="empty">Choose an epic to see its stories.</p>
         }
       }
-      @case (2) {
-        <h2>Check the ProTech fields</h2>
+      @case ('schedule') {
+        <h2>{{ current()!.title }}</h2>
         <p class="lead">
-          The change template of the product is filled in. Change any value for this change; the
-          template stays as it is.
+          The installation starts on the release date of the FixVersion with the times of the change
+          template. Change any of it.
         </p>
-        <dso-change-template-form [form]="details()!" [jiraProject]="false" />
-        <h3 class="tasks-title">Change tasks</h3>
-        <p class="hint">Each change task is created in ProTech with the change.</p>
-        <dso-change-tasks-form [tasks]="tasks()!" />
+        <dso-change-schedule [schedule]="schedule()!" [downtime]="details()!.controls.downtime" />
       }
-      @case (3) {
-        @let timing = details()!.controls.timing.getRawValue();
-        <h2>When is the change done?</h2>
-        <p class="lead">
-          Choose the installation date. The installation starts at
-          {{ timing.installationStart }} and takes
-          {{ counted(timing.installationHours ?? 0, 'hour') }}, then the validation takes
-          {{ counted(timing.validationHours ?? 0, 'hour') }}. Change any time you need.
-          {{ timeZoneNote }}
-        </p>
-        <div class="fields">
-          <mat-form-field>
-            <mat-label>Installation date</mat-label>
-            <input matInput type="date" [formControl]="installationDate" />
-          </mat-form-field>
-        </div>
-        <div class="moments">
-          @for (moment of moments; track moment.key) {
-            @let pair = schedule.controls[moment.key].controls;
-            <mat-form-field>
-              <mat-label>{{ moment.label }} date</mat-label>
-              <input matInput type="date" [formControl]="pair.date" />
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>{{ moment.label }} time</mat-label>
-              <input matInput type="time" [formControl]="pair.time" />
-            </mat-form-field>
-          }
-        </div>
-        <mat-checkbox [formControl]="details()!.controls.downtime">
-          Downtime during the installation
-        </mat-checkbox>
-        @let times = planned();
-        @if (times.installationStart && times.installationEnd) {
-          <p class="window-text">
-            Installation
-            <strong>{{ windowText(times.installationStart, times.installationEnd) }}</strong>
-          </p>
-        }
-      }
-      @case (4) {
+      @case ('review') {
         <h2>Check and raise the change</h2>
         <p class="lead">
-          The texts come from the Jira epics and stories and the ProTech fields. Change them if you
-          like before you raise the change.
+          The texts come from the Jira epics and stories and the ProTech fields. Change them and the
+          change tasks if you like before you raise the change.
         </p>
         @if (previewing()) {
           <mat-progress-bar mode="indeterminate" />
@@ -297,16 +240,11 @@
               <mat-error>{{ errorText(description) }}</mat-error>
             </mat-form-field>
           </div>
+          <h3 class="tasks-title">Change tasks</h3>
+          <p class="hint">Each change task is created in ProTech with the change.</p>
+          <dso-change-tasks-form [tasks]="tasks()!" />
+          <h3>Summary</h3>
           <dso-change-summary [change]="draft" />
-          <h3>Change tasks</h3>
-          <ol class="tasks">
-            @for (task of draft.tasks; track $index) {
-              <li>
-                <strong>{{ task.shortDescription }}</strong>
-                <span class="muted">{{ task.description }}</span>
-              </li>
-            }
-          </ol>
           <p class="scope">
             {{ counted(draft.epicKeys.length, 'epic') }} and
             {{ counted(draft.storyKeys.length, 'story', 'stories') }} of FixVersion
@@ -335,7 +273,7 @@
           </div>
         }
       }
-      @case (5) {
+      @case ('raised') {
         @if (raised(); as change) {
           <h2>{{ change.number }} is raised</h2>
           <p class="lead">{{ change.shortDescription }}</p>
@@ -388,14 +326,19 @@
           </ol>
         }
       }
+      @default {
+        <h2>{{ current()!.title }}</h2>
+        <p class="lead">{{ current()!.lead }}</p>
+        <dso-template-section [form]="details()!" [section]="current()!.key" />
+      }
     }
 
     @if (checked() && stepProblem(); as message) {
-      <p class="choice-error" role="alert">{{ message }}</p>
+      <p class="choice-error step-problem" role="alert">{{ message }}</p>
     }
 
     <div class="step-actions">
-      @if (step() === 5) {
+      @if (stepKey() === 'raised') {
         <a mat-button [routerLink]="changeLink(raised()?.id ?? '')">Open the change</a>
         <span class="spacer"></span>
         <button mat-flat-button type="button" (click)="restart()">Raise another change</button>
@@ -409,7 +352,7 @@
         <button
           mat-flat-button
           type="button"
-          [disabled]="raising() || previewing() || (step() === 4 && !preview())"
+          [disabled]="raising() || previewing() || (stepKey() === 'review' && !preview())"
           (click)="next()"
         >
           {{ nextLabel() }}

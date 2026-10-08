@@ -127,8 +127,8 @@ class ProTechSyncMigrationSpec extends MigrationSpecification {
 
     private static ProductionChange changeOf(Product product, String number = 'CHG0031001',
                                              String task = 'CTASK0041001', String department = 'Corporate Technology') {
-        ProductionChange draft = ProductionChange.draft(product, 3L, department, tasks(2), FIX_VERSION,
-                schedule(), template(), [epic('CERT-1', 'Expiry alerts')], [], null, null).raisedAt(RAISED)
+        ProductionChange draft = ProductionChange.draft(product, 3L, department, 'Mateusz Matan', tasks(2),
+                FIX_VERSION, schedule(), template(), [epic('CERT-1', 'Expiry alerts')], [], null, null).raisedAt(RAISED)
                 .numbered(number, [task, task + '2'], null)
         draft.toBuilder().state(IMPLEMENTATION)
                 .workflow([new WorkflowStep(DRAFT, RAISED), new WorkflowStep(BUSINESS_APPROVAL, RAISED.plusSeconds(120)),

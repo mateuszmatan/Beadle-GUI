@@ -11,6 +11,8 @@ import com.bbh.itss.dso.portal.application.change.port.out.JiraPort
 import com.bbh.itss.dso.portal.application.change.port.out.ProductionChangeRepositoryPort
 import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort
 import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort.RaisedChange
+import com.bbh.itss.dso.portal.application.user.port.in.SignedInUser
+import com.bbh.itss.dso.portal.application.user.port.in.SignedInUserUseCase
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile
 import com.bbh.itss.dso.portal.domain.change.ChangeSchedule
 import com.bbh.itss.dso.portal.domain.change.ChangeTask
@@ -67,7 +69,10 @@ class ProductionChangeServiceSpec extends Specification {
     ProductionChangeRepositoryPort changes = Mock()
     JiraPort jira = Mock()
     ServiceNowPort serviceNow = Mock()
-    def service = new ProductionChangeService(products, departments, profiles, changes, jira, serviceNow,
+    SignedInUserUseCase users = Stub() {
+        signedInUser() >> new SignedInUser('Mateusz Matan')
+    }
+    def service = new ProductionChangeService(products, departments, profiles, changes, jira, serviceNow, users,
             fixed(NOW, UTC))
     def certScanner = product(code: 'CERTSCANNER')
 
@@ -88,9 +93,12 @@ class ProductionChangeServiceSpec extends Specification {
         def draft = service.preview(command(tasks: tasks(3)))
 
         then:
-        draft == ProductionChange.draft(certScanner, 3L, 'Corporate Technology', tasks(3), FIX_VERSION, schedule(),
-                template(), ISSUES.take(2), ISSUES.drop(2), null, null)
+        draft == ProductionChange.draft(certScanner, 3L, 'Corporate Technology', 'Mateusz Matan', tasks(3),
+                FIX_VERSION, schedule(), template(), ISSUES.take(2), ISSUES.drop(2), null, null)
         draft.departmentId() == 3L
+        draft.openedBy() == 'Mateusz Matan'
+        [draft.template().requestedFor(), draft.template().requestedBy(), draft.template().assignedTo(),
+         draft.template().department()] == ['Mateusz Matan', 'Mateusz Matan', 'Mateusz Matan', 'Corporate Technology']
         draft.tasks()*.shortDescription() == tasks(3)*.shortDescription()
         draft.tasks()*.number() == [null, null, null]
         draft.tasks()*.state() == [OPEN] * 3
@@ -115,7 +123,7 @@ class ProductionChangeServiceSpec extends Specification {
         preview.departmentId() == null
         preview.departmentName() == null
         preview.fixVersion() == 'PAY 1.0'
-        preview.template() == payHub.releasedAs('PAY 1.0')
+        preview.template() == payHub.releasedAs('PAY 1.0').openedBy('Mateusz Matan', null)
         preview.shortDescription() == 'PayHub PAY 1.0: Instant payments'
         preview.description().contains('Change tasks: Task 1 of the CertScanner release.')
     }

@@ -15,14 +15,16 @@ import static java.time.temporal.ChronoUnit.HOURS
 class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
 
     static final List<String> CHANGE_KEYS = ['id', 'number', 'productId', 'productCode', 'productName',
-                                             'departmentId', 'departmentName', 'fixVersion', 'schedule',
+                                             'departmentId', 'departmentName', 'openedBy', 'fixVersion', 'schedule',
                                              'shortDescription', 'description', 'template', 'epicKeys', 'storyKeys',
                                              'tasks', 'url', 'state', 'workflow', 'syncedAt', 'syncProblem',
                                              'update', 'version', 'editedVersion', 'createdAt']
-    static final List<String> TEMPLATE_KEYS = ['jiraProjectKey', 'assignmentGroup', 'category', 'type',
-                                               'configurationItem', 'release', 'incident', 'problem',
-                                               'affectedClients', 'description', 'approvers', 'downtime', 'timing',
-                                               'planning', 'privilegedAccess', 'riskAssessment']
+    static final List<String> TEMPLATE_KEYS = ['jiraProjectKey', 'requestedFor', 'requestedBy', 'department',
+                                               'assignmentGroup', 'category', 'assignedTo', 'type', 'release',
+                                               'configurationItem', 'incident', 'directBusinessService', 'problem',
+                                               'risk', 'affectedClients', 'usersAffected', 'description', 'approvers',
+                                               'downtime', 'timing', 'planning', 'privilegedAccess', 'riskAssessment',
+                                               'secureCodingTicket']
     static final List<String> SCHEDULE_PATHS = ['schedule.installationStart', 'schedule.installationEnd',
                                                 'schedule.validationStart', 'schedule.validationEnd',
                                                 'schedule.firstUsage']
@@ -43,15 +45,18 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         suggested.json.keySet() as List == ['productId', 'productName', 'version', 'updatedAt', 'template', 'tasks']
         [suggested.json.productId, suggested.json.productName, suggested.json.version] == [created.id, created.name, null]
         suggested.json.template.keySet() as List == TEMPLATE_KEYS
-        suggested.json.template.subMap('configurationItem', 'assignmentGroup', 'type', 'release', 'description',
-                'approvers', 'downtime', 'timing', 'privilegedAccess', 'riskAssessment') ==
-                [configurationItem: created.name, assignmentGroup: 'Ledger Ops', type: 'NORMAL', release: null,
+        suggested.json.template.subMap('requestedFor', 'department', 'configurationItem', 'assignmentGroup',
+                'category', 'type', 'release', 'risk', 'description', 'approvers', 'downtime', 'timing',
+                'privilegedAccess', 'riskAssessment', 'secureCodingTicket') ==
+                [requestedFor: null, department: null, configurationItem: created.name, assignmentGroup: 'Ledger Ops',
+                 category: 'Application', type: 'STANDARD', release: null, risk: null,
                  description: 'Posts the ledger.', approvers: [l1Manager: null, l2Manager: null, businessApprover: null],
                  downtime: false, timing: [installationStart: '18:00', installationHours: 2, validationHours: 1],
                  privilegedAccess: [required: false, users: []],
-                 riskAssessment: [bbhWorkgroups: null, bbhUsers: null, bbhApplications: null, clients: null,
-                                  clientsOutsideBbh: null, businessImpact: null, changeComplexity: null,
-                                  validationComplexity: null, backoutTesting: null, platformStatus: null]]
+                 riskAssessment: [bbhWorkgroups: null, changeComplexity: null, bbhUsers: null,
+                                  validationComplexity: null, bbhApplications: null, backoutTesting: null,
+                                  clientsOutsideBbh: null, platformStatus: null, businessImpact: null],
+                 secureCodingTicket: null]
         suggested.json.template.planning.keySet() as List ==
                 ['testSummary', 'implementationPlan', 'validationPlan', 'backoutPlan', 'firstUsePlan']
         suggested.json.tasks == suggestedTasks(created.name as String).collect {
@@ -104,8 +109,13 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         'a long first use plan'          | ['planning.firstUsePlan': 'x' * 2001] | tasksJson() || 'template.planning.firstUsePlan'
         'no installation start'          | ['timing.installationStart': '6pm'] | tasksJson()   || 'template.timing.installationStart'
         'an installation of four days'   | ['timing.installationHours': 96]    | tasksJson()   || 'template.timing.installationHours'
-        'a negative number of users'     | ['riskAssessment.bbhUsers': -1]     | tasksJson()   || 'template.riskAssessment.bbhUsers'
-        'a long platform status'         | ['riskAssessment.platformStatus': 'p' * 101] | tasksJson() || 'template.riskAssessment.platformStatus'
+        'a number of users off the list' | ['riskAssessment.bbhUsers': '10']   | tasksJson()   || 'template.riskAssessment.bbhUsers'
+        'a platform status off the list' | ['riskAssessment.platformStatus': 'Existing platform'] | tasksJson() || 'template.riskAssessment.platformStatus'
+        'a category off the list'        | [category: 'Software']              | tasksJson()   || 'template.category'
+        'no category'                    | [category: ' ']                     | tasksJson()   || 'template.category'
+        'a long requester'               | [requestedFor: 'x' * 201]           | tasksJson()   || 'template.requestedFor'
+        'a long department'              | [department: 'é' * 51]              | tasksJson()   || 'template.department'
+        'a long secure coding ticket'    | [secureCodingTicket: 'x' * 41]      | tasksJson()   || 'template.secureCodingTicket'
         'a privileged user without account' | ['privilegedAccess.required': true, 'privilegedAccess.users': [[user: 'A', account: 'a'], [user: 'B', account: 'b'], [user: 'C', account: ' ']]] | tasksJson() || 'template.privilegedAccess.users[2].account'
         'privileged access without users' | ['privilegedAccess.required': true] | tasksJson()  || 'template.privilegedAccess.users'
         'users without privileged access' | ['privilegedAccess.users': [[user: 'A', account: 'a']]] | tasksJson() || 'template.privilegedAccess.users'
@@ -201,7 +211,8 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         preview.json.workflow == []
         preview.json.fixVersion == fixVersion
         preview.json.schedule == scheduleJson(START)
-        preview.json.template == template + [release: fixVersion]
+        preview.json.openedBy == SIGNED_IN
+        preview.json.template == raisedAs(template, fixVersion)
         preview.json.shortDescription == "$created.name $fixVersion: ${epics.take(2)*.summary.join('; ')}"
         preview.json.description.startsWith("Production release $fixVersion of $created.name ($created.code) in Corporate Technology.\n")
         preview.json.description.contains('Change tasks: Task 1 of the CertScanner release; Task 2 of the CertScanner release; Task 3 of the CertScanner release.')
@@ -209,6 +220,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         stories.every { preview.json.description.contains("- $it.key $it.summary") }
         preview.json.description.contains('Backout plan:\nRedeploy the previous release.\n')
         preview.json.description.contains('Privileged access: not needed.')
+        preview.json.description.contains('Risk: Moderate\nNumber of BBH workgroups impacted: Single\n')
         preview.json.description.contains('Business impact: Medium')
         preview.json.tasks == tasksJson(3).collect { it + [number: null, state: 'OPEN'] }
         preview.json.tasks[0].keySet() as List == ['number', 'shortDescription', 'description', 'state']
@@ -230,6 +242,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         raised.json.fixVersion == fixVersion
         raised.json.schedule == scheduleJson(START)
         raised.json.template.release == 'Payments 42'
+        raised.json.openedBy == SIGNED_IN
         raised.json.epicKeys == chosen
         raised.json.storyKeys == stories*.key
         raised.json.createdAt != null
@@ -286,7 +299,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
 
         then:
         raised.status == 201
-        raised.json.template == template + [release: fixVersion]
+        raised.json.template == raisedAs(template, fixVersion)
         raised.json.tasks*.shortDescription == ['Task 1 of the CertScanner release']
         raised.json.description.contains('Privileged access needed for: Jane Smith (adm_jsmith).')
         api.get("/api/products/$created.id/change-profile").json.version == null
@@ -324,6 +337,10 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         'no schedule'                 | [schedule: null]                                               || ['schedule']
         'no template'                 | [template: null]                                               || ['template']
         'no backout plan'             | [template: templateJson('planning.backoutPlan': '')]           || ['template.planning.backoutPlan']
+        'downtime without its window' | [template: templateJson(downtime: true)]                       || ['schedule.downtimeStart', 'schedule.downtimeEnd']
+        'a window without downtime'   | [schedule: scheduleJson(START, true)]                          || ['schedule.downtimeStart', 'schedule.downtimeEnd']
+        'a downtime ending first'     | [template: templateJson(downtime: true), schedule: scheduleJson(START, true) + [downtimeEnd: START.toString()]] || ['schedule.downtimeEnd']
+        'an answer off its list'      | [template: templateJson('riskAssessment.backoutTesting': '15 minutes')] || ['template.riskAssessment.backoutTesting']
         'privileged access without users' | [template: templateJson('privilegedAccess.required': true)] || ['template.privilegedAccess.users']
         'no epics'                    | [epicKeys: []]                                                 || ['epicKeys']
         'an unknown epic'             | [epicKeys: ['NOPE-1']]                                         || ['epicKeys']
@@ -350,7 +367,8 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         def raised = raise(createProduct(product(code: uniqueCode(), name: "Update ${uniqueCode()}")))
         def later = scheduleJson(START.plus(1, DAYS))
         def edit = editOf(raised, [shortDescription: ' Renamed release ', schedule: later,
-                                   template: raised.template + [category: 'Apps', jiraProjectKey: 'OTHER'],
+                                   template: raised.template + [category: 'Hardware', jiraProjectKey: 'OTHER',
+                                                                usersAffected: 'Ledger operators', risk: 'High'],
                                    tasks: [raised.tasks[0] + [shortDescription: 'Deploy it all'],
                                            [shortDescription: 'Check the audit trail', description: 'Open it.']]])
 
@@ -362,7 +380,9 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         updated.json.keySet() as List == CHANGE_KEYS
         updated.json.shortDescription == 'Renamed release'
         updated.json.schedule == later
-        updated.json.template.category == 'Apps'
+        updated.json.template.category == 'Hardware'
+        updated.json.template.usersAffected == 'Ledger operators'
+        updated.json.template.risk == 'Moderate'
         updated.json.template.jiraProjectKey == raised.template.jiraProjectKey
         updated.json.tasks*.shortDescription == ['Deploy it all', 'Check the audit trail',
                                                  raised.tasks[1].shortDescription]

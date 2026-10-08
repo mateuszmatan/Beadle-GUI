@@ -4,6 +4,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { MY_DEPARTMENT_KEY, MyDepartment } from '../beadle/my-department';
 import {
+  changeOptions,
+  changeSchedule,
   changeTask,
   changeTemplate,
   changeUpdate,
@@ -83,6 +85,8 @@ describe('ChangeDetail', () => {
     if (change) {
       http.expectOne('/api/changes/7').flush(change);
       await settle();
+      http.match('/api/changes/options').forEach((request) => request.flush(changeOptions()));
+      await settle();
     }
   }
 
@@ -95,6 +99,7 @@ describe('ChangeDetail', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    http.match('/api/changes/options').forEach((request) => request.flush(changeOptions()));
     http.verify();
     localStorage.removeItem(MY_DEPARTMENT_KEY);
   });
@@ -103,14 +108,20 @@ describe('ChangeDetail', () => {
     await show(
       productionChange({
         url: 'https://bbh.service-now.com/CHG0012345',
+        schedule: changeSchedule({
+          downtimeStart: '2026-10-10T06:00:00Z',
+          downtimeEnd: '2026-10-10T07:00:00Z',
+        }),
         template: changeTemplate({
           release: 'CERT 4.2',
           incident: 'INC0012345',
+          risk: 'Moderate',
           downtime: true,
           privilegedAccess: {
             required: true,
             users: [{ user: 'Jane Smith', account: 'adm_jsmith' }],
           },
+          secureCodingTicket: 'SEC-12',
         }),
         tasks: [
           changeTask(),
@@ -140,6 +151,8 @@ describe('ChangeDetail', () => {
       'H3',
       'H3',
       'H3',
+      'H3',
+      'H3',
       'H2',
       'H2',
     ]);
@@ -147,34 +160,49 @@ describe('ChangeDetail', () => {
     expect(text(page().querySelector('dso-workflow-progress li[aria-current="step"]'))).toContain(
       'Primary Approval',
     );
-    expect(rows('Change')).toEqual([
-      'Product: CertScanner (CERT)',
-      'Department: Corporate Technology',
-      'FixVersion: CERT 4.2',
-      'Type: Normal · Software',
+    expect(rows('Generic request data')).toEqual([
+      'Change number: CHG0012345',
+      'Approval: Requested',
+      'Opened By: Mateusz Matan',
+      'State: Primary Approval',
+      'Requested For: not set',
+      'Requested By: not set',
+      'Department: not set',
       'Assignment group: Technology Architecture',
-      'Affected CI: CertScanner',
+      'Category: Application',
+      'Assigned to: not set',
+      'Type: Standard',
       'Release: CERT 4.2',
+      'Affected CI: CertScanner',
       'Incident: INC0012345',
+      'Direct business service: not set',
       'Problem: not set',
+      'Risk: Moderate',
       'Affected clients: not set',
+      'Users affected: not set',
+    ]);
+    expect(rows('Jira')).toEqual([
+      'Product: CertScanner (CERT)',
+      'Product department: Corporate Technology',
+      'FixVersion: CERT 4.2',
       'Jira project: CERT',
       'Jira: CERT-1 CERT-2',
     ]);
     expect(rows('Schedule')).toEqual([
       expect.stringMatching(/^Installation: Sat, 10 Oct 2026, \d\d:00 to \d\d:00$/),
       expect.stringMatching(/^Validation: Sat, 10 Oct 2026, /),
-      expect.stringMatching(/^First usage: Mon, 12 Oct 2026, /),
-      'Downtime: Yes',
+      expect.stringMatching(/^First use: Mon, 12 Oct 2026, /),
+      expect.stringMatching(/^Downtime: Sat, 10 Oct 2026, \d\d:00 to \d\d:00$/),
     ]);
     expect(text(block('Schedule')!.querySelector('.note'))).toBe(zoneNote);
-    expect(rows('Approvers')).toEqual([
-      'L1 manager: Olivia Bennett',
-      'L2 manager: James Carter',
+    expect(rows('Approval and Notification')).toEqual([
       'Business approver: not set',
+      'L1 approver: Olivia Bennett',
+      'L2 approver: James Carter',
     ]);
+    expect(rows('Secure coding')).toEqual(['Secure coding ticket number: SEC-12']);
     expect(rows('Privileged access')).toEqual(['Jane Smith: adm_jsmith']);
-    expect(rows('Risk assessment')).toContain('BBH users: 10');
+    expect(rows('Risk assessment')).toContain('Number of BBH users impacted: 5-25');
     expect(
       [...block('Planning')!.querySelectorAll('h4')].map(
         (title) => `${text(title)}: ${text(title.nextElementSibling)}`,
@@ -352,15 +380,42 @@ describe('ChangeDetail', () => {
 });
 
 describe('ChangeSummary', () => {
-  it('says when no privileged access is needed', () => {
+  const render = (change: ProductionChange) => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
     const fixture = TestBed.createComponent(ChangeSummary);
-    fixture.componentRef.setInput('change', productionChange());
+    fixture.componentRef.setInput('change', change);
     fixture.detectChanges();
-
     const blocks = [...(fixture.nativeElement as HTMLElement).querySelectorAll('section')];
-    const access = blocks.find((block) => text(block.querySelector('h3')) === 'Privileged access');
+    return (title: string) =>
+      [
+        ...blocks
+          .find((block) => text(block.querySelector('h3')) === title)!
+          .querySelectorAll('dt'),
+      ].map((term) => `${text(term)}: ${text(term.nextElementSibling)}`);
+  };
 
-    expect(text(access?.querySelector('dt'))).toBe('Needed');
-    expect(text(access?.querySelector('dd'))).toBe('No');
+  it('says when no privileged access or downtime is needed', () => {
+    const rows = render(productionChange());
+
+    expect(rows('Privileged access')).toEqual(['Needed: No']);
+    expect(rows('Schedule')).toContain('Downtime: No');
+  });
+
+  it('shows the approval of each state and a downtime without its window', () => {
+    const approval = (state: ProductionChange['state']) =>
+      render(productionChange({ state, number: null }))('Generic request data').slice(0, 2);
+
+    expect(approval('DRAFT')).toEqual([
+      'Change number: Given by ProTech when raised',
+      'Approval: Not Yet Requested',
+    ]);
+    TestBed.resetTestingModule();
+    expect(approval('IMPLEMENTATION')[1]).toBe('Approval: Approved');
+    TestBed.resetTestingModule();
+    expect(
+      render(productionChange({ template: changeTemplate({ downtime: true }) }))('Schedule'),
+    ).toContain('Downtime: Yes');
   });
 });

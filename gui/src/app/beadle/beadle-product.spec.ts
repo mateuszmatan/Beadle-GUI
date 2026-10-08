@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { changeProfile, changeTemplate, taskText } from '../testing/change-fixtures';
+import { changeOptions, changeProfile, changeTemplate, taskText } from '../testing/change-fixtures';
 import { buttonOf, fieldOf, text } from '../testing/dom';
 import { product } from '../testing/fixtures';
 import { BeadleProduct } from './beadle-product';
@@ -35,6 +35,8 @@ describe('BeadleProduct', () => {
     http.expectOne('/api/products/1').flush(product());
     http.expectOne('/api/departments').flush([]);
     await settle();
+    http.expectOne('/api/changes/options').flush(changeOptions());
+    await settle();
   }
 
   function saved() {
@@ -64,8 +66,22 @@ describe('BeadleProduct', () => {
     expect(page().querySelector('dso-change-template-form')).not.toBeNull();
     expect(text(page().querySelector('.default-tasks h3'))).toBe('Default change tasks');
     expect(page().querySelectorAll('dso-change-tasks-form .task-row')).toHaveLength(2);
+    expect([...page().querySelectorAll('.template-card h3')].map(text)).toEqual([
+      'Generic request data',
+      'Jira',
+      'Approval and Notification',
+      'Schedule',
+      'Planning',
+      'Privileged access',
+      'Risk assessment',
+      'Secure coding',
+    ]);
+    expect(text(fieldOf(page(), 'Requested For')?.querySelector('mat-hint'))).toBe(
+      'left empty: the user who opens the change',
+    );
+    expect(fieldOf(page(), 'Opened By')).toBeNull();
     const access = template().controls.privilegedAccess.controls;
-    access.required.setValue(true);
+    access.count.setValue(1);
     access.users.at(0).setValue({ user: ' Jane Smith ', account: 'adm_jsmith' });
     template().patchValue({ riskAssessment: { businessImpact: 'High' } });
     buttonOf(page(), 'Remove change task 2').click();
@@ -158,7 +174,7 @@ describe('BeadleProduct', () => {
       {
         detail: 'Invalid request',
         errors: [
-          { field: 'template.riskAssessment.bbhUsers', message: 'must be at most 5000' },
+          { field: 'template.riskAssessment.bbhUsers', message: 'is not one of the options' },
           { field: 'tasks[1].shortDescription', message: 'is used twice' },
         ],
       },
@@ -168,8 +184,8 @@ describe('BeadleProduct', () => {
     expect(editor()['saveError']()).toBe(
       'The portal did not accept some values. They are marked below.',
     );
-    expect(text(fieldOf(page(), 'BBH users')?.querySelector('mat-error'))).toBe(
-      'must be at most 5000',
+    expect(text(fieldOf(page(), 'Number of BBH users impacted')?.querySelector('mat-error'))).toBe(
+      'is not one of the options',
     );
     expect(
       text(
@@ -182,7 +198,7 @@ describe('BeadleProduct', () => {
     editor()['save']();
     expect(editor()['saveError']()).toBe('Some fields need your attention.');
 
-    template().controls.riskAssessment.controls.bbhUsers.setValue(50);
+    template().controls.riskAssessment.controls.bbhUsers.setValue('26-250');
     tasks().at(1).controls.shortDescription.setValue('Validate it');
     editor()['save']();
     saved().flush(

@@ -867,6 +867,34 @@ table.mat-mdc-table {
   }
 }
 
+.form-fields.stacked mat-form-field {
+  grid-column: 1 / span 6;
+}
+
+.mat-mdc-form-field.read-only .mat-mdc-text-field-wrapper {
+  background: var(--dso-surface);
+}
+
+.mat-mdc-form-field .lookup {
+  --mat-icon-button-state-layer-size: 24px;
+  --mat-icon-button-icon-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+  padding: 0;
+  color: var(--dso-navy);
+
+  .mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    line-height: 18px;
+  }
+}
+
 @media (max-width: 1100px) {
   .stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -919,7 +947,8 @@ table.mat-mdc-table {
 }
 
 @media (max-width: 480px) {
-  .form-fields [class*='span-'] {
+  .form-fields [class*='span-'],
+  .form-fields.stacked mat-form-field {
     grid-column: span 12;
   }
 }

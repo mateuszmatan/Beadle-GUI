@@ -4,16 +4,17 @@ import com.bbh.itss.dso.portal.application.catalog.port.in.ProductSummaryView
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileView
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfilesUseCase
+import com.bbh.itss.dso.portal.application.change.port.in.LookupsUseCase
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess
+import com.bbh.itss.dso.portal.domain.change.Lookup
+import com.bbh.itss.dso.portal.domain.change.RiskAssessment
 import com.bbh.itss.dso.portal.domain.change.TaskText
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
-import static com.bbh.itss.dso.portal.adapter.in.startup.DemoChangeProfiles.LEVELS
 import static com.bbh.itss.dso.portal.adapter.in.startup.DemoChangeProfiles.PRIVILEGED_PRODUCT
 import static com.bbh.itss.dso.portal.adapter.in.startup.DemoChangeProfiles.PRIVILEGED_USERS
-import static com.bbh.itss.dso.portal.adapter.in.startup.DemoChangeProfiles.defaultsFor
 import static com.bbh.itss.dso.portal.adapter.in.startup.DemoChangeProfiles.tasksFor
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.suggestedFor
 import static com.bbh.itss.dso.portal.domain.change.TaskText.suggestedTasks
@@ -28,9 +29,16 @@ class DemoChangeProfilesSpec extends Specification {
     static final List<String> DEMO_CODES = ['CERTSCANNER', 'DOCSENSE', 'ADVISORAI', 'DEALFLOW', 'LPPORTAL',
                                             'ACCESSHUB', 'SAFEKEEP', 'CORPACT', 'PAYHUB', 'NAVCALC']
 
+    static final List<String> CLIENTS = (1..8).collect { "Client $it fund".toString() }
+
     ProductsUseCase products = Stub()
     ChangeProfilesUseCase profiles = Mock()
-    def seeder = new DemoChangeProfiles(products, profiles)
+    LookupsUseCase lookups = Stub() {
+        find('clients', null) >> CLIENTS.collect { new Lookup(it, 'Custody') }
+        find('configuration-items', _) >> { String kind, String name -> [new Lookup(name + ' Two', 'Other'),
+                                                                         new Lookup(name, 'Fund Accounting')] }
+    }
+    def seeder = new DemoChangeProfiles(products, profiles, lookups)
 
     def "every product without a template gets its ProTech defaults and tasks, the others are left alone"() {
         given:
@@ -57,7 +65,9 @@ class DemoChangeProfilesSpec extends Specification {
         0 * profiles.save(1L, *_)
         saved.values().every {
             it.jiraProjectKey() == 'PAYHUB' && it.planning() == suggested.planning() &&
-                    it.description() == 'Payments.' && it.release() == null
+                    it.description() == 'Payments.' && it.release() == null &&
+                    it.directBusinessService() == 'Fund Accounting' &&
+                    [it.requestedFor(), it.requestedBy(), it.department(), it.assignedTo()] == [null] * 4
         }
         saved[2L].privilegedAccess() == new PrivilegedAccess(true, PRIVILEGED_USERS)
         saved[3L].privilegedAccess().users() == []
@@ -65,16 +75,15 @@ class DemoChangeProfilesSpec extends Specification {
         savedTasks[2L].first() == suggestedTasks('PayHub').first()
         savedTasks[2L].last() == suggestedTasks('PayHub').last()
         savedTasks[3L].first() == suggestedTasks('FX Rates').first()
-        savedTasks.values()*.size().every { it in [2, 3] }
+        savedTasks.every { id, chosen -> chosen.size() == (saved[id].risk() == 'Low' ? 2 : 3) }
     }
 
-    def "a product with a #impact business impact gets the demo tasks #expected"() {
+    def "a product whose template is assessed #risk gets the demo tasks #expected"() {
         given:
-        def defaults = template(riskAssessment: risk(businessImpact: impact))
         def problems = new ValidationProblems()
 
         when:
-        def chosen = tasksFor(summary(2, 'PayHub'), defaults, suggestedTasks('PayHub'))
+        def chosen = tasksFor(summary(2, 'PayHub'), template(riskAssessment: assessment), suggestedTasks('PayHub'))
         validateTasks(chosen, problems)
 
         then:
@@ -82,37 +91,42 @@ class DemoChangeProfilesSpec extends Specification {
         problems.list() == []
 
         where:
-        impact   || expected
-        'Low'    || ['Deploy PayHub to production', 'Validate PayHub in production']
-        'Medium' || ['Deploy PayHub to production', 'Run the database scripts of PayHub', 'Validate PayHub in production']
-        'High'   || ['Deploy PayHub to production', 'Run the database scripts of PayHub', 'Validate PayHub in production']
+        assessment                                                      || risk       | expected
+        RiskAssessment.builder().bbhUsers('Less than 5').build()        || 'Low'      | ['Deploy PayHub to production', 'Validate PayHub in production']
+        risk(businessImpact: 'Medium')                                  || 'Moderate' | ['Deploy PayHub to production', 'Run the database scripts of PayHub', 'Validate PayHub in production']
+        risk(businessImpact: 'High')                                    || 'High'     | ['Deploy PayHub to production', 'Run the database scripts of PayHub', 'Validate PayHub in production']
     }
 
     def "the demo defaults of every demo product are complete, realistic and valid"() {
-        expect:
-        DEMO_CODES.every { code ->
-            def suggested = suggestedFor(code, code, null, null)
-            def defaults = defaultsFor(summary(1, code), suggested)
+        when:
+        def defaults = DEMO_CODES.collectEntries {
+            [it, seeder.defaultsFor(summary(1, it), suggestedFor(it, it, null, null))]
+        }
+
+        then:
+        defaults.every { code, ChangeTemplate template ->
             def problems = new ValidationProblems()
-            defaults.validate(problems)
-            def approvers = defaults.approvers()
-            def risk = defaults.riskAssessment()
+            template.validate(problems)
+            def approvers = template.approvers()
+            def risk = template.riskAssessment()
+            def named = template.affectedClients()?.split(', ')?.toList() ?: []
             assert problems.list() == []
             assert [approvers.l1Manager(), approvers.l2Manager(), approvers.businessApprover()].every { it }
             assert approvers.l1Manager() != approvers.l2Manager()
-            assert defaults.timing().installationStart() in ['18:00', '19:00', '20:00']
-            assert defaults.affectedClients() != null
-            assert [risk.bbhWorkgroups(), risk.bbhUsers(), risk.bbhApplications()].every { it > 0 }
-            assert [risk.clients(), risk.clientsOutsideBbh()].every { it >= 0 }
-            assert [risk.businessImpact(), risk.changeComplexity(), risk.validationComplexity()]
-                    .every { it in LEVELS }
-            assert risk.backoutTesting() && risk.platformStatus() in ['Existing platform', 'Platform upgrade']
-            assert defaults.downtime() == (risk.businessImpact() == 'High')
-            assert defaults.privilegedAccess().required() == (code == PRIVILEGED_PRODUCT)
+            assert template.timing().installationStart() in ['18:00', '19:00', '20:00']
+            assert RiskAssessment.Question.values().every { it.answerIn(risk) != null }
+            assert template.risk() in ['Low', 'Moderate', 'High']
+            assert template.downtime() == (template.risk() == 'High')
+            assert named.size() == [0, 1, 3, 5][RiskAssessment.Question.CLIENTS_OUTSIDE_BBH.options()
+                    .indexOf(risk.clientsOutsideBbh())]
+            assert CLIENTS.containsAll(named) && named.toSet().size() == named.size()
+            assert template.directBusinessService() == 'Fund Accounting'
+            assert template.usersAffected().contains(code)
+            assert template.secureCodingTicket() ==~ /APPSEC-\d{4}/
+            assert template.privilegedAccess().required() == (code == PRIVILEGED_PRODUCT)
             true
         }
-        DEMO_CODES.collect { defaultsFor(summary(1, it), suggestedFor(it, it, null, null)).riskAssessment()
-                .businessImpact() }.toSet().size() > 1
+        defaults.values()*.risk().toSet() == ['Low', 'Moderate', 'High'] as Set
         PRIVILEGED_USERS.size() == 2
     }
 
