@@ -2,9 +2,8 @@ import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { Product } from '../core/models';
 import { fieldOf, inputOf, text } from '../testing/dom';
-import { anotherService, department, product } from '../testing/fixtures';
+import { department, product, productDetails } from '../testing/fixtures';
 import { ProductDialog, ProductDialogData } from './product-dialog';
 
 describe('ProductDialog', () => {
@@ -57,7 +56,7 @@ describe('ProductDialog', () => {
     await fixture.whenStable();
   }
 
-  it('adds a product whose code follows its name until the code is changed', async () => {
+  it('adds a product whose code follows its name, without AppScan account or services', async () => {
     await render({ departmentId: 5 });
 
     expect(text(page().querySelector('h2'))).toBe('Add product');
@@ -70,7 +69,6 @@ describe('ProductDialog', () => {
       'Department',
       'Owner team',
       'Contact e-mail',
-      'AppScan API key ID',
     ]);
     expect(form().controls.departmentId.value).toBe(5);
 
@@ -89,7 +87,6 @@ describe('ProductDialog', () => {
 
     type('Owner team', ' Custody Technology ');
     type('Contact e-mail', '');
-    type('AppScan API key ID', ' bbh_key ');
     await submit();
 
     const request = http.expectOne({ method: 'POST', url: '/api/products' });
@@ -101,11 +98,11 @@ describe('ProductDialog', () => {
       ownerTeam: 'Custody Technology',
       contactEmail: null,
       departmentId: 5,
-      appScan: { keyId: 'bbh_key', secretCredentialsId: null },
+      appScan: null,
       version: null,
       services: [],
     });
-    const created = product({ id: 7, name: 'Trade Archive 3', services: [] });
+    const created = product({ id: 7, name: 'Trade Archive 3', appScan: null, services: [] });
     request.flush(created);
 
     expect(close).toHaveBeenCalledWith(created);
@@ -127,7 +124,6 @@ describe('ProductDialog', () => {
     expect(errorOf('Code')).toBe('Required');
     expect(errorOf('Department')).toBe('Required');
     expect(errorOf('Contact e-mail')).toBe('Enter an e-mail address');
-    expect(errorOf('AppScan API key ID')).toBe('Required');
 
     type('Code', '1ARCHIVE');
     fixture.detectChanges();
@@ -136,14 +132,14 @@ describe('ProductDialog', () => {
 
   it('shows the problems of the portal on their fields and the rest above the buttons', async () => {
     await render({ departmentId: 3 });
-    form().patchValue({ name: 'Archive', code: 'ARCHIVE', appScanKeyId: 'bbh_key' });
+    form().patchValue({ name: 'Archive', code: 'ARCHIVE' });
 
     await submit();
     http.expectOne({ method: 'POST', url: '/api/products' }).flush(
       {
         detail: 'The portal did not accept some values.',
         errors: [
-          { field: 'appScan.keyId', message: 'is not an AppScan key ID' },
+          { field: 'ownerTeam', message: 'is not a BBH team' },
           { field: 'code', message: 'is reserved' },
         ],
       },
@@ -151,14 +147,14 @@ describe('ProductDialog', () => {
     );
     fixture.detectChanges();
 
-    expect(errorOf('AppScan API key ID')).toBe('is not an AppScan key ID');
+    expect(errorOf('Owner team')).toBe('is not a BBH team');
     expect(errorOf('Code')).toBe('is reserved');
     expect(page().querySelector('[role=alert]')).toBeNull();
 
     await submit();
     http.expectNone('/api/products');
 
-    form().patchValue({ code: 'ARCHIVE2', appScanKeyId: 'bbh_key2' });
+    form().patchValue({ code: 'ARCHIVE2', ownerTeam: 'Custody Technology' });
     await submit();
     http
       .expectOne({ method: 'POST', url: '/api/products' })
@@ -174,12 +170,8 @@ describe('ProductDialog', () => {
     expect(close).not.toHaveBeenCalled();
   });
 
-  it('changes the facts of a product and keeps everything else as the portal returned it', async () => {
-    const stored = product({
-      departmentId: 3,
-      contactEmail: null,
-      services: [product().services[0], anotherService()],
-    });
+  it('changes the details of a product and sends nothing of its services or AppScan account', async () => {
+    const stored = productDetails({ contactEmail: null });
     await render({ product: stored });
 
     expect(text(page().querySelector('h2'))).toBe('Change CertScanner');
@@ -197,31 +189,27 @@ describe('ProductDialog', () => {
     await submit();
     http.expectNone((request) => request.url === '/api/products/code-suggestion');
 
-    const request = http.expectOne({ method: 'PUT', url: '/api/products/1' });
+    const request = http.expectOne({ method: 'PUT', url: '/api/products/1/details' });
     expect(request.request.params.keys()).toEqual([]);
     expect(request.request.body).toEqual({
-      code: 'CERT',
       name: 'Cert Scanner',
-      description: 'TLS certificate scanner',
+      departmentId: 5,
       ownerTeam: null,
       contactEmail: 'certs@bbh.com',
-      departmentId: 5,
-      appScan: stored.appScan,
       version: 3,
-      services: stored.services,
     });
-    const saved: Product = { ...stored, name: 'Cert Scanner', version: 4 };
+    const saved = productDetails({ name: 'Cert Scanner', departmentId: 5, version: 4 });
     request.flush(saved);
 
     expect(close).toHaveBeenCalledWith(saved);
   });
 
   it('hands a conflict back so the product can be loaded again', async () => {
-    await render({ product: product() });
+    await render({ product: productDetails() });
 
     await submit();
     http
-      .expectOne({ method: 'PUT', url: '/api/products/1' })
+      .expectOne({ method: 'PUT', url: '/api/products/1/details' })
       .flush({ detail: 'Changed by someone else' }, { status: 409, statusText: 'Conflict' });
 
     expect(close).toHaveBeenCalledWith(expect.any(HttpErrorResponse));

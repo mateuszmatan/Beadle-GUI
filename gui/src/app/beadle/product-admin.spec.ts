@@ -4,25 +4,19 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { Product } from '../core/models';
 import { buttonOf, text } from '../testing/dom';
-import { anotherService, department, product, service } from '../testing/fixtures';
+import { department, productDetails } from '../testing/fixtures';
 import { ProductAdmin } from './product-admin';
+import { ProductDetails } from './product-details-api';
 import { ProductDialog } from './product-dialog';
 
 describe('ProductAdmin', () => {
   let fixture: ComponentFixture<ProductAdmin>;
   let http: HttpTestingController;
-  let emitted: Product[];
-  let deleted: Product[];
+  let emitted: ProductDetails[];
+  let deleted: ProductDetails[];
 
-  const gui = service();
-  const api = anotherService({
-    description: 'REST API',
-    build: { ...service().build, tool: 'MAVEN' },
-    deployment: { ...service().deployment, target: 'OPENSHIFT' },
-  });
-  const stored = product({ services: [gui, api] });
+  const stored = productDetails();
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -51,10 +45,10 @@ describe('ProductAdmin', () => {
     fixture.detectChanges();
   }
 
-  async function load(loaded: Product = stored) {
+  async function load(loaded: ProductDetails = stored) {
     fixture.componentRef.setInput('id', 1);
     await settle();
-    http.expectOne('/api/products/1').flush(loaded);
+    http.expectOne('/api/products/1/details').flush(loaded);
     http
       .expectOne('/api/departments')
       .flush([department(), department({ id: 5, name: 'Fund Services' })]);
@@ -71,7 +65,7 @@ describe('ProductAdmin', () => {
     return open;
   }
 
-  it('shows the facts of the product and leaves its services to DevSecOps Management', async () => {
+  it('shows the details of the product without reading its services', async () => {
     await load();
 
     expect(facts()).toEqual([
@@ -82,7 +76,7 @@ describe('ProductAdmin', () => {
     ]);
     expect(page().querySelector('.facts a')?.getAttribute('href')).toBe('mailto:arch@bbh.com');
     expect(page().querySelector('table')).toBeNull();
-    expect(text(page())).not.toContain('api');
+    http.expectNone('/api/products/1');
     expect([...page().querySelectorAll('button')].map((button) => text(button))).toEqual([
       'Change',
       'Delete product',
@@ -90,7 +84,7 @@ describe('ProductAdmin', () => {
   });
 
   it('shows a product without team, e-mail or department', async () => {
-    await load(product({ services: [], ownerTeam: null, contactEmail: null, departmentId: null }));
+    await load(productDetails({ ownerTeam: null, contactEmail: null, departmentId: null }));
 
     expect(facts()).toEqual(['CERT', 'Not in a department', '–', '–']);
   });
@@ -99,7 +93,7 @@ describe('ProductAdmin', () => {
     fixture.componentRef.setInput('id', 1);
     await settle();
     http
-      .expectOne('/api/products/1')
+      .expectOne('/api/products/1/details')
       .flush({ detail: 'Product 1 was not found' }, { status: 404, statusText: 'Not Found' });
     http.expectOne('/api/departments').flush([]);
     await settle();
@@ -140,7 +134,9 @@ describe('ProductAdmin', () => {
     dialogClosing(conflict, conflict);
 
     buttonOf(page(), 'Change').click();
-    http.expectOne('/api/products/1').flush({ ...stored, ownerTeam: 'Security', version: 5 });
+    http
+      .expectOne('/api/products/1/details')
+      .flush({ ...stored, ownerTeam: 'Security', version: 5 });
     fixture.detectChanges();
 
     expect(snack()).toContain(
@@ -149,7 +145,7 @@ describe('ProductAdmin', () => {
     expect(facts()[2]).toBe('Security');
 
     buttonOf(page(), 'Change').click();
-    http.expectOne('/api/products/1').flush({ ...stored, version: 5 });
+    http.expectOne('/api/products/1/details').flush({ ...stored, version: 5 });
     fixture.detectChanges();
 
     expect(snack()).toContain('A product named Payments Hub already exists');
@@ -163,23 +159,40 @@ describe('ProductAdmin', () => {
     buttonOf(page(), 'Delete product').click();
     expect(open.mock.calls[0][1]?.data).toEqual({
       title: 'Delete CertScanner?',
-      message:
-        'CertScanner is deleted with its change template and its DevSecOps pipelines and keys. ' +
-        'Jenkins jobs using those keys stop working. This cannot be undone.',
+      message: 'CertScanner is deleted with its change template. This cannot be undone.',
       confirmLabel: 'Delete product',
       danger: true,
     });
     http
-      .expectOne({ method: 'DELETE', url: '/api/products/1' })
+      .expectOne({ method: 'DELETE', url: '/api/products/1/details' })
       .flush({ detail: 'The portal cannot be reached.' }, { status: 503, statusText: 'Down' });
     expect(snack()).toContain('The portal cannot be reached.');
     expect(deleted).toEqual([]);
 
     buttonOf(page(), 'Delete product').click();
-    http.expectOne({ method: 'DELETE', url: '/api/products/1' }).flush(null);
+    http.expectOne({ method: 'DELETE', url: '/api/products/1/details' }).flush(null);
     await fixture.whenStable();
 
     expect(snack()).toContain('CertScanner deleted');
     expect(deleted).toEqual([stored]);
+  });
+
+  it('says why a product with services in DevSecOps Management is not deleted', async () => {
+    await load();
+    dialogClosing(true);
+
+    buttonOf(page(), 'Delete product').click();
+    http.expectOne({ method: 'DELETE', url: '/api/products/1/details' }).flush(
+      {
+        detail:
+          'CertScanner still has 2 service(s) in DevSecOps Management. Remove them there first.',
+      },
+      { status: 409, statusText: 'Conflict' },
+    );
+
+    expect(snack()).toContain(
+      'CertScanner still has 2 service(s) in DevSecOps Management. Remove them there first.',
+    );
+    expect(deleted).toEqual([]);
   });
 });

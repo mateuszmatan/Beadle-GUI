@@ -8,6 +8,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import {
+  Observable,
   catchError,
   debounceTime,
   distinctUntilChanged,
@@ -19,35 +20,20 @@ import {
 } from 'rxjs';
 import { ProductsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
-import { Department, Product, ProductRequest } from '../core/models';
-import { PRODUCT_CODE } from '../products/product-form-model';
-import { productRequest } from '../self-service/self-service-model';
+import { Department, PRODUCT_CODE } from '../core/models';
 import { applyFieldProblems, filled, max, optional, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
+import { ProductDetails, ProductDetailsApi } from './product-details-api';
 
 export interface ProductDialogData {
   departments: readonly Department[];
   departmentId: number | null;
-  product: Product | null;
+  product: ProductDetails | null;
 }
 
-export type ProductDialogResult = Product | HttpErrorResponse;
+export type ProductDialogResult = ProductDetails | HttpErrorResponse;
 
 const CODE_HELP = "Start with a letter; use A-Z, 0-9, '-' or '_'";
-
-export function storedRequest(product: Product): ProductRequest {
-  return {
-    code: product.code,
-    name: product.name,
-    description: product.description,
-    ownerTeam: product.ownerTeam,
-    contactEmail: product.contactEmail,
-    departmentId: product.departmentId,
-    appScan: product.appScan,
-    version: product.version,
-    services: product.services,
-  };
-}
 
 @Component({
   selector: 'dso-product-dialog',
@@ -118,21 +104,6 @@ export function storedRequest(product: Product): ProductRequest {
             />
             <mat-error>{{ errorText(form.controls.contactEmail) }}</mat-error>
           </mat-form-field>
-          @if (!product) {
-            <mat-form-field>
-              <mat-label>AppScan API key ID</mat-label>
-              <input
-                matInput
-                class="mono"
-                formControlName="appScanKeyId"
-                placeholder="bbh_..."
-                autocomplete="off"
-                required
-              />
-              <mat-hint>The Application Security team gives it to you</mat-hint>
-              <mat-error>{{ errorText(form.controls.appScanKeyId) }}</mat-error>
-            </mat-form-field>
-          }
         </div>
         @if (error(); as message) {
           <div class="banner" role="alert">{{ message }}</div>
@@ -179,6 +150,7 @@ export class ProductDialog {
   private readonly dialogRef =
     inject<MatDialogRef<ProductDialog, ProductDialogResult>>(MatDialogRef);
   private readonly api = inject(ProductsApi);
+  private readonly detailsApi = inject(ProductDetailsApi);
 
   protected readonly product = this.data.product;
   protected readonly codeHelp = CODE_HELP;
@@ -197,16 +169,14 @@ export class ProductDialog {
     ),
     ownerTeam: text(this.product?.ownerTeam, max(200)),
     contactEmail: text(this.product?.contactEmail, Validators.email, max(320)),
-    appScanKeyId: text('', filled, max(200)),
   });
 
   private suggested = '';
 
   constructor() {
-    const { name, code, appScanKeyId } = this.form.controls;
+    const { name, code } = this.form.controls;
     if (this.product) {
       code.disable();
-      appScanKeyId.disable();
       return;
     }
     code.valueChanges.pipe(takeUntilDestroyed()).subscribe((value) => {
@@ -237,24 +207,29 @@ export class ProductDialog {
       return;
     }
     const value = this.form.getRawValue();
+    const details = {
+      name: value.name.trim(),
+      departmentId: value.departmentId,
+      ownerTeam: optional(value.ownerTeam),
+      contactEmail: optional(value.contactEmail),
+    };
     const product = this.product;
     this.saving.set(true);
     this.error.set(null);
-    (product
-      ? this.api.update(product.id, {
-          ...storedRequest(product),
-          name: value.name.trim(),
-          departmentId: value.departmentId,
-          ownerTeam: optional(value.ownerTeam),
-          contactEmail: optional(value.contactEmail),
-        })
-      : this.api.create(productRequest(value, [], 'FULL'))
-    )
-      .pipe(finalize(() => this.saving.set(false)))
-      .subscribe({
-        next: (saved) => this.dialogRef.close(saved),
-        error: (error) => this.failed(error),
-      });
+    const request: Observable<ProductDetails> = product
+      ? this.detailsApi.update(product.id, { ...details, version: product.version })
+      : this.api.create({
+          ...details,
+          code: value.code,
+          description: null,
+          appScan: null,
+          version: null,
+          services: [],
+        });
+    request.pipe(finalize(() => this.saving.set(false))).subscribe({
+      next: (saved) => this.dialogRef.close(saved),
+      error: (error) => this.failed(error),
+    });
   }
 
   private failed(error: unknown): void {
@@ -263,13 +238,7 @@ export class ProductDialog {
       return;
     }
     const problems = fieldProblems(error);
-    const unmatched = applyFieldProblems(
-      this.form,
-      problems.map((problem) => ({
-        ...problem,
-        field: problem.field === 'appScan.keyId' ? 'appScanKeyId' : problem.field,
-      })),
-    );
+    const unmatched = applyFieldProblems(this.form, problems);
     this.error.set(unmatched.length || !problems.length ? errorMessage(error) : null);
   }
 }

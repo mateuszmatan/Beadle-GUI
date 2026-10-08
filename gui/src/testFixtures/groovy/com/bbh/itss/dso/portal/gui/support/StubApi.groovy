@@ -7,6 +7,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 
+import static com.bbh.itss.dso.portal.gui.support.ApiData.productDetails
 import static com.bbh.itss.dso.portal.gui.support.StubResponse.json
 import static com.bbh.itss.dso.portal.gui.support.StubResponse.problem
 import static com.bbh.itss.dso.portal.gui.support.StubResponse.yaml
@@ -63,6 +64,7 @@ class StubApi {
             json([code: request.params().name.toUpperCase().replaceAll(/[^A-Z0-9]/, '')])
         }
         get('/api/products/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("product-${ids[0]}.json", "Product ${ids[0]} does not exist") }
+        get('/api/products/(\\d+)/details') { RecordedRequest request, List<String> ids -> detailsOr404(ids[0]) }
         get('/api/products/(\\d+)/pipelines') { RecordedRequest request, List<String> ids -> fixtureOr404("product-${ids[0]}-pipelines.json", "Product ${ids[0]} does not exist") }
         get('/api/products/(\\d+)/config') { RecordedRequest request, List<String> ids -> fixtureOr404("product-${ids[0]}-config.yaml", "Product ${ids[0]} does not exist") }
         get('/api/pipelines/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("pipeline-${ids[0]}.json", "Pipeline ${ids[0]} does not exist") }
@@ -129,6 +131,12 @@ class StubApi {
         routes.clear()
         recorded.clear()
         loadDemoData()
+    }
+
+    private static StubResponse detailsOr404(String id) {
+        def name = "product-${id}.json"
+        StubApi.getResource(FIXTURES + name) ? json(productDetails(fixture(name) as Map))
+                : problem(404, 'Not found', "Product $id does not exist")
     }
 
     private static StubResponse fixtureOr404(String name, String detail) {
