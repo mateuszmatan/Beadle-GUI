@@ -217,7 +217,7 @@ final class ChangeStubs {
          epicKeys        : asked.epicKeys, storyKeys: asked.storyKeys,
          tasks           : (asked.tasks as List<Map>).collect { task(null, it, 'OPEN') },
          url             : null, state: 'DRAFT', workflow: [], syncedAt: null, syncProblem: null, update: null,
-         version         : null, createdAt: null, openedBy: SIGNED_IN_USER]
+         version         : null, editedVersion: null, createdAt: null, openedBy: SIGNED_IN_USER]
     }
 
     static List<String> unapplied(Map requested, Map held) {
@@ -323,7 +323,7 @@ final class ChangeStubs {
         }
 
         Object update(Map change, Map asked) {
-            if (asked.version != change.version) {
+            if (asked.version != null && (asked.version < change.editedVersion || asked.version > change.version)) {
                 return problem(409, 'Conflict', STALE)
             }
             if (asked.departmentId != change.departmentId) {
@@ -349,10 +349,19 @@ final class ChangeStubs {
                              tasks           : tasks]
             def fields = unapplied(requested, change)
             canceling[change.id as int] = held.findAll { it.number && !(it.number in numbers) }.collect { it + [state: 'CANCELED'] }
-            change.putAll(requested + [update  : [status : 'PENDING', requestedAt: stamp(), departmentName: change.departmentName,
-                                                  fields : fields, message: null, checkedAt: stamp()],
-                                       version : (change.version as int) + 1, syncedAt: stamp()])
+            def version = (change.version as int) + 1
+            change.putAll(requested + [update       : [status : 'PENDING', requestedAt: stamp(), departmentName: change.departmentName,
+                                                       fields : fields, message: null, checkedAt: stamp()],
+                                       version      : version, editedVersion: fields ? version : change.editedVersion,
+                                       syncedAt     : stamp()])
             change
+        }
+
+        void advance(Object id, String state) {
+            def change = find(id)
+            change.state = state
+            change.workflow = (change.workflow as List<Map>) + [state: state, enteredAt: stamp()]
+            change.version = (change.version as int) + 1
         }
 
         Map raise(Map asked) {
@@ -366,7 +375,7 @@ final class ChangeStubs {
                     tasks           : (drafted.tasks as List<Map>).withIndex().collect { task, index ->
                         task + [number: format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1)]
                     },
-                    workflow        : [[state: 'DRAFT', enteredAt: raisedAt]], syncedAt: raisedAt, version: 0]
+                    workflow        : [[state: 'DRAFT', enteredAt: raisedAt]], syncedAt: raisedAt, version: 0, editedVersion: 0]
             changes << change
             change
         }
@@ -390,7 +399,7 @@ final class ChangeStubs {
                        tasks   : texts.withIndex().collect { text, index ->
                            task(format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1), text, taskState)
                        },
-                       syncedAt: stamp(raisedAt), version: version]
+                       syncedAt: stamp(raisedAt), version: version, editedVersion: version]
         }
     }
 }

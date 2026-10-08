@@ -297,6 +297,23 @@ class ChangesSpec extends EditorSpecification {
         ownErrors().findAll { !it.contains('409') }.isEmpty()
     }
 
+    def "an update is taken when ProTech only moved the change through its workflow meanwhile"() {
+        when:
+        open('/beadle/changes')
+        choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
+        open('/beadle/changes/4/edit')
+        input(texts(), 'Short description').fill('CertScanner 4.1 with Java 21')
+        api.protech.advance(4, 'CTASK_APPROVAL')
+        button('Publish to ProTech', true).click()
+        page.waitForURL('**/beadle/changes/4')
+
+        then:
+        awaitRequest('PUT', '/api/changes/4').json().version == 3
+        assertThat(page.locator('.page-header p')).hasText('CertScanner 4.1 with Java 21')
+        assertThat(page.locator('dso-workflow-progress li[aria-current=step] .label')).hasText('CTask approval')
+        ownErrors().isEmpty()
+    }
+
     def "a change ProTech did not update says what it kept, and a closed change cannot be edited"() {
         when:
         open('/beadle/changes')
