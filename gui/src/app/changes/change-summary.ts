@@ -178,7 +178,7 @@ export function summaryColumns(
 
     .summary {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px 24px;
     }
 
@@ -217,6 +217,12 @@ export function summaryColumns(
       margin: 0;
       font-size: 12.5px;
       white-space: pre-wrap;
+    }
+
+    @media (max-width: 1000px) {
+      .summary {
+        grid-template-columns: minmax(0, 1fr);
+      }
     }
   `,
 })

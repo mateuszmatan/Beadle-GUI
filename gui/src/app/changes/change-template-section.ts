@@ -48,7 +48,7 @@ function listed(field: Field, options: ChangeOptions | null): Field {
     @let f = form();
     @switch (section()) {
       @case ('request') {
-        <div class="form-fields two-columns">
+        <div class="form-fields">
           @for (fact of facts(); track fact.label) {
             <mat-form-field class="span-6 read-only" floatLabel="always">
               <mat-label>{{ fact.label }}</mat-label>
@@ -70,17 +70,17 @@ function listed(field: Field, options: ChangeOptions | null): Field {
         </div>
       }
       @case ('jira') {
-        <div class="form-fields two-columns stacked">
+        <div class="form-fields stacked">
           <dso-fields [group]="f" [fields]="jiraFields" />
         </div>
       }
       @case ('approvals') {
-        <div class="form-fields two-columns stacked">
+        <div class="form-fields stacked">
           <dso-fields [group]="f.controls.approvers" [fields]="approvalFields" />
         </div>
       }
       @case ('schedule') {
-        <div class="form-fields two-columns">
+        <div class="form-fields">
           <dso-fields [group]="f.controls.timing" [fields]="timingFields" />
           <dso-fields [group]="f" [fields]="downtimeFields" />
         </div>
@@ -91,11 +91,11 @@ function listed(field: Field, options: ChangeOptions | null): Field {
         </div>
       }
       @case ('privileged') {
-        <div class="form-fields two-columns">
+        <div class="form-fields">
           <dso-fields [group]="f.controls.privilegedAccess" [fields]="countFields" />
         </div>
         @if (accounts().length) {
-          <div class="form-fields two-columns accounts">
+          <div class="form-fields accounts">
             @for (user of accounts(); track user; let i = $index) {
               <fieldset class="account span-6">
                 <legend>Privileged account {{ i + 1 }}</legend>
@@ -108,12 +108,12 @@ function listed(field: Field, options: ChangeOptions | null): Field {
         }
       }
       @case ('risk') {
-        <div class="form-fields two-columns">
+        <div class="form-fields">
           <dso-fields [group]="f.controls.riskAssessment" [fields]="riskFields()" />
         </div>
       }
       @case ('secure') {
-        <div class="form-fields two-columns stacked">
+        <div class="form-fields stacked">
           <dso-fields [group]="f" [fields]="secureFields" />
         </div>
       }

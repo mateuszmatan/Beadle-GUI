@@ -196,19 +196,19 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
                 [attr.maxlength]="field.maxLength"
                 [readonly]="field.readonly"
               />
-              @if (field.lookup; as lookup) {
-                <button
-                  mat-icon-button
-                  matSuffix
-                  type="button"
-                  class="lookup"
-                  [attr.aria-label]="'Find ' + field.label"
-                  (click)="find(field, lookup)"
-                >
-                  <mat-icon>search</mat-icon>
-                </button>
-              }
             }
+          }
+          @if (field.lookup; as lookup) {
+            <button
+              mat-icon-button
+              matSuffix
+              type="button"
+              class="lookup"
+              [attr.aria-label]="'Find ' + field.label"
+              (click)="find(field, lookup)"
+            >
+              <mat-icon>search</mat-icon>
+            </button>
           }
           @if (field.code || field.hint) {
             <mat-hint [innerHTML]="hint(field)"></mat-hint>

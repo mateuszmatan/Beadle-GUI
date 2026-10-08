@@ -23,7 +23,7 @@ const hours = (key: string, label: string, end: Date | null): Field =>
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     @let s = schedule();
-    <div class="form-fields two-columns">
+    <div class="form-fields">
       <dso-fields [group]="s" [fields]="fields().windows" />
       <dso-fields [group]="downtime().parent!" [fields]="downtimeChoice" />
       @if (downtime().value) {
