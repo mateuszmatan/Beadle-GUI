@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional
 
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.FIRST_USE_PLAN
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Type.NORMAL
-import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.VALIDATION_PLAN
 import static com.bbh.itss.dso.portal.domain.change.TaskText.suggestedTasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.at
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.privileged
@@ -33,6 +32,8 @@ import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORT
 class ServiceNowFieldsMigrationSpec extends MigrationSpecification {
 
     static final List<String> DROPPED = ['RISK', 'IMPACT', 'RISK_ASSESSMENT', 'APPROVERS', 'TEST_PLAN']
+    static final String MIGRATED_VALIDATION_PLAN = 'Run the smoke tests of the DevSecOps pipeline against production' +
+            ' and check the monitoring of each service.'
 
     @Autowired
     ChangeProfilePersistenceAdapter profiles
@@ -65,8 +66,8 @@ class ServiceNowFieldsMigrationSpec extends MigrationSpecification {
                 .configurationItem('CertScanner').description('Watches TLS certificates.')
                 .approvers(new Approvers('Olivia Bennett', 'James Carter', 'Emma Brooks')).downtime(false)
                 .timing(Timing.SUGGESTED)
-                .planning(new Planning('Pipeline tests passed on QC.', 'Deploy the services.', VALIDATION_PLAN,
-                        'Redeploy the previous release.', FIRST_USE_PLAN))
+                .planning(new Planning('Pipeline tests passed on QC.', 'Deploy the services.',
+                        MIGRATED_VALIDATION_PLAN, 'Redeploy the previous release.', FIRST_USE_PLAN))
                 .privilegedAccess(PrivilegedAccess.NONE).riskAssessment(impact('Low')).build()
         profile.tasks() == suggestedTasks('CertScanner')
         change.number() == 'CHG0030001'
