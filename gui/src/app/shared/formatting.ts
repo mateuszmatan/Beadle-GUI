@@ -27,6 +27,10 @@ export function durationOrNull(seconds: number | null): string | null {
   return seconds === null ? null : formatDuration(seconds);
 }
 
+export function capitalized(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 export function counted(count: number, noun: string, plural = `${noun}s`): string {
   return `${count} ${count === 1 ? noun : plural}`;
 }

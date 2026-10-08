@@ -6,10 +6,11 @@ A web portal to onboard products to DevSecOps and to watch their pipelines. Its 
 DevSecOps Management:
 
 - **Self-service**: a step-by-step wizard for app owners who do not know DevSecOps. It sets up a new product or
-  changes one already in the portal: choose the department and the product, then the Static scan, Security or Full
-  pipeline (for a product in the portal the step shows which pipelines each service has today and how many services
-  already have each one), then the services: add new ones (name, AppScan application, Gradle or Maven, virtual
-  machines or OpenShift), change the existing ones (including their build tool and where they run) or remove them.
+  changes one already in the portal: choose the department and the product, then the Static scan, Nexus IQ GoldenFix,
+  Security or Full pipeline (for a product in the portal the step shows which pipelines each service has today and how
+  many services already have each one), then the services: add new ones (name, AppScan application, Gradle or Maven,
+  virtual machines or OpenShift; for Nexus IQ GoldenFix also the Nexus IQ application and the Bitbucket repository of
+  each service), change the existing ones (including their build tool and where they run) or remove them.
   The review lists what is added, changed and removed, which services gain the pipeline and which pipelines a removal
   deletes; the last step lists what to do next in order, with the Jenkinsfile of each service ready to copy.
   Everything else comes from the BBH library defaults and can be fine-tuned in DevSecOps Admin.
@@ -18,8 +19,9 @@ DevSecOps Management:
   DORA metrics, daily activity, latest runs, the Jenkins job and your DSOEnhanced Grafana dashboard, all read from the
   InfluxDB the pipelines write to.
 - **Change Evidence**: a read-only view of a product for ServiceNow change requests: per pipeline the unit, smoke,
-  regression and performance tests, the SAST, DAST, SonarQube and Nexus IQ results, the release gate and the Jenkins
-  build that produced them, with its artifact version and the portal configuration it ran with.
+  regression and performance tests, the SAST, DAST, SonarQube and Nexus IQ results, the golden pull request GoldenFix
+  raised, the release gate and the Jenkins build that produced them, with its artifact version and the portal
+  configuration it ran with.
 - **Admin**, for the portal administrator, in three tabs:
   - **Departments**: add, rename and delete departments (only an empty one can be deleted), each with its products,
     services and DevSecOps pipelines, and a chart of the active and invalidated pipelines of every department. The
@@ -95,12 +97,13 @@ GRAFANA_SECURITY_DASHBOARD_URL=https://grafana.example.com/d/ad2trcm/devsecops-p
 ```
 
 The dashboards are the ones DSOEnhanced ships (`grafana/` in that repository); the portal opens them with the
-service's `project` variable and the selected time range. Grafana must let portal users view them.
+service's `project` variable and the selected time range. Security, SAST and Nexus IQ GoldenFix pipelines open the
+security dashboard, the other pipelines the pipeline dashboard. Grafana must let portal users view them.
 
 ## Demo data
 
 The `local` profile sets `dso.demo-data=true` (`DSO_DEMO_DATA`). On the first start it fills the H2 database in
-`./data` with ten products in the five departments: 23 services and 46 pipelines, 44 of them with an active key. The
+`./data` with ten products in the five departments: 23 services and 49 pipelines, 47 of them with an active key. The
 loader (`adapter/in/startup/DemoDataLoader.java`) adds the demo products that are missing and does nothing once the
 database holds all of them or any product of its own; it also sets the Jenkins URL of the library defaults to
 `https://jenkins.bbh.com` when none is set, so that job and build links work. `rd`, `qc` and `prod` (Oracle) get only
@@ -112,15 +115,15 @@ and one or two unreleased FixVersions per project, for example `PAYHUB 2.4`.
 
 | Department | Product (code) | Services | Build and deploy | Pipelines |
 |------------|----------------|----------|------------------|-----------|
-| AI Lab | DocSense (`DOCSENSE`) | `extraction-api`<br>`review-ui` | Gradle, OpenShift<br>Gradle, VMs | FULL, SECURITY, EXTENDED<br>FULL, SAST |
+| AI Lab | DocSense (`DOCSENSE`) | `extraction-api`<br>`review-ui` | Gradle, OpenShift<br>Gradle, VMs | FULL, SECURITY, EXTENDED, NEXUS_IQ<br>FULL, SAST |
 | AI Lab | Advisor Assistant (`ADVISORAI`) | `assistant-api`<br>`content-indexer` | Maven, OpenShift<br>Gradle, OpenShift | FULL, SECURITY<br>FULL |
 | Capital Partners | DealFlow (`DEALFLOW`) | `deals-web`<br>`deals-api` | Gradle, VMs<br>Maven, OpenShift | FULL<br>FULL, SECURITY, EXTENDED |
 | Capital Partners | LP Portal (`LPPORTAL`) | `portal-web`<br>`statements`<br>`lp-mobile` | Gradle, OpenShift<br>Maven, OpenShift<br>Flutter | FULL<br>FULL, SAST<br>FULL, SAST |
-| Corporate Technology | Access Hub (`ACCESSHUB`) | `requests-ui`<br>`workflow` | Gradle, VMs<br>Maven, OpenShift | FULL<br>FULL, SECURITY |
+| Corporate Technology | Access Hub (`ACCESSHUB`) | `requests-ui`<br>`workflow` | Gradle, VMs<br>Maven, OpenShift | FULL<br>FULL, SECURITY, NEXUS_IQ |
 | Corporate Technology | CertScanner (`CERTSCANNER`) | `gui`<br>`backend-api` | Gradle, VMs<br>Maven, OpenShift | FULL, SECURITY, EXTENDED, SAST<br>FULL, SECURITY, EXTENDED |
 | Custody | Safekeeping Ledger (`SAFEKEEP`) | `positions-api`<br>`recon-batch` | Maven, OpenShift<br>Gradle, VMs | FULL, SECURITY, EXTENDED<br>FULL, SAST (key revoked) |
 | Custody | Corporate Actions (`CORPACT`) | `events-api`<br>`elections-ui` | Gradle, OpenShift<br>Gradle, VMs | FULL, SECURITY<br>FULL |
-| Fund Services | Payments Hub (`PAYHUB`) | `gateway`<br>`ledger`<br>`notifications`<br>`mobile-app` | Maven, OpenShift<br>Gradle, VMs<br>Gradle, VMs<br>Flutter | FULL, SECURITY, EXTENDED<br>FULL<br>FULL<br>FULL, SAST (key revoked) |
+| Fund Services | Payments Hub (`PAYHUB`) | `gateway`<br>`ledger`<br>`notifications`<br>`mobile-app` | Maven, OpenShift<br>Gradle, VMs<br>Gradle, VMs<br>Flutter | FULL, SECURITY, EXTENDED, NEXUS_IQ<br>FULL<br>FULL<br>FULL, SAST (key revoked) |
 | Fund Services | NAV Calculator (`NAVCALC`) | `pricing-engine`<br>`nav-api` | Maven, OpenShift<br>Gradle, OpenShift | FULL, SECURITY<br>FULL, EXTENDED |
 
 Build and deploy: *Gradle, VMs* is a Gradle build deployed to virtual machines with UrbanCode Deploy and the SSH
@@ -128,26 +131,28 @@ deployment script; *Gradle, OpenShift* and *Maven, OpenShift* build with Gradle 
 RD and QC OpenShift projects; *Flutter* is a Flutter mobile app built as an APK. Every service has a full pipeline
 plus the types listed after `FULL`. The keys of two SAST pipelines are revoked, so those pipelines show as disabled:
 Payments Hub `mobile-app` ("Mobile app moved to the new mobile platform pipeline") and Safekeeping Ledger `recon-batch`
-("Reconciliation moved to the mainframe scheduler"). Jenkins jobs are named `DevSecOps/<CODE>/<service>-<type>`, for
-example `DevSecOps/PAYHUB/gateway-full`; CertScanner's full, security and extended pipelines share the jobs
-`DevSecOps/CertScanner-pipeline`, `-security-pipeline` and `-extended-pipeline` and the metrics project `CertScanner`
-for both services.
+("Reconciliation moved to the mainframe scheduler"). Three services with a Nexus IQ application and a Bitbucket
+repository also have a Nexus IQ GoldenFix pipeline (`NEXUS_IQ`): DocSense `extraction-api`, Access Hub `workflow` and
+Payments Hub `gateway`. Jenkins jobs are named `DevSecOps/<CODE>/<service>-<type>`, for example
+`DevSecOps/PAYHUB/gateway-full` and `DevSecOps/PAYHUB/gateway-nexusiq`; CertScanner's full, security and extended
+pipelines share the jobs `DevSecOps/CertScanner-pipeline`, `-security-pipeline` and `-extended-pipeline` and the
+metrics project `CertScanner` for both services.
 
 ```mermaid
 pie showData title Pipelines per department
-    "AI Lab" : 8
+    "AI Lab" : 9
     "Capital Partners" : 9
-    "Corporate Technology" : 10
+    "Corporate Technology" : 11
     "Custody" : 8
-    "Fund Services" : 11
+    "Fund Services" : 12
 ```
 
 ```mermaid
 xychart-beta
     title "Pipelines per type"
-    x-axis [FULL, SECURITY, EXTENDED, SAST]
+    x-axis [FULL, SECURITY, EXTENDED, SAST, NEXUS_IQ]
     y-axis "Pipelines" 0 --> 25
-    bar [23, 10, 7, 6]
+    bar [23, 10, 7, 6, 3]
 ```
 
 ### Generated run history
@@ -157,7 +162,7 @@ instead of InfluxDB (changeset `013-local-metrics`, `dbms:h2`, so the table neve
 is empty at start-up, the portal records a random run history of the last 120 days for every pipeline, generated with
 a fixed seed per pipeline, so monitoring, DORA metrics and change evidence show data out of the box and
 `/api/monitoring/status` reports the metrics store as configured and reachable. Pipelines that share a metrics tag,
-a type and a Jenkins job (CertScanner's two services) share one history, so 46 pipelines get 43 histories. The
+a type and a Jenkins job (CertScanner's two services) share one history, so 49 pipelines get 46 histories. The
 history is recorded once and does not grow while the portal runs; delete `./data` (`backend/data` with `bootRun`) to
 start over with a new catalogue and a history that ends at the new start.
 
@@ -167,18 +172,27 @@ start over with a new catalogue and a history that ends at the new start.
 | `SECURITY` | 0.7 | 20 to 45 minutes | Checkout, Build, Unit Tests, AppScan SAST, Nexus IQ, SonarQube, AppScan DAST, Release Gate |
 | `EXTENDED` | 0.4 | 70 to 130 minutes | Checkout, Read Security Run, Deploy RD, Smoke Tests, Regression Tests, Performance Tests, AppScan DAST, Deploy QC, Release Gate |
 | `SAST` | 0.9 | 6 to 18 minutes | Checkout, Build, AppScan SAST, Release Gate |
+| `NEXUS_IQ` | 0.8 | 5 to 15 minutes | Checkout, Build, Nexus IQ, Release Gate |
 
 - Runs start in working hours, 06:00 to 21:00 UTC. A run that would start on a Saturday or Sunday moves to Monday
   four times out of five, so most runs fall on weekdays.
 - Each pipeline gets a health between 75% and 97%, the chance that a run succeeds. After a failed run the next one
   succeeds only 45% of the time, so failures tend to repeat. A run that does not succeed fails (half of them), is
-  unstable with one warning check (four in ten) or is aborted (one in ten).
+  unstable with one warning check (four in ten) or is aborted (one in ten). A `NEXUS_IQ` run that would succeed is
+  unstable six times in ten instead, its Nexus IQ stage warning about a policy violation, so the demo shows golden
+  pull requests.
 - Runs build `develop` (55%), `main` (15%), a `feature/` branch (22%) or a `release/` branch (8%). A run is a
   deployment when it reached Deploy RD on a branch other than `feature/`, so only full and extended pipelines deploy;
   a deployment whose run failed is a change failure. Each pipeline has its own typical lead time of 2 to 47 hours.
 - Every run writes `pipeline_run` and `dora` points. The last two runs of each pipeline also carry the full evidence:
   `stage_event` per stage; per service `build_evidence`, and `test_execution`, `code_coverage` and
   `security_findings` for the stages the run reached; and `policy_status`, `vulnerabilities` and `release_gate`.
+- When the Nexus IQ stage of such a run warns (a policy violation), in any pipeline type that runs Nexus IQ, every
+  service also gets a `goldenfix` point: GoldenFix raised the golden pull request (`PR_CREATED`) in the service's
+  Bitbucket repository, numbered after the build and titled `GoldenFix-<yyyyMMddHHmm>` after the run's end, with two
+  to four upgrades offered and at most one left unresolved; a service without a repository gets `NOT_CONFIGURED` and
+  no pull request, as in the library. These values follow from the run itself, so the rest of the history is the
+  same as without them.
 - The history of a pipeline whose key is revoked ends nine days before the first start.
 
 ## Profiles and configuration
@@ -198,7 +212,7 @@ start over with a new catalogue and a history that ends at the new start.
 | `INFLUX_URL`, `INFLUX_TOKEN` | empty | your InfluxDB; empty switches the monitoring off, except with demo data, which then reads the local metrics store (see [Demo data](#demo-data)) |
 | `INFLUX_ORG`, `INFLUX_BUCKET` | `DevSecOps`, `DORA-metrics` | where DSOEnhanced writes its metrics |
 | `GRAFANA_DASHBOARD_URL` | empty | link to the DSOEnhanced pipeline dashboard; empty hides the dashboard |
-| `GRAFANA_SECURITY_DASHBOARD_URL` | empty | link to the security dashboard for `SECURITY` and `SAST` pipelines; empty uses the pipeline dashboard |
+| `GRAFANA_SECURITY_DASHBOARD_URL` | empty | link to the security dashboard for `SECURITY`, `SAST` and `NEXUS_IQ` pipelines; empty uses the pipeline dashboard |
 | `DSO_DEMO_DATA` | `true` with `local` | create the demo products when the database holds no other product, and without `INFLUX_URL` a run history; see [Demo data](#demo-data) |
 
 ```bash
@@ -368,7 +382,7 @@ erDiagram
     DSO_PIPELINE {
         NUMBER ID PK
         NUMBER SERVICE_ID FK
-        VARCHAR2 PIPELINE_TYPE "FULL, SECURITY, EXTENDED, SAST"
+        VARCHAR2 PIPELINE_TYPE "FULL, SECURITY, EXTENDED, SAST, NEXUS_IQ"
         VARCHAR2 AGENT_LABELS
         VARCHAR2 JENKINS_JOB
         VARCHAR2 SECURITY_PIPELINE_JOB
@@ -444,7 +458,7 @@ sequenceDiagram
         P-->>L: 200 with the configuration as JSON
         L->>L: run the stages of the pipeline type
         L->>I: pipeline_run, dora, stage_event, security_findings, code_coverage
-        L->>I: test_execution, release_gate, build_evidence, policy_status, vulnerabilities
+        L->>I: test_execution, release_gate, build_evidence, policy_status, vulnerabilities, goldenfix
     else invalidated key
         P-->>L: 403 problem detail "Pipeline key invalidated" with the date and the reason
         L-->>J: the build stops before its stages
@@ -460,12 +474,35 @@ Keys are random UUIDs, the API lists none of them by this request, and an invali
 When the portal moves behind BBH SSO, `/api/dso/config/**` stays outside the sign-in.
 
 A pipeline's metrics are matched by the InfluxDB tags the library writes: `project` (the service's metrics project
-plus the pipeline type suffix: none for full, `security`, `extended`, `sast`) and `env`.
+plus the pipeline type suffix: none for full, `security`, `extended`, `sast`, `nexusiq`) and `env`.
 
 Several services may share one metrics project and env. Under a shared tag a `pipeline_run` belongs to the pipeline
 whose Jenkins job (or a branch of it) recorded it in the `job` field; a pipeline without a Jenkins job shows no run,
 and a run of one job building several services belongs to each of them. DORA metrics and the Grafana dashboard stay
 per tag. Concurrent runs under one tag can still mix the points the library writes without a `module` tag.
+
+### Nexus IQ GoldenFix pipeline
+
+A Nexus IQ GoldenFix pipeline (`NEXUS_IQ`, Jenkinsfile `devSecOpsNexusIqGoldenFixPipeline(pipelineKey: '<key>')`,
+job `DevSecOps/<CODE>/<service>-nexusiq`) runs three stages: *Monitor source changes (download sources)*, *Build
+artifact* and *Dependencies scan (Nexus IQ)*. When the scan reports a policy violation, GoldenFix applies the upgrades
+Nexus IQ offers and raises the golden pull request `GoldenFix-<yyyyMMddHHmm>` in the service's Bitbucket repository.
+The pipeline deploys nothing and runs no other scan.
+
+Its configuration (`pipeline.type: nexusiq`) carries the service's settings like any other pipeline and links no
+security or extended job. The service needs:
+
+- its Nexus IQ applications, with scan patterns that match the artifacts the build produces;
+- its Bitbucket repository and credentials ID (`scm.bitbucket`); without a repository the library records
+  `NOT_CONFIGURED` and raises no pull request;
+- GoldenFix switched on, by the service's own switch or by the GoldenFix defaults of the global settings;
+- an AppScan application, which every service keeps whatever its pipelines.
+
+Its metrics carry the project suffix `nexusiq` and its Grafana link opens the security dashboard. Change Evidence
+shows its Nexus IQ results and, per service, the `goldenfix` point: the status, the upgrades offered, applied and left
+unresolved, and the link and title of the pull request. Liquibase changeset `015-nexus-iq-pipeline` adds `NEXUS_IQ`
+to the pipeline type check of `DSO_PIPELINE`; its rollback first deletes the Nexus IQ GoldenFix pipelines with their
+keys.
 
 ### Change evidence
 
@@ -478,7 +515,11 @@ The Change Evidence page reads the points of a pipeline's latest run, per servic
   recorded), the SAST, DAST, Nexus IQ and SonarQube report links, and when the portal rendered the configuration the
   build read with its sha256 hint;
 - `security_findings`, `policy_status`, `vulnerabilities`, `code_coverage`, `release_gate` and `stage_event` give the
-  scans, coverage, release gate and stages as before.
+  scans, coverage, release gate and stages as before;
+- `goldenfix` gives the GoldenFix result (`goldenFix` in the API, `null` when the run recorded none for the service):
+  the status tag (for example `PR_CREATED`, `PR_UPDATED`, `NO_FIXES`, `BUILD_FAILED` or `NOT_CONFIGURED`), how many
+  upgrades Nexus IQ offered, how many were applied and how many stay unresolved, whether a pull request was raised
+  (`pr_raised`), and its link and title (`pr_url`, `pr_title`, which the library writes only when there is one).
 
 A SonarQube policy status wins over the quality gate. A run without `build_evidence` (a library older than the
 portal integration) keeps the links the portal builds: the HCL AppScan scans of the application, the SonarQube
@@ -552,8 +593,8 @@ Moving the configuration into the portal changes these behaviours of the library
    nexusDelivery API reads them) and the keys the library no longer reads are not modelled.
 6. Selecting projects through `PROJECT_NAMES`/`PROJECT_NAME` without keys is gone; the keys decide.
 7. Texts that named `config.yaml`/`defaults.yaml` now name the portal, also where they reach the report,
-   `release-gate.json` and InfluxDB. A Jenkinsfile `securityPipeline` in a full, security or SAST pipeline is ignored,
-   which shows the Nexus IQ and SonarQube summary rows it used to hide.
+   `release-gate.json` and InfluxDB. A Jenkinsfile `securityPipeline` in a full, security, SAST or Nexus IQ GoldenFix
+   pipeline is ignored, which shows the Nexus IQ and SonarQube summary rows it used to hide.
 8. Nexus IQ report links appear for every service, because the IQ server URL is global (GoldenFix stays governed by
    its own per-service switch).
 9. Every build depends on the portal at start; the agents of the `DSO_PORTAL_AGENT` label need HTTPS access to it.
@@ -573,7 +614,7 @@ secrets.
 | `GET /api/departments` | departments by name, each with the number of its products, their services, their DevSecOps pipelines and the pipelines with an active key |
 | `POST /api/departments`, `PUT`/`DELETE /api/departments/{id}` | add, rename or delete a department; `PUT` carries the `version` it was read at; a department that still has products is not deleted (409) |
 | `GET /api/products?search=` | products with their department, service and pipeline counts; the search also matches the department name |
-| `POST /api/products`, `GET`/`PUT`/`DELETE /api/products/{id}` | a product in its department (`departmentId`, required on every save) with its complete list of services; `PUT` carries the `version` it was read at; every service the save creates gets a full pipeline with an active key, or with `?pipelineType=SAST\|SECURITY\|FULL` every service of the product without a pipeline of that type gets one |
+| `POST /api/products`, `GET`/`PUT`/`DELETE /api/products/{id}` | a product in its department (`departmentId`, required on every save) with its complete list of services; `PUT` carries the `version` it was read at; every service the save creates gets a full pipeline with an active key, or with `?pipelineType=SAST\|NEXUS_IQ\|SECURITY\|FULL` every service of the product without a pipeline of that type gets one |
 | `GET /api/products/code-suggestion?name=` | the code the portal suggests for a new product's name: its letters and digits in upper case, with a number added when another product has that code |
 | `GET /api/products/{id}/pipelines` | each service of a product with its pipelines |
 | `POST /api/services/{id}/pipelines` | add a pipeline; it starts with an active key |
