@@ -675,8 +675,9 @@ FixVersion unless the template or the user name another, and the people and the 
 The short description names the product, the FixVersion and the epics; the description names the product, its
 department, the schedule with the downtime window (or "No downtime") and the change tasks, lists every epic with its
 chosen stories, then the planning texts, privileged access, the risk with every answer given, the users affected,
-the secure coding ticket and the product description, cut to the 160 and 4000 characters ProTech takes. Both stay
-editable until the change is raised. The change belongs to the department of its product, so New Change lists only
+the secure coding ticket and the product description, cut to the 160 and 4000 bytes ProTech takes. Both stay
+editable until the change is raised; the review writes them again when its change tasks change, keeping a text the
+user edited and offering the new one. The change belongs to the department of its product, so New Change lists only
 the products in a department; an admin places the others in one in Beadle Admin first.
 A raised change is stored in the portal with its numbers, who opened it, its texts, its tasks and a copy of the fields
 it used, so it outlives later edits of the template and the product itself; it starts in Draft.
