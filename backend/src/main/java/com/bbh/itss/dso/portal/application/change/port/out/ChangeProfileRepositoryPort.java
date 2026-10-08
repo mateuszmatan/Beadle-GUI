@@ -1,7 +1,7 @@
 package com.bbh.itss.dso.portal.application.change.port.out;
 
-import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileSummary;
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile;
+import com.bbh.itss.dso.portal.domain.change.ChangeProfileSummary;
 
 import java.util.List;
 import java.util.Optional;

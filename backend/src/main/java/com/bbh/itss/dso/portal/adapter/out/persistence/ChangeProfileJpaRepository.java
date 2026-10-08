@@ -1,6 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
-import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileSummary;
+import com.bbh.itss.dso.portal.domain.change.ChangeProfileSummary;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -14,7 +14,7 @@ public interface ChangeProfileJpaRepository extends JpaRepository<ChangeProfileE
     Optional<ChangeProfileEntity> findByProductId(long productId);
 
     @Query("""
-            select new com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileSummary(p.productId, pr.name,
+            select new com.bbh.itss.dso.portal.domain.change.ChangeProfileSummary(p.productId, pr.name,
                 p.version, p.updatedAt)
             from ChangeProfileEntity p join ProductEntity pr on pr.id = p.productId
             order by pr.name, p.productId""")

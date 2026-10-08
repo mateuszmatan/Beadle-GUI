@@ -1,10 +1,10 @@
 package com.bbh.itss.dso.portal.application.change
 
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase
-import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileSummary
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileView
 import com.bbh.itss.dso.portal.application.change.port.out.ChangeProfileRepositoryPort
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile
+import com.bbh.itss.dso.portal.domain.change.ChangeProfileSummary
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess
 import com.bbh.itss.dso.portal.domain.change.TaskText
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException

@@ -11,7 +11,7 @@ import static org.apache.commons.lang3.StringUtils.trim;
 
 public record Department(Long id, String name, long version) {
 
-    private static final int MAX_NAME_LENGTH = 100;
+    public static final int MAX_NAME_LENGTH = 100;
 
     public Department {
         name = trim(name);

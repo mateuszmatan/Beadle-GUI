@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.application.change;
 
-import com.bbh.itss.dso.portal.application.ReadOnly;
 import com.bbh.itss.dso.portal.application.UseCase;
 import com.bbh.itss.dso.portal.application.WithoutTransaction;
 import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentView;
@@ -124,7 +123,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     @Override
-    @ReadOnly
+    @WithoutTransaction
     public ChangeIntegrations integrations() {
         return new ChangeIntegrations(jira.connected(), serviceNow.connected());
     }
@@ -169,7 +168,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     private ProductionChange draft(ChangeCommand command, Instant raisedAt) {
         Product product = products.get(command.productId());
         ValidationProblems problems = new ValidationProblems();
-        String version = trimToNull(command.fixVersion());
+        String version = command.fixVersion();
         problems.require("fixVersion", version, "choose the FixVersion of the release")
                 .fits("fixVersion", version, FIX_VERSION_MAX);
         ChangeTemplate template = command.template();

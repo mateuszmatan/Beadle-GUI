@@ -146,7 +146,7 @@ public class ProductionChangeEntity extends AuditedEntity {
         List<ProductionChangeTaskEntity> next = new ArrayList<>();
         for (int order = 0; order < changed.size(); order++) {
             ChangeTask task = changed.get(order);
-            ProductionChangeTaskEntity kept = task.number() == null ? null : stored.get(task.number());
+            ProductionChangeTaskEntity kept = stored.get(task.number());
             next.add(kept == null ? new ProductionChangeTaskEntity(this, order, task) : kept.apply(order, task));
         }
         tasks.clear();

@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.application.change.port.in;
 
+import com.bbh.itss.dso.portal.domain.change.ChangeProfileSummary;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
 import com.bbh.itss.dso.portal.domain.change.TaskText;
 
