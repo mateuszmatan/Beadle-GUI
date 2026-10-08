@@ -347,6 +347,27 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         'a too long short text'       | [shortDescription: 's' * 161]                                  || ['shortDescription']
     }
 
+    def "a change of a product outside every department is refused on the product, previewed or raised"() {
+        given:
+        def created = createProduct(product(code: uniqueCode(), name: "Orphan ${uniqueCode()}"))
+        def key = 'ORP' + created.id
+        def fixVersion = api.get("/api/products/$created.id/jira/versions?project=$key").json[0].name
+        def epic = api.get("/api/products/$created.id/jira/epics?fixVersion=${enc(fixVersion)}&project=$key")
+                .json[0].key
+        jdbc.update('UPDATE DSO_PRODUCT SET DEPARTMENT_ID = NULL WHERE ID = ?', created.id)
+        def body = change(created, fixVersion, [epic], [], [template: templateJson(jiraProjectKey: key)])
+
+        when:
+        def previewed = api.post('/api/changes/preview', body)
+        def raised = api.post('/api/changes', body)
+
+        then:
+        [previewed, raised]*.status == [400, 400]
+        [previewed, raised]*.json*.errors == [[[field  : 'productId',
+                                                 message: 'the product must be placed in a department in Beadle Admin first']]] * 2
+        api.get('/api/changes').json.every { it.productId != created.id }
+    }
+
     def "the preview accepts an installation start in the past, raising it does not"() {
         given:
         def created = createProduct(product(code: uniqueCode(), name: "Product ${uniqueCode()}"))

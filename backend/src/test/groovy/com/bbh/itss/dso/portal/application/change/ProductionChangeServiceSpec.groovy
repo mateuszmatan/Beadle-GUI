@@ -72,8 +72,9 @@ class ProductionChangeServiceSpec extends Specification {
 
     def setup() {
         products.get(1L) >> certScanner
-        products.get(2L) >> changeProduct(id: 2L, code: 'PAYHUB', name: 'PayHub', departmentId: null,
-                departmentName: null)
+        products.get(2L) >> changeProduct(id: 2L, code: 'PAYHUB', name: 'PayHub', departmentId: 4L,
+                departmentName: 'Custody')
+        products.get(3L) >> changeProduct(id: 3L, departmentId: null, departmentName: null)
         jira.epics('CERT', _) >> { project, version -> version == FIX_VERSION ? ISSUES.take(2) : [] }
         jira.stories('CERT', _, _) >> { project, version, Collection epics ->
             version == FIX_VERSION ? ISSUES.drop(2).findAll { it.epicKey() in epics } : []
@@ -101,7 +102,7 @@ class ProductionChangeServiceSpec extends Specification {
         0 * serviceNow._
     }
 
-    def "a product without a department or stored ProTech defaults raises a change from the request"() {
+    def "a product without stored ProTech defaults raises a change from the request in its department"() {
         given:
         def payHub = template(jiraProjectKey: 'PAY', configurationItem: 'PayHub')
         jira.epics('PAY', 'PAY 1.0') >> [epic('PAY-1', 'Instant payments')]
@@ -112,12 +113,30 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         preview.productCode() == 'PAYHUB'
-        preview.departmentId() == null
-        preview.departmentName() == null
+        preview.departmentId() == 4L
+        preview.departmentName() == 'Custody'
         preview.fixVersion() == 'PAY 1.0'
-        preview.template() == payHub.releasedAs('PAY 1.0').openedBy('Mateusz Matan', null)
+        preview.template() == payHub.releasedAs('PAY 1.0').openedBy('Mateusz Matan', 'Custody')
         preview.shortDescription() == 'PayHub PAY 1.0: Instant payments'
+        preview.description().startsWith('Production release PAY 1.0 of PayHub (PAYHUB) in Custody.')
         preview.description().contains('Change tasks: Task 1 of the CertScanner release.')
+    }
+
+    def "a change of a product outside every department is refused on the product when it is #action"() {
+        when:
+        call(service)
+
+        then:
+        def refused = thrown(InvalidRequestException)
+        refused.problems() == [new FieldProblem('productId',
+                'the product must be placed in a department in Beadle Admin first')]
+        0 * serviceNow._
+        0 * changes._
+
+        where:
+        action      | call
+        'previewed' | { ProductionChangeService it -> it.preview(command(productId: 3L)) }
+        'raised'    | { ProductionChangeService it -> it.raise(command(productId: 3L)) }
     }
 
     def "a raised change is filed in ProTech and stored with its numbers, its draft stage and its sync time"() {

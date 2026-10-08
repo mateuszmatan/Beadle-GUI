@@ -162,6 +162,8 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     private ProductionChange draft(ChangeCommand command, Instant raisedAt) {
         ChangeProduct product = products.get(command.productId());
         ValidationProblems problems = new ValidationProblems();
+        problems.require("productId", product.departmentId(),
+                "the product must be placed in a department in Beadle Admin first");
         String version = command.fixVersion();
         problems.require("fixVersion", version, "choose the FixVersion of the release")
                 .fits("fixVersion", version, FIX_VERSION_MAX);
