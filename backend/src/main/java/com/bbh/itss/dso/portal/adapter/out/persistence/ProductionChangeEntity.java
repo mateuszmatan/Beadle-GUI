@@ -98,7 +98,7 @@ public class ProductionChangeEntity extends AuditedEntity {
 
     ProductionChangeEntity update(ProductionChange change) {
         if (!change.unappliedIn(toDomain()).isEmpty()) {
-            editedVersion = version() + 1;
+            editedVersion = change.editedVersion() < editedVersion ? change.editedVersion() : version() + 1;
         }
         touch();
         return apply(change);

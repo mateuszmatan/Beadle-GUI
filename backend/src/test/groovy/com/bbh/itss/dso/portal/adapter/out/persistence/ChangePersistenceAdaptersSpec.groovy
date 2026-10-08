@@ -329,6 +329,23 @@ class ChangePersistenceAdaptersSpec extends Specification {
         changes.load(saved.id()).get() == windowed
     }
 
+    def "a claimed edit put back after ProTech refused it returns to the version its fields were edited at"() {
+        given:
+        def stored = changes.save(raise('CHG0001001', 'CTASK0002001'))
+        entities.clear()
+
+        when:
+        def claimed = changes.save(stored.toBuilder().shortDescription('Renamed').build())
+        entities.clear()
+        def putBack = changes.save(stored.toBuilder().version(claimed.version()).build())
+        entities.clear()
+
+        then:
+        [claimed.version(), claimed.editedVersion()] == [1L, 1L]
+        [putBack.version(), putBack.editedVersion()] == [2L, 0L]
+        changes.load(stored.id()).get() == putBack
+    }
+
     def "a change task added in Beadle is stored without a number, then with the number ProTech gave it"() {
         given:
         def saved = changes.save(raise('CHG0001001', 'CTASK0002001'))
