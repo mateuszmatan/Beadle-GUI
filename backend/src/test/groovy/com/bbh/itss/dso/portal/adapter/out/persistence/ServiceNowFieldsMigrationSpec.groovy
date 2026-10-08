@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.FIRST_USE_PLAN
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Type.NORMAL
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.VALIDATION_PLAN
+import static com.bbh.itss.dso.portal.domain.change.TaskText.suggestedTasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.at
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.privileged
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
@@ -67,6 +68,7 @@ class ServiceNowFieldsMigrationSpec extends MigrationSpecification {
                 .planning(new Planning('Pipeline tests passed on QC.', 'Deploy the services.', VALIDATION_PLAN,
                         'Redeploy the previous release.', FIRST_USE_PLAN))
                 .privilegedAccess(PrivilegedAccess.NONE).riskAssessment(impact('Low')).build()
+        profile.tasks() == suggestedTasks('CertScanner')
         change.number() == 'CHG0030001'
         change.fixVersion() == 'Not recorded'
         change.schedule() == new ChangeSchedule(at('2026-03-02T06:00:00Z'), at('2026-03-02T08:00:00Z'),
@@ -86,7 +88,7 @@ class ServiceNowFieldsMigrationSpec extends MigrationSpecification {
         }
 
         when:
-        def changed = profiles.save(profile.change(2L, template(privilegedAccess: privileged(2))))
+        def changed = profiles.save(profile.change(2L, template(privilegedAccess: privileged(2)), profile.tasks()))
 
         then:
         changed.version() == 3

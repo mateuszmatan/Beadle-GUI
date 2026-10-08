@@ -10,12 +10,15 @@ import com.bbh.itss.dso.portal.application.change.port.out.ChangeProfileReposito
 import com.bbh.itss.dso.portal.domain.catalog.Product;
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
+import com.bbh.itss.dso.portal.domain.change.TaskText;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.suggestedFor;
+import static com.bbh.itss.dso.portal.domain.change.TaskText.suggestedTasks;
+import static com.bbh.itss.dso.portal.domain.change.TaskText.validateTasks;
 
 @UseCase
 @RequiredArgsConstructor
@@ -38,22 +41,23 @@ public class ChangeProfileService implements ChangeProfilesUseCase {
                 .orElseGet(() -> ChangeProfileView.builder().productId(productId).productName(product.name())
                         .template(suggestedFor(product.code(), product.name(), product.ownerTeam(),
                                 product.description()))
-                        .build());
+                        .tasks(suggestedTasks(product.name())).build());
     }
 
     @Override
-    public ChangeProfileView save(long productId, Long version, ChangeTemplate template) {
+    public ChangeProfileView save(long productId, Long version, ChangeTemplate template, List<TaskText> tasks) {
         Product product = products.get(productId);
         ValidationProblems problems = new ValidationProblems();
         template.validate(problems.at("template"));
+        validateTasks(tasks, problems);
         problems.throwIfAny();
-        ChangeProfile changed = profiles.find(productId).map(stored -> stored.change(version, template))
-                .orElseGet(() -> ChangeProfile.create(productId, template));
+        ChangeProfile changed = profiles.find(productId).map(stored -> stored.change(version, template, tasks))
+                .orElseGet(() -> ChangeProfile.create(productId, template, tasks));
         return view(product, profiles.save(changed));
     }
 
     private static ChangeProfileView view(Product product, ChangeProfile profile) {
         return new ChangeProfileView(product.id(), product.name(), profile.version(), profile.updatedAt(),
-                profile.template());
+                profile.template(), profile.tasks());
     }
 }

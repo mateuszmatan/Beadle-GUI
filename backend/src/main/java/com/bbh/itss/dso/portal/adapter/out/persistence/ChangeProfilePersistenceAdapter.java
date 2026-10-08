@@ -35,7 +35,7 @@ class ChangeProfilePersistenceAdapter implements ChangeProfileRepositoryPort {
             }
             return stored;
         }).orElseGet(() -> new ChangeProfileEntity(profile.productId()));
-        entity.apply(profile.template());
+        entity.apply(profile);
         return profiles.saveAndFlush(entity).toDomain();
     }
 }

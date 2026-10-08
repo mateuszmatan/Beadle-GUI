@@ -1,12 +1,12 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
-import com.bbh.itss.dso.portal.adapter.RecordMapper;
 import com.bbh.itss.dso.portal.adapter.out.persistence.ChangeTemplateEmbeddable.PrivilegedUserEmbeddable;
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
@@ -18,6 +18,7 @@ import lombok.NoArgsConstructor;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.bbh.itss.dso.portal.adapter.RecordMapper.map;
 import static jakarta.persistence.GenerationType.IDENTITY;
 import static lombok.AccessLevel.PROTECTED;
 
@@ -40,17 +41,19 @@ public class ChangeProfileEntity extends AuditedEntity {
     @OrderColumn(name = "POSITION")
     private List<PrivilegedUserEmbeddable> privilegedUsers = new ArrayList<>();
 
+    @ElementCollection
+    @CollectionTable(name = "DSO_CHANGE_PROFILE_TASK", joinColumns = @JoinColumn(name = "PROFILE_ID"))
+    @OrderColumn(name = "POSITION")
+    private List<TaskEmbeddable> tasks = new ArrayList<>();
+
     ChangeProfileEntity(long productId) {
         this.productId = productId;
     }
 
-    void apply(ChangeTemplate template) {
-        this.template = ChangeTemplateEmbeddable.of(template);
-        List<PrivilegedUserEmbeddable> users = ChangeTemplateEmbeddable.usersOf(template);
-        if (!privilegedUsers.equals(users)) {
-            privilegedUsers.clear();
-            privilegedUsers.addAll(users);
-        }
+    void apply(ChangeProfile profile) {
+        this.template = ChangeTemplateEmbeddable.of(profile.template());
+        replace(privilegedUsers, ChangeTemplateEmbeddable.usersOf(profile.template()));
+        replace(tasks, profile.tasks().stream().map(task -> map(task, TaskEmbeddable.class)).toList());
     }
 
     ChangeTemplate template() {
@@ -58,6 +61,10 @@ public class ChangeProfileEntity extends AuditedEntity {
     }
 
     ChangeProfile toDomain() {
-        return RecordMapper.map(ChangeProfile.class, this);
+        return map(ChangeProfile.class, this);
+    }
+
+    @Embeddable
+    public record TaskEmbeddable(String shortDescription, String description) {
     }
 }

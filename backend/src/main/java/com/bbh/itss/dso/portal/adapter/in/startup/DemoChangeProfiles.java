@@ -10,13 +10,16 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedUser;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.RiskAssessment;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Timing;
+import com.bbh.itss.dso.portal.domain.change.TaskText;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
@@ -55,16 +58,29 @@ public class DemoChangeProfiles {
     private final ChangeProfilesUseCase profiles;
 
     @EventListener(ApplicationReadyEvent.class)
+    @Order(1)
     public void fillIn() {
         int filled = 0;
         for (ProductSummaryView product : products.list(null)) {
             ChangeProfileView profile = profiles.get(product.id());
             if (profile.version() == null) {
-                profiles.save(product.id(), null, defaultsFor(product, profile.template()));
+                ChangeTemplate defaults = defaultsFor(product, profile.template());
+                profiles.save(product.id(), null, defaults, tasksFor(product, defaults, profile.tasks()));
                 filled++;
             }
         }
-        log.info("Filled in the demo ServiceNow change template of {} product(s)", filled);
+        log.info("Filled in the demo ProTech change template of {} product(s)", filled);
+    }
+
+    static List<TaskText> tasksFor(ProductSummaryView product, ChangeTemplate defaults, List<TaskText> suggested) {
+        if (LEVELS.getFirst().equals(defaults.riskAssessment().businessImpact())) {
+            return suggested;
+        }
+        List<TaskText> tasks = new ArrayList<>(suggested);
+        tasks.add(1, new TaskText("Run the database scripts of " + product.name(), "Run the reviewed database"
+                + " scripts of the " + product.name() + " release on the production database before the deployment,"
+                + " then record the scripts and their result in this task."));
+        return tasks;
     }
 
     static ChangeTemplate defaultsFor(ProductSummaryView product, ChangeTemplate suggested) {

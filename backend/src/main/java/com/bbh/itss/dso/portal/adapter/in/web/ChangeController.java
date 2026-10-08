@@ -34,13 +34,18 @@ public class ChangeController {
     private final ChangeProfilesUseCase profiles;
 
     @GetMapping("/changes")
-    public List<ProductionChange> list() {
-        return changes.list();
+    public List<ProductionChange> list(@RequestParam(required = false) Long departmentId) {
+        return changes.list(departmentId);
     }
 
     @GetMapping("/changes/{id}")
     public ProductionChange get(@PathVariable long id) {
         return changes.get(id);
+    }
+
+    @PutMapping("/changes/{id}")
+    public ProductionChange update(@PathVariable long id, @Valid @RequestBody ChangeEditRequest request) {
+        return changes.update(id, request.toCommand());
     }
 
     @GetMapping("/changes/integrations")
@@ -89,6 +94,6 @@ public class ChangeController {
 
     @PutMapping("/products/{id}/change-profile")
     public ChangeProfileView saveProfile(@PathVariable long id, @Valid @RequestBody ChangeProfileRequest request) {
-        return profiles.save(id, request.version(), request.toTemplate());
+        return profiles.save(id, request.version(), request.toTemplate(), request.toTasks());
     }
 }
