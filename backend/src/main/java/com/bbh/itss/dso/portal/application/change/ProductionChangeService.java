@@ -41,6 +41,7 @@ import static com.bbh.itss.dso.portal.domain.change.JiraVersion.UNRELEASED_NEWES
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.DESCRIPTION_MAX;
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.FIX_VERSION_MAX;
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.SHORT_DESCRIPTION_MAX;
+import static com.bbh.itss.dso.portal.domain.change.ProductionChange.checkTemplateAndSchedule;
 import static com.bbh.itss.dso.portal.domain.change.TaskText.validateTasks;
 import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
 import static com.bbh.itss.dso.portal.domain.shared.Failures.staleVersion;
@@ -48,11 +49,12 @@ import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_1000;
 import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_4000;
 import static com.bbh.itss.dso.portal.domain.shared.Text.bytes;
 import static com.bbh.itss.dso.portal.domain.shared.Timestamps.now;
-import static com.bbh.itss.dso.portal.domain.shared.Versions.requireCurrent;
+import static com.bbh.itss.dso.portal.domain.shared.Versions.requireUnchangedSince;
 import static java.util.Locale.ROOT;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
+import static org.apache.commons.lang3.Strings.CS;
 
 @UseCase
 @RequiredArgsConstructor
@@ -94,7 +96,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @WithoutTransaction
     public ProductionChange update(long id, ChangeEditCommand command) {
         ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
-        requireCurrent(command.version(), stored.version());
+        requireUnchangedSince(command.version(), stored.editedVersion(), stored.version());
         requireDepartment(stored, command.departmentId());
         if (stored.update() != null && stored.update().pending()) {
             throw new IllegalStateException("The last update of " + stored.number()
@@ -166,18 +168,8 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         problems.require("fixVersion", version, "choose the FixVersion of the release")
                 .fits("fixVersion", version, FIX_VERSION_MAX);
         ChangeTemplate template = command.template();
-        problems.require("template", template, "fill in the ProTech fields of the change");
-        if (template != null) {
-            template.validate(problems.at("template"));
-        }
         ChangeSchedule schedule = command.schedule();
-        problems.require("schedule", schedule, "choose when the change is installed, validated and first used");
-        if (schedule != null) {
-            schedule.check(problems.at("schedule"));
-            if (raisedAt != null) {
-                schedule.checkUpcoming(raisedAt, problems.at("schedule"));
-            }
-        }
+        checkTemplateAndSchedule(template, schedule, raisedAt, problems);
         problems.require("epicKeys", command.epicKeys(), "choose at least one epic");
         String project = template == null ? null : template.jiraProjectKey();
         List<JiraIssue> epics = List.of();
@@ -267,11 +259,11 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private static String unreachable(UncheckedIOException e) {
-        return "ProTech could not be reached: " + e.getMessage();
+        return CS.appendIfMissing("ProTech could not be reached: " + e.getMessage(), ".");
     }
 
     private static String missing(ProductionChange change) {
-        return "ProTech has no change " + change.number();
+        return "ProTech has no change " + change.number() + ".";
     }
 
     private String projectOf(long productId, String project) {

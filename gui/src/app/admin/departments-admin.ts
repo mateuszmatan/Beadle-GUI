@@ -78,9 +78,15 @@ export class DepartmentsAdmin {
   }
 
   protected deleteHint(department: Department): string | null {
-    return department.productCount
-      ? `${department.name} still has ${counted(department.productCount, 'product')}. ` +
-          'Move them to another department first.'
+    if (department.productCount) {
+      return (
+        `${department.name} still has ${counted(department.productCount, 'product')}. ` +
+        'Move them to another department first.'
+      );
+    }
+    return department.changeCount
+      ? `${department.name} still owns ${counted(department.changeCount, 'change')} raised in Beadle, ` +
+          'so it cannot be deleted.'
       : null;
   }
 

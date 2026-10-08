@@ -80,17 +80,17 @@ class ChangesSpec extends EditorSpecification {
         assertThat(numbers()).hasText(['CHG0030990', 'CHG0030995', 'CHG0031001'] as String[])
 
         when:
-        sortBy('Installation')
-
-        then:
-        assertThat(numbers()).hasText(['CHG0030990', 'CHG0030995', 'CHG0031001'] as String[])
-
-        when:
         open('/beadle/changes')
 
         then:
         assertThat(select(page.locator('.toolbar'), 'Your department')).hasText('Corporate Technology')
         assertThat(numbers()).hasText(['CHG0031001', 'CHG0030995', 'CHG0030990'] as String[])
+
+        when:
+        sortBy('Installation')
+
+        then:
+        assertThat(numbers()).hasText(['CHG0030990', 'CHG0030995', 'CHG0031001'] as String[])
 
         when:
         choose(page.locator('.toolbar'), 'Your department', 'AI Lab')
@@ -192,6 +192,7 @@ class ChangesSpec extends EditorSpecification {
         button('Add a change task', true).click()
         fillIn(editedTasks().nth(1), ['Short description': 'Notify the users',
                                       'Description'      : 'Send the release notes to the users.'])
+        api.protech.applying = false
         button('Publish to ProTech', true).click()
         page.waitForURL('**/beadle/changes/4')
 
@@ -211,7 +212,9 @@ class ChangesSpec extends EditorSpecification {
         }
 
         when:
-        page.waitForCondition({ api.requests('GET', '/api/changes/4').size() >= 2 } as BooleanSupplier)
+        def reads = api.requests('GET', '/api/changes/4').size()
+        api.protech.applying = true
+        page.waitForCondition({ api.requests('GET', '/api/changes/4').size() > reads } as BooleanSupplier)
 
         then:
         assertThat(updateBanner()).hasClass(~/\bsuccess\b/)

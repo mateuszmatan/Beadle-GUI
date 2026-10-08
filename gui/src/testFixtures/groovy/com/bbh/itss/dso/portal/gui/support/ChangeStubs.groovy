@@ -64,7 +64,7 @@ final class ChangeStubs {
     private ChangeStubs() {
     }
 
-    static void install(StubApi api) {
+    static ProTech install(StubApi api) {
         def profiles = new ConcurrentHashMap<Integer, Map>([1: [version: 2, template: CERT_TEMPLATE, tasks: CERT_TASKS]])
         def protech = new ProTech()
         def projectOf = { RecordedRequest request, String id ->
@@ -126,6 +126,7 @@ final class ChangeStubs {
         }
         api.on('POST', '/api/changes/preview') { RecordedRequest request -> draft(request.json() as Map) }
         api.on('POST', '/api/changes') { RecordedRequest request -> json(protech.raise(request.json() as Map), 201) }
+        protech
     }
 
     static Map suggested(Object id) {
@@ -223,8 +224,9 @@ final class ChangeStubs {
         time.truncatedTo(SECONDS).toString()
     }
 
-    private static final class ProTech {
+    static final class ProTech {
 
+        volatile boolean applying = true
         final List<Map> changes = new CopyOnWriteArrayList<Map>()
         final Map<Integer, List<Map>> canceling = new ConcurrentHashMap<>()
         final AtomicInteger changeNumbers = new AtomicInteger(31001)
@@ -260,7 +262,7 @@ final class ChangeStubs {
         }
 
         Map read(Map change) {
-            if ((change.update as Map)?.status == 'PENDING') {
+            if (applying && (change.update as Map)?.status == 'PENDING') {
                 change.tasks = (change.tasks as List<Map>).collect {
                     it.number ? it : it + [number: String.format('CTASK%07d', taskNumbers.incrementAndGet())]
                 } + (canceling.remove(change.id as int) ?: [])

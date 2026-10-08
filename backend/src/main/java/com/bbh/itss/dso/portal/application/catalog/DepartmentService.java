@@ -4,6 +4,7 @@ import com.bbh.itss.dso.portal.application.ReadOnly;
 import com.bbh.itss.dso.portal.application.UseCase;
 import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentView;
 import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentsUseCase;
+import com.bbh.itss.dso.portal.application.catalog.port.out.ChangeCountsPort;
 import com.bbh.itss.dso.portal.application.catalog.port.out.DepartmentRepositoryPort;
 import com.bbh.itss.dso.portal.application.catalog.port.out.PipelineCountsPort;
 import com.bbh.itss.dso.portal.application.catalog.port.out.ProductRepositoryPort;
@@ -28,6 +29,7 @@ public class DepartmentService implements DepartmentsUseCase {
     private final DepartmentRepositoryPort departments;
     private final ProductRepositoryPort products;
     private final PipelineCountsPort pipelineCounts;
+    private final ChangeCountsPort changeCounts;
 
     @Override
     @ReadOnly
@@ -38,12 +40,14 @@ public class DepartmentService implements DepartmentsUseCase {
         Map<Long, Long> services = products.servicesPerProduct();
         Map<Long, Long> pipelines = pipelineCounts.pipelinesPerProduct();
         Map<Long, Long> active = pipelineCounts.activePipelinesPerProduct();
+        Map<Long, Long> raised = changeCounts.changesPerDepartment();
         return departments.findAll().stream()
                 .sorted(comparing(Department::name, CASE_INSENSITIVE_ORDER))
                 .map(department -> {
                     List<Long> ids = productIds.getOrDefault(department.id(), List.of());
                     return new DepartmentView(department.id(), department.name(), department.version(), ids.size(),
-                            total(ids, services), total(ids, pipelines), total(ids, active));
+                            total(ids, services), total(ids, pipelines), total(ids, active),
+                            raised.getOrDefault(department.id(), 0L));
                 })
                 .toList();
     }
@@ -66,6 +70,10 @@ public class DepartmentService implements DepartmentsUseCase {
         if (department.productCount() > 0) {
             throw new IllegalStateException(department.name() + " still has " + department.productCount()
                     + " product(s). Move them to another department first.");
+        }
+        if (department.changeCount() > 0) {
+            throw new IllegalStateException(department.name() + " still owns " + department.changeCount()
+                    + " change(s) raised in Beadle, so it cannot be deleted.");
         }
         departments.delete(id);
     }

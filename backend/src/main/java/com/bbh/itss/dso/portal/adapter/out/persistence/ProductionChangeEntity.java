@@ -87,13 +87,23 @@ public class ProductionChangeEntity extends AuditedEntity {
     @EmbeddedColumnNaming("UPDATE_%s")
     private UpdateEmbeddable update;
 
+    private long editedVersion;
+
     ProductionChangeEntity(ProductionChange change) {
         number = change.number();
         createdAt(change.createdAt());
         apply(change);
     }
 
-    ProductionChangeEntity apply(ProductionChange change) {
+    ProductionChangeEntity update(ProductionChange change) {
+        if (!change.unappliedIn(toDomain()).isEmpty()) {
+            editedVersion = version() + 1;
+        }
+        touch();
+        return apply(change);
+    }
+
+    private ProductionChangeEntity apply(ProductionChange change) {
         productId = change.productId();
         productCode = change.productCode();
         productName = change.productName();

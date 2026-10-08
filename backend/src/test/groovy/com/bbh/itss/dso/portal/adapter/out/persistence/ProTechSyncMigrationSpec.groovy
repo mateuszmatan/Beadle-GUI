@@ -44,7 +44,7 @@ class ProTechSyncMigrationSpec extends MigrationSpecification {
 
     static final List<String> SYNC_COLUMNS = ['DEPARTMENT_ID', 'STATE', 'SYNCED_AT', 'UPDATE_STATUS',
                                               'UPDATE_REQUESTED_AT', 'UPDATE_DEPARTMENT', 'UPDATE_FIELDS',
-                                              'UPDATE_MESSAGE', 'UPDATE_CHECKED_AT']
+                                              'UPDATE_MESSAGE', 'UPDATE_CHECKED_AT', 'EDITED_VERSION']
 
     @Autowired
     ChangeProfilePersistenceAdapter profiles
@@ -74,6 +74,9 @@ class ProTechSyncMigrationSpec extends MigrationSpecification {
         def moved = inTransaction {
             changes.save(changeOf(product, 'CHG0031002', 'CTASK0041011', 'Fund Services'))
         }
+        def renamed = inTransaction {
+            changes.save(changeOf(product, 'CHG0031003', 'CTASK0041021', 'Former Technology'))
+        }
 
         when:
         liquibase.rollback(executedSince('016-'), '')
@@ -99,6 +102,8 @@ class ProTechSyncMigrationSpec extends MigrationSpecification {
         profiles.find(ledger).get().tasks() == suggestedTasks('Ledger')
         change.departmentId() == 3L
         inTransaction { changes.load(moved.id()).get() }.departmentId() == 5L
+        inTransaction { changes.load(renamed.id()).get() }.departmentId() == 3L
+        change.editedVersion() == change.version()
         change.state() == DRAFT
         change.workflow() == [new WorkflowStep(DRAFT, RAISED)]
         change.syncedAt() == null
@@ -108,6 +113,16 @@ class ProTechSyncMigrationSpec extends MigrationSpecification {
         !columns('DSO_PRODUCTION_CHANGE_TASK').contains('SERVICE_NAME')
         nullable('DSO_PRODUCTION_CHANGE_TASK', 'TASK_NUMBER')
         !nullable('DSO_PRODUCTION_CHANGE', 'STATE')
+    }
+
+    def "the Oracle task defaults run the SQL tested on H2, cut by bytes"() {
+        given:
+        def text = getClass().getResource('/db/changelog/oracle/016-beadle-protech-sync.sql').getText('UTF-8')
+        def body = { String id -> (text =~ /(?s)--changeset dso-portal:$id dbms:\w+\n(.*?)--rollback/)[0][1] as String }
+
+        expect:
+        body('016-change-profile-task-defaults').count('SUBSTRB(') == 3
+        body('016-change-profile-task-defaults').replace('SUBSTRB(', 'SUBSTR(') == body('016-change-profile-task-defaults-h2')
     }
 
     private static ProductionChange changeOf(Product product, String number = 'CHG0031001',
@@ -122,18 +137,5 @@ class ProTechSyncMigrationSpec extends MigrationSpecification {
                 .update(new ChangeUpdate(APPLIED, RAISED.plusSeconds(300), 'Corporate Technology', [], null,
                         RAISED.plusSeconds(303)))
                 .syncedAt(RAISED.plusSeconds(600)).build()
-    }
-
-    private List<String> tables() {
-        jdbc.queryForList('SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES', String)
-    }
-
-    private List<String> columns(String table) {
-        jdbc.queryForList('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ?', String, table)
-    }
-
-    private boolean nullable(String table, String column) {
-        jdbc.queryForObject('SELECT IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ? AND COLUMN_NAME = ?',
-                String, table, column) == 'YES'
     }
 }

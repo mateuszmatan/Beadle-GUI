@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
+import com.bbh.itss.dso.portal.application.catalog.port.out.ChangeCountsPort;
 import com.bbh.itss.dso.portal.application.change.port.out.ProductionChangeRepositoryPort;
 import com.bbh.itss.dso.portal.domain.change.ProductionChange;
 import lombok.RequiredArgsConstructor;
@@ -10,16 +11,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.bbh.itss.dso.portal.adapter.out.persistence.AuditedEntity.current;
+import static com.bbh.itss.dso.portal.adapter.out.persistence.Counts.perId;
 import static com.bbh.itss.dso.portal.domain.shared.Failures.staleVersion;
 import static org.springframework.data.domain.Sort.Direction.DESC;
 
 @Component
 @Transactional
 @RequiredArgsConstructor
-class ProductionChangePersistenceAdapter implements ProductionChangeRepositoryPort {
+class ProductionChangePersistenceAdapter implements ProductionChangeRepositoryPort, ChangeCountsPort {
 
     private final ProductionChangeJpaRepository changes;
 
@@ -45,8 +48,7 @@ class ProductionChangePersistenceAdapter implements ProductionChangeRepositoryPo
         if (change.id() == null) {
             return changes.saveAndFlush(new ProductionChangeEntity(change)).toDomain();
         }
-        ProductionChangeEntity entity = current(changes.findById(change.id()), change.version()).apply(change);
-        entity.touch();
+        ProductionChangeEntity entity = current(changes.findById(change.id()), change.version()).update(change);
         try {
             return changes.saveAndFlush(entity).toDomain();
         } catch (OptimisticLockingFailureException e) {
@@ -57,5 +59,10 @@ class ProductionChangePersistenceAdapter implements ProductionChangeRepositoryPo
     @Override
     public void synced(long id, Instant syncedAt) {
         changes.recordSync(id, syncedAt);
+    }
+
+    @Override
+    public Map<Long, Long> changesPerDepartment() {
+        return perId(changes.countByDepartment());
     }
 }

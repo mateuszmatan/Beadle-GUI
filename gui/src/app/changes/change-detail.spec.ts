@@ -207,9 +207,17 @@ describe('ChangeDetail', () => {
       }),
     );
     expect(text(page().querySelector('.sync-problem'))).toBe(
-      'ProTech could not be reached: timed out. Beadle shows what it last read from ProTech 1 hour ago',
+      'ProTech could not be reached: timed out. Beadle shows what it last read from ProTech 1 hour ago.',
     );
     expect(page().querySelector('.note.sync')).toBeNull();
+    fixture.destroy();
+
+    await show(
+      productionChange({ syncedAt: null, syncProblem: 'ProTech has no change CHG0012345.' }),
+    );
+    expect(text(page().querySelector('.sync-problem'))).toBe(
+      'ProTech has no change CHG0012345. Beadle shows what it last read from ProTech.',
+    );
   });
 
   it('lets only the department of an open change edit it', async () => {

@@ -117,9 +117,10 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
           <div class="banner sync-problem" role="status">
             <span>
               <strong>{{ c.syncProblem }}</strong>
-              Beadle shows what it last read from ProTech
               @if (c.syncedAt) {
-                {{ c.syncedAt | relative }}
+                Beadle shows what it last read from ProTech {{ c.syncedAt | relative }}.
+              } @else {
+                Beadle shows what it last read from ProTech.
               }
             </span>
           </div>

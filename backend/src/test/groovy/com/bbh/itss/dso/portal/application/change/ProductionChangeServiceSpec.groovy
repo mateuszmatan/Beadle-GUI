@@ -74,7 +74,7 @@ class ProductionChangeServiceSpec extends Specification {
     def setup() {
         products.get(1L) >> certScanner
         products.get(2L) >> product(id: 2L, code: 'PAYHUB', name: 'PayHub', departmentId: null)
-        departments.list() >> [new DepartmentView(3, 'Corporate Technology', 0, 1, 3, 3, 3)]
+        departments.list() >> [new DepartmentView(3, 'Corporate Technology', 0, 1, 3, 3, 3, 0)]
         profiles.find(1L) >> Optional.of(ChangeProfile.create(1L, template(jiraProjectKey: 'CSCAN'), tasks()))
         profiles.find(2L) >> Optional.empty()
         jira.epics('CERT', _) >> { project, version -> version == FIX_VERSION ? ISSUES.take(2) : [] }
@@ -343,8 +343,8 @@ class ProductionChangeServiceSpec extends Specification {
 
         where:
         problem             | reply                                                                       || message
-        'cannot be reached' | { throw new UncheckedIOException('Connection refused', new IOException()) } || 'ProTech could not be reached: Connection refused'
-        'does not hold it'  | { [:] }                                                                     || 'ProTech has no change CHG0031001'
+        'cannot be reached' | { throw new UncheckedIOException('Connection refused', new IOException()) } || 'ProTech could not be reached: Connection refused.'
+        'does not hold it'  | { [:] }                                                                     || 'ProTech has no change CHG0031001.'
     }
 
     def "an opened change is read from ProTech even when closed and is saved only when ProTech #changed it"() {
@@ -385,8 +385,8 @@ class ProductionChangeServiceSpec extends Specification {
 
         where:
         problem             | reply                                                                    || message
-        'cannot be reached' | { throw new UncheckedIOException('Read timed out', new IOException()) } || 'ProTech could not be reached: Read timed out'
-        'does not hold it'  | { [:] }                                                                  || 'ProTech has no change CHG0031001'
+        'cannot be reached' | { throw new UncheckedIOException('Read timed out', new IOException()) } || 'ProTech could not be reached: Read timed out.'
+        'does not hold it'  | { [:] }                                                                  || 'ProTech has no change CHG0031001.'
     }
 
     def "a pending update is #status when the change is opened #age seconds after it was published"() {
@@ -463,6 +463,22 @@ class ProductionChangeServiceSpec extends Specification {
         updated.version() == 1L
     }
 
+    def "an update read before ProTech only moved the change through its workflow is published"() {
+        given:
+        def stored = raised(state: BUSINESS_APPROVAL, version: 4L, editedVersion: 2L)
+        changes.load(7L) >> Optional.of(stored)
+        serviceNow.read(_) >> [CHG0031001: stored]
+
+        when:
+        def updated = service.update(7L, edit(version: 3L, shortDescription: 'Renamed'))
+
+        then:
+        1 * serviceNow.update({ it.shortDescription() == 'Renamed' })
+        1 * changes.save({ it.version() == 4L }) >> { ProductionChange change -> change.toBuilder().version(5L).build() }
+        updated.version() == 5L
+        updated.update().status() == PENDING
+    }
+
     def "an update ProTech has not applied yet is stored as pending with the requested values"() {
         given:
         def stored = raised()
@@ -513,8 +529,8 @@ class ProductionChangeServiceSpec extends Specification {
 
         where:
         problem             | reply                                                                    || message
-        'cannot be reached' | { throw new UncheckedIOException('Read timed out', new IOException()) } || 'ProTech could not be reached: Read timed out'
-        'misses the change' | { [:] }                                                                  || 'ProTech has no change CHG0031001'
+        'cannot be reached' | { throw new UncheckedIOException('Read timed out', new IOException()) } || 'ProTech could not be reached: Read timed out.'
+        'misses the change' | { [:] }                                                                  || 'ProTech has no change CHG0031001.'
     }
 
     def "an update #refusal is refused before ProTech is asked"() {
@@ -535,7 +551,9 @@ class ProductionChangeServiceSpec extends Specification {
         'without a department'           | raised()                                            | null         | 0L      || InvalidRequestException | 'choose your department'
         'of another department'          | raised()                                            | 4L           | 0L      || SecurityException       | 'Only Corporate Technology can change CHG0031001'
         'of a change without department' | raised(departmentId: null, departmentName: null)    | 3L           | 0L      || SecurityException       | 'No department owns CHG0031001, so it cannot be changed in Beadle'
-        'at a stale version'             | raised(version: 2L)                                 | 3L           | 1L      || IllegalStateException   | STALE_VERSION
+        'at a stale version'             | raised(version: 2L, editedVersion: 2L)              | 3L           | 1L      || IllegalStateException   | STALE_VERSION
+        'read before its last edit'      | raised(version: 4L, editedVersion: 3L)              | 3L           | 2L      || IllegalStateException   | STALE_VERSION
+        'at a version it never had'      | raised(version: 2L)                                 | 3L           | 3L      || IllegalStateException   | STALE_VERSION
         'while the last one is pending'  | raised(update: PENDING_UPDATE)                      | 3L           | 0L      || IllegalStateException   | 'The last update of CHG0031001 is still waiting for ProTech; change it again once ProTech has applied it'
     }
 

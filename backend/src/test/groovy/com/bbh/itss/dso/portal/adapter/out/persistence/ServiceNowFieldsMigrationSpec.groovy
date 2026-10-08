@@ -124,15 +124,6 @@ class ServiceNowFieldsMigrationSpec extends MigrationSpecification {
         productId
     }
 
-    private List<String> columns(String table) {
-        jdbc.queryForList('SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ?', String, table)
-    }
-
-    private boolean nullable(String table, String column) {
-        jdbc.queryForObject('SELECT IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ? AND COLUMN_NAME = ?',
-                String, table, column) == 'YES'
-    }
-
     private static RiskAssessment impact(String businessImpact) {
         RiskAssessment.builder().businessImpact(businessImpact).build()
     }

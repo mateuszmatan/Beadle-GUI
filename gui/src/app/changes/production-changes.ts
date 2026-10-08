@@ -465,7 +465,7 @@ export class ProductionChanges {
     () => `${this.rows().length} of ${counted(this.all().length, 'change')}`,
   );
   protected readonly syncProblem = computed(
-    () => this.all().find((row) => row.change.syncProblem)?.change.syncProblem ?? null,
+    () => [...new Set(this.all().flatMap((row) => row.change.syncProblem ?? []))].join(' ') || null,
   );
 
   constructor() {

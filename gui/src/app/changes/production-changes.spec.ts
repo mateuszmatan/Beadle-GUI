@@ -295,11 +295,29 @@ describe('ProductionChanges', () => {
       .flush([
         payments,
         productionChange({ syncProblem: 'ProTech could not be reached: timed out.' }),
+        { ...draft, syncProblem: 'ProTech could not be reached: timed out.' },
       ]);
     await settle();
 
     expect(text(page().querySelector('.banner[role="status"]'))).toBe(
       'ProTech could not be reached: timed out. The table shows what Beadle last read from ProTech.',
+    );
+  });
+
+  it('names each change ProTech does not hold', async () => {
+    await open('3');
+    http
+      .expectOne('/api/changes?departmentId=3')
+      .flush([
+        { ...payments, syncProblem: 'ProTech has no change CHG0012346.' },
+        productionChange(),
+        { ...draft, syncProblem: 'ProTech has no change CHG0012347.' },
+      ]);
+    await settle();
+
+    expect(text(page().querySelector('.banner[role="status"]'))).toBe(
+      'ProTech has no change CHG0012346. ProTech has no change CHG0012347. ' +
+        'The table shows what Beadle last read from ProTech.',
     );
   });
 

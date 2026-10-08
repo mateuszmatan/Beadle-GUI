@@ -600,9 +600,11 @@ in one call when the Changes tab is opened; a closed change in the list is not r
 the texts, the schedule, the fields of the template (except the Jira project, the type and the schedule defaults,
 which stay as raised), the change tasks and their states (Open, Work in progress, Closed, Canceled), the workflow
 state and the time each stage was entered, and the link. A change that read differently is stored at a new version;
-one that read the same only records the time it was read, so reading never makes an editor's version stale. When
-ProTech cannot be reached, Beadle shows what it read last with "ProTech could not be reached: ..."; a change ProTech
-does not hold says "ProTech has no change CHG...".
+one that read the same only records the time it was read. The change also keeps the version at which a field Beadle
+edits last changed (`editedVersion`), so an editor's version only goes stale when someone updated the change in
+Beadle or ProTech changed its texts, fields or tasks, not when ProTech moved it through the workflow or a task changed
+state. When ProTech cannot be reached, Beadle shows what it read last with "ProTech could not be reached: ..."; a
+change ProTech does not hold says "ProTech has no change CHG...".
 
 The workflow of a change is Draft, Business Approval, Primary Approval, Secondary Approval, CTask approval, Escalated
 approval (only for a change at short notice), Implementation and Closed.
@@ -612,8 +614,8 @@ approval (only for a change at short notice), Implementation and Closed.
 An open change (any state but Closed) can be changed by a user of its department: the texts, the schedule, the
 template fields except the Jira project, the type and the schedule defaults, and the change tasks. A task that ProTech
 has not created yet is added, a task left out is canceled in ProTech, a canceled task cannot be sent again, and a
-closed task can neither be changed nor removed. Beadle checks the version the user read, then reads the change from
-ProTech: a change closed meanwhile is refused, and so is one whose texts, fields or tasks ProTech changed since the user
+closed task can neither be changed nor removed. Beadle checks that nobody changed the edited fields since the version
+the user read and that the last update is no longer pending, then reads the change from ProTech: a change closed meanwhile is refused, and so is one whose texts, fields or tasks ProTech changed since the user
 opened it, so the update never overwrites them. Beadle then publishes the update to ProTech at once and reads the
 change back. The change carries the status of the update, with the department that sent it and the fields ProTech has
 not applied:
@@ -624,9 +626,10 @@ not applied:
 - **NOT_APPLIED**: ProTech still differs one minute (`ProductionChange.APPLY_LIMIT`) after the update was sent; the
   change shows ProTech's values and the fields that were not applied.
 
-Only the department of the change may update it (403 otherwise; a change whose department was deleted cannot be
-changed in Beadle), a stale version, a change ProTech changed meanwhile or a closed change is refused with 409, and an
-unreachable ProTech with 503. Reading and publishing hold no database transaction while ProTech answers; when two
+Only the department of the change may update it (403 otherwise; a change without a department cannot be changed in
+Beadle, and a department that owns changes cannot be deleted), a stale version, a change ProTech changed meanwhile, a
+change whose last update is still pending or a closed change is refused with 409, and an unreachable ProTech with
+503. Reading and publishing hold no database transaction while ProTech answers; when two
 requests store the same change at once, a read shows the copy the other request stored.
 
 ### Demo ProTech and the real adapters
@@ -695,8 +698,8 @@ secrets.
 
 | Method and path | Purpose |
 |-----------------|---------|
-| `GET /api/departments` | departments by name, each with the number of its products, their services, their DevSecOps pipelines and the pipelines with an active key |
-| `POST /api/departments`, `PUT`/`DELETE /api/departments/{id}` | add, rename or delete a department; `PUT` carries the `version` it was read at; a department that still has products is not deleted (409) |
+| `GET /api/departments` | departments by name, each with the number of its products, their services, their DevSecOps pipelines, the pipelines with an active key and the changes raised in Beadle (`changeCount`) |
+| `POST /api/departments`, `PUT`/`DELETE /api/departments/{id}` | add, rename or delete a department; `PUT` carries the `version` it was read at; a department that still has products or changes is not deleted (409) |
 | `GET /api/products?search=` | products with their department, service and pipeline counts; the search also matches the department name |
 | `POST /api/products`, `GET`/`PUT`/`DELETE /api/products/{id}` | a product in its department (`departmentId`, required on every save) with its complete list of services; `PUT` carries the `version` it was read at; every service the save creates gets a full pipeline with an active key, or with `?pipelineType=SAST\|NEXUS_IQ\|SECURITY\|FULL` every service of the product without a pipeline of that type gets one |
 | `GET /api/products/code-suggestion?name=` | the code the portal suggests for a new product's name: its letters and digits in upper case, with a number added when another product has that code |
@@ -714,7 +717,7 @@ secrets.
 | `GET /api/change-profiles` | the products with a saved change template: `productId`, `productName`, `version`, `updatedAt` |
 | `GET /api/products/{id}/jira/versions`, `/jira/epics?fixVersion=`, `/jira/stories?fixVersion=&epics=` | the FixVersions of the product's Jira project (unreleased first), the epics of a FixVersion and the stories of the chosen epics that carry it; `project=` names another Jira project key |
 | `POST /api/changes/preview`, `POST /api/changes` | draft a production change, or raise it in ProTech (`productId`, `fixVersion`, `epicKeys`, `storyKeys`, `schedule` with `installationStart`, `installationEnd`, `validationStart`, `validationEnd` and `firstUsage`, the ProTech fields as `template`, the change tasks as `tasks` with `shortDescription` and `description`, and optionally the edited `shortDescription` and `description`) |
-| `GET /api/changes?departmentId=`, `GET /api/changes/{id}` | the raised changes, newest first, all or of one department, and one change, each read from ProTech first (closed changes of the list are not read again): with `departmentId`, `state`, `workflow` (each stage with `enteredAt`), the tasks with their `number` and `state`, `syncedAt`, `syncProblem` when ProTech could not be read, `update` (the status of the last update from Beadle) and `version` |
+| `GET /api/changes?departmentId=`, `GET /api/changes/{id}` | the raised changes, newest first, all or of one department, and one change, each read from ProTech first (closed changes of the list are not read again): with `departmentId`, `state`, `workflow` (each stage with `enteredAt`), the tasks with their `number` and `state`, `syncedAt`, `syncProblem` when ProTech could not be read, `update` (the status of the last update from Beadle), `version` and `editedVersion` |
 | `PUT /api/changes/{id}` | update an open change in ProTech: `version`, `departmentId` (the user's department, which must own the change), `shortDescription`, `description`, `schedule`, `template` and `tasks` (each with its `number`, or none for a new task); answers the change with `update.status` `PENDING`, `APPLIED` or `NOT_APPLIED`; 403 for another department, 409 when stale or closed, 503 when ProTech cannot be reached |
 | `GET /api/changes/integrations` | whether Jira and ProTech are connected (`jiraConnected`, `serviceNowConnected`) |
 

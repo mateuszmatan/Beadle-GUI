@@ -19,6 +19,10 @@ public interface ProductionChangeJpaRepository extends JpaRepository<ProductionC
     @EntityGraph(attributePaths = "tasks")
     List<ProductionChangeEntity> findByDepartmentIdOrderByIdDesc(long departmentId);
 
+    @Query("select c.departmentId, count(c) from ProductionChangeEntity c where c.departmentId is not null"
+            + " group by c.departmentId")
+    List<Object[]> countByDepartment();
+
     @Modifying
     @Query("update ProductionChangeEntity c set c.syncedAt = :syncedAt where c.id = :id")
     int recordSync(@Param("id") long id, @Param("syncedAt") Instant syncedAt);

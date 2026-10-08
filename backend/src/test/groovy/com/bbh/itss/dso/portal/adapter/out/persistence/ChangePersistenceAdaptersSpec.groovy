@@ -211,7 +211,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
 
         then:
         stored.version() == 1
-        loaded == synced.toBuilder().version(1L).build()
+        loaded == synced.toBuilder().version(1L).editedVersion(1L).build()
         loaded.update().fields() == ['schedule.installationEnd', 'tasks']
         with(taskIds(saved.id())) {
             it[0] == before[1]
@@ -226,6 +226,47 @@ class ChangePersistenceAdaptersSpec extends Specification {
         then:
         def stale = thrown(IllegalStateException)
         stale.message == STALE_VERSION
+    }
+
+    def "a sync that only moved the workflow and the task states keeps the version its fields were edited at"() {
+        given:
+        def saved = changes.save(raise('CHG0001001', 'CTASK0002001', 'CTASK0002002'))
+        entities.clear()
+        def moved = saved.toBuilder().state(BUSINESS_APPROVAL)
+                .workflow(saved.workflow() + new WorkflowStep(BUSINESS_APPROVAL, RAISED.plusSeconds(120)))
+                .tasks([saved.tasks()[0].in(WORK_IN_PROGRESS), saved.tasks()[1]]).syncedAt(RAISED.plusSeconds(120))
+                .build()
+
+        when:
+        def stored = changes.save(moved)
+        entities.clear()
+        def edited = changes.save(stored.toBuilder().description('Changed in ProTech.').build())
+        entities.clear()
+
+        then:
+        [stored.version(), stored.editedVersion()] == [1L, 0L]
+        [edited.version(), edited.editedVersion()] == [2L, 2L]
+        changes.load(saved.id()).get() == edited
+    }
+
+    def "a change task added in Beadle is stored without a number, then with the number ProTech gave it"() {
+        given:
+        def saved = changes.save(raise('CHG0001001', 'CTASK0002001'))
+        def added = new ChangeTask(null, 'Notify the users', 'Send the release notes.', OPEN)
+        entities.clear()
+
+        when:
+        def pending = changes.save(saved.toBuilder().tasks(saved.tasks() + added).build())
+        entities.clear()
+        def applied = changes.save(pending.toBuilder().tasks(saved.tasks() + added.numbered('CTASK0002009')).build())
+        entities.clear()
+
+        then:
+        pending.tasks()*.number() == ['CTASK0002001', null]
+        applied.tasks()*.number() == ['CTASK0002001', 'CTASK0002009']
+        changes.load(saved.id()).get().tasks() == saved.tasks() + added.numbered('CTASK0002009')
+        jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PRODUCTION_CHANGE_TASK WHERE CHANGE_ID = ?', Integer,
+                saved.id()) == 2
     }
 
     def "a sync that found nothing new only records its time and keeps the version"() {
@@ -244,7 +285,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         loaded == saved.toBuilder().syncedAt(RAISED.plusSeconds(3600)).build()
     }
 
-    def "the changes of a department are listed newest first"() {
+    def "the changes of a department are listed newest first and counted per department"() {
         given:
         def custody = save('CUST', 'Custody Ledger', 4L)
         def first = changes.save(raise('CHG0001001', 'CTASK0002001'))
@@ -257,6 +298,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         changes.findByDepartment(4L)*.number() == ['CHG0001002']
         changes.findByDepartment(5L) == []
         changes.findAll()*.number() == ['CHG0001003', 'CHG0001002', 'CHG0001001']
+        changes.changesPerDepartment() == [3L: 2L, 4L: 1L]
     }
 
     def "deleting a product deletes its template and keeps its raised changes"() {

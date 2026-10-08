@@ -1,7 +1,5 @@
 package com.bbh.itss.dso.portal.regression
 
-import com.bbh.itss.dso.portal.support.PortalSpecification
-
 import java.time.Instant
 import java.time.LocalDateTime
 
@@ -10,20 +8,17 @@ import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.scheduleJson
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasksJson
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.templateJson
-import static java.net.URLEncoder.encode
-import static java.nio.charset.StandardCharsets.UTF_8
 import static java.time.ZoneOffset.UTC
 import static java.time.temporal.ChronoUnit.DAYS
 import static java.time.temporal.ChronoUnit.HOURS
 
-class ProductionChangeRegressionSpec extends PortalSpecification {
+class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
 
-    static final Instant START = Instant.now().plus(3, DAYS).truncatedTo(HOURS)
     static final List<String> CHANGE_KEYS = ['id', 'number', 'productId', 'productCode', 'productName',
                                              'departmentId', 'departmentName', 'fixVersion', 'schedule',
                                              'shortDescription', 'description', 'template', 'epicKeys', 'storyKeys',
                                              'tasks', 'url', 'state', 'workflow', 'syncedAt', 'syncProblem',
-                                             'update', 'version', 'createdAt']
+                                             'update', 'version', 'editedVersion', 'createdAt']
     static final List<String> TEMPLATE_KEYS = ['jiraProjectKey', 'assignmentGroup', 'category', 'type',
                                                'configurationItem', 'release', 'incident', 'problem',
                                                'affectedClients', 'description', 'approvers', 'downtime', 'timing',
@@ -506,17 +501,6 @@ class ProductionChangeRegressionSpec extends PortalSpecification {
         api.get('/api/changes/integrations').json == [jiraConnected: false, serviceNowConnected: false]
     }
 
-    private Map raise(Map product) {
-        String key = 'CHG' + product.id
-        String fixVersion = api.get("/api/products/$product.id/jira/versions?project=$key").json[0].name
-        String epic = api.get("/api/products/$product.id/jira/epics?fixVersion=${enc(fixVersion)}&project=$key")
-                .json[0].key
-        def response = api.post('/api/changes', change(product, fixVersion, [epic], [],
-                [template: templateJson(jiraProjectKey: key)]))
-        assert response.status == 201: response
-        response.json as Map
-    }
-
     private String adopt(long id, Instant raisedAt, Instant installationStart, Instant validationEnd) {
         String number = 'CHG9' + String.valueOf(id).padLeft(6, '0')
         jdbc.update('''UPDATE DSO_PRODUCTION_CHANGE SET CHANGE_NUMBER = ?, CREATED_AT = ?, INSTALLATION_START = ?,
@@ -528,20 +512,5 @@ class ProductionChangeRegressionSpec extends PortalSpecification {
 
     private static LocalDateTime utc(Instant instant) {
         LocalDateTime.ofInstant(instant, UTC)
-    }
-
-    private static Map editOf(Map change, Map edits) {
-        [version: change.version, departmentId: change.departmentId, shortDescription: change.shortDescription,
-         description: change.description, schedule: change.schedule, template: change.template,
-         tasks: change.tasks] + edits
-    }
-
-    private static Map change(Map product, String fixVersion, List epicKeys, List storyKeys = [], Map edits = [:]) {
-        [productId: product.id, fixVersion: fixVersion, epicKeys: epicKeys, storyKeys: storyKeys,
-         schedule: scheduleJson(START), template: templateJson(), tasks: tasksJson()] + edits
-    }
-
-    private static String enc(String text) {
-        encode(text, UTF_8).replace('+', '%20')
     }
 }
