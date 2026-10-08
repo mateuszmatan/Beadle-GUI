@@ -640,7 +640,8 @@ than 24 hours after that, Escalated approval after 10 minutes and Implementation
 the earliest 12 minutes after the raise); Closed when the post-install validation ends. Its tasks are Work in progress
 while an implemented change is being installed and Closed once the change is. It applies an update
 `dso.demo.protech-apply-delay` (default `PT3S`) after it was published, except a schedule change once the installation
-has started, and refuses to change a closed change. After a restart it takes the portal's copy of each change it is
+has started, and refuses to change a closed change. A new schedule keeps the stages a change has reached; the next ones
+follow the rule above for the new schedule, but never before the moment the schedule was applied. After a restart it takes the portal's copy of each change it is
 asked for. Connecting the real systems needs:
 
 - **Jira**: an adapter that lists the project's versions and searches it with JQL (`fixVersion = "..."` for the
