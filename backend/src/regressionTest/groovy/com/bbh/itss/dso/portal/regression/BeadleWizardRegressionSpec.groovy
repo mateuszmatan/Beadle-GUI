@@ -63,13 +63,19 @@ class BeadleWizardRegressionSpec extends ChangeRegressionSpecification {
         given:
         def created = createProduct(product(code: uniqueCode(), name: "Lookup ${uniqueCode()}",
                 ownerTeam: 'Treasury Engineering'))
+        def department = api.post('/api/departments', [name: "Treasury Desk ${uniqueCode()}"]).json
+        def renamed = api.put("/api/departments/$department.id", [name: "Treasury Office ${uniqueCode()}",
+                                                                  version: department.version]).json
 
         expect:
         api.get('/api/lookups/users?q=GRACE').json*.value == ['Grace Mitchell', 'Grace Turner']
         api.get("/api/lookups/users?q=${enc('mateusz.matan@')}").json ==
                 [[value: SIGNED_IN, detail: 'mateusz.matan@bbh.com']]
-        api.get('/api/lookups/departments').json*.value.containsAll(['AI Lab', 'Capital Partners',
-                                                                    'Corporate Technology', 'Custody', 'Fund Services'])
+        api.get("/api/lookups/departments?q=${enc(renamed.name)}").json*.value == [renamed.name]
+        api.get("/api/lookups/departments?q=${enc(department.name)}").json == []
+        api.get('/api/lookups/departments?q=compliance').json == [[value: 'Compliance', detail: 'Cost centre 4630']]
+        api.get('/api/lookups/departments?q=corporate%20technology').json ==
+                [[value: 'Corporate Technology', detail: 'Cost centre 4310']]
         api.get("/api/lookups/configuration-items?q=${enc(created.name)}").json ==
                 [[value: created.name, detail: 'Treasury Engineering']]
         api.get("/api/lookups/assignment-groups?q=${enc('treasury engineering')}").json*.value ==
