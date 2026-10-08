@@ -197,6 +197,7 @@ class ChangesSpec extends EditorSpecification {
         page.waitForURL('**/beadle/changes/4')
 
         then:
+        page.evaluate('window.scrollY') == 0
         assertThat(snackBar()).containsText('Your update of CHG0031001 is published to ProTech')
         assertThat(updateBanner()).hasClass(~/\binfo\b/)
         assertThat(updateBanner()).containsText('is waiting for ProTech: Installation start, Assignment group, Change tasks.')
