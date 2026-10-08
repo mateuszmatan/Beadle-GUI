@@ -8,7 +8,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { MY_DEPARTMENT_KEY } from '../beadle/my-department';
+import { MY_DEPARTMENT_KEY, MyDepartment } from '../beadle/my-department';
 import { LookupItem } from '../core/models';
 import {
   changeOptions,
@@ -778,6 +778,25 @@ describe('ChangeWizard of a chosen department', () => {
       '1 product in the department',
     );
     http.verify();
+    localStorage.removeItem(MY_DEPARTMENT_KEY);
+  });
+
+  it('remembers the department chosen here as the department of the user', async () => {
+    localStorage.removeItem(MY_DEPARTMENT_KEY);
+    const http = configure();
+    const fixture = TestBed.createComponent(ChangeWizard);
+    fixture.detectChanges();
+    http.expectOne('/api/departments').flush([department()]);
+    http.expectOne('/api/products').flush([productSummary()]);
+    flushIntegrations(http);
+    await settled(fixture);
+    http.expectOne('/api/me').flush(ME);
+
+    fixture.componentInstance['departmentId'].setValue(3);
+    await settled(fixture);
+
+    expect(localStorage.getItem(MY_DEPARTMENT_KEY)).toBe('3');
+    expect(TestBed.inject(MyDepartment).departmentId()).toBe(3);
     localStorage.removeItem(MY_DEPARTMENT_KEY);
   });
 });

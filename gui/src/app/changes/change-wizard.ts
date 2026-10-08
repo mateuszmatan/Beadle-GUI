@@ -137,7 +137,8 @@ export class ChangeWizard implements HasUnsavedChanges {
   );
   protected readonly checked = signal(false);
 
-  protected readonly departmentId = new FormControl(inject(MyDepartment).departmentId());
+  private readonly myDepartment = inject(MyDepartment);
+  protected readonly departmentId = new FormControl(this.myDepartment.departmentId());
   protected readonly productId = new FormControl<number | null>(null);
   protected readonly chosenDepartment = toSignal(this.departmentId.valueChanges, {
     initialValue: this.departmentId.value,
@@ -266,9 +267,10 @@ export class ChangeWizard implements HasUnsavedChanges {
   );
 
   constructor() {
-    this.departmentId.valueChanges
-      .pipe(takeUntilDestroyed())
-      .subscribe(() => this.productId.setValue(null));
+    this.departmentId.valueChanges.pipe(takeUntilDestroyed()).subscribe((id) => {
+      this.myDepartment.choose(id);
+      this.productId.setValue(null);
+    });
     this.productId.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.forgetScope());
     effect(() => {
       const profile = this.profile.hasValue() ? this.profile.value() : null;
