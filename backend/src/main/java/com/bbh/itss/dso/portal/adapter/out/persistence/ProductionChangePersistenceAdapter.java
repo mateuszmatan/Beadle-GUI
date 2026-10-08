@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -57,8 +58,8 @@ class ProductionChangePersistenceAdapter implements ProductionChangeRepositoryPo
     }
 
     @Override
-    public void synced(long id, Instant syncedAt) {
-        changes.recordSync(id, syncedAt);
+    public void synced(Collection<Long> ids, Instant syncedAt) {
+        changes.recordSync(ids, syncedAt);
     }
 
     @Override

@@ -25,10 +25,10 @@ import lombok.RequiredArgsConstructor;
 import java.io.UncheckedIOException;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.UnaryOperator;
 
 import static com.bbh.itss.dso.portal.domain.change.ChangeSchedule.UNPLANNED;
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.JIRA_KEY_MESSAGE;
@@ -75,8 +75,9 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         if (open.isEmpty()) {
             return stored;
         }
-        UnaryOperator<ProductionChange> sync = syncOf(open);
-        return stored.stream().map(change -> change.state().isOpen() ? sync.apply(change) : change).toList();
+        Map<Long, ProductionChange> synced = listed(open).stream()
+                .collect(toMap(ProductionChange::id, identity()));
+        return stored.stream().map(change -> synced.getOrDefault(change.id(), change)).toList();
     }
 
     @Override
@@ -190,36 +191,49 @@ public class ProductionChangeService implements ProductionChangesUseCase {
                 command.description());
     }
 
-    private UnaryOperator<ProductionChange> syncOf(List<ProductionChange> open) {
+    private List<ProductionChange> listed(List<ProductionChange> open) {
+        Map<String, ProductionChange> remote;
         try {
-            Map<String, ProductionChange> remote = serviceNow.read(open);
-            Instant now = now(clock);
-            return change -> synced(change, remote, now);
+            remote = serviceNow.read(open);
         } catch (UncheckedIOException e) {
             String problem = unreachable(e);
-            return change -> change.withSyncProblem(problem);
+            return open.stream().map(change -> change.withSyncProblem(problem)).toList();
         }
+        return synced(open, remote);
     }
 
     private ProductionChange synced(ProductionChange stored) {
-        return synced(stored, serviceNow.read(List.of(stored)), now(clock));
+        return synced(List.of(stored), serviceNow.read(List.of(stored))).getFirst();
     }
 
-    private ProductionChange synced(ProductionChange stored, Map<String, ProductionChange> remote, Instant now) {
-        ProductionChange read = remote.get(stored.number());
-        if (read == null) {
-            return stored.withSyncProblem(missing(stored));
-        }
-        ProductionChange synced = stored.synced(read, now);
-        if (synced.differsFrom(stored)) {
-            try {
-                return changes.save(synced);
-            } catch (IllegalStateException stale) {
-                return changes.load(stored.id()).orElseThrow(() -> stale);
+    private List<ProductionChange> synced(List<ProductionChange> open, Map<String, ProductionChange> remote) {
+        Instant now = now(clock);
+        List<ProductionChange> synced = new ArrayList<>();
+        List<Long> unchanged = new ArrayList<>();
+        for (ProductionChange stored : open) {
+            ProductionChange read = remote.get(stored.number());
+            ProductionChange change = read == null ? null : stored.synced(read, now);
+            if (change == null) {
+                synced.add(stored.withSyncProblem(missing(stored)));
+            } else if (change.differsFrom(stored)) {
+                synced.add(saved(change, stored));
+            } else {
+                unchanged.add(stored.id());
+                synced.add(change);
             }
         }
-        changes.synced(stored.id(), now);
+        if (!unchanged.isEmpty()) {
+            changes.synced(unchanged, now);
+        }
         return synced;
+    }
+
+    private ProductionChange saved(ProductionChange synced, ProductionChange stored) {
+        try {
+            return changes.save(synced);
+        } catch (IllegalStateException stale) {
+            return changes.load(stored.id()).orElseThrow(() -> stale);
+        }
     }
 
     private void publish(ProductionChange claimed, ProductionChange current) {

@@ -333,9 +333,10 @@ class ProductionChangeServiceSpec extends Specification {
         integrations == new ChangeIntegrations(false, true)
     }
 
-    def "the list syncs the open changes with one ProTech read and saves only the changes ProTech changed"() {
+    def "the list syncs the open changes with one ProTech read, saves the changed ones and times the rest at once"() {
         given:
         def unchanged = raised()
+        def quiet = raised(id: 9L, number: 'CHG0031003')
         def moved = raised(id: 8L, number: 'CHG0031002')
         def closed = raised(id: 6L, number: 'CHG0031000', state: CLOSED)
         def progressed = moved.toBuilder().state(BUSINESS_APPROVAL)
@@ -345,18 +346,20 @@ class ProductionChangeServiceSpec extends Specification {
         def listed = service.list(3L)
 
         then:
-        1 * changes.findByDepartment(3L) >> [moved, unchanged, closed]
-        1 * serviceNow.read([moved, unchanged]) >> [CHG0031001: unchanged, CHG0031002: progressed]
+        1 * changes.findByDepartment(3L) >> [quiet, moved, unchanged, closed]
+        1 * serviceNow.read([quiet, moved, unchanged]) >> [CHG0031001: unchanged, CHG0031002: progressed,
+                                                           CHG0031003: quiet]
         1 * changes.save(progressed.toBuilder().syncedAt(NOW).build()) >>
                 { ProductionChange change -> change.toBuilder().version(1L).build() }
-        1 * changes.synced(7L, NOW)
+        1 * changes.synced([9L, 7L], NOW)
         0 * changes._
         0 * serviceNow._
-        listed*.number() == ['CHG0031002', 'CHG0031001', 'CHG0031000']
-        listed[0].state() == BUSINESS_APPROVAL
-        listed[0].version() == 1L
-        listed[1] == unchanged.toBuilder().syncedAt(NOW).build()
-        listed[2].is(closed)
+        listed*.number() == ['CHG0031003', 'CHG0031002', 'CHG0031001', 'CHG0031000']
+        listed[0] == quiet.toBuilder().syncedAt(NOW).build()
+        listed[1].state() == BUSINESS_APPROVAL
+        listed[1].version() == 1L
+        listed[2] == unchanged.toBuilder().syncedAt(NOW).build()
+        listed[3].is(closed)
     }
 
     def "a list without open changes does not ask ProTech"() {
@@ -405,7 +408,7 @@ class ProductionChangeServiceSpec extends Specification {
         1 * serviceNow.read([stored]) >> [CHG0031001: remote]
         saves * changes.save(remote.toBuilder().syncedAt(NOW).build()) >>
                 { ProductionChange change -> change.toBuilder().version(1L).build() }
-        (1 - saves) * changes.synced(7L, NOW)
+        (1 - saves) * changes.synced([7L], NOW)
         loaded.shortDescription() == remote.shortDescription()
         loaded.syncedAt() == NOW
         loaded.syncProblem() == null
@@ -458,6 +461,23 @@ class ProductionChangeServiceSpec extends Specification {
         60  | NOT_APPLIED || raised().shortDescription()     | NOT_APPLIED_MESSAGE
     }
 
+    def "a pending update ProTech still has not applied is only timed when nothing else is new"() {
+        given:
+        def waiting = raised(shortDescription: 'Renamed', update: new ChangeUpdate(PENDING, NOW.minusSeconds(9),
+                'Corporate Technology', ['shortDescription'], null, NOW.minusSeconds(3)))
+
+        when:
+        def loaded = service.get(7L)
+
+        then:
+        1 * changes.load(7L) >> Optional.of(waiting)
+        1 * serviceNow.read([waiting]) >> [CHG0031001: raised()]
+        1 * changes.synced([7L], NOW)
+        0 * changes._
+        loaded == waiting.toBuilder().syncedAt(NOW).update(new ChangeUpdate(PENDING, NOW.minusSeconds(9),
+                'Corporate Technology', ['shortDescription'], null, NOW)).build()
+    }
+
     def "an unknown change is not found when it is #action"() {
         given:
         changes.load(8L) >> Optional.empty()
@@ -487,7 +507,7 @@ class ProductionChangeServiceSpec extends Specification {
         then:
         1 * changes.load(7L) >> Optional.of(stored)
         1 * serviceNow.read([stored]) >> [CHG0031001: stored]
-        1 * changes.synced(7L, NOW)
+        1 * changes.synced([7L], NOW)
 
         then:
         1 * changes.save({ ProductionChange it ->
@@ -539,7 +559,7 @@ class ProductionChangeServiceSpec extends Specification {
         then:
         1 * changes.load(7L) >> Optional.of(stored)
         1 * serviceNow.read(_) >> [CHG0031001: stored]
-        1 * changes.synced(7L, NOW)
+        1 * changes.synced([7L], NOW)
         1 * changes.save({ it.update().fields() == [] }) >> { ProductionChange change -> change }
 
         then:
@@ -563,7 +583,7 @@ class ProductionChangeServiceSpec extends Specification {
         then:
         1 * changes.load(7L) >> Optional.of(stored)
         1 * serviceNow.read(_) >> [CHG0031001: stored]
-        1 * changes.synced(7L, NOW)
+        1 * changes.synced([7L], NOW)
         1 * changes.save({ ProductionChange it -> it.syncProblem() == null }) >> { ProductionChange change -> change }
 
         then:
@@ -730,7 +750,7 @@ class ProductionChangeServiceSpec extends Specification {
         then:
         1 * changes.load(7L) >> Optional.of(raised())
         1 * serviceNow.read(_) >> [CHG0031001: raised()]
-        1 * changes.synced(7L, NOW)
+        1 * changes.synced([7L], NOW)
         1 * changes.save({ it.version() == 0L && it.update().pending() }) >> { throw staleVersion() }
         0 * changes._
         0 * serviceNow.update(_)
@@ -763,7 +783,7 @@ class ProductionChangeServiceSpec extends Specification {
         then:
         1 * changes.load(7L) >> Optional.of(raised())
         1 * serviceNow.read(_) >> [CHG0031001: raised()]
-        1 * changes.synced(7L, NOW)
+        1 * changes.synced([7L], NOW)
         1 * changes.save({ it.version() == 0L }) >> { ProductionChange change -> change.toBuilder().version(1L).build() }
 
         then:
@@ -791,7 +811,7 @@ class ProductionChangeServiceSpec extends Specification {
         then:
         1 * changes.load(7L) >> Optional.of(raised())
         1 * serviceNow.read(_) >> [CHG0031001: raised()]
-        1 * changes.synced(7L, NOW)
+        1 * changes.synced([7L], NOW)
         1 * changes.save({ it.shortDescription() == 'Renamed' && it.update().pending() }) >>
                 { ProductionChange change -> change.toBuilder().version(1L).build() }
 

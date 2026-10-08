@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 
 public interface ProductionChangeJpaRepository extends JpaRepository<ProductionChangeEntity, Long> {
@@ -24,6 +25,6 @@ public interface ProductionChangeJpaRepository extends JpaRepository<ProductionC
     List<Object[]> countByDepartment();
 
     @Modifying
-    @Query("update ProductionChangeEntity c set c.syncedAt = :syncedAt where c.id = :id")
-    int recordSync(@Param("id") long id, @Param("syncedAt") Instant syncedAt);
+    @Query("update ProductionChangeEntity c set c.syncedAt = :syncedAt where c.id in :ids")
+    int recordSync(@Param("ids") Collection<Long> ids, @Param("syncedAt") Instant syncedAt);
 }

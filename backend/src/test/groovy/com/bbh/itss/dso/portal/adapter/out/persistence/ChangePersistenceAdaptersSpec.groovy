@@ -349,13 +349,15 @@ class ChangePersistenceAdaptersSpec extends Specification {
                 saved.id()) == 2
     }
 
-    def "a sync that found nothing new only records its time and keeps the version"() {
+    def "a sync that found nothing new only records its time on all the changes it read and keeps their version"() {
         given:
         def saved = changes.save(raise('CHG0001001', 'CTASK0002001'))
+        def other = changes.save(raise('CHG0001002', 'CTASK0002002'))
+        def untouched = changes.save(raise('CHG0001003', 'CTASK0002003'))
         entities.clear()
 
         when:
-        changes.synced(saved.id(), RAISED.plusSeconds(3600))
+        changes.synced([saved.id(), other.id()], RAISED.plusSeconds(3600))
         entities.clear()
         def loaded = changes.load(saved.id()).get()
 
@@ -363,6 +365,8 @@ class ChangePersistenceAdaptersSpec extends Specification {
         loaded.syncedAt() == RAISED.plusSeconds(3600)
         loaded.version() == 0
         loaded == saved.toBuilder().syncedAt(RAISED.plusSeconds(3600)).build()
+        changes.load(other.id()).get() == other.toBuilder().syncedAt(RAISED.plusSeconds(3600)).build()
+        changes.load(untouched.id()).get() == untouched
     }
 
     def "the changes of a department are listed newest first and counted per department"() {
