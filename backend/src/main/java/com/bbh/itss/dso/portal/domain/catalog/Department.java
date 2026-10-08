@@ -5,7 +5,7 @@ import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static com.bbh.itss.dso.portal.domain.shared.Versions.requireCurrent;
+import static com.bbh.itss.dso.portal.domain.shared.Versions.requireReadAt;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.trim;
 
@@ -22,7 +22,7 @@ public record Department(Long id, String name, long version) {
     }
 
     public Department rename(Long expectedVersion, String name, Function<String, Optional<Department>> byName) {
-        requireCurrent(expectedVersion, version);
+        requireReadAt(expectedVersion, version);
         return new Department(id, name, version).checked(byName);
     }
 
