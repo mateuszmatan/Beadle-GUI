@@ -5,6 +5,14 @@ A web portal to onboard products to DevSecOps and to watch their pipelines. Its 
 
 DevSecOps Management:
 
+- **Pipelines**: the DevSecOps pipelines of your department. Pick your department (the browser remembers it, and Beadle
+  uses the same choice) and see its pipelines in a table you can sort and filter in the header: service, product,
+  pipeline type, Jenkins job, key (by its hint, or Invalidated), the status of the last run and when it ran. **Edit**
+  in a row changes the pipeline's agents, Jenkins job and description. A row opens the page of its pipeline: the key
+  (shown on request and copied whole), when it was issued and last fetched, its settings, the Jenkinsfile ready to
+  copy and the last five runs, with links to its Jenkins job, its metrics and its product. Its **More** menu shows the
+  configuration the library receives and the key history, replaces or invalidates the key and deletes the pipeline;
+  an invalidated key is regenerated with one button.
 - **Self-service**: a step-by-step wizard for app owners who do not know DevSecOps. It sets up a new product or
   changes one already in the portal: choose the department and the product, then the Static scan, Nexus IQ GoldenFix,
   Security or Full pipeline (for a product in the portal the step shows which pipelines each service has today and how
@@ -13,7 +21,10 @@ DevSecOps Management:
   each service), change the existing ones (including their build tool and where they run) or remove them.
   The review lists what is added, changed and removed, which services gain the pipeline and which pipelines a removal
   deletes; the last step lists what to do next in order, with the Jenkinsfile of each service ready to copy.
-  Everything else comes from the BBH library defaults and can be fine-tuned in DevSecOps Admin.
+  The build tool and where a service runs start from the library defaults; the OpenShift project, the Nexus IQ
+  application, the Bitbucket repository, the build and the Jenkins job of each pipeline are filled in from the
+  service template, and every value can be changed. Everything else comes from the BBH library defaults and can be
+  fine-tuned in DevSecOps Admin.
 - **Pipeline Monitoring**: the DORA metrics and daily runs of all pipelines over the last 30 days, a chart of pipeline
   status per department, every product with the status of its pipelines grouped by department, and per pipeline its
   DORA metrics, daily activity, latest runs, the Jenkins job and your DSOEnhanced Grafana dashboard, all read from the
@@ -22,7 +33,7 @@ DevSecOps Management:
   regression and performance tests, the SAST, DAST, SonarQube and Nexus IQ results, the golden pull request GoldenFix
   raised, the release gate and the Jenkins build that produced them, with its artifact version and the portal
   configuration it ran with.
-- **Admin**, for the portal administrator, in three tabs:
+- **Admin**, for the portal administrator, in four tabs:
   - **Departments**: add, rename and delete departments (only an empty one can be deleted), each with its products,
     services and DevSecOps pipelines, and a chart of the active and invalidated pipelines of every department. The
     five BBH departments (AI Lab, Capital Partners, Corporate Technology, Custody and Fund Services) come with the
@@ -33,6 +44,13 @@ DevSecOps Management:
     Jenkins job, and each service names the Bitbucket repository where DSOEnhanced raises its GoldenFix pull
     requests. A product saved before departments existed shows as "Not in a department" until it is edited, which
     means choosing one.
+  - **Service template**: what a new service and a new pipeline get, in Self-service and in the Add service and Add
+    pipeline forms: the Jenkins agents and job of a pipeline, the Gradle and Maven tasks and artifacts, the Nexus IQ
+    application, scan patterns and Bitbucket repository, and the OpenShift project, image registry and health check.
+    The names take the placeholders `{CODE}` (the product code), `{code}` (the same in lower case) and `{service}`,
+    and the job also `{type}` (full, security, extended, sast or nexusiq), so `DevSecOps/{CODE}/{service}-{type}`
+    names the full pipeline of `backend-api` in CERT `DevSecOps/CERT/backend-api-full`. An example shows what a
+    service gets while you type. The pipeline the portal creates for a new service takes its agents and job from it.
   - **Library defaults**: the DSOEnhanced library defaults every pipeline shares and no service can override. They
     replace the library's `defaults.yaml`.
 
@@ -92,7 +110,8 @@ devSecOpsPipeline(pipelineKey: '6f1c2d3e-0000-4abc-9def-123456789abc')
 ```
 
 A run that builds several services of one product passes the keys of their pipelines of that type, the primary service
-first; the product page in DevSecOps Admin offers this Jenkinsfile in the menu of a pipeline. Extended pipelines join only when they name
+first; the product page in DevSecOps Admin offers this Jenkinsfile in the menu of a pipeline, and the page of a
+pipeline in Pipelines shows its own. Extended pipelines join only when they name
 the same security pipeline, since the run reads the security run state of the primary's only:
 
 ```groovy
@@ -459,7 +478,8 @@ A service has at most one pipeline of each type, and a pipeline at most one `ACT
 key history. `DEPARTMENT_ID` is empty only for a product saved before departments existed. The service settings that
 repeat live in child tables of `DSO_SERVICE` (`DSO_SERVICE_TEST_JOB`, `DSO_SERVICE_SSH_TARGET`,
 `DSO_SERVICE_OPENSHIFT_TARGET`, `DSO_UCD_APPLICATION` with `DSO_UCD_COMPONENT`, `DSO_SERVICE_NEXUS_IQ_APP`), and the
-scanners' severity limits in `DSO_GLOBAL_SEVERITY_LIMIT`. `DSO_METRIC_POINT` exists on H2 only; see
+scanners' severity limits in `DSO_GLOBAL_SEVERITY_LIMIT`. The service template of Admin > Service template is the one
+row of `DSO_SERVICE_TEMPLATE`, written on its first save. `DSO_METRIC_POINT` exists on H2 only; see
 [Demo data](#demo-data).
 
 Beadle keeps a product's change template in `DSO_CHANGE_PROFILE` with its privileged users and its default change
@@ -803,6 +823,7 @@ secrets.
 | `GET /api/products/code-suggestion?name=` | the code the portal suggests for a new product's name: its letters and digits in upper case, with a number added when another product has that code |
 | `GET /api/products/{id}/pipelines` | each service of a product with its pipelines |
 | `POST /api/services/{id}/pipelines` | add a pipeline; it starts with an active key |
+| `GET /api/pipelines?departmentId=` | the pipelines of a department's products as `{pipelines, metricsError}`, by product and service, each with its status and last run and its key by its hint; 404 for an unknown department |
 | `GET`/`PUT`/`DELETE /api/pipelines/{id}` | a pipeline with its key history |
 | `POST /api/pipelines/{id}/keys` | issue a new key; an active key is invalidated with the reason "Replaced by a new key"; on a pipeline whose key was invalidated this is Regenerate, and the old keys stay refused |
 | `POST /api/pipelines/{id}/keys/revoke` | invalidate the active key, with a `reason` of at most 500 characters; 409 when the pipeline has no active key |
@@ -811,6 +832,7 @@ secrets.
 | `GET /api/monitoring/activity?range=30d` | the DORA summary and the daily activity of all pipelines together, as `{pipelines, dora, metricsError}`: the number of pipelines, the DORA metrics over the range with `dora.daily` (runs, failures and deployments per day), and the metrics error, if any |
 | `GET /api/evidence/products/{id}` | the change evidence of a product's pipelines |
 | `GET`/`PUT /api/settings` | the DSOEnhanced library defaults (Admin > Library defaults); `PUT` carries the `version` it was read at |
+| `GET`/`PUT /api/service-template` | the template of a new service (Admin > Service template): `agentLabels`, `jenkinsJob`, the Gradle, Maven and Flutter tasks, artifacts and scan patterns, `deliveryTasks`, `nexusIqApplication`, `repositoryUrl`, `bitbucketCredentialsId`, `openShiftProject`, `imageRegistry` and `healthCheckUrl`; `version` is `null` until it is saved (it then holds the BBH defaults), and `PUT` carries the `version` it was read at (409 when stale); a placeholder other than `{CODE}`, `{code}`, `{service}` (and `{type}` in the job) is refused, and so is a name too long for its column once the longest code and service name are filled in |
 | `GET`/`PUT /api/products/{id}/change-profile` | the change template of a product: `template` with the ProTech fields (among them `requestedFor`, `requestedBy`, `department`, `assignedTo`, `directBusinessService`, `usersAffected`, `secureCodingTicket`, `riskAssessment` with the nine answers and `risk`, which is computed and ignored when sent) and `tasks`, its default change tasks (`shortDescription`, `description`; one to fifty); `version` is `null` until it is saved (it then holds the suggestion), and `PUT` carries `version`, `template` and `tasks` |
 | `GET /api/change-profiles` | the products with a saved change template: `productId`, `productName`, `version`, `updatedAt` |
 | `GET /api/products/{id}/jira/versions`, `/jira/epics?fixVersion=`, `/jira/stories?fixVersion=&epics=` | the FixVersions of the product's Jira project (unreleased first), the epics of a FixVersion and the stories of the chosen epics that carry it; `project=` names another Jira project key |
