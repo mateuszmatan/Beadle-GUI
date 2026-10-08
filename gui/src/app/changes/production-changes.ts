@@ -171,6 +171,8 @@ export function sorted(rows: readonly ChangeRow[], sort: Sort): ChangeRow[] {
                 class="changes"
                 [dataSource]="rows()"
                 matSort
+                [matSortActive]="sort().active"
+                [matSortDirection]="sort().direction"
                 (matSortChange)="sort.set($event)"
               >
                 <ng-container matColumnDef="number">

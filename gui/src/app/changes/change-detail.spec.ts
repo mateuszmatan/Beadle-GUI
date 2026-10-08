@@ -261,6 +261,36 @@ describe('ChangeDetail', () => {
     http.expectNone('/api/changes/7');
   });
 
+  it('keeps the change and reads it again when a read fails while ProTech has not applied the update', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    TestBed.inject(PublishedChange).hand(productionChange({ update: changeUpdate() }));
+    fixture = TestBed.createComponent(ChangeDetail);
+    fixture.componentRef.setInput('id', 7);
+    TestBed.tick();
+    const banner = () => page().querySelector('.banner.update');
+
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL);
+    TestBed.tick();
+    http
+      .expectOne('/api/changes/7')
+      .flush({ detail: 'Bad gateway' }, { status: 502, statusText: 'Bad Gateway' });
+    await vi.advanceTimersByTimeAsync(0);
+    TestBed.tick();
+    fixture.detectChanges();
+    expect(page().querySelector('h1')?.textContent).toContain('CHG');
+    expect(banner()?.classList).toContain('info');
+
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL);
+    TestBed.tick();
+    http
+      .expectOne('/api/changes/7')
+      .flush(productionChange({ update: changeUpdate({ status: 'APPLIED', fields: [] }) }));
+    await vi.advanceTimersByTimeAsync(0);
+    TestBed.tick();
+    fixture.detectChanges();
+    expect(banner()?.classList).toContain('success');
+  });
+
   it('stops reading the change again after a while', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const pending = productionChange({ update: changeUpdate() });

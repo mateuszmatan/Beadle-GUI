@@ -12,7 +12,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { RouterLink } from '@angular/router';
-import { of } from 'rxjs';
+import { Subscription, of } from 'rxjs';
 import { MyDepartment } from '../beadle/my-department';
 import { errorMessage } from '../core/errors';
 import { CHANGES, beadleChange, beadleProduct } from '../core/sections';
@@ -278,11 +278,21 @@ export class ChangeDetail {
       if (!pending || this.polls() >= MAX_POLLS) {
         return;
       }
+      let request: Subscription | undefined;
+      const counted = () => this.polls.update((count) => count + 1);
       const timer = setTimeout(() => {
-        this.polls.update((count) => count + 1);
-        this.change.reload();
+        request = this.api.get(this.id()).subscribe({
+          next: (read) => {
+            this.change.set(read);
+            counted();
+          },
+          error: counted,
+        });
       }, POLL_INTERVAL);
-      onCleanup(() => clearTimeout(timer));
+      onCleanup(() => {
+        clearTimeout(timer);
+        request?.unsubscribe();
+      });
     });
   }
 

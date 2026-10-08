@@ -263,6 +263,15 @@ describe('ProductionChanges', () => {
     header('Installation').click();
     await settle();
     expect(shownNumbers()).toEqual(['CHG0012346', 'CHG0012345', 'CHG0012347']);
+
+    await choose('Your department', 'Fund Services');
+    http.expectOne('/api/changes?departmentId=5').flush([certScanner, payments, draft]);
+    await settle();
+    expect(header('Installation').getAttribute('aria-sort')).toBe('ascending');
+    expect(shownNumbers()).toEqual(['CHG0012346', 'CHG0012345', 'CHG0012347']);
+    header('Installation').click();
+    await settle();
+    expect(shownNumbers()).toEqual(['CHG0012347', 'CHG0012345', 'CHG0012346']);
   });
 
   it('says when ProTech could not be reached and the table shows what Beadle last read', async () => {
