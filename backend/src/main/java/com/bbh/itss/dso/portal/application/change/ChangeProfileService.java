@@ -39,8 +39,7 @@ public class ChangeProfileService implements ChangeProfilesUseCase {
         ChangeProduct product = products.get(productId);
         return profiles.find(productId).map(profile -> view(product, profile))
                 .orElseGet(() -> ChangeProfileView.builder().productId(productId).productName(product.name())
-                        .template(suggestedFor(product.code(), product.name(), product.ownerTeam(),
-                                product.description()))
+                        .template(suggestedFor(product.code(), product.name(), product.ownerTeam()))
                         .tasks(suggestedTasks(product.name())).build());
     }
 

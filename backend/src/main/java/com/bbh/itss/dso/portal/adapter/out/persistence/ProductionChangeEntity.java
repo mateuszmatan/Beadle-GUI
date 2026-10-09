@@ -6,7 +6,6 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTask;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
 import com.bbh.itss.dso.portal.domain.change.ChangeUpdate;
 import com.bbh.itss.dso.portal.domain.change.ProductionChange;
-import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -59,7 +58,6 @@ public class ProductionChangeEntity extends AuditedEntity {
     private String shortDescription;
     private String description;
 
-    @AttributeOverride(name = "description", column = @Column(name = "PRODUCT_DESCRIPTION"))
     private ChangeTemplateEmbeddable template;
 
     @ElementCollection

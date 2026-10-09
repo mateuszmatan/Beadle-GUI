@@ -54,7 +54,7 @@ export const SECTIONS: readonly Section[] = [
     title: 'Schedule',
     lead: 'When the change is installed, validated and first used, and whether it brings downtime.',
     adminLead:
-      'A new change starts on the release date of its FixVersion at this time, in local time.',
+      'A new change starts on the release date of its FixVersion while it is ahead, otherwise on the next day, at this time, in local time.',
   },
   {
     key: 'planning',
@@ -81,8 +81,6 @@ export const SECTIONS: readonly Section[] = [
     lead: 'The secure coding ticket of the release.',
   },
 ];
-
-export const NOT_ASSESSED = 'Not assessed';
 
 export const NUMBER_PENDING = 'Given by ProTech when raised';
 
@@ -130,9 +128,6 @@ export const RISK = { key: 'risk', label: 'Risk', hint: 'from the risk assessmen
 export const CLOSING_FIELDS: readonly Field[] = [
   line('affectedClients', 'Affected clients', '', 6, find('clients', { append: true })),
   area('usersAffected', 'Users affected', '', 12),
-  area('description', 'Product description', '', 12, {
-    hint: 'About the product, at the end of the change description',
-  }),
 ];
 
 export const ADMIN_HINTS: Record<string, string> = {

@@ -79,7 +79,6 @@ export interface ChangeTemplate {
   risk: string | null;
   affectedClients: string | null;
   usersAffected: string | null;
-  description: string | null;
   approvers: ChangeApprovers;
   downtime: boolean;
   timing: ChangeTiming;

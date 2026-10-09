@@ -14,7 +14,6 @@ import {
   DOWNTIME_FIELDS,
   Fact,
   JIRA_FIELDS,
-  NOT_ASSESSED,
   PLANNING_FIELDS,
   REQUEST_FIELDS,
   RISK,
@@ -196,10 +195,7 @@ export class ChangeTemplateSection {
     const lists = this.lists.options()?.risk;
     return RISK_FIELDS.map((field) => ({
       ...field,
-      options: [
-        { value: null, label: NOT_ASSESSED },
-        ...optionsOf(lists?.[field.key as RiskQuestion] ?? []),
-      ],
+      options: optionsOf(lists?.[field.key as RiskQuestion] ?? []),
     }));
   });
   protected readonly listsError = computed(() =>

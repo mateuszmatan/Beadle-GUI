@@ -67,7 +67,6 @@ public record ChangeProfileRequest(Long version, @NotNull @Valid TemplateDto tem
             @Size(max = NUMBER_MAX) String problem,
             @Size(max = TEXT_MAX) String affectedClients,
             @Size(max = TEXT_MAX) String usersAffected,
-            @Size(max = TEXT_MAX) String description,
             @NotNull @Valid ApproversDto approvers,
             @NotNull Boolean downtime,
             @NotNull @Valid TimingDto timing,

@@ -45,8 +45,7 @@ class ChangeProfileServiceSpec extends Specification {
 
         expect:
         service.get(1L) == ChangeProfileView.builder().productId(1L).productName('CertScanner')
-                .template(suggestedFor('CERTSCANNER', 'CertScanner', 'Technology Architecture',
-                        'Watches TLS certificates.'))
+                .template(suggestedFor('CERTSCANNER', 'CertScanner', 'Technology Architecture'))
                 .tasks(suggestedTasks('CertScanner')).build()
     }
 

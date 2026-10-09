@@ -61,7 +61,6 @@ export function templateForm(template: ChangeTemplate) {
     problem: text(template.problem, fits(40)),
     affectedClients: text(template.affectedClients, fits(2000)),
     usersAffected: text(template.usersAffected, fits(2000)),
-    description: text(template.description, fits(2000)),
     approvers: new FormGroup({
       businessApprover: text(approvers.businessApprover, fits(200)),
       l1Manager: text(approvers.l1Manager, fits(200)),

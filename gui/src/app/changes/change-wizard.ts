@@ -45,7 +45,6 @@ import {
   approverNames,
   changeRequest,
   fits,
-  isoDate,
   matchingVersions,
   storiesFollowing,
   toggled,
@@ -58,6 +57,7 @@ import {
   SCHEDULE_PREFIX,
   ScheduleForm,
   onHours,
+  plannedDay,
   plannedInput,
   scheduleForm,
   scheduleValue,
@@ -543,9 +543,10 @@ export class ChangeWizard implements HasUnsavedChanges {
     const version = this.versions.hasValue()
       ? this.versions.value().find((candidate) => candidate.name === this.searched())
       : null;
-    const date = version?.releaseDate ?? '';
-    const day = date >= isoDate(new Date()) ? date : '';
-    const planned = plannedInput(day, this.details()!.controls.timing.getRawValue());
+    const planned = plannedInput(
+      plannedDay(version?.releaseDate ?? null),
+      this.details()!.controls.timing.getRawValue(),
+    );
     const schedule = this.schedule()!;
     const start = schedule.controls.installationStart.value;
     const kept =

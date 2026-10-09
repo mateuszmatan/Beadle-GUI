@@ -97,7 +97,7 @@ class BeadleWizardRegressionSpec extends ChangeRegressionSpecification {
         missing.json.detail == 'Lookup owners does not exist'
     }
 
-    def "a template keeps the wizard fields and computes its risk, whatever risk it is sent"() {
+    def "a template keeps the wizard fields, computes its risk whatever risk it is sent and answers what it is not sent with the first option"() {
         given:
         def created = createProduct(product(code: uniqueCode(), name: "Wizard ${uniqueCode()}"))
         def template = templateJson(requestedFor: ' Ann Lee ', requestedBy: 'Jane Smith', department: 'Custody',
@@ -113,8 +113,11 @@ class BeadleWizardRegressionSpec extends ChangeRegressionSpecification {
         then:
         saved.status == 200
         saved.json.template == template + [requestedFor: 'Ann Lee', secureCodingTicket: 'APPSEC-1234', risk: 'High']
-        unassessed.json.template.risk == null
-        unassessed.json.template.riskAssessment.values().every { it == null }
+        unassessed.json.template.risk == 'Low'
+        unassessed.json.template.riskAssessment == [bbhWorkgroups: 'Single', changeComplexity: 'Simple',
+                bbhUsers: 'Less than 5', validationComplexity: 'Simple', bbhApplications: 'Single',
+                backoutTesting: 'Less than 30 minutes', clientsOutsideBbh: 'No clients', platformStatus: 'Existing',
+                businessImpact: 'None']
     }
 
     def "a change with downtime is raised with its window, the signed-in user and the wizard fields"() {

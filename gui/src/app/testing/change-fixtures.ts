@@ -70,7 +70,6 @@ export function changeTemplate(overrides: Partial<ChangeTemplate> = {}): ChangeT
     risk: null,
     affectedClients: null,
     usersAffected: null,
-    description: 'Watches TLS certificates.',
     approvers: { businessApprover: null, l1Manager: 'Olivia Bennett', l2Manager: 'James Carter' },
     downtime: false,
     timing: { installationStart: '18:00', installationHours: 2, validationHours: 1 },

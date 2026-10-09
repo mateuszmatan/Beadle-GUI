@@ -7,6 +7,7 @@ import {
   fromLocal,
   localInput,
   onHours,
+  plannedDay,
   plannedInput,
   scheduleForm,
   scheduleInput,
@@ -36,6 +37,15 @@ describe('change schedule model', () => {
     expect(fromLocal('not a date')).toBeNull();
     expect(fromLocal('')).toBeNull();
     expect(fromLocal(null)).toBeNull();
+  });
+
+  it('plans on the release date while it is ahead, otherwise on the next day', () => {
+    const now = new Date(2026, 9, 9, 10, 30);
+    expect(plannedDay('2026-10-20', now)).toBe('2026-10-20');
+    expect(plannedDay('2026-10-09', now)).toBe('2026-10-09');
+    expect(plannedDay('2026-10-01', now)).toBe('2026-10-10');
+    expect(plannedDay(null, now)).toBe('2026-10-10');
+    expect(plannedDay(null, new Date(2026, 9, 31, 23, 0))).toBe('2026-11-01');
   });
 
   it('plans the windows from the release date and the timing defaults', () => {

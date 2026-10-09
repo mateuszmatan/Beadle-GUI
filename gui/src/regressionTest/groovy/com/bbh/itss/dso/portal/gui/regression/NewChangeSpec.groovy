@@ -3,6 +3,7 @@ package com.bbh.itss.dso.portal.gui.regression
 import com.microsoft.playwright.Locator
 
 import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.CERT_TASKS
+import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.OPTIONS
 import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.PLANNING
 import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.RELEASE_DATE
 import static com.bbh.itss.dso.portal.gui.support.ChangeStubs.suggestedTasks
@@ -221,7 +222,7 @@ class NewChangeSpec extends EditorSpecification {
         select(step(), 'Business impact').click()
 
         then:
-        assertThat(page.getByRole(OPTION)).hasText(['Not assessed', 'None', 'Low', 'Medium', 'High'] as String[])
+        assertThat(page.getByRole(OPTION)).hasText(['None', 'Low', 'Medium', 'High'] as String[])
 
         when:
         page.getByRole(OPTION).last().click()
@@ -364,7 +365,7 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(step().locator('.defaults-note a')).hasAttribute('href', '/beadle/admin/products/2')
         hasValues(step(), ['Requested For'          : SIGNED_IN_USER, 'Department': 'Fund Services',
                            'Assignment group'       : 'Payments Engineering', 'Affected CI': 'Payments Hub',
-                           'Direct business service': '', 'Risk': ''])
+                           'Direct business service': '', 'Risk': 'Low'])
 
         when:
         button('Continue', true).click()
@@ -401,15 +402,8 @@ class NewChangeSpec extends EditorSpecification {
 
         then:
         assertThat(currentStep()).hasText('Schedule')
-        assertThat(input(step(), 'Installation start')).hasValue('')
-
-        when:
-        button('Continue', true).click()
-
-        then:
-        assertThat(currentStep()).hasText('Schedule')
-        assertThat(step().locator('dso-change-schedule .choice-error')).hasText('Enter the date and time of the installation start')
-        assertThat(step().locator('.step-problem')).hasText('Some fields need your attention.')
+        hasValues(step(), ['Installation start': "${inDays(1)}T18:00", 'Post-install validation start': "${inDays(1)}T20:00",
+                           'First use'         : "${inDays(1)}T21:00"])
 
         when:
         input(step(), 'Installation start').fill("${inDays(3)}T18:00")
@@ -422,7 +416,7 @@ class NewChangeSpec extends EditorSpecification {
         continueTo('Review')
 
         then:
-        assertThat(review('Risk')).hasText('not set')
+        assertThat(review('Risk')).hasText('Low')
         assertThat(review('L1 approver')).hasText('Emma Brooks')
         with(reviewed()) {
             productId == 2
@@ -433,7 +427,9 @@ class NewChangeSpec extends EditorSpecification {
             template.requestedFor == SIGNED_IN_USER
             template.department == 'Fund Services'
             template.approvers == [businessApprover: null, l1Manager: 'Emma Brooks', l2Manager: null]
-            (template.riskAssessment as Map).values().every { it == null }
+            template.riskAssessment == (OPTIONS.risk as Map<String, List>).collectEntries { question, answers ->
+                [question, answers.first()]
+            }
         }
 
         when:

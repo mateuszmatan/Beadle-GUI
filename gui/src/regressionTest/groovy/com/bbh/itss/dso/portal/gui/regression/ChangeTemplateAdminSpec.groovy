@@ -53,7 +53,7 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
 
         then:
         assertThat(input(defaults(), 'Problem')).hasValue('PRB0040319')
-        assertThat(page.getByRole(OPTION)).hasText(['Not assessed', 'Simple', 'Moderate', 'Very'] as String[])
+        assertThat(page.getByRole(OPTION)).hasText(['Simple', 'Moderate', 'Very'] as String[])
 
         when:
         page.getByRole(OPTION, new Page.GetByRoleOptions().setName('Very').setExact(true)).click()
@@ -124,9 +124,9 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         assertThat(page.locator('h1')).hasText('Payments Hub')
         assertThat(page.locator('.banner.info')).containsText('Not saved yet')
         hasValues(defaults(), ['Jira project': 'PAYHUB', 'Assignment group': 'Payments Engineering',
-                               'Affected CI' : 'Payments Hub', 'L1 approver': '', 'Risk': ''])
-        assertThat(select(defaults(), 'Number of BBH users impacted')).hasText('Not assessed')
-        assertThat(select(defaults(), 'Business impact')).hasText('Not assessed')
+                               'Affected CI' : 'Payments Hub', 'L1 approver': '', 'Risk': 'Low'])
+        assertThat(select(defaults(), 'Number of BBH users impacted')).hasText('Less than 5')
+        assertThat(select(defaults(), 'Business impact')).hasText('None')
         hasValues(taskRows().nth(0), ['Short description': 'Deploy Payments Hub to production'])
 
         when:

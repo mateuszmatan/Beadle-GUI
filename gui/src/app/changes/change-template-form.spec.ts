@@ -66,7 +66,7 @@ describe('ChangeTemplateForm', () => {
     ]);
     expect(leadOf('Jira')).toBe('The Jira project the epics and stories of a release come from.');
     expect(leadOf('Schedule')).toBe(
-      'A new change starts on the release date of its FixVersion at this time, in local time.',
+      'A new change starts on the release date of its FixVersion while it is ahead, otherwise on the next day, at this time, in local time.',
     );
     expect(inputOf(page(), 'Jira project').value).toBe('CERT');
     expect(inputOf(page(), 'Installation start').value).toBe('18:00');

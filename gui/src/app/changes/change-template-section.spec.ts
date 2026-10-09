@@ -86,7 +86,6 @@ describe('ChangeTemplateSection', () => {
       'Risk',
       'Affected clients',
       'Users affected',
-      'Product description',
     ]);
     expect(inputOf(page(), 'Change number').placeholder).toBe('Given by ProTech when raised');
     expect(inputOf(page(), 'Approval').readOnly).toBe(true);
@@ -158,22 +157,25 @@ describe('ChangeTemplateSection', () => {
       'Business impact',
     ]);
     expect(await chooseOption('Number of BBH users impacted', 'All users')).toEqual([
-      'Not assessed',
       'Less than 5',
       '5-25',
       '26-250',
       'All users',
     ]);
     expect(form.controls.riskAssessment.controls.bbhUsers.value).toBe('All users');
-    await chooseOption('Platform status', 'Not assessed');
-    expect(form.controls.riskAssessment.controls.platformStatus.value).toBeNull();
+    await chooseOption('Platform status', 'New');
+    expect(form.controls.riskAssessment.controls.platformStatus.value).toBe('New');
 
     fixture.componentRef.setInput('section', 'request');
     await settle();
     expect(inputOf(page(), 'Risk').value).toBe('High');
-    form.controls.riskAssessment.reset();
+    form.controls.riskAssessment.patchValue({
+      bbhUsers: 'Less than 5',
+      platformStatus: 'Existing',
+      businessImpact: 'None',
+    });
     await settle();
-    expect(inputOf(page(), 'Risk').value).toBe('');
+    expect(inputOf(page(), 'Risk').value).toBe('Low');
   });
 
   it('asks for the person and the account of as many privileged accounts as chosen', async () => {
@@ -270,7 +272,6 @@ describe('ChangeTemplateSection', () => {
     await settle();
     expect(page().querySelector('.lists-error')).toBeNull();
     expect(await chooseOption('Business impact', 'High')).toEqual([
-      'Not assessed',
       'None',
       'Low',
       'Medium',

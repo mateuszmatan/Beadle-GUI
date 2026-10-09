@@ -22,7 +22,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
     static final List<String> TEMPLATE_KEYS = ['jiraProjectKey', 'requestedFor', 'requestedBy', 'department',
                                                'assignmentGroup', 'category', 'assignedTo', 'type', 'release',
                                                'configurationItem', 'incident', 'directBusinessService', 'problem',
-                                               'risk', 'affectedClients', 'usersAffected', 'description', 'approvers',
+                                               'risk', 'affectedClients', 'usersAffected', 'approvers',
                                                'downtime', 'timing', 'planning', 'privilegedAccess', 'riskAssessment',
                                                'secureCodingTicket']
     static final List<String> SCHEDULE_PATHS = ['schedule.installationStart', 'schedule.installationEnd',
@@ -46,16 +46,17 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         [suggested.json.productId, suggested.json.productName, suggested.json.version] == [created.id, created.name, null]
         suggested.json.template.keySet() as List == TEMPLATE_KEYS
         suggested.json.template.subMap('requestedFor', 'department', 'configurationItem', 'assignmentGroup',
-                'category', 'type', 'release', 'risk', 'description', 'approvers', 'downtime', 'timing',
+                'category', 'type', 'release', 'risk', 'approvers', 'downtime', 'timing',
                 'privilegedAccess', 'riskAssessment', 'secureCodingTicket') ==
                 [requestedFor: null, department: null, configurationItem: created.name, assignmentGroup: 'Ledger Ops',
-                 category: 'Application', type: 'STANDARD', release: null, risk: null,
-                 description: 'Posts the ledger.', approvers: [l1Manager: null, l2Manager: null, businessApprover: null],
+                 category: 'Application', type: 'STANDARD', release: null, risk: 'Low',
+                 approvers: [l1Manager: null, l2Manager: null, businessApprover: null],
                  downtime: false, timing: [installationStart: '18:00', installationHours: 2, validationHours: 1],
                  privilegedAccess: [required: false, users: []],
-                 riskAssessment: [bbhWorkgroups: null, changeComplexity: null, bbhUsers: null,
-                                  validationComplexity: null, bbhApplications: null, backoutTesting: null,
-                                  clientsOutsideBbh: null, platformStatus: null, businessImpact: null],
+                 riskAssessment: [bbhWorkgroups: 'Single', changeComplexity: 'Simple', bbhUsers: 'Less than 5',
+                                  validationComplexity: 'Simple', bbhApplications: 'Single',
+                                  backoutTesting: 'Less than 30 minutes', clientsOutsideBbh: 'No clients',
+                                  platformStatus: 'Existing', businessImpact: 'None'],
                  secureCodingTicket: null]
         suggested.json.template.planning.keySet() as List ==
                 ['testSummary', 'implementationPlan', 'validationPlan', 'backoutPlan', 'firstUsePlan']

@@ -11,8 +11,8 @@ import java.util.Optional;
 public interface ChangeProductJpaRepository extends Repository<ProductEntity, Long> {
 
     String CHANGE_PRODUCTS = """
-            select new com.bbh.itss.dso.portal.domain.change.ChangeProduct(p.id, p.code, p.name, p.description,
-                p.ownerTeam, p.departmentId, d.name, c.template.jiraProjectKey)
+            select new com.bbh.itss.dso.portal.domain.change.ChangeProduct(p.id, p.code, p.name, p.ownerTeam,
+                p.departmentId, d.name, c.template.jiraProjectKey)
             from ProductEntity p left join p.department d left join ChangeProfileEntity c on c.productId = p.id
             """;
 
