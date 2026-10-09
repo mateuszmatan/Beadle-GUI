@@ -330,10 +330,17 @@ The build follows the BBH Gradle layout: one root `build.gradle` and two modules
 | `frontend/.npmrc` | the BBH npm registry and the Node.js and npm versions of `package.json` as hard requirements |
 
 The frontend tasks call npm from the `PATH`, with the `npm.*` properties of `gradle.properties` as npm settings:
-`installNpmCIDeps` (`npm ci`), `buildAngular` (`npx ng build --configuration=production` into `frontend/dist`),
-`testAngular` (`npx ng test --watch=false --coverage`, Vitest on jsdom, so it needs no browser) and `copyToBackend`
-(`frontend/dist` into `backend/src/main/resources/static`, which git ignores). `bootJar`, `bootRun` and the backend
-smoke test depend on `copyToBackend`; `-PskipFrontend` builds the backend without the GUI.
+`installNpmCIDeps` (`npm ci`), `installDesignSystem` (`npm install --no-save` of the BBH Design System packages
+`@v6/v6-themes`, `@v6/v6-table` and `@v6/v6-icons`, inside BBH only), `buildAngular` (`npx ng build
+--configuration=production` into `frontend/dist`), `testAngular` (`npx ng test --watch=false --coverage`, Vitest on
+jsdom, so it needs no browser) and `copyToBackend` (`frontend/dist` into `backend/src/main/resources/static`, which
+git ignores). `bootJar`, `bootRun` and the backend smoke test depend on `copyToBackend`; `-PskipFrontend` builds the
+backend without the GUI.
+
+The BBH Design System packages live only in the BBH npm registry, so `package.json` does not list them and `npm ci`
+works anywhere. `-PdesignSystem.packages="@v6/v6-themes@21 @v6/v6-table @v6/v6-icons"` names other versions. AG Grid
+Enterprise needs BBH's licence key at build time: `-PagGridLicenseKey=...` or the `AG_GRID_LICENSE_KEY` environment
+variable; without it the grids work and print AG Grid's licence notice in the browser console.
 
 ```bash
 ./gradlew :backend:bootJar          # the jar with the GUI inside
@@ -358,7 +365,9 @@ systemProp.https.proxyHost=
 ```
 
 `bbhNetwork=false` takes plugins from the Gradle Plugin Portal and dependencies from Maven Central, and runs npm
-against `https://registry.npmjs.org/` (`npm.publicRegistry` names another) without the BBH proxy and CA file. The
+against `https://registry.npmjs.org/` (`npm.publicRegistry` names another) without the BBH proxy and CA file. It
+also skips `installDesignSystem` and builds the GUI with the `public` configuration, which swaps the BBH Design System
+styles and icons for a navy Bootstrap theme with the same layout. The
 empty proxy hosts switch `njproxy` off; set them to your own proxy if you have one. The wrapper's Gradle download also
 sits on the BBH Nexus, so run a local Gradle 8.14 (`gradle check`, for example from SDKMAN) until the wrapper has
 it in `~/.gradle/wrapper/dists`. Running npm by hand outside BBH needs `--registry=https://registry.npmjs.org/`.
@@ -371,7 +380,7 @@ manifests for `rd`, `qc` and `prod` are described in [deploy/openshift/README.md
 ## Architecture
 
 ```
-frontend/   Angular 21 + Angular Material: views, shared components, API services
+frontend/   Angular 21, Bootstrap 5.3, BBH Design System, AG Grid, Highcharts: views, shared components, API services
 backend/    Spring Boot 4.1, Java 17, Spring Data JPA, Liquibase; serves the API and the built GUI
 deploy/     the OpenShift manifests
 examples/   Jenkinsfiles, API calls, a rendered configuration and GUI screenshots; see Examples below
