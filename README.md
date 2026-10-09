@@ -159,6 +159,20 @@ The dashboards are the ones DSOEnhanced ships (`grafana/` in that repository); t
 service's `project` variable and the selected time range. Security, SAST and Nexus IQ GoldenFix pipelines open the
 security dashboard, the other pipelines the pipeline dashboard. Grafana must let portal users view them.
 
+A second Grafana instance takes `GRAFANA_2_DASHBOARD_URL` and `GRAFANA_2_SECURITY_DASHBOARD_URL`, and each
+instance is named with `GRAFANA_NAME` and `GRAFANA_2_NAME` (`Grafana` and `Grafana 2` when unset). The pipeline
+page then embeds the dashboard of every instance that has one for the pipeline, under the instance's name, so two
+Grafanas can share the dashboards, or one can hold the pipeline dashboard and the other the security one. An
+instance without the security dashboard shows its pipeline dashboard for security pipelines too, and an instance
+without the pipeline dashboard shows nothing for the other pipelines:
+
+```bash
+GRAFANA_NAME="Grafana test" GRAFANA_DASHBOARD_URL=https://grafana-test.example.com/d/adzfc54123/devsecops-pipeline-long \
+GRAFANA_2_NAME="Grafana prod" GRAFANA_2_DASHBOARD_URL=https://grafana.example.com/d/adzfc54123/devsecops-pipeline-long \
+GRAFANA_2_SECURITY_DASHBOARD_URL=https://grafana.example.com/d/ad2trcm/devsecops-pipeline-security \
+  java -jar backend/build/libs/dso-portal-0.1.0-SNAPSHOT.jar
+```
+
 ## Demo data
 
 The `local` profile sets `dso.demo-data=true` (`DSO_DEMO_DATA`). On the first start it fills the H2 database in
@@ -283,8 +297,10 @@ start over with a new catalogue and a history that ends at the new start.
 | `PORT` | `8080` | HTTP port |
 | `INFLUX_URL`, `INFLUX_TOKEN` | empty | your InfluxDB; empty switches the monitoring off, except with demo data, which then reads the local metrics store (see [Demo data](#demo-data)) |
 | `INFLUX_ORG`, `INFLUX_BUCKET` | `DevSecOps`, `DORA-metrics` | where DSOEnhanced writes its metrics |
-| `GRAFANA_DASHBOARD_URL` | empty | link to the DSOEnhanced pipeline dashboard; empty hides the dashboard |
+| `GRAFANA_DASHBOARD_URL` | empty | link to the DSOEnhanced pipeline dashboard; empty leaves this instance without one, and without any link the pipeline page shows no dashboard |
 | `GRAFANA_SECURITY_DASHBOARD_URL` | empty | link to the security dashboard for `SECURITY`, `SAST` and `NEXUS_IQ` pipelines; empty uses the pipeline dashboard |
+| `GRAFANA_NAME` | `Grafana` | the name of that Grafana instance on the pipeline page |
+| `GRAFANA_2_DASHBOARD_URL`, `GRAFANA_2_SECURITY_DASHBOARD_URL`, `GRAFANA_2_NAME` | empty, empty, `Grafana 2` | the same for a second Grafana instance; both empty links leave it out |
 | `DSO_DEMO_DATA` | `true` with `local` | create the demo products when the database holds no other product, and without `INFLUX_URL` a run history; see [Demo data](#demo-data) |
 | `DSO_SIGNED_IN_USER` | `Mateusz Matan` | the user Beadle names as the signed-in user (`GET /api/me`, Opened By of a new change and the default requester and assignee) until BBH single sign-on exists |
 
@@ -586,7 +602,7 @@ security or extended job. The service needs:
 - GoldenFix switched on, by the service's own switch or by the GoldenFix defaults of the global settings;
 - an AppScan application, which every service keeps whatever its pipelines.
 
-Its metrics carry the project suffix `nexusiq` and its Grafana link opens the security dashboard. Change Evidence
+Its metrics carry the project suffix `nexusiq` and its Grafana links open the security dashboard of every instance. Change Evidence
 shows its Nexus IQ results and, per service, the `goldenfix` point: the status, the upgrades offered, applied and left
 unresolved, and the link and title of the pull request. Liquibase changeset `015-nexus-iq-pipeline` adds `NEXUS_IQ`
 to the pipeline type check of `DSO_PIPELINE`; its rollback first deletes the Nexus IQ GoldenFix pipelines with their
