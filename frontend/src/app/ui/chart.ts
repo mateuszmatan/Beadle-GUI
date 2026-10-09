@@ -26,6 +26,7 @@ const DEFAULTS = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'dso-chart', role: 'img', '[attr.aria-label]': 'label()' },
   template: '',
+  styles: ':host { display: block; }',
 })
 export class DsoChart {
   readonly options = input.required<Record<string, unknown>>();
@@ -42,6 +43,14 @@ export class DsoChart {
         this.chart = this.highcharts.chart(this.element, { ...DEFAULTS, ...this.options() });
       },
     });
-    inject(DestroyRef).onDestroy(() => this.chart?.destroy());
+    const resized =
+      typeof ResizeObserver === 'undefined'
+        ? undefined
+        : new ResizeObserver(() => this.chart?.reflow());
+    resized?.observe(this.element);
+    inject(DestroyRef).onDestroy(() => {
+      resized?.disconnect();
+      this.chart?.destroy();
+    });
   }
 }

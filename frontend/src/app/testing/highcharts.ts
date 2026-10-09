@@ -6,7 +6,7 @@ export const fakeHighcharts: HighchartsStatic = {
   chart(element, options) {
     drawn.set(element, options as Record<string, any>);
     element.classList.add('drawn');
-    return { destroy: () => element.classList.remove('drawn') };
+    return { destroy: () => element.classList.remove('drawn'), reflow: () => undefined };
   },
 };
 

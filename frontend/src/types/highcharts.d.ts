@@ -1,6 +1,7 @@
 declare module 'highcharts/js/highcharts' {
   export interface Chart {
     destroy(): void;
+    reflow(): void;
   }
 
   export interface HighchartsStatic {
