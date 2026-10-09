@@ -53,8 +53,8 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(input(step(), 'Change number')).hasAttribute('placeholder', 'Given by ProTech when raised')
         assertThat(input(step(), 'Opened By')).not().isEditable()
         assertThat(input(step(), 'Direct business service')).not().isEditable()
-        assertThat(select(step(), 'Category')).hasText('Application')
-        assertThat(select(step(), 'Type')).hasText('Standard')
+        assertThat(selected(step(), 'Category')).hasText('Application')
+        assertThat(selected(step(), 'Type')).hasText('Standard')
         assertThat(step().locator('.defaults-note')).hasCount(0)
 
         when:
@@ -159,7 +159,7 @@ class NewChangeSpec extends EditorSpecification {
                            'Post-install validation start': "${RELEASE_DATE}T20:00", 'Validation hours': '1',
                            'First use'                    : "${RELEASE_DATE}T21:00"])
         assertThat(hintOf(step(), 'Installation hours')).hasText(~/^until .+, 20:00$/)
-        assertThat(select(step(), 'Downtime')).hasText('No')
+        assertThat(selected(step(), 'Downtime')).hasText('No')
         assertThat(input(step(), 'Downtime start')).hasCount(0)
         assertThat(step().locator('dso-change-schedule .note')).hasText('Times are in your time zone, UTC.')
 
@@ -197,7 +197,7 @@ class NewChangeSpec extends EditorSpecification {
 
         then:
         assertThat(currentStep()).hasText('Privileged access')
-        assertThat(select(step(), 'How many privileged accounts')).hasText('None')
+        assertThat(selected(step(), 'How many privileged accounts')).hasText('None')
         assertThat(step().locator('fieldset.account')).hasCount(0)
 
         when:
@@ -215,17 +215,17 @@ class NewChangeSpec extends EditorSpecification {
 
         then:
         assertThat(currentStep()).hasText('Risk assessment')
-        assertThat(select(step(), 'Number of BBH users impacted')).hasText('5-25')
-        assertThat(select(step(), 'Business impact')).hasText('Low')
+        assertThat(selected(step(), 'Number of BBH users impacted')).hasText('5-25')
+        assertThat(selected(step(), 'Business impact')).hasText('Low')
 
         when:
         select(step(), 'Business impact').click()
 
         then:
-        assertThat(page.getByRole(OPTION)).hasText(['None', 'Low', 'Medium', 'High'] as String[])
+        assertThat(select(step(), 'Business impact').locator('option')).hasText(['None', 'Low', 'Medium', 'High'] as String[])
 
         when:
-        page.getByRole(OPTION).last().click()
+        choose(step(), 'Business impact', 'High')
         button('Continue', true).click()
 
         then:

@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { changeOptions, changeTemplate } from '../testing/change-fixtures';
-import { buttonOf, fieldOf, inputOf, text } from '../testing/dom';
+import { buttonOf, choose, fieldOf, inputOf, optionsOf, selectOf, text } from '../testing/dom';
 import { SectionKey } from './change-sections';
 import { ChangeTemplateSection } from './change-template-section';
 import { TemplateForm, templateForm } from './change-template-model';
@@ -13,7 +13,8 @@ describe('ChangeTemplateSection', () => {
   let form: TemplateForm;
 
   const page = () => fixture.nativeElement as HTMLElement;
-  const labels = () => [...page().querySelectorAll('mat-form-field mat-label')].map(text);
+  const labels = () => [...page().querySelectorAll('dso-form-field dso-label')].map(text);
+  const selected = (label: string) => text(selectOf(page(), label).selectedOptions[0]);
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -46,12 +47,9 @@ describe('ChangeTemplateSection', () => {
   }
 
   async function chooseOption(label: string, option: string) {
-    fieldOf(page(), label)!.querySelector<HTMLElement>('mat-select')!.click();
-    await settle();
-    const panels = document.querySelectorAll('.mat-mdc-select-panel');
-    const options = [...panels[panels.length - 1].querySelectorAll<HTMLElement>('mat-option')];
-    const choices = options.map(text);
-    options.find((element) => text(element) === option)!.click();
+    const select = selectOf(page(), label);
+    const choices = optionsOf(select);
+    choose(select, option);
     await settle();
     return choices;
   }
@@ -92,10 +90,8 @@ describe('ChangeTemplateSection', () => {
     expect(inputOf(page(), 'Approval').value).toBe('Not Yet Requested');
     expect(inputOf(page(), 'Requested For').value).toBe('Grace Turner');
     expect(inputOf(page(), 'Direct business service').readOnly).toBe(true);
-    expect(text(fieldOf(page(), 'Category')?.querySelector('.mat-mdc-select-value'))).toBe(
-      'Application',
-    );
-    expect(text(fieldOf(page(), 'Type')?.querySelector('.mat-mdc-select-value'))).toBe('Standard');
+    expect(selected('Category')).toBe('Application');
+    expect(selected('Type')).toBe('Standard');
     expect(inputOf(page(), 'Risk').value).toBe('Moderate');
     expect(fieldOf(page(), 'Users affected')?.classList).toContain('span-12');
     expect(
@@ -114,7 +110,7 @@ describe('ChangeTemplateSection', () => {
       'Find Problem',
       'Find Affected clients',
     ]);
-    expect(text(fieldOf(page(), 'Requested For')?.querySelector('mat-hint'))).toBe('');
+    expect(text(fieldOf(page(), 'Requested For')?.querySelector('dso-hint'))).toBe('');
 
     expect(await chooseOption('Type', 'Business Critical')).toEqual([
       'Standard',
@@ -130,13 +126,13 @@ describe('ChangeTemplateSection', () => {
   it('tells the admin who fills the empty request fields', async () => {
     await render('request', changeTemplate(), { admin: true });
 
-    expect(text(fieldOf(page(), 'Requested For')?.querySelector('mat-hint'))).toBe(
+    expect(text(fieldOf(page(), 'Requested For')?.querySelector('dso-hint'))).toBe(
       'left empty: the user who opens the change',
     );
-    expect(text(fieldOf(page(), 'Assigned to')?.querySelector('mat-hint'))).toBe(
+    expect(text(fieldOf(page(), 'Assigned to')?.querySelector('dso-hint'))).toBe(
       'left empty: the user who opens the change',
     );
-    expect(text(fieldOf(page(), 'Department')?.querySelector('mat-hint'))).toBe(
+    expect(text(fieldOf(page(), 'Department')?.querySelector('dso-hint'))).toBe(
       'left empty: the department of the product',
     );
     expect(page().querySelectorAll('.read-only input[readonly]')).toHaveLength(2);
@@ -240,7 +236,7 @@ describe('ChangeTemplateSection', () => {
       'Downtime',
     ]);
     expect(inputOf(page(), 'Installation start').type).toBe('time');
-    expect(text(fieldOf(page(), 'Downtime')?.querySelector('.mat-mdc-select-value'))).toBe('No');
+    expect(selected('Downtime')).toBe('No');
     await chooseOption('Downtime', 'Yes');
     expect(form.controls.downtime.value).toBe(true);
   });

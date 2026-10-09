@@ -36,7 +36,7 @@ class ChangesSpec extends EditorSpecification {
         then:
         assertThat(numbers()).hasText(['CHG0031001', 'CHG0030995', 'CHG0030990'] as String[])
         awaitRequest('GET', '/api/changes').params() == [departmentId: '3']
-        assertThat(page.locator('tr.mat-mdc-header-row').first().locator('th'))
+        assertThat(gridHeaders())
                 .hasText(['Change', 'Product', 'FixVersion', 'State', 'Installation', 'Short description', 'Tasks', 'Raised', ''] as String[])
         assertThat(column('state')).hasText(['Secondary Approval', 'Implementation', 'Closed'] as String[])
         assertThat(column('tasks')).hasText(['2', '2', '2'] as String[])
@@ -54,21 +54,21 @@ class ChangesSpec extends EditorSpecification {
 
         when:
         filter('FixVersion').fill('')
-        choose(page.locator('tr.filters'), 'Filter by state', 'Closed')
+        choose(page.locator('dso-grid'), 'Filter by state', 'Closed')
 
         then:
         assertThat(numbers()).hasText(['CHG0030990'] as String[])
 
         when:
-        choose(page.locator('tr.filters'), 'Filter by state', 'Open')
+        choose(page.locator('dso-grid'), 'Filter by state', 'Open')
         filter('short description').fill('no such change')
 
         then:
-        assertThat(page.locator('.no-match')).hasText('No change matches the filters.')
+        assertThat(page.locator('.dso-grid-empty')).hasText('No change matches the filters.')
 
         when:
         filter('short description').fill('')
-        choose(page.locator('tr.filters'), 'Filter by state', 'All')
+        choose(page.locator('dso-grid'), 'Filter by state', 'All')
         sortBy('State')
 
         then:
@@ -84,7 +84,7 @@ class ChangesSpec extends EditorSpecification {
         open('/beadle/changes')
 
         then:
-        assertThat(select(page.locator('.toolbar'), 'Your department')).hasText('Corporate Technology')
+        assertThat(selected(page.locator('.toolbar'), 'Your department')).hasText('Corporate Technology')
         assertThat(numbers()).hasText(['CHG0031001', 'CHG0030995', 'CHG0030990'] as String[])
 
         when:
@@ -121,7 +121,7 @@ class ChangesSpec extends EditorSpecification {
         when:
         open('/beadle/changes')
         choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
-        holdingText(page.locator('tbody tr'), 'CHG0031001').locator('td.mat-column-product').click()
+        gridCell(gridRow(page.locator('body'), 'CHG0031001'), 'product').click()
         page.waitForURL('**/beadle/changes/4')
 
         then:
@@ -378,15 +378,15 @@ class ChangesSpec extends EditorSpecification {
     }
 
     Locator column(String name) {
-        page.locator("tbody td.mat-column-${name}")
+        gridCells(page.locator('body'), name)
     }
 
     Locator filter(String label) {
-        page.locator("input[aria-label='Filter by ${label}']")
+        gridFilter(label)
     }
 
     void sortBy(String label) {
-        holdingText(page.locator('th[mat-sort-header]'), label).click()
+        holdingText(gridHeaders(), label).locator('.ag-header-cell-label').click()
     }
 
     Locator stages() {

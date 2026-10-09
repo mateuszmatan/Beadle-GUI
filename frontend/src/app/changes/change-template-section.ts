@@ -1,9 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { errorMessage } from '../core/errors';
 import { Field, FieldOption, Fields, formRevision } from '../shared/fields';
+import { FORM_FIELD } from '../ui/form-field';
 import { ChangeOptions, RiskQuestion } from './change-api';
 import { ChangeOptionLists } from './change-options';
 import {
@@ -43,7 +41,7 @@ function listed(field: Field, options: ChangeOptions | null): Field {
 
 @Component({
   selector: 'dso-template-section',
-  imports: [MatButtonModule, MatFormFieldModule, MatInputModule, Fields],
+  imports: [FORM_FIELD, Fields],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     @let f = form();
@@ -51,22 +49,22 @@ function listed(field: Field, options: ChangeOptions | null): Field {
       @case ('request') {
         <div class="form-fields">
           @for (fact of facts(); track fact.label) {
-            <mat-form-field class="span-6 read-only" floatLabel="always">
-              <mat-label>{{ fact.label }}</mat-label>
+            <dso-form-field class="span-6 read-only">
+              <dso-label>{{ fact.label }}</dso-label>
               <input
-                matInput
+                dsoInput
                 readonly
                 [value]="fact.value ?? ''"
                 [placeholder]="fact.placeholder ?? ''"
               />
-            </mat-form-field>
+            </dso-form-field>
           }
           <dso-fields [group]="f" [fields]="requestFields()" />
-          <mat-form-field class="span-6 read-only">
-            <mat-label>{{ riskField.label }}</mat-label>
-            <input matInput readonly [value]="risk() ?? ''" />
-            <mat-hint>{{ riskField.hint }}</mat-hint>
-          </mat-form-field>
+          <dso-form-field class="span-6 read-only">
+            <dso-label>{{ riskField.label }}</dso-label>
+            <input dsoInput readonly [value]="risk() ?? ''" />
+            <dso-hint>{{ riskField.hint }}</dso-hint>
+          </dso-form-field>
           <dso-fields [group]="f" [fields]="closingFields" />
         </div>
       }
@@ -124,7 +122,7 @@ function listed(field: Field, options: ChangeOptions | null): Field {
         <p class="choice-error">
           The lists of the ProTech fields could not be loaded: {{ errorMessage(error) }}
         </p>
-        <button mat-button type="button" (click)="reloadLists()">Try again</button>
+        <button type="button" class="btn btn-link" (click)="reloadLists()">Try again</button>
       </div>
     }
   `,
