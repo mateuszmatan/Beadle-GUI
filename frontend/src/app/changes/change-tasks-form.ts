@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
 import { Field, Fields, area, line } from '../shared/fields';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
@@ -20,7 +19,7 @@ const TASK: Field[] = [
 
 @Component({
   selector: 'dso-change-tasks-form',
-  imports: [MatButtonModule, Fields],
+  imports: [Fields],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     @let list = tasks();
@@ -41,9 +40,8 @@ const TASK: Field[] = [
             }
             <span class="spacer"></span>
             <button
-              mat-button
               type="button"
-              class="danger"
+              class="btn btn-link danger"
               [attr.aria-label]="'Remove change task ' + (i + 1)"
               [disabled]="!canRemove(list, i)"
               (click)="remove(i)"
@@ -61,7 +59,12 @@ const TASK: Field[] = [
       <p class="choice-error" role="alert">{{ errorText(list) }}</p>
     }
     <div class="task-actions">
-      <button mat-stroked-button type="button" [disabled]="list.length >= maxTasks" (click)="add()">
+      <button
+        type="button"
+        class="btn btn-outline-primary"
+        [disabled]="list.length >= maxTasks"
+        (click)="add()"
+      >
         Add a change task
       </button>
       <span class="muted">{{ counted(list.length, 'change task') }}</span>

@@ -9,14 +9,13 @@ import {
   numberAttribute,
 } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { RouterLink } from '@angular/router';
 import { Subscription, of } from 'rxjs';
 import { MyDepartment } from '../beadle/my-department';
 import { errorMessage } from '../core/errors';
 import { CHANGES, beadleChange, beadleProduct } from '../core/sections';
 import { RelativeTimePipe, formatRelative } from '../shared/formatting';
+import { DsoLoading } from '../ui/loading';
 import {
   ChangeUpdate,
   ChangesApi,
@@ -67,14 +66,7 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
 
 @Component({
   selector: 'dso-change-detail',
-  imports: [
-    RouterLink,
-    MatButtonModule,
-    MatProgressBarModule,
-    RelativeTimePipe,
-    ChangeSummary,
-    WorkflowProgress,
-  ],
+  imports: [RouterLink, DsoLoading, RelativeTimePipe, ChangeSummary, WorkflowProgress],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
@@ -84,7 +76,7 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
         <span>{{ change.hasValue() ? change.value().number : 'Change' }}</span>
       </nav>
       @if (change.isLoading() && !change.hasValue()) {
-        <mat-progress-bar mode="indeterminate" />
+        <dso-loading />
       }
       @if (change.error(); as error) {
         <div class="banner">{{ errorMessage(error) }}</div>
@@ -100,16 +92,20 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
             @if (open()) {
               @if (hint(); as message) {
                 <span class="muted edit-hint">{{ message }}</span>
-                <button mat-flat-button type="button" disabled [attr.title]="message">Edit</button>
+                <button type="button" class="btn btn-primary" disabled [attr.title]="message">
+                  Edit
+                </button>
               } @else {
-                <a mat-flat-button [routerLink]="changeLink(c.id!, 'edit')">Edit</a>
+                <a class="btn btn-primary" [routerLink]="changeLink(c.id!, 'edit')">Edit</a>
               }
             }
             @if (c.url) {
-              <a mat-stroked-button [href]="c.url" target="_blank" rel="noopener">ProTech</a>
+              <a class="btn btn-outline-primary" [href]="c.url" target="_blank" rel="noopener"
+                >ProTech</a
+              >
             }
             @if (c.productId) {
-              <a mat-stroked-button [routerLink]="productLink(c.productId)">Product</a>
+              <a class="btn btn-outline-primary" [routerLink]="productLink(c.productId)">Product</a>
             }
           </div>
         </header>

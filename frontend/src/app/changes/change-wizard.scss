@@ -44,9 +44,19 @@
     width: 280px;
   }
 
-  button {
-    margin-top: 2px;
+  > .btn {
+    margin-top: 20px;
   }
+}
+
+.versions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 100%;
+  max-height: 260px;
+  margin-top: 2px;
+  overflow-y: auto;
 }
 
 .issue-actions {
@@ -70,10 +80,6 @@
     margin: 2px 0;
     font-size: 13px;
   }
-
-  mat-checkbox {
-    display: block;
-  }
 }
 
 .defaults-note {
@@ -96,6 +102,11 @@
 
   .new-text {
     align-self: flex-start;
+  }
+
+  .count {
+    display: block;
+    text-align: end;
   }
 }
 
