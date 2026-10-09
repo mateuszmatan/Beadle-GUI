@@ -13,17 +13,20 @@ import { LookupItem } from '../core/models';
 import {
   changeOptions,
   changeProfile,
+  changeTask,
   changeTemplate,
   epic,
   jiraVersion,
   productionChange,
+  releaseDetails,
   story,
-  taskText,
+  taskDetails,
 } from '../testing/change-fixtures';
 import { buttonOf, fieldOf, inputOf, text } from '../testing/dom';
 import { department, productSummary } from '../testing/fixtures';
 import { isoDate } from './change-model';
-import { ChangeWizard, PREVIEW_DELAY } from './change-wizard';
+import { localInput } from './change-schedule-model';
+import { ChangeWizard } from './change-wizard';
 
 const ME = { name: 'Mateusz Matan' };
 
@@ -84,11 +87,6 @@ describe('ChangeWizard', () => {
   afterEach(() => http.verify());
 
   const settle = () => settled(fixture);
-
-  async function waited(ms: number) {
-    await new Promise((resolve) => setTimeout(resolve, ms + 20));
-    await settle();
-  }
 
   async function next() {
     wizard()['next']();
@@ -200,6 +198,7 @@ describe('ChangeWizard', () => {
       'Risk assessment',
       'Secure coding',
       'Review',
+      'Change tasks',
       'Raised',
     ]);
     expect(
@@ -408,11 +407,8 @@ describe('ChangeWizard', () => {
         riskAssessment: { businessImpact: 'High', bbhUsers: '5-25' },
         secureCodingTicket: 'SEC-12',
       },
-      tasks: [
-        taskText('Deploy CertScanner to production', 'Deploy the release of CertScanner.'),
-        taskText('Validate CertScanner in production', 'Run the smoke tests of CertScanner.'),
-      ],
     });
+    expect(preview.request.body.tasks).toBeUndefined();
     preview.flush(
       productionChange({ id: null, number: null, createdAt: null, state: 'DRAFT', workflow: [] }),
     );
@@ -423,20 +419,7 @@ describe('ChangeWizard', () => {
       'Change numberGiven by ProTech when raisedApprovalNot Yet Requested',
     );
     await type('Short description', 'CertScanner 4.2');
-
-    const tasks = wizard()['tasks']()!;
-    expect(page().querySelectorAll('dso-change-tasks-form .task-row').length).toBe(2);
-    tasks.at(1).controls.shortDescription.setValue(' ');
-    await next();
-    expect(wizard()['stepProblem']()).toBe('Check the change tasks');
-    tasks.at(1).controls.shortDescription.setValue('Validate it');
-    buttonOf(page(), 'Add a change task').click();
-    await settle();
-    tasks.at(2).patchValue({ shortDescription: 'Tell the users', description: 'Send the e-mail.' });
-    await settle();
-    expect(text(page().querySelector('.step-problem'))).toBe('Wait until the change is previewed');
-    await waited(PREVIEW_DELAY);
-    await texts();
+    expect(page().querySelector('dso-change-tasks-form')).toBeNull();
 
     expect(wizard()['nextLabel']()).toBe('Raise the change in ProTech');
     await next();
@@ -445,19 +428,93 @@ describe('ChangeWizard', () => {
       fixVersion: 'CERT 4.2',
       shortDescription: 'CertScanner 4.2',
       description: 'Production release of CertScanner (CERT).',
-      tasks: [
-        taskText('Deploy CertScanner to production', 'Deploy the release of CertScanner.'),
-        taskText('Validate it', 'Run the smoke tests of CertScanner.'),
-        taskText('Tell the users', 'Send the e-mail.'),
-      ],
     });
-    raised.flush(productionChange({ shortDescription: 'CertScanner 4.2' }));
+    expect(raised.request.body.tasks).toBeUndefined();
+    raised.flush(
+      productionChange({
+        shortDescription: 'CertScanner 4.2',
+        template: changeTemplate({ release: 'CERT 4.2', configurationItem: 'Payments Hub' }),
+        tasks: [],
+      }),
+    );
     await settle();
 
     expect(wizard()['step']()).toBe(9);
+    expect(text(page().querySelector('h2'))).toBe('Change tasks of CHG0012345');
+    expect(wizard().hasUnsavedChanges()).toBe(true);
+    expect(buttonOf(page(), 'Back')).toBeUndefined();
+    expect(wizard()['nextLabel']()).toBe('Create the change tasks in ProTech');
+    const tasks = wizard()['tasks']()!;
+    const rows = () => [...page().querySelectorAll<HTMLElement>('dso-change-tasks-form .task-row')];
+    expect(rows().map((row) => text(row.querySelector('.kind')))).toEqual([
+      'Release Management',
+      'Change task',
+    ]);
+    expect(inputOf(rows()[0], 'Change number').value).toBe('CHG0012345');
+    expect(inputOf(rows()[0], 'Affected CI').value).toBe('Payments Hub');
+    expect(tasks.at(0).controls.start.value).toBe(
+      localInput(new Date('2026-10-10T06:01:00Z')),
+    );
+    tasks.at(1).controls.details.controls.shortDescription.setValue(' ');
+    await next();
+    expect(wizard()['step']()).toBe(9);
+    expect(wizard()['stepProblem']()).toBe('Check the change tasks');
+    tasks.at(1).controls.details.controls.shortDescription.setValue('Validate it');
+    tasks.at(0).controls.details.controls.platform.setValue('OpenShift');
+    buttonOf(page(), 'Add a change task').click();
+    await settle();
+    tasks.at(2).controls.details.patchValue({
+      assignmentGroup: 'Cloud Engineering',
+      importance: '2 - High',
+      shortDescription: 'Tell the users',
+      description: 'Send the e-mail.',
+    });
+    await settle();
+
+    await next();
+    const created = http.expectOne({ method: 'POST', url: '/api/changes/7/tasks' });
+    expect(created.request.body).toEqual({
+      version: 4,
+      departmentId: 3,
+      tasks: [
+        {
+          number: null,
+          start: '2026-10-10T06:01:00.000Z',
+          details: releaseDetails(
+            'Deploy CertScanner to production',
+            'Deploy the release of CertScanner.',
+            { configurationItem: 'Payments Hub', platform: 'OpenShift', application: 'OCP' },
+          ),
+        },
+        {
+          number: null,
+          start: null,
+          details: taskDetails('Validate it', 'Run the smoke tests of CertScanner.', {
+            configurationItem: 'Payments Hub',
+          }),
+        },
+        {
+          number: null,
+          start: null,
+          details: taskDetails('Tell the users', 'Send the e-mail.', {
+            assignmentGroup: 'Cloud Engineering',
+            importance: '2 - High',
+          }),
+        },
+      ],
+    });
+    created.flush(
+      productionChange({
+        shortDescription: 'CertScanner 4.2',
+        tasks: [changeTask({ details: releaseDetails('Deploy CertScanner to production') })],
+      }),
+    );
+    await settle();
+
+    expect(wizard()['step']()).toBe(10);
     expect(text(page().querySelector('h2'))).toBe('CHG0012345 is raised');
     expect(text(page().querySelector('.review-list'))).toBe(
-      'CTASK0020001 · Deploy CertScanner to production',
+      'CTASK0020001 · Deploy CertScanner to production · Release Management',
     );
     expect(text(page().querySelector('.next-steps'))).toContain(
       'Olivia Bennett, James Carter approve the change in ProTech.',
@@ -555,13 +612,12 @@ describe('ChangeWizard', () => {
     await next();
     http.expectOne({ method: 'POST', url: '/api/changes' }).flush(
       {
-        detail: '5 fields are invalid',
+        detail: '4 fields are invalid',
         errors: [
           { field: 'schedule.installationStart', message: 'must be in the future' },
           { field: 'schedule.installationEnd', message: 'must be after the start' },
           { field: 'template.planning.backoutPlan', message: 'must not be blank' },
           { field: 'epicKeys', message: 'CERT-1 is not in Jira project CERT' },
-          { field: 'tasks[1].description', message: 'must not be blank' },
         ],
       },
       { status: 400, statusText: 'Bad Request' },
@@ -574,9 +630,8 @@ describe('ChangeWizard', () => {
       'Installation end: must be after the start',
       'Backout plan: must not be blank',
       'Epics: CERT-1 is not in Jira project CERT',
-      'Change task 2: description: must not be blank',
     ]);
-    expect(text(page().querySelector('.save-problem'))).toContain('5 fields are invalid');
+    expect(text(page().querySelector('.save-problem'))).toContain('4 fields are invalid');
     expect(details().controls.planning.controls.backoutPlan.errors).toEqual({
       server: 'must not be blank',
     });
@@ -586,9 +641,60 @@ describe('ChangeWizard', () => {
     expect(schedule().controls.installationHours.errors).toEqual({
       server: 'must be after the start',
     });
-    expect(wizard()['tasks']()!.at(1).controls.description.errors).toEqual({
-      server: 'must not be blank',
+    expect(wizard()['tasks']()).toBeNull();
+  });
+
+  it('shows why ProTech refused the change tasks and lets them be added later', async () => {
+    await toReview();
+    http.expectOne('/api/changes/preview').flush(productionChange({ id: null, number: null }));
+    await settle();
+    await next();
+    http.expectOne({ method: 'POST', url: '/api/changes' }).flush(productionChange({ tasks: [] }));
+    await settle();
+    const tasks = wizard()['tasks']()!;
+
+    await next();
+    http.expectOne({ method: 'POST', url: '/api/changes/7/tasks' }).flush(
+      {
+        detail: '2 fields are invalid',
+        errors: [
+          { field: 'tasks[0].start', message: 'must be inside the installation window' },
+          { field: 'tasks[1].details.assignedTo', message: 'is not a ProTech user' },
+        ],
+      },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    await settle();
+
+    expect(wizard()['step']()).toBe(9);
+    expect(text(page().querySelector('.save-problem strong'))).toBe(
+      'The change tasks could not be created: 2 fields are invalid',
+    );
+    expect(wizard()['problems']()).toEqual([
+      'Change task 1: task start: must be inside the installation window',
+      'Change task 2: assigned to: is not a ProTech user',
+    ]);
+    expect(tasks.at(0).controls.start.errors).toEqual({
+      server: 'must be inside the installation window',
     });
+    expect(tasks.at(1).controls.details.controls.assignedTo.errors).toEqual({
+      server: 'is not a ProTech user',
+    });
+
+    buttonOf(page(), 'Remove change task 2').click();
+    buttonOf(page(), 'Remove change task 1').click();
+    await next();
+    expect(wizard()['stepProblem']()).toBe('Add at least one change task, or add them later');
+    http.expectNone({ method: 'POST', url: '/api/changes/7/tasks' });
+
+    buttonOf(page(), 'Add them later').click();
+    await settle();
+    expect(wizard()['step']()).toBe(10);
+    expect(page().querySelector('.save-problem')).toBeNull();
+    expect(text(page().querySelector('.review-list'))).toBe(
+      'None yet: add them on the change page.',
+    );
+    expect(wizard().hasUnsavedChanges()).toBe(false);
   });
 
   it('asks Jira about the project of the product and keeps the epics found until they are found again', async () => {
@@ -816,64 +922,6 @@ describe('ChangeWizard', () => {
     http.expectOne('/api/changes/preview').flush(productionChange({ id: null, number: null }));
     await settle();
     expect(wizard()['description'].value).toBe('Production release of CertScanner (CERT).');
-  });
-
-  it('previews the change again when its change tasks change on the review, the latest tasks only', async () => {
-    await toReview();
-    http.expectOne('/api/changes/preview').flush(productionChange({ id: null, number: null }));
-    await settle();
-    const tasks = wizard()['tasks']()!;
-    const raise = () => buttonOf(page(), 'Raise the change in ProTech');
-    const written = (...names: string[]) =>
-      `Production release of CertScanner (CERT).\nChange tasks: ${names.join('; ')}.`;
-
-    tasks.at(1).controls.shortDescription.setValue('Validate');
-    await settle();
-    tasks.at(1).controls.shortDescription.setValue('Validate it');
-    await settle();
-    expect(previews()).toEqual([]);
-    expect(raise().disabled).toBe(true);
-    await waited(PREVIEW_DELAY);
-    const [first, ...more] = previews();
-    expect(more).toEqual([]);
-    expect(
-      first.request.body.tasks.map((task: { shortDescription: string }) => task.shortDescription),
-    ).toEqual(['Deploy CertScanner to production', 'Validate it']);
-
-    tasks.at(0).controls.shortDescription.setValue(' ');
-    await settle();
-    expect(first.cancelled).toBe(true);
-    await waited(PREVIEW_DELAY);
-    expect(previews()).toEqual([]);
-    expect(wizard()['previewing']()).toBe(false);
-
-    tasks.at(0).controls.shortDescription.setValue('Deploy it');
-    await waited(PREVIEW_DELAY);
-    const [second] = previews();
-    second.flush(
-      productionChange({
-        id: null,
-        number: null,
-        description: written('Deploy it', 'Validate it'),
-      }),
-    );
-    await settle();
-    expect(wizard()['description'].value).toBe(written('Deploy it', 'Validate it'));
-    expect(raise().disabled).toBe(false);
-
-    await type('Description', 'Mine');
-    buttonOf(page(), 'Remove change task 2').click();
-    await waited(PREVIEW_DELAY);
-    const [third] = previews();
-    expect(third.request.body.tasks).toEqual([
-      taskText('Deploy it', 'Deploy the release of CertScanner.'),
-    ]);
-    third.flush(productionChange({ id: null, number: null, description: written('Deploy it') }));
-    await settle();
-    expect(wizard()['description'].value).toBe('Mine');
-    buttonOf(page(), 'Use the generated text for the description').click();
-    await settle();
-    expect(wizard()['description'].value).toBe(written('Deploy it'));
   });
 
   it('says why the change could not be previewed and previews it again on request', async () => {

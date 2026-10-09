@@ -25,11 +25,9 @@ import {
   Observable,
   Subject,
   catchError,
-  filter,
   finalize,
   of,
   switchMap,
-  timer,
 } from 'rxjs';
 import { MyDepartment } from '../beadle/my-department';
 import { DepartmentsApi, ProductsApi, UserApi } from '../core/api';
@@ -65,7 +63,13 @@ import {
 import { SECTIONS, SectionKey, changeFacts, sectionControls } from './change-sections';
 import { ChangeSummary } from './change-summary';
 import { ChangeTasksForm } from './change-tasks-form';
-import { TasksForm, applyTaskProblems, tasksForm, toTaskTexts } from './change-tasks-model';
+import {
+  TasksForm,
+  applyTaskProblems,
+  taskWindow,
+  tasksForm,
+  toTaskRequests,
+} from './change-tasks-model';
 import { ChangeTemplateSection } from './change-template-section';
 import {
   TemplateForm,
@@ -76,19 +80,29 @@ import {
 } from './change-template-model';
 import { IntegrationNote } from './integration-note';
 
-type StepKey = SectionKey | 'review' | 'raised';
+type StepKey = SectionKey | 'review' | 'tasks' | 'raised';
 
 const STEP_KEYS: readonly StepKey[] = [
   ...SECTIONS.map((section) => section.key),
   'review',
+  'tasks',
   'raised',
 ];
 
-export const STEPS = [...SECTIONS.map((section) => section.step), 'Review', 'Raised'];
+export const STEPS = [
+  ...SECTIONS.map((section) => section.step),
+  'Review',
+  'Change tasks',
+  'Raised',
+];
 
+const TASKS = STEP_KEYS.indexOf('tasks');
 const RAISED = STEP_KEYS.indexOf('raised');
 
-export const PREVIEW_DELAY = 400;
+const NEXT_LABELS: Partial<Record<StepKey, string>> = {
+  review: 'Raise the change in ProTech',
+  tasks: 'Create the change tasks in ProTech',
+};
 
 const ATTENTION = 'Some fields need your attention.';
 
@@ -263,7 +277,7 @@ export class ChangeWizard implements HasUnsavedChanges {
   });
   protected readonly preview = signal<ProductionChange | null>(null);
   protected readonly previewing = signal(false);
-  private readonly reviews = new Subject<number | null>();
+  private readonly reviews = new Subject<void>();
   private readonly jiraScope = computed(() =>
     this.stepKey() === 'jira' && this.epicKeys().length && this.stories.status() === 'resolved'
       ? [...this.epicKeys(), ...this.storyKeys()].join()
@@ -276,9 +290,7 @@ export class ChangeWizard implements HasUnsavedChanges {
   private filledRelease: string | null = null;
   private filledStart: string | null = null;
 
-  protected readonly nextLabel = computed(() =>
-    this.stepKey() === 'review' ? 'Raise the change in ProTech' : 'Continue',
-  );
+  protected readonly nextLabel = computed(() => NEXT_LABELS[this.stepKey()] ?? 'Continue');
 
   constructor() {
     toObservable(this.jiraScope)
@@ -293,17 +305,10 @@ export class ChangeWizard implements HasUnsavedChanges {
       .subscribe((draft) => this.showTexts(draft));
     this.reviews
       .pipe(
-        switchMap((wait) => (wait === null ? EMPTY : this.previewAfter(wait))),
+        switchMap(() => this.previewed()),
         takeUntilDestroyed(),
       )
       .subscribe((draft) => this.showTexts(draft));
-    toObservable(this.tasks)
-      .pipe(
-        switchMap((tasks) => tasks?.valueChanges ?? EMPTY),
-        filter(() => this.stepKey() === 'review' && !this.raising()),
-        takeUntilDestroyed(),
-      )
-      .subscribe(() => this.reviews.next(this.tasks()!.valid ? PREVIEW_DELAY : null));
     this.departmentId.valueChanges.pipe(takeUntilDestroyed()).subscribe((id) => {
       this.myDepartment.choose(id);
       this.productId.setValue(null);
@@ -319,7 +324,6 @@ export class ChangeWizard implements HasUnsavedChanges {
           : null;
         this.details.set(details);
         this.schedule.set(details ? scheduleForm(details.controls.downtime) : null);
-        this.tasks.set(ready ? tasksForm(profile.tasks) : null);
         this.filledStart = null;
       });
     });
@@ -345,7 +349,8 @@ export class ChangeWizard implements HasUnsavedChanges {
 
   hasUnsavedChanges(): boolean {
     return (
-      !this.raised() && (this.step() > 0 || this.searched() !== null || !!this.details()?.dirty)
+      this.stepKey() === 'tasks' ||
+      (!this.raised() && (this.step() > 0 || this.searched() !== null || !!this.details()?.dirty))
     );
   }
 
@@ -377,6 +382,10 @@ export class ChangeWizard implements HasUnsavedChanges {
       this.raise();
       return;
     }
+    if (leaving === 'tasks') {
+      this.createTasks();
+      return;
+    }
     this.checked.set(false);
     this.step.update((step) => step + 1);
     if (leaving === 'jira') {
@@ -402,8 +411,12 @@ export class ChangeWizard implements HasUnsavedChanges {
         if (this.previewing()) {
           return 'Wait until the change is previewed';
         }
-        if (!this.preview() || this.shortDescription.invalid || this.description.invalid) {
-          return 'Check the short description and the description';
+        return !this.preview() || this.shortDescription.invalid || this.description.invalid
+          ? 'Check the short description and the description'
+          : null;
+      case 'tasks':
+        if (!this.tasks()!.length) {
+          return 'Add at least one change task, or add them later';
         }
         return this.tasks()!.invalid ? 'Check the change tasks' : null;
       case 'raised':
@@ -457,8 +470,16 @@ export class ChangeWizard implements HasUnsavedChanges {
     control.markAsPristine();
   }
 
+  protected later(): void {
+    this.checked.set(false);
+    this.problem.set(null);
+    this.problems.set([]);
+    this.step.set(RAISED);
+  }
+
   protected restart(): void {
     this.raised.set(null);
+    this.tasks.set(null);
     this.productId.setValue(null);
     this.checked.set(false);
     this.step.set(0);
@@ -491,9 +512,9 @@ export class ChangeWizard implements HasUnsavedChanges {
     const key = this.stepKey();
     if (key === 'schedule') {
       this.schedule()!.markAllAsTouched();
-    } else if (key === 'review') {
-      this.tasks()?.markAllAsTouched();
-    } else if (key !== 'raised' && this.details()) {
+    } else if (key === 'tasks') {
+      this.tasks()!.markAllAsTouched();
+    } else if (key !== 'review' && key !== 'raised' && this.details()) {
       sectionControls(this.details()!, key).forEach((control) => control.markAllAsTouched());
     }
   }
@@ -579,22 +600,18 @@ export class ChangeWizard implements HasUnsavedChanges {
       },
       scheduleValue(this.schedule()!, details.controls.downtime.value),
       toTemplate(details),
-      toTaskTexts(this.tasks()!),
     );
   }
 
   protected loadPreview(): void {
-    this.reviews.next(0);
+    this.reviews.next();
   }
 
-  private previewAfter(wait: number): Observable<ProductionChange> {
+  private previewed(): Observable<ProductionChange> {
     this.previewing.set(true);
-    return (wait ? timer(wait) : of(0)).pipe(
-      switchMap(() => {
-        this.problem.set(null);
-        this.problems.set([]);
-        return this.changesApi.preview(this.request());
-      }),
+    this.problem.set(null);
+    this.problems.set([]);
+    return this.changesApi.preview(this.request()).pipe(
       catchError((error) => {
         this.preview.set(null);
         this.fail(error, 'The change could not be previewed: ');
@@ -621,10 +638,48 @@ export class ChangeWizard implements HasUnsavedChanges {
       .subscribe({
         next: (change) => {
           this.raised.set(change);
+          this.tasks.set(this.draftTasks(change));
+          this.checked.set(false);
+          this.step.set(TASKS);
+        },
+        error: (error) => this.fail(error),
+      });
+  }
+
+  private draftTasks(change: ProductionChange): TasksForm {
+    const affected = change.template.configurationItem;
+    const defaults = this.profile.hasValue() ? this.profile.value().tasks : [];
+    return tasksForm(
+      defaults.map((details) => ({
+        details: { ...details, configurationItem: details.configurationItem ?? affected },
+      })),
+      taskWindow(change.number, change.schedule),
+    );
+  }
+
+  private createTasks(): void {
+    const change = this.raised()!;
+    this.raising.set(true);
+    this.problem.set(null);
+    this.problems.set([]);
+    this.changesApi
+      .createTasks(change.id!, {
+        version: change.version!,
+        departmentId: this.departmentId.value ?? change.departmentId!,
+        tasks: toTaskRequests(this.tasks()!),
+      })
+      .pipe(
+        finalize(() => this.raising.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (tasked) => {
+          this.raised.set(tasked);
+          this.tasks()!.markAsPristine();
           this.checked.set(false);
           this.step.set(RAISED);
         },
-        error: (error) => this.fail(error),
+        error: (error) => this.fail(error, 'The change tasks could not be created: '),
       });
   }
 
@@ -642,11 +697,12 @@ export class ChangeWizard implements HasUnsavedChanges {
 
   private fail(error: unknown, lead = ''): void {
     const problems = fieldProblems(error);
+    const tasks = this.tasks();
     const unmatched = applyTemplateProblems(this.details()!, problems);
     applyProblemsAt(
       this.schedule()!,
       SCHEDULE_PREFIX,
-      applyTaskProblems(this.tasks()!, unmatched).map(onHours),
+      (tasks ? applyTaskProblems(tasks, unmatched) : unmatched).map(onHours),
     );
     this.problem.set(lead + errorMessage(error));
     this.problems.set(problems.map(problemText));

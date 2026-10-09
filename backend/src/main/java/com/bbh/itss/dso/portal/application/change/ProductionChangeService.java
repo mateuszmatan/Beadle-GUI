@@ -5,6 +5,7 @@ import com.bbh.itss.dso.portal.application.WithoutTransaction;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeCommand;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeEditCommand;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeIntegrations;
+import com.bbh.itss.dso.portal.application.change.port.in.ChangeTasksCommand;
 import com.bbh.itss.dso.portal.application.change.port.in.ProductionChangesUseCase;
 import com.bbh.itss.dso.portal.application.change.port.out.ChangeProductsPort;
 import com.bbh.itss.dso.portal.application.change.port.out.JiraPort;
@@ -14,6 +15,7 @@ import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort.Raised
 import com.bbh.itss.dso.portal.application.user.port.in.SignedInUserUseCase;
 import com.bbh.itss.dso.portal.domain.change.ChangeProduct;
 import com.bbh.itss.dso.portal.domain.change.ChangeSchedule;
+import com.bbh.itss.dso.portal.domain.change.ChangeTask;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
 import com.bbh.itss.dso.portal.domain.change.JiraIssue;
 import com.bbh.itss.dso.portal.domain.change.JiraVersion;
@@ -40,7 +42,6 @@ import static com.bbh.itss.dso.portal.domain.change.ProductionChange.FIX_VERSION
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.SHORT_DESCRIPTION_MAX;
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.checkTemplate;
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.checkTemplateAndSchedule;
-import static com.bbh.itss.dso.portal.domain.change.TaskText.validateTasks;
 import static com.bbh.itss.dso.portal.domain.shared.Failures.notFound;
 import static com.bbh.itss.dso.portal.domain.shared.Failures.staleVersion;
 import static com.bbh.itss.dso.portal.domain.shared.StoredList.LINES_1000;
@@ -149,7 +150,28 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         Instant now = now(clock);
         ProductionChange draft = draft(command, now).raisedAt(now);
         RaisedChange raised = serviceNow.raise(draft);
-        return changes.save(draft.numbered(raised.number(), raised.taskNumbers(), raised.url()));
+        return changes.save(draft.numbered(raised.number(), raised.url()));
+    }
+
+    @Override
+    @WithoutTransaction
+    public ProductionChange createTasks(long id, ChangeTasksCommand command) {
+        ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
+        requireDepartment(stored, command.departmentId());
+        requireUnchangedSince(command.version(), stored.editedVersion(), stored.version());
+        List<ChangeTask> planned = stored.plannedTasks(command.tasks());
+        ProductionChange current = synced(stored);
+        requireChangeable(current, stored);
+        List<ChangeTask> created = new ArrayList<>();
+        try {
+            planned.forEach(task -> created.add(task.numbered(serviceNow.createTask(current.number(), task))));
+        } catch (RuntimeException refused) {
+            if (!created.isEmpty()) {
+                recorded(current.withTasks(created));
+            }
+            throw refused;
+        }
+        return recorded(current.withTasks(created));
     }
 
     private ProductionChange draft(ChangeCommand command, Instant raisedAt) {
@@ -184,9 +206,8 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         LINES_4000.check(problems, "storyKeys", command.storyKeys());
         problems.fits("shortDescription", command.shortDescription(), SHORT_DESCRIPTION_MAX)
                 .fits("description", command.description(), DESCRIPTION_MAX);
-        validateTasks(command.tasks(), problems);
         problems.throwIfAny();
-        return ProductionChange.draft(product, users.signedInUser().name(), command.tasks(), version,
+        return ProductionChange.draft(product, users.signedInUser().name(), version,
                 getIfNull(schedule, UNPLANNED), template, epics, stories, command.shortDescription(),
                 command.description());
     }

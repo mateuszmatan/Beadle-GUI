@@ -8,7 +8,6 @@ import {
   JiraIssue,
   JiraVersion,
   ProductionChange,
-  TaskText,
 } from './change-api';
 
 export interface ChangeScope {
@@ -91,7 +90,6 @@ export function changeRequest(
   scope: ChangeScope,
   schedule: ChangeSchedule,
   template: ChangeTemplate,
-  tasks: TaskText[],
 ): ChangeRequest {
   return {
     productId: scope.productId,
@@ -100,7 +98,6 @@ export function changeRequest(
     storyKeys: [...scope.storyKeys],
     schedule,
     template,
-    tasks,
   };
 }
 

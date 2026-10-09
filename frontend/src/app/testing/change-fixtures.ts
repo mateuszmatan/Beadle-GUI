@@ -8,7 +8,7 @@ import {
   JiraIssue,
   JiraVersion,
   ProductionChange,
-  TaskText,
+  TaskDetails,
 } from '../changes/change-api';
 
 export function changeOptions(): ChangeOptions {
@@ -49,6 +49,9 @@ export function changeOptions(): ChangeOptions {
       platformStatus: ['Existing', 'New', 'Decommissioned'],
       businessImpact: ['None', 'Low', 'Medium', 'High'],
     },
+    platforms: ['None', 'Mainframe', 'Distributed', 'OpenShift', 'Cognos/Motio'],
+    importances: ['1 - Critical', '2 - High', '3 - Moderate', '4 - Low', '5 - Planning'],
+    releaseManagement: 'Release Management',
   };
 }
 
@@ -97,16 +100,47 @@ export function changeTemplate(overrides: Partial<ChangeTemplate> = {}): ChangeT
   };
 }
 
-export function taskText(shortDescription: string, description = `${shortDescription}.`): TaskText {
-  return { shortDescription, description };
+export function taskDetails(
+  shortDescription: string,
+  description = `${shortDescription}.`,
+  overrides: Partial<TaskDetails> = {},
+): TaskDetails {
+  return {
+    assignmentGroup: 'Technology Architecture',
+    assignedTo: null,
+    configurationItem: null,
+    platform: null,
+    application: null,
+    packages: null,
+    backoutPackages: null,
+    importance: '3 - Moderate',
+    shortDescription,
+    description,
+    additionalComments: null,
+    ...overrides,
+  };
+}
+
+export function releaseDetails(
+  shortDescription: string,
+  description = `${shortDescription}.`,
+  overrides: Partial<TaskDetails> = {},
+): TaskDetails {
+  return taskDetails(shortDescription, description, {
+    assignmentGroup: 'Release Management',
+    platform: 'None',
+    importance: null,
+    ...overrides,
+  });
 }
 
 export function changeTask(overrides: Partial<ChangeTask> = {}): ChangeTask {
   return {
     number: 'CTASK0020001',
+    details: taskDetails('Deploy CertScanner to production', 'Deploy the release of CertScanner.'),
+    start: null,
+    approval: 'Not Yet Requested',
     state: 'OPEN',
-    shortDescription: 'Deploy CertScanner to production',
-    description: 'Deploy the release of CertScanner.',
     ...overrides,
   };
 }
@@ -131,8 +165,8 @@ export function changeProfile(overrides: Partial<ChangeProfile> = {}): ChangePro
     updatedAt: '2026-10-05T12:00:00Z',
     template: changeTemplate(),
     tasks: [
-      taskText('Deploy CertScanner to production', 'Deploy the release of CertScanner.'),
-      taskText('Validate CertScanner in production', 'Run the smoke tests of CertScanner.'),
+      releaseDetails('Deploy CertScanner to production', 'Deploy the release of CertScanner.'),
+      taskDetails('Validate CertScanner in production', 'Run the smoke tests of CertScanner.'),
     ],
     ...overrides,
   };

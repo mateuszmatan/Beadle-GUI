@@ -14,7 +14,15 @@ describe('change problems', () => {
     expect(requestLabel('tasks[0].shortDescription')).toBe('Change task 1: short description');
     expect(requestLabel('tasks[2].description')).toBe('Change task 3: description');
     expect(requestLabel('tasks[1]')).toBe('Change task 2');
-    expect(requestLabel('tasks[1].number')).toBe('Change task 2');
+    expect(requestLabel('tasks[1].number')).toBe('Change task 2: number');
+    expect(requestLabel('tasks[1].details.assignmentGroup')).toBe(
+      'Change task 2: assignment group',
+    );
+    expect(requestLabel('tasks[0].start')).toBe('Change task 1: task start');
+    expect(requestLabel('tasks[3].details.backoutPackages')).toBe(
+      'Change task 4: backout packages',
+    );
+    expect(requestLabel('tasks[1].odd')).toBe('Change task 2');
     expect(requestLabel('somethingElse')).toBeNull();
   });
 

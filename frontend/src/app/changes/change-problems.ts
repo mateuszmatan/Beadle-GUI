@@ -1,6 +1,7 @@
 import { FieldProblem } from '../core/models';
 import { SCHEDULE_LABELS } from './change-schedule-model';
 import { templateLabel } from './change-sections';
+import { TASK_LABELS } from './change-tasks-form';
 import { TEMPLATE_PREFIX } from './change-template-model';
 
 const REQUEST_LABELS: Record<string, string> = {
@@ -15,18 +16,13 @@ const REQUEST_LABELS: Record<string, string> = {
   tasks: 'Change tasks',
 };
 
-const TASK_PARTS: Record<string, string> = {
-  shortDescription: 'short description',
-  description: 'description',
-};
-
 export function requestLabel(field: string): string | null {
   if (field.startsWith(TEMPLATE_PREFIX)) {
     return templateLabel(field.slice(TEMPLATE_PREFIX.length));
   }
-  const task = /^tasks\[(\d+)](?:\.(\w+))?$/.exec(field);
+  const task = /^tasks\[(\d+)](?:\.details)?(?:\.(\w+))?$/.exec(field);
   if (task) {
-    const part = TASK_PARTS[task[2]];
+    const part = TASK_LABELS[task[2]];
     return `Change task ${Number(task[1]) + 1}${part ? `: ${part}` : ''}`;
   }
   const moment = Object.entries(SCHEDULE_LABELS).find(([key]) => field === `schedule.${key}`);

@@ -15,8 +15,8 @@ import org.springframework.transaction.annotation.Transactional
 
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.FIRST_USE_PLAN
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Type.STANDARD
-import static com.bbh.itss.dso.portal.domain.change.TaskText.suggestedTasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.at
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.migratedTasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.privileged
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
 import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
@@ -69,7 +69,7 @@ class ServiceNowFieldsMigrationSpec extends MigrationSpecification {
                 .planning(new Planning('Pipeline tests passed on QC.', 'Deploy the services.',
                         MIGRATED_VALIDATION_PLAN, 'Redeploy the previous release.', FIRST_USE_PLAN))
                 .privilegedAccess(PrivilegedAccess.NONE).riskAssessment(impact('Low')).build()
-        profile.tasks() == suggestedTasks('CertScanner')
+        profile.tasks() == migratedTasks('CertScanner')
         change.number() == 'CHG0030001'
         change.fixVersion() == 'Not recorded'
         change.schedule() == new ChangeSchedule(at('2026-03-02T06:00:00Z'), at('2026-03-02T08:00:00Z'),

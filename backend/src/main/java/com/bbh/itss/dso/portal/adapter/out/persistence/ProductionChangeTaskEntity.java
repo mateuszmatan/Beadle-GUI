@@ -13,6 +13,9 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
+
+import static com.bbh.itss.dso.portal.adapter.RecordMapper.map;
 import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.FetchType.LAZY;
 import static jakarta.persistence.GenerationType.IDENTITY;
@@ -38,8 +41,12 @@ public class ProductionChangeTaskEntity {
     @Getter(PACKAGE)
     private String number;
 
-    private String shortDescription;
-    private String description;
+    private TaskDetailsEmbeddable details;
+
+    @Column(name = "TASK_START")
+    private Instant start;
+
+    private String approval;
 
     @Enumerated(STRING)
     private TaskState state;
@@ -52,8 +59,9 @@ public class ProductionChangeTaskEntity {
     ProductionChangeTaskEntity apply(int taskOrder, ChangeTask task) {
         this.taskOrder = taskOrder;
         this.number = task.number();
-        this.shortDescription = task.shortDescription();
-        this.description = task.description();
+        this.details = map(task.details(), TaskDetailsEmbeddable.class);
+        this.start = task.start();
+        this.approval = task.approval();
         this.state = task.state();
         return this;
     }

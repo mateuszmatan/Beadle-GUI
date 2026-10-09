@@ -15,7 +15,7 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Timing
 import com.bbh.itss.dso.portal.domain.change.ChangeUpdate
 import com.bbh.itss.dso.portal.domain.change.ProductionChange
 import com.bbh.itss.dso.portal.domain.change.RiskAssessment
-import com.bbh.itss.dso.portal.domain.change.TaskText
+import com.bbh.itss.dso.portal.domain.change.TaskDetails
 import com.bbh.itss.dso.portal.domain.change.WorkflowStep
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
@@ -36,11 +36,15 @@ import static com.bbh.itss.dso.portal.domain.change.TaskState.WORK_IN_PROGRESS
 import static com.bbh.itss.dso.portal.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.FIX_VERSION
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.RAISED
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.ctask
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.details as taskDetails
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.epic
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.privileged
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.releaseTask
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.risk
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.schedule
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.story
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.task
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
 import static com.bbh.itss.dso.portal.support.Fixtures.account
@@ -221,8 +225,8 @@ class ChangePersistenceAdaptersSpec extends Specification {
         loaded.template() == FULL.releasedAs(FIX_VERSION)
         loaded.template().privilegedAccess().users()*.user() == ['Jane Smith', 'Ann Lee']
         [loaded.epicKeys(), loaded.storyKeys()] == [['CERT-1'], ['CERT-2']]
-        loaded.tasks() == [new ChangeTask('CTASK0002001', 'Task 1 of the CertScanner release',
-                'Step 1 of the CertScanner release.', OPEN), new ChangeTask('CTASK0002002',
+        loaded.tasks() == [ctask('CTASK0002001', 'Task 1 of the CertScanner release',
+                'Step 1 of the CertScanner release.', OPEN), ctask('CTASK0002002',
                 'Task 2 of the CertScanner release', 'Step 2 of the CertScanner release.', OPEN)]
         loaded.url() == 'https://snow/CHG0001001'
         changes.findAll()*.number() == ['CHG0001002', 'CHG0001001']
@@ -246,10 +250,9 @@ class ChangePersistenceAdaptersSpec extends Specification {
         def bare = template(riskAssessment: RiskAssessment.DEFAULTS)
 
         when:
-        def saved = changes.save(ProductionChange.draft(changeProducts.get(product.id()), 'Mateusz Matan', tasks(1),
+        def saved = changes.save(ProductionChange.draft(changeProducts.get(product.id()), 'Mateusz Matan',
                 FIX_VERSION, schedule(), bare, [epic('CERT-1', 'Expiry alerts')], [], null, null)
-                .raisedAt(RAISED)
-                .numbered('CHG0001009', ['CTASK0002019'], null))
+                .raisedAt(RAISED).numbered('CHG0001009', null).withTasks([task(1).numbered('CTASK0002019')]))
         entities.clear()
 
         then:
@@ -272,7 +275,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         def synced = saved.toBuilder().shortDescription('Renamed in ProTech')
                 .schedule(schedule(firstUsage: '2026-10-13T08:00:00Z')).state(BUSINESS_APPROVAL)
                 .workflow(saved.workflow() + new WorkflowStep(BUSINESS_APPROVAL, RAISED.plusSeconds(120)))
-                .tasks([saved.tasks()[1].in(WORK_IN_PROGRESS), new ChangeTask('CTASK0002009', 'Check the audit trail',
+                .tasks([saved.tasks()[1].in(WORK_IN_PROGRESS), ctask('CTASK0002009', 'Check the audit trail',
                         'Open the audit trail.', OPEN), saved.tasks()[0].in(CANCELED)])
                 .update(update).syncedAt(RAISED.plusSeconds(660)).build()
 
@@ -346,10 +349,33 @@ class ChangePersistenceAdaptersSpec extends Specification {
         changes.load(stored.id()).get() == putBack
     }
 
+    def "a change task and a template task keep every ProTech field, the task also its start and its approval"() {
+        given:
+        def release = releaseTask([assignedTo     : 'Grace Turner', configurationItem: 'CertScanner UI',
+                                   platform       : 'Distributed', packages: 'cert-4.2.tar\ncert-ui-4.2.tar',
+                                   backoutPackages: 'cert-4.1.tar', additionalComments: 'Call the owner first.'])
+                .numbered('CTASK0002031').approved('Requested')
+        def other = ChangeTask.of(taskDetails(2, [assignmentGroup  : 'Cloud Engineering', importance: '2 - High',
+                                                  configurationItem: 'CertScanner']))
+        def saved = changes.save(raise('CHG0001031').withTasks([release, other]))
+        profiles.save(ChangeProfile.create(product.id(), FULL, [release.details(), other.details()]))
+        entities.clear()
+
+        expect:
+        changes.load(saved.id()).get().tasks() == [release, other]
+        profiles.find(product.id()).get().tasks() == [release.details(), other.details()]
+        jdbc.queryForMap('''SELECT ASSIGNMENT_GROUP, PLATFORM, APPLICATION, IMPORTANCE, APPROVAL
+                FROM DSO_PRODUCTION_CHANGE_TASK WHERE CHANGE_ID = ? AND TASK_NUMBER = ?''', saved.id(),
+                'CTASK0002031') == [ASSIGNMENT_GROUP: 'Release Management', PLATFORM: 'Distributed',
+                                    APPLICATION     : 'CertScanner', IMPORTANCE: null, APPROVAL: 'Requested']
+        jdbc.queryForObject('''SELECT COUNT(*) FROM DSO_PRODUCTION_CHANGE_TASK WHERE CHANGE_ID = ?
+                AND TASK_START IS NOT NULL''', Integer, saved.id()) == 1
+    }
+
     def "a change task added in Beadle is stored without a number, then with the number ProTech gave it"() {
         given:
         def saved = changes.save(raise('CHG0001001', 'CTASK0002001'))
-        def added = new ChangeTask(null, 'Notify the users', 'Send the release notes.', OPEN)
+        def added = ctask(null, 'Notify the users', 'Send the release notes.', OPEN)
         entities.clear()
 
         when:
@@ -419,7 +445,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
             productId() == null
             productName() == 'CertScanner'
             departmentId() == 3L
-            it.tasks()*.shortDescription() == ['Task 1 of the CertScanner release']
+            it.tasks()*.details()*.shortDescription() == ['Task 1 of the CertScanner release']
             it.workflow() == [new WorkflowStep(DRAFT, RAISED)]
             it.template().privilegedAccess().users().size() == 2
         }
@@ -434,11 +460,12 @@ class ChangePersistenceAdaptersSpec extends Specification {
     }
 
     private ProductionChange raise(String number, List<String> taskNumbers, Product owner) {
-        ProductionChange.draft(changeProducts.get(owner.id()), 'Mateusz Matan', tasks(taskNumbers.size()),
-                FIX_VERSION, DOWNTIME, FULL, [epic('CERT-1', 'Expiry alerts')], [story('CERT-2', 'E-mail', 'CERT-1')],
-                null, null)
-                .raisedAt(RAISED)
-                .numbered(number, taskNumbers, "https://snow/$number".toString())
+        ProductionChange.draft(changeProducts.get(owner.id()), 'Mateusz Matan', FIX_VERSION, DOWNTIME, FULL,
+                [epic('CERT-1', 'Expiry alerts')], [story('CERT-2', 'E-mail', 'CERT-1')], null, null)
+                .raisedAt(RAISED).numbered(number, "https://snow/$number".toString())
+                .withTasks(taskNumbers.withIndex().collect { String taskNumber, int index ->
+                    task(index + 1).numbered(taskNumber)
+                })
     }
 
     private List<Long> taskIds(long changeId) {

@@ -5,9 +5,11 @@ import com.microsoft.playwright.Page
 import groovy.json.JsonSlurper
 
 import java.util.function.BooleanSupplier
+import java.util.regex.Pattern
 
 import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.CERT_TASKS
 import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.CERT_TEMPLATE
+import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.details
 import static com.bbh.itss.dso.portal.frontend.support.StubApi.SIGNED_IN_USER
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.BUTTON
@@ -132,9 +134,12 @@ class ChangesSpec extends EditorSpecification {
                                                        'CTask approval', 'Escalated approval', 'Implementation', 'Closed'] as String[])
         assertThat(stages()).hasClass(['done', 'done', 'done', 'current', 'later', 'later', 'later', 'later'] as String[])
         assertThat(page.locator('dso-workflow-progress li[aria-current=step] .label')).hasText('Secondary Approval')
-        assertThat(page.locator('.tasks li')).hasCount(2)
+        assertThat(page.locator('.tasks li strong')).hasText(CERT_TASKS*.shortDescription as String[])
         assertThat(page.locator('.tasks li').first()).containsText('CTASK0310011')
-        assertThat(page.locator('.tasks li').first()).containsText('Open')
+        assertThat(page.locator('.tasks li .chip')).hasText(['Open', 'Open'] as String[])
+        assertThat(page.locator('.tasks li').first()).containsText('Not Yet Requested')
+        assertThat(page.locator('.tasks .facts')).hasText([~/^Release Management · CertScanner · CertScanner · starts .+, 17:01$/,
+                                                           ~/^Technology Architecture · CertScanner · 3 - Moderate$/] as Pattern[])
         assertThat(link('Edit', true)).hasAttribute('href', '/beadle/changes/4/edit')
         awaitRequest('GET', '/api/changes/4')
 
@@ -193,7 +198,16 @@ class ChangesSpec extends EditorSpecification {
         assertThat(select(schedule(), 'Downtime')).hasText('No')
         hasValues(fields(), ['L1 approver': 'Olivia Bennett'])
         assertThat(input(fields(), 'Jira project')).hasCount(0)
-        assertThat(editedTasks().locator('.number')).hasText(['CTASK0310011', 'CTASK0310012'] as String[])
+        hasTaskNumbers('CTASK0310011', 'CTASK0310012')
+        assertThat(taskRows().locator('.kind')).hasText(['Release Management', 'Change task'] as String[])
+        assertThat(taskRows().locator('.chip')).hasText(['Open', 'Open'] as String[])
+        assertThat(input(taskRows().first(), 'Number')).isDisabled()
+        hasValues(taskRows().first(), ['Change number'     : 'CHG0031001', 'Approval': 'Not Yet Requested',
+                                       'Installation start': "${date}T17:00", 'Installation end': "${date}T19:00",
+                                       'Task start'        : "${date}T17:01", 'Affected CI': 'CertScanner',
+                                       'Application'       : 'CertScanner'])
+        assertThat(select(taskRows().first(), 'Platform')).hasText('None')
+        assertThat(select(taskRows().nth(1), 'Importance')).hasText('3 - Moderate')
 
         when:
         input(request(), 'Assignment group').fill('Certificate Services')
@@ -209,10 +223,13 @@ class ChangesSpec extends EditorSpecification {
         assertThat(input(request(), 'Risk')).hasValue('High')
 
         when:
-        button('Remove change task 2', true).click()
+        choose(taskRows().first(), 'Platform', 'Distributed')
+        fillIn(taskRows().first(), ['Task start'      : "${date}T17:30", 'Packages': 'certscanner-4.1.0.jar',
+                                    'Backout packages': 'certscanner-4.0.3.jar'])
         button('Add a change task', true).click()
-        fillIn(editedTasks().nth(1), ['Short description': 'Notify the users',
-                                      'Description'      : 'Send the release notes to the users.'])
+        lookUp(taskRows().nth(2), 'Assignment group', 'ois', 'OIS Support')
+        fillIn(taskRows().nth(2), ['Short description': 'Notify the users', 'Description': 'Send the release notes to the users.'])
+        button('Remove change task 2', true).click()
         api.protech.applying = false
         button('Publish to ProTech', true).click()
         page.waitForURL('**/beadle/changes/4')
@@ -235,8 +252,11 @@ class ChangesSpec extends EditorSpecification {
                                          assignedTo    : SIGNED_IN_USER, department: 'Corporate Technology', risk: null,
                                          assignmentGroup: 'Certificate Services', incident: 'INC0105126', downtime: true,
                                          riskAssessment: (CERT_TEMPLATE.riskAssessment as Map) + [businessImpact: 'High']]
-            tasks == [[number: 'CTASK0310011'] + CERT_TASKS[0],
-                      [number: null, shortDescription: 'Notify the users', description: 'Send the release notes to the users.']]
+            tasks == [[number : 'CTASK0310011', start: "${date}T17:30:00.000Z".toString(),
+                       details: CERT_TASKS[0] + [configurationItem: 'CertScanner', platform: 'Distributed',
+                                                 packages         : 'certscanner-4.1.0.jar', backoutPackages: 'certscanner-4.0.3.jar']],
+                      [number : null, start: null,
+                       details: details('OIS Support', 'Notify the users', 'Send the release notes to the users.')]]
         }
 
         when:
@@ -249,8 +269,11 @@ class ChangesSpec extends EditorSpecification {
         assertThat(updateBanner()).containsText('ProTech applied the update of')
         assertThat(updateBanner()).containsText('by Corporate Technology. Checked just now.')
         assertThat(page.locator('.tasks li')).hasCount(3)
+        assertThat(page.locator('.tasks .facts').first())
+                .hasText(~/^Release Management · CertScanner · Distributed · CertScanner · starts .+, 17:30$/)
         assertThat(page.locator('.tasks li').nth(1)).containsText('CTASK0320001')
         assertThat(page.locator('.tasks li').nth(1)).containsText('Notify the users')
+        assertThat(page.locator('.tasks .facts').nth(1)).hasText('OIS Support · CertScanner · 3 - Moderate')
         assertThat(page.locator('.tasks li.canceled')).containsText('CTASK0310012')
         assertThat(term(page.locator('dso-change-summary'), 'Assignment group')).hasText('Certificate Services')
         assertThat(term(page.locator('dso-change-summary'), 'Risk')).hasText('High')
@@ -261,7 +284,9 @@ class ChangesSpec extends EditorSpecification {
         page.waitForURL('**/beadle/changes/4/edit')
 
         then:
-        assertThat(editedTasks().locator('.number')).hasText(['CTASK0310011', 'CTASK0320001'] as String[])
+        hasTaskNumbers('CTASK0310011', 'CTASK0320001')
+        hasValues(taskRows().first(), ['Task start': "${date}T17:30", 'Packages': 'certscanner-4.1.0.jar'])
+        assertThat(select(taskRows().first(), 'Platform')).hasText('Distributed')
         hasValues(schedule(), ['Downtime start': "${date}T17:00", 'Downtime hours': '1'])
         ownErrors().isEmpty()
     }
@@ -314,6 +339,32 @@ class ChangesSpec extends EditorSpecification {
         ownErrors().isEmpty()
     }
 
+    def "a member removes every change task of a change and ProTech cancels them"() {
+        when:
+        open('/beadle/changes')
+        choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
+        open('/beadle/changes/4/edit')
+        button('Remove change task 2', true).click()
+        button('Remove change task 1', true).click()
+
+        then:
+        assertThat(taskRows()).hasCount(0)
+        assertThat(page.locator('dso-change-tasks-form .task-actions .muted')).hasText('0 change tasks')
+        assertThat(page.locator('dso-change-tasks-form .choice-error')).hasCount(0)
+
+        when:
+        def reads = api.requests('GET', '/api/changes/4').size()
+        button('Publish to ProTech', true).click()
+        page.waitForURL('**/beadle/changes/4')
+
+        then:
+        awaitRequest('PUT', '/api/changes/4').json().tasks == []
+        awaitRequest('GET', '/api/changes/4', reads + 1)
+        assertThat(page.locator('.tasks li.canceled')).hasCount(2)
+        assertThat(page.locator('.tasks li .chip')).hasText(['Canceled', 'Canceled'] as String[])
+        ownErrors().isEmpty()
+    }
+
     def "a change ProTech did not update says what it kept, and a closed change cannot be edited"() {
         when:
         open('/beadle/changes')
@@ -329,6 +380,7 @@ class ChangesSpec extends EditorSpecification {
         assertThat(stages().nth(5)).hasClass(~/\bskipped\b/)
         assertThat(stages().nth(5).locator('.when')).hasText('Skipped')
         assertThat(page.locator('.tasks li').first()).containsText('Work in progress')
+        assertThat(page.locator('.tasks li').first()).containsText('Approved')
         assertThat(link('Edit', true)).isVisible()
 
         when:
@@ -413,8 +465,9 @@ class ChangesSpec extends EditorSpecification {
         page.locator('section.fields')
     }
 
-    Locator editedTasks() {
-        page.locator('dso-change-tasks-form .task-row')
+    void hasTaskNumbers(String... expected) {
+        assertThat(taskRows()).hasCount(expected.length)
+        expected.eachWithIndex { number, index -> assertThat(input(taskRows().nth(index), 'Number')).hasValue(number) }
     }
 
     Locator term(Locator scope, String label) {

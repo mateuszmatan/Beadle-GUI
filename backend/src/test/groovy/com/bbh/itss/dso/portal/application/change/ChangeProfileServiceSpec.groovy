@@ -6,16 +6,17 @@ import com.bbh.itss.dso.portal.application.change.port.out.ChangeProfileReposito
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile
 import com.bbh.itss.dso.portal.domain.change.ChangeProfileSummary
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess
-import com.bbh.itss.dso.portal.domain.change.TaskText
+import com.bbh.itss.dso.portal.domain.change.TaskDetails
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import spock.lang.Specification
 
 import java.time.Instant
 
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.suggestedFor
-import static com.bbh.itss.dso.portal.domain.change.TaskText.suggestedTasks
+import static com.bbh.itss.dso.portal.domain.change.TaskDetails.suggestedTasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.changeProduct
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.privileged
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.details
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
 
@@ -42,11 +43,12 @@ class ChangeProfileServiceSpec extends Specification {
     def "a product without a template is shown a suggestion that is not saved yet"() {
         given:
         profiles.find(1L) >> Optional.empty()
+        def suggested = suggestedFor('CERTSCANNER', 'CertScanner', 'Technology Architecture')
 
         expect:
-        service.get(1L) == ChangeProfileView.builder().productId(1L).productName('CertScanner')
-                .template(suggestedFor('CERTSCANNER', 'CertScanner', 'Technology Architecture'))
-                .tasks(suggestedTasks('CertScanner')).build()
+        service.get(1L) == ChangeProfileView.builder().productId(1L).productName('CertScanner').template(suggested)
+                .tasks(suggestedTasks('CertScanner', suggested.assignmentGroup())).build()
+        service.get(1L).tasks()*.assignmentGroup() == ['Release Management', suggested.assignmentGroup()]
     }
 
     def "the first template of a product is created"() {
@@ -117,6 +119,7 @@ class ChangeProfileServiceSpec extends Specification {
         listed                                  || fields
         tasks()                                 || ['template.planning', 'template.privilegedAccess.users']
         []                                      || ['template.planning', 'template.privilegedAccess.users', 'tasks']
-        [new TaskText(' ', 'Text.')]            || ['template.planning', 'template.privilegedAccess.users', 'tasks[0].shortDescription']
+        [details(1, [assignmentGroup: ' ', shortDescription: ' '])] || ['template.planning', 'template.privilegedAccess.users', 'tasks[0].assignmentGroup', 'tasks[0].shortDescription']
+        [details(1, [importance: 'Soon'])]      || ['template.planning', 'template.privilegedAccess.users', 'tasks[0].importance']
     }
 }

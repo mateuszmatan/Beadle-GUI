@@ -19,13 +19,14 @@ class BeadleWizardRegressionSpec extends ChangeRegressionSpecification {
         me.json == [name: SIGNED_IN]
     }
 
-    def "the wizard options are the ProTech categories, change types and risk answers"() {
+    def "the wizard options are the ProTech categories, change types, risk answers and change task choices"() {
         when:
         def options = api.get('/api/changes/options')
 
         then:
         options.status == 200
-        options.json.keySet() as List == ['categories', 'types', 'risk']
+        options.json.keySet() as List == ['categories', 'types', 'risk', 'platforms', 'importances',
+                                          'releaseManagement']
         options.json.categories == ['Application', 'Hardware', 'Infrastructure', 'System Software', 'Network',
                                     'Telecom', 'Data Amendment', 'Desktop Software', 'Storage', 'Facilities', 'Other',
                                     'Database']
@@ -42,6 +43,11 @@ class BeadleWizardRegressionSpec extends ChangeRegressionSpecification {
                                                      'All clients'],
                               platformStatus      : ['Existing', 'New', 'Decommissioned'],
                               businessImpact      : ['None', 'Low', 'Medium', 'High']]
+        options.json.platforms == ['None', 'Mainframe', 'Distributed', 'OpenShift', 'Cognos/Motio']
+        options.json.importances == ['1 - Critical', '2 - High', '3 - Moderate', '4 - Low', '5 - Planning']
+        options.json.releaseManagement == 'Release Management'
+        api.get("/api/lookups/assignment-groups?q=${enc(options.json.releaseManagement)}").json*.value ==
+                [options.json.releaseManagement]
     }
 
     def "every lookup answers at most 20 values with their detail"() {
@@ -149,6 +155,7 @@ class BeadleWizardRegressionSpec extends ChangeRegressionSpecification {
         raised.json.description.contains('Number of BBH users impacted: All users')
         raised.json.description.contains('\n\nUsers affected:\nCustody operators during the window')
         raised.json.description.contains('\n\nSecure coding ticket: APPSEC-4321')
+        raised.json.tasks == []
 
         when:
         def moved = scheduleJson(START, true) + [downtimeEnd: START.plusSeconds(3600).toString()]
@@ -161,6 +168,7 @@ class BeadleWizardRegressionSpec extends ChangeRegressionSpecification {
         updated.json.template.usersAffected == 'Nobody'
         updated.json.template.assignedTo == 'Ann Lee'
         updated.json.update.subMap('status', 'fields') == [status: 'APPLIED', fields: []]
+        updated.json.tasks == []
         updated.json.openedBy == SIGNED_IN
         api.get("/api/changes/$raised.json.id").json.template.usersAffected == 'Nobody'
     }

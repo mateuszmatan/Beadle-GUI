@@ -33,6 +33,11 @@ final class ChangeStubs {
 
     static final int MAX_LOOKUPS = 20
 
+    static final String RELEASE_MANAGEMENT = 'Release Management'
+
+    static final List<String> STATES = ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL', 'CTASK_APPROVAL',
+                                        'ESCALATED_APPROVAL', 'IMPLEMENTATION', 'CLOSED']
+
     static final Map OPTIONS = fixture('change-options.json') as Map
 
     static final Map LOOKUPS = fixture('lookups.json') as Map
@@ -61,8 +66,10 @@ final class ChangeStubs {
             secureCodingTicket: null])
 
     static final List<Map> CERT_TASKS = [
-            taskText('Deploy CertScanner to production', 'Deploy the release of CertScanner with its deployment jobs.'),
-            taskText('Validate CertScanner in production', 'Run the smoke tests of CertScanner and confirm the release.')]
+            details(RELEASE_MANAGEMENT, 'Deploy CertScanner to production',
+                    'Deploy the release of CertScanner with its deployment jobs.', [application: 'CertScanner']),
+            details('Technology Architecture', 'Validate CertScanner in production',
+                    'Run the smoke tests of CertScanner and confirm the release.')]
 
     static final List<Map> CERT_ISSUES = [
             issue('CERT-120', 'Expiry alerts for certificates', null, '4.2', 3),
@@ -142,6 +149,10 @@ final class ChangeStubs {
         }
         api.on('POST', '/api/changes/preview') { RecordedRequest request -> draft(request.json() as Map) }
         api.on('POST', '/api/changes') { RecordedRequest request -> json(protech.raise(request.json() as Map), 201) }
+        api.on('POST', '/api/changes/(\\d+)/tasks') { RecordedRequest request, List<String> ids ->
+            def found = protech.find(ids[0])
+            found ? protech.createTasks(found, request.json() as Map) : problem(404, 'Not found', "Change ${ids[0]} does not exist")
+        }
         protech
     }
 
@@ -189,11 +200,38 @@ final class ChangeStubs {
     }
 
     static List<Map> suggestedTasks(Object id) {
-        def name = product(id).name
-        [taskText("Deploy $name to production", "Deploy the release of $name in the change window with its deployment jobs, " +
-                'then run the smoke tests of the DevSecOps pipeline and record the result in this task.'),
-         taskText("Validate $name in production", "Run the post-install validation of $name: the smoke tests and the monitoring, " +
-                 'then confirm the release with the business owner in this task.')]
+        String name = product(id).name
+        [details(RELEASE_MANAGEMENT, "Deploy $name to production".toString(),
+                "Deploy the release of $name in the change window with its deployment jobs, ".toString() +
+                        'then run the smoke tests of the DevSecOps pipeline and record the result in this task.',
+                [application: name]),
+         details(suggested(id).assignmentGroup as String, "Validate $name in production".toString(),
+                 "Run the post-install validation of $name: the smoke tests and the monitoring, ".toString() +
+                         'then confirm the release with the business owner in this task.')]
+    }
+
+    static Map details(String group, String shortDescription, String description, Map more = [:]) {
+        normalized([assignmentGroup : group, assignedTo: null, configurationItem: null, platform: null, application: null,
+                    packages        : null, backoutPackages: null, importance: null, shortDescription: shortDescription,
+                    description     : description, additionalComments: null] + more)
+    }
+
+    static Map normalized(Map details) {
+        Map trimmed = details.collectEntries { key, value -> [key, value instanceof String ? (value.trim() ?: null) : value] }
+        trimmed + (isRelease(trimmed)
+                ? [platform  : trimmed.platform ?: 'None',
+                   application: trimmed.platform == 'OpenShift' ? 'OCP' : trimmed.application, importance: null]
+                : [platform: null, application: null, packages: null, backoutPackages: null,
+                   importance: trimmed.importance ?: '3 - Moderate'])
+    }
+
+    static boolean isRelease(Map details) {
+        (details.assignmentGroup as String)?.toLowerCase()?.contains(RELEASE_MANAGEMENT.toLowerCase()) ?: false
+    }
+
+    static String approvalOf(String state) {
+        def reached = STATES.indexOf(state) <=> STATES.indexOf('CTASK_APPROVAL')
+        reached < 0 ? 'Not Yet Requested' : reached == 0 ? 'Requested' : 'Approved'
     }
 
     static Map draft(Map asked) {
@@ -207,8 +245,7 @@ final class ChangeStubs {
          departmentId    : product.departmentId, departmentName: department,
          fixVersion      : asked.fixVersion, schedule: asked.schedule,
          shortDescription: "$product.name $asked.fixVersion: ${epics*.summary.join('; ')}".toString(),
-         description     : "Production release of $product.name ($product.code), FixVersion $asked.fixVersion.\n"
-                 + "Change tasks: ${(asked.tasks as List<Map>)*.shortDescription.join('; ')}.\n\nEpics:\n"
+         description     : "Production release of $product.name ($product.code), FixVersion $asked.fixVersion.\n\nEpics:\n"
                  + epics.collect { "$it.key $it.summary ($it.status)" }.join('\n') + '\n\nStories:\n'
                  + stories.collect { "$it.key $it.summary" }.join('\n'),
          template        : withRisk(template + [release     : template.release ?: asked.fixVersion,
@@ -217,7 +254,7 @@ final class ChangeStubs {
                                                 assignedTo  : template.assignedTo ?: SIGNED_IN_USER,
                                                 department  : template.department ?: department]),
          epicKeys        : asked.epicKeys, storyKeys: asked.storyKeys,
-         tasks           : (asked.tasks as List<Map>).collect { task(null, it, 'OPEN') },
+         tasks           : [],
          url             : null, state: 'DRAFT', workflow: [], syncedAt: null, syncProblem: null, update: null,
          version         : null, editedVersion: null, createdAt: null, openedBy: SIGNED_IN_USER]
     }
@@ -236,7 +273,7 @@ final class ChangeStubs {
     }
 
     private static List<List> texts(List<Map> tasks) {
-        tasks.findAll { it.state != 'CANCELED' }.collect { [it.shortDescription, it.description] }
+        tasks.findAll { it.state != 'CANCELED' }.collect { [it.details, it.start ? parse(it.start as String) : null] }
     }
 
     private static Map product(Object id) {
@@ -258,12 +295,17 @@ final class ChangeStubs {
         issue.subMap('key', 'summary', 'status', 'epicKey', 'updated')
     }
 
-    private static Map taskText(String shortDescription, String description) {
-        [shortDescription: shortDescription, description: description]
+    private static Map task(String number, Map details, String start, String state, String approval) {
+        def normal = normalized(details)
+        [number: number, details: normal, start: isRelease(normal) ? start : null, approval: approval, state: state]
     }
 
-    private static Map task(String number, Map text, String state) {
-        [number: number, shortDescription: text.shortDescription, description: text.description, state: state]
+    private static Map plannedIn(Map change, Map details) {
+        details + [configurationItem: details.configurationItem ?: (change.template as Map).configurationItem]
+    }
+
+    private static String earliest(Map schedule) {
+        stamp(parse(schedule.installationStart as String).plus(1, MINUTES))
     }
 
     private static Map issue(String key, String summary, String epicKey, String fixVersion, int daysAgo) {
@@ -341,7 +383,10 @@ final class ChangeStubs {
             def held = change.tasks as List<Map>
             def numbers = (asked.tasks as List<Map>)*.number.findAll()
             def tasks = (asked.tasks as List<Map>).collect { wanted ->
-                task(wanted.number as String, wanted, held.find { it.number && it.number == wanted.number }?.state as String ?: 'OPEN')
+                def kept = held.find { it.number && it.number == wanted.number }
+                task(wanted.number as String, plannedIn(change, wanted.details as Map),
+                        (wanted.start ?: earliest(asked.schedule as Map)) as String, kept?.state as String ?: 'OPEN',
+                        kept?.approval as String ?: approvalOf(change.state as String))
             }
             def requested = [shortDescription: asked.shortDescription, description: asked.description,
                              schedule        : asked.schedule,
@@ -359,8 +404,31 @@ final class ChangeStubs {
             change
         }
 
+        Object createTasks(Map change, Map asked) {
+            if (asked.version != null && (asked.version < change.editedVersion || asked.version > change.version)) {
+                return problem(409, 'Conflict', STALE)
+            }
+            if (asked.departmentId != change.departmentId) {
+                return problem(403, 'Forbidden', "Only $change.departmentName can change $change.number")
+            }
+            if (change.state == 'CLOSED') {
+                return problem(409, 'Conflict', "$change.number is closed in ProTech and can no longer be changed")
+            }
+            def held = change.tasks as List<Map>
+            def first = (change.number as String).drop(3) as int
+            def created = (asked.tasks as List<Map>).withIndex().collect { wanted, index ->
+                task(format('CTASK%07d', first * 10 + held.size() + index + 1), plannedIn(change, wanted.details as Map),
+                        (wanted.start ?: earliest(change.schedule as Map)) as String, 'OPEN',
+                        approvalOf(change.state as String))
+            }
+            def version = (change.version as int) + 1
+            change.putAll([tasks: held + created, version: version, editedVersion: version, syncedAt: stamp()])
+            change
+        }
+
         void advance(Object id, String state) {
             def change = find(id)
+            change.tasks = (change.tasks as List<Map>).collect { it + [approval: approvalOf(state)] }
             change.state = state
             change.workflow = (change.workflow as List<Map>) + [state: state, enteredAt: stamp()]
             change.version = (change.version as int) + 1
@@ -374,9 +442,7 @@ final class ChangeStubs {
                     id              : (changes*.id.max() as int) + 1, number: number, createdAt: raisedAt,
                     shortDescription: asked.shortDescription ?: drafted.shortDescription,
                     description     : asked.description ?: drafted.description,
-                    tasks           : (drafted.tasks as List<Map>).withIndex().collect { task, index ->
-                        task + [number: format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1)]
-                    },
+                    tasks           : [],
                     workflow        : [[state: 'DRAFT', enteredAt: raisedAt]], syncedAt: raisedAt, version: 0, editedVersion: 0]
             changes << change
             change
@@ -392,14 +458,15 @@ final class ChangeStubs {
                             firstUsage       : stamp(start.plus(3, HOURS)), downtimeStart: null, downtimeEnd: null]
             def texts = productId == 1 ? CERT_TASKS : suggestedTasks(productId)
             def drafted = draft([productId: product.id, fixVersion: fixVersion, epicKeys: ["$project-140".toString()],
-                                 storyKeys: [], schedule: schedule, template: template, tasks: texts])
+                                 storyKeys: [], schedule: schedule, template: template])
             def entered = stages.withIndex().collect { stage, index ->
                 [state    : stage,
                  enteredAt: stamp(stage == 'CLOSED' ? start.plus(3, HOURS) : raisedAt.plus(2 * index, MINUTES))]
             }
             drafted + [id      : id, number: number, createdAt: stamp(raisedAt), state: stages.last(), workflow: entered,
                        tasks   : texts.withIndex().collect { text, index ->
-                           task(format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1), text, taskState)
+                           task(format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1), plannedIn(drafted, text),
+                                   earliest(schedule), taskState, approvalOf(stages.last()))
                        },
                        syncedAt: stamp(raisedAt), version: version, editedVersion: version]
         }
