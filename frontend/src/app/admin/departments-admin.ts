@@ -30,13 +30,13 @@ export class DepartmentsAdmin {
   protected readonly departments = rxResource({ stream: () => this.api.list() });
   protected readonly departmentId = (department: Department) => department.id;
   protected readonly columns = computed<GridColumn<Department>[]>(() => [
-    { key: 'name', header: 'Department', value: (department) => department.name, minWidth: 200 },
+    { key: 'name', header: 'Department', value: (department) => department.name, minWidth: 150 },
     {
       key: 'products',
       header: 'Products',
       value: (department) => department.productCount,
       numeric: true,
-      width: 120,
+      width: 100,
     },
     ...(this.pipelines()
       ? [
@@ -45,17 +45,17 @@ export class DepartmentsAdmin {
             header: 'Services',
             value: (department: Department) => department.serviceCount,
             numeric: true,
-            width: 120,
+            width: 100,
           },
           {
             key: 'pipelines',
             header: 'Pipelines',
             value: (department: Department) => department.pipelineCount,
-            minWidth: 220,
+            minWidth: 150,
           },
         ]
       : []),
-    { key: 'actions', header: '', width: 170 },
+    { key: 'actions', header: '', width: 140 },
   ]);
   protected readonly empty = computed(
     () => this.departments.hasValue() && this.departments.value().length === 0,
