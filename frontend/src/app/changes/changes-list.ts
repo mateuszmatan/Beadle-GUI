@@ -1,13 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSelectModule } from '@angular/material/select';
-import { MatSortModule, Sort } from '@angular/material/sort';
-import { MatTableModule } from '@angular/material/table';
 import { Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { MyDepartment } from '../beadle/my-department';
@@ -15,7 +8,10 @@ import { DepartmentsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { CHANGES, NEW_CHANGE, beadleChange } from '../core/sections';
 import { text } from '../shared/form-controls';
-import { RelativeTimePipe, counted } from '../shared/formatting';
+import { counted, formatRelative } from '../shared/formatting';
+import { FORM_FIELD } from '../ui/form-field';
+import { GRID, GridColumn } from '../ui/grid';
+import { DsoLoading } from '../ui/loading';
 import { ChangeState, ChangesApi, ProductionChange, STATES, isOpen, labelOf } from './change-api';
 import { TIME_ZONE_NOTE, activeTasks, editHint, windowText } from './change-model';
 import { IntegrationNote } from './integration-note';
@@ -49,17 +45,6 @@ export const STATE_FILTERS: { value: StateFilter; label: string }[] = [
 const contains = (value: string | null, typed: string) =>
   (value ?? '').toLowerCase().includes(typed.trim().toLowerCase());
 
-const SORT_KEYS: Record<string, (row: ChangeRow) => string | number> = {
-  number: (row) => row.change.number ?? '',
-  product: (row) => row.change.productName,
-  fixVersion: (row) => row.change.fixVersion,
-  state: (row) => STATES.findIndex((state) => state.value === row.change.state),
-  installation: (row) => Date.parse(row.change.schedule.installationStart),
-  shortDescription: (row) => row.change.shortDescription,
-  tasks: (row) => row.tasks,
-  raised: (row) => Date.parse(row.change.createdAt ?? '') || 0,
-};
-
 export function changeRow(change: ProductionChange, departmentId: number | null): ChangeRow {
   return {
     change,
@@ -86,38 +71,9 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
   );
 }
 
-export function sorted(rows: readonly ChangeRow[], sort: Sort): ChangeRow[] {
-  const key = SORT_KEYS[sort.active];
-  if (!key || !sort.direction) {
-    return [...rows];
-  }
-  const sign = sort.direction === 'asc' ? 1 : -1;
-  return [...rows].sort((a, b) => {
-    const [x, y] = [key(a), key(b)];
-    return (
-      sign *
-      (typeof x === 'number' && typeof y === 'number'
-        ? x - y
-        : String(x).localeCompare(String(y), 'en', { numeric: true }))
-    );
-  });
-}
-
 @Component({
   selector: 'dso-changes-list',
-  imports: [
-    ReactiveFormsModule,
-    RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatProgressBarModule,
-    MatSelectModule,
-    MatSortModule,
-    MatTableModule,
-    RelativeTimePipe,
-    IntegrationNote,
-  ],
+  imports: [ReactiveFormsModule, RouterLink, FORM_FIELD, GRID, DsoLoading, IntegrationNote],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
@@ -127,21 +83,21 @@ export function sorted(rows: readonly ChangeRow[], sort: Sort): ChangeRow[] {
           <p class="page-description">{{ section.description }}</p>
         </div>
         <div class="actions">
-          <a mat-flat-button [routerLink]="newChange.path">New change</a>
+          <a class="btn btn-primary" [routerLink]="newChange.path">New change</a>
         </div>
       </header>
       <dso-integration-note />
       <section class="card toolbar">
-        <mat-form-field class="department" subscriptSizing="dynamic">
-          <mat-label>Your department</mat-label>
-          <mat-select [formControl]="department">
+        <dso-form-field class="department">
+          <dso-label>Your department</dso-label>
+          <select dsoInput [formControl]="department">
             @for (department of departmentList(); track department.id) {
-              <mat-option [value]="department.id">{{ department.name }}</mat-option>
+              <option [ngValue]="department.id">{{ department.name }}</option>
             }
-          </mat-select>
-        </mat-form-field>
+          </select>
+        </dso-form-field>
         <span class="spacer"></span>
-        @if (changes.hasValue() && changes.value().length) {
+        @if (all().length) {
           <span class="muted shown">{{ shown() }}</span>
         }
       </section>
@@ -155,132 +111,50 @@ export function sorted(rows: readonly ChangeRow[], sort: Sort): ChangeRow[] {
         </section>
       } @else {
         @if (changes.isLoading()) {
-          <mat-progress-bar mode="indeterminate" />
+          <dso-loading />
         }
         @if (changes.error(); as error) {
           <div class="banner">{{ errorMessage(error) }}</div>
         }
+        @if (syncProblem(); as problem) {
+          <div class="banner" role="status">
+            {{ problem }} The table shows what Beadle last read from ProTech.
+          </div>
+        }
+        <section class="card" [hidden]="!all().length">
+          <dso-grid
+            label="ProTech changes"
+            empty="No change matches the filters."
+            [rows]="rows()"
+            [columns]="columns"
+            [rowId]="rowId"
+            [rowClass]="rowClass"
+            (rowClick)="open($event.change)"
+          >
+            <ng-template dsoCell="number" let-row>
+              <a class="mono quiet-link" [routerLink]="changeLink(row.change.id)">{{
+                row.change.number
+              }}</a>
+            </ng-template>
+            <ng-template dsoCell="state" let-row>
+              <span class="chip" [class.neutral]="!row.open" [class.stage]="row.open">{{
+                row.state
+              }}</span>
+            </ng-template>
+            <ng-template dsoCell="actions" let-row>
+              @if (row.editable) {
+                <a
+                  class="btn btn-link"
+                  [routerLink]="changeLink(row.change.id, 'edit')"
+                  [attr.aria-label]="'Edit ' + row.change.number"
+                  >Edit</a
+                >
+              }
+            </ng-template>
+          </dso-grid>
+        </section>
         @if (changes.hasValue()) {
-          @if (syncProblem(); as problem) {
-            <div class="banner" role="status">
-              {{ problem }} The table shows what Beadle last read from ProTech.
-            </div>
-          }
-          @if (changes.value().length) {
-            <section class="card table-scroll">
-              <table
-                mat-table
-                class="changes"
-                [dataSource]="rows()"
-                matSort
-                [matSortActive]="sort().active"
-                [matSortDirection]="sort().direction"
-                (matSortChange)="sort.set($event)"
-              >
-                <ng-container matColumnDef="number">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header>Change</th>
-                  <td mat-cell *matCellDef="let row">
-                    <a
-                      class="mono quiet-link"
-                      [routerLink]="changeLink(row.change.id)"
-                      (click)="$event.stopPropagation()"
-                      >{{ row.change.number }}</a
-                    >
-                  </td>
-                </ng-container>
-                <ng-container matColumnDef="product">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header>Product</th>
-                  <td mat-cell *matCellDef="let row">{{ row.change.productName }}</td>
-                </ng-container>
-                <ng-container matColumnDef="fixVersion">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header>FixVersion</th>
-                  <td mat-cell *matCellDef="let row" class="mono">{{ row.change.fixVersion }}</td>
-                </ng-container>
-                <ng-container matColumnDef="state">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header>State</th>
-                  <td mat-cell *matCellDef="let row">
-                    <span class="chip" [class.neutral]="!row.open" [class.stage]="row.open">{{
-                      row.state
-                    }}</span>
-                  </td>
-                </ng-container>
-                <ng-container matColumnDef="installation">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header>Installation</th>
-                  <td mat-cell *matCellDef="let row">{{ row.installation }}</td>
-                </ng-container>
-                <ng-container matColumnDef="shortDescription">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header>Short description</th>
-                  <td mat-cell *matCellDef="let row">{{ row.change.shortDescription }}</td>
-                </ng-container>
-                <ng-container matColumnDef="tasks">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header>Tasks</th>
-                  <td mat-cell *matCellDef="let row" class="number">{{ row.tasks }}</td>
-                </ng-container>
-                <ng-container matColumnDef="raised">
-                  <th mat-header-cell *matHeaderCellDef mat-sort-header>Raised</th>
-                  <td mat-cell *matCellDef="let row">{{ row.change.createdAt | relative }}</td>
-                </ng-container>
-                <ng-container matColumnDef="actions">
-                  <th mat-header-cell *matHeaderCellDef></th>
-                  <td mat-cell *matCellDef="let row" class="actions">
-                    @if (row.editable) {
-                      <a
-                        mat-button
-                        [routerLink]="changeLink(row.change.id, 'edit')"
-                        [attr.aria-label]="'Edit ' + row.change.number"
-                        (click)="$event.stopPropagation()"
-                        >Edit</a
-                      >
-                    }
-                  </td>
-                </ng-container>
-                @for (filter of textFilters; track filter.key) {
-                  <ng-container [matColumnDef]="filter.key + '-filter'">
-                    <th mat-header-cell *matHeaderCellDef>
-                      <mat-form-field subscriptSizing="dynamic">
-                        <input
-                          matInput
-                          autocomplete="off"
-                          placeholder="Filter"
-                          [attr.aria-label]="'Filter by ' + filter.label"
-                          [formControl]="filters.controls[filter.key]"
-                        />
-                      </mat-form-field>
-                    </th>
-                  </ng-container>
-                }
-                <ng-container matColumnDef="state-filter">
-                  <th mat-header-cell *matHeaderCellDef>
-                    <mat-form-field subscriptSizing="dynamic">
-                      <mat-select
-                        aria-label="Filter by state"
-                        [formControl]="filters.controls.state"
-                      >
-                        @for (option of stateFilters; track option.value) {
-                          <mat-option [value]="option.value">{{ option.label }}</mat-option>
-                        }
-                      </mat-select>
-                    </mat-form-field>
-                  </th>
-                </ng-container>
-                <ng-container matColumnDef="rest-filter">
-                  <th mat-header-cell *matHeaderCellDef colspan="3"></th>
-                </ng-container>
-                <tr mat-header-row *matHeaderRowDef="columns"></tr>
-                <tr mat-header-row *matHeaderRowDef="filterColumns" class="filters"></tr>
-                <tr
-                  mat-row
-                  *matRowDef="let row; columns: columns"
-                  class="clickable"
-                  (click)="open(row.change)"
-                ></tr>
-                <tr class="mat-mdc-row" *matNoDataRow>
-                  <td class="mat-mdc-cell no-match" [attr.colspan]="columns.length">
-                    No change matches the filters.
-                  </td>
-                </tr>
-              </table>
-            </section>
+          @if (all().length) {
             <p class="note zone">{{ timeZoneNote }}</p>
           } @else {
             <div class="card empty-state">
@@ -289,7 +163,7 @@ export function sorted(rows: readonly ChangeRow[], sort: Sort): ChangeRow[] {
                 Choose a product, the FixVersion with its Jira epics and stories and the
                 installation date. Beadle writes the change and its change tasks.
               </p>
-              <a mat-flat-button [routerLink]="newChange.path">New change</a>
+              <a class="btn btn-primary" [routerLink]="newChange.path">New change</a>
             </div>
           }
         }
@@ -315,64 +189,9 @@ export function sorted(rows: readonly ChangeRow[], sort: Sort): ChangeRow[] {
       font-size: 12px;
     }
 
-    .changes {
-      width: 100%;
-
-      td.mat-mdc-cell {
-        padding-top: 4px;
-        padding-bottom: 4px;
-        font-size: 12.5px;
-      }
-    }
-
-    .filters .mat-mdc-header-cell {
-      padding-top: 2px;
-      padding-bottom: 6px;
-      font-weight: 400;
-      letter-spacing: 0;
-      text-transform: none;
-      vertical-align: top;
-
-      mat-form-field {
-        width: 100%;
-        min-width: 72px;
-      }
-    }
-
-    .mat-column-number {
-      white-space: nowrap;
-    }
-
-    .mat-column-fixVersion,
-    .mat-column-raised {
-      white-space: nowrap;
-    }
-
-    .mat-column-installation {
-      min-width: 170px;
-    }
-
-    .mat-column-shortDescription {
-      min-width: 200px;
-    }
-
-    .number {
-      text-align: right;
-    }
-
     .chip.stage {
       background: var(--dso-info-bg);
       color: var(--dso-navy);
-    }
-
-    td.actions {
-      width: 60px;
-      text-align: right;
-    }
-
-    .no-match {
-      padding: 12px;
-      color: var(--dso-muted);
     }
 
     .zone {
@@ -391,35 +210,6 @@ export class ChangesList {
   protected readonly changeLink = beadleChange;
   protected readonly errorMessage = errorMessage;
   protected readonly timeZoneNote = TIME_ZONE_NOTE;
-  protected readonly stateFilters = STATE_FILTERS;
-  protected readonly textFilters: { key: Exclude<keyof ChangeFilters, 'state'>; label: string }[] =
-    [
-      { key: 'number', label: 'change' },
-      { key: 'product', label: 'product' },
-      { key: 'fixVersion', label: 'FixVersion' },
-      { key: 'installation', label: 'installation' },
-      { key: 'shortDescription', label: 'short description' },
-    ];
-  protected readonly columns = [
-    'number',
-    'product',
-    'fixVersion',
-    'state',
-    'installation',
-    'shortDescription',
-    'tasks',
-    'raised',
-    'actions',
-  ];
-  protected readonly filterColumns = [
-    'number-filter',
-    'product-filter',
-    'fixVersion-filter',
-    'state-filter',
-    'installation-filter',
-    'shortDescription-filter',
-    'rest-filter',
-  ];
 
   protected readonly departmentId = this.myDepartment.departmentId;
   protected readonly department = new FormControl(this.departmentId());
@@ -450,18 +240,74 @@ export class ChangesList {
     this.filters.valueChanges.pipe(map(() => this.filters.getRawValue())),
     { initialValue: this.filters.getRawValue() },
   );
-  protected readonly sort = signal<Sort>({ active: '', direction: '' });
 
-  private readonly all = computed(() =>
+  protected readonly rowId = (row: ChangeRow) => row.change.id!;
+  protected readonly rowClass = () => 'clickable';
+  protected readonly columns: GridColumn<ChangeRow>[] = [
+    {
+      key: 'number',
+      header: 'Change',
+      value: (row) => row.change.number ?? '',
+      filter: { control: this.filters.controls.number, label: 'change' },
+      width: 130,
+    },
+    {
+      key: 'product',
+      header: 'Product',
+      value: (row) => row.change.productName,
+      filter: { control: this.filters.controls.product, label: 'product' },
+    },
+    {
+      key: 'fixVersion',
+      header: 'FixVersion',
+      value: (row) => row.change.fixVersion,
+      filter: { control: this.filters.controls.fixVersion, label: 'FixVersion' },
+      cellClass: 'mono',
+    },
+    {
+      key: 'state',
+      header: 'State',
+      value: (row) => row.state,
+      sortValue: (row) => STATES.findIndex((state) => state.value === row.change.state),
+      filter: { control: this.filters.controls.state, label: 'state', options: STATE_FILTERS },
+      minWidth: 150,
+    },
+    {
+      key: 'installation',
+      header: 'Installation',
+      value: (row) => row.installation,
+      sortValue: (row) => Date.parse(row.change.schedule.installationStart),
+      filter: { control: this.filters.controls.installation, label: 'installation' },
+      wrap: true,
+      minWidth: 230,
+    },
+    {
+      key: 'shortDescription',
+      header: 'Short description',
+      value: (row) => row.change.shortDescription,
+      filter: { control: this.filters.controls.shortDescription, label: 'short description' },
+      wrap: true,
+      flex: 2,
+      minWidth: 200,
+    },
+    { key: 'tasks', header: 'Tasks', value: (row) => row.tasks, numeric: true, width: 80 },
+    {
+      key: 'raised',
+      header: 'Raised',
+      value: (row) => formatRelative(row.change.createdAt),
+      sortValue: (row) => Date.parse(row.change.createdAt ?? '') || 0,
+      width: 110,
+    },
+    { key: 'actions', header: '', width: 70 },
+  ];
+
+  protected readonly all = computed(() =>
     (this.changes.hasValue() ? this.changes.value() : []).map((change) =>
       changeRow(change, this.departmentId()),
     ),
   );
   protected readonly rows = computed(() =>
-    sorted(
-      this.all().filter((row) => matches(row, this.filterValue())),
-      this.sort(),
-    ),
+    this.all().filter((row) => matches(row, this.filterValue())),
   );
   protected readonly shown = computed(
     () => `${this.rows().length} of ${counted(this.all().length, 'change')}`,

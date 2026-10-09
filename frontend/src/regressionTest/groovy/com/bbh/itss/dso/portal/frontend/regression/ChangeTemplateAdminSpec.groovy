@@ -8,7 +8,6 @@ import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.STALE
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.BUTTON
-import static com.microsoft.playwright.options.AriaRole.OPTION
 
 class ChangeTemplateAdminSpec extends EditorSpecification {
 
@@ -33,11 +32,11 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         assertThat(hintOf(defaults(), 'Requested For')).hasText('left empty: the user who opens the change')
         assertThat(hintOf(defaults(), 'Assigned to')).hasText('left empty: the user who opens the change')
         assertThat(hintOf(defaults(), 'Department')).hasText('left empty: the department of the product')
-        assertThat(select(defaults(), 'Downtime')).hasText('No')
-        assertThat(select(defaults(), 'How many privileged accounts')).hasText('None')
+        assertThat(selected(defaults(), 'Downtime')).hasText('No')
+        assertThat(selected(defaults(), 'How many privileged accounts')).hasText('None')
         assertThat(defaults().locator('fieldset.account')).hasCount(0)
-        assertThat(select(defaults(), 'Number of BBH users impacted')).hasText('5-25')
-        assertThat(select(defaults(), 'Platform status')).hasText('Existing')
+        assertThat(selected(defaults(), 'Number of BBH users impacted')).hasText('5-25')
+        assertThat(selected(defaults(), 'Platform status')).hasText('Existing')
         assertThat(page.locator('.default-tasks h3')).hasText('Default change tasks')
         assertThat(taskRows()).hasCount(2)
         hasValues(taskRows().nth(1), ['Short description': 'Validate CertScanner in production',
@@ -53,10 +52,10 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
 
         then:
         assertThat(input(defaults(), 'Problem')).hasValue('PRB0040319')
-        assertThat(page.getByRole(OPTION)).hasText(['Simple', 'Moderate', 'Very'] as String[])
+        assertThat(select(defaults(), 'Complexity of the change').locator('option')).hasText(['Simple', 'Moderate', 'Very'] as String[])
 
         when:
-        page.getByRole(OPTION, new Page.GetByRoleOptions().setName('Very').setExact(true)).click()
+        choose(defaults(), 'Complexity of the change', 'Very')
         choose(defaults(), 'How many privileged accounts', '2')
         fillIn(account(defaults(), 0), ['Person': 'Jane Smith', 'Privileged account': 'adm_jsmith'])
         fillIn(account(defaults(), 1), ['Person': 'Tom Brown', 'Privileged account': 'adm_tbrown'])
@@ -108,9 +107,9 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         then:
         hasValues(defaults(), ['Assignment group': 'Certificate Services', 'Person': 'Jane Smith',
                                'Privileged account': 'adm_jsmith', 'Risk': 'High'])
-        assertThat(select(defaults(), 'How many privileged accounts')).hasText('1')
-        assertThat(select(defaults(), 'Complexity of the change')).hasText('Very')
-        assertThat(select(defaults(), 'Downtime')).hasText('Yes')
+        assertThat(selected(defaults(), 'How many privileged accounts')).hasText('1')
+        assertThat(selected(defaults(), 'Complexity of the change')).hasText('Very')
+        assertThat(selected(defaults(), 'Downtime')).hasText('Yes')
         assertThat(taskRows()).hasCount(2)
         hasValues(taskRows().nth(0), ['Short description': 'Validate CertScanner in production'])
         ownErrors().isEmpty()
@@ -125,8 +124,8 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         assertThat(page.locator('.banner.info')).containsText('Not saved yet')
         hasValues(defaults(), ['Jira project': 'PAYHUB', 'Assignment group': 'Payments Engineering',
                                'Affected CI' : 'Payments Hub', 'L1 approver': '', 'Risk': 'Low'])
-        assertThat(select(defaults(), 'Number of BBH users impacted')).hasText('Less than 5')
-        assertThat(select(defaults(), 'Business impact')).hasText('None')
+        assertThat(selected(defaults(), 'Number of BBH users impacted')).hasText('Less than 5')
+        assertThat(selected(defaults(), 'Business impact')).hasText('None')
         hasValues(taskRows().nth(0), ['Short description': 'Deploy Payments Hub to production'])
 
         when:
@@ -162,7 +161,7 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         assertThat(saveError()).hasCount(0)
         assertThat(page.locator('.banner.info')).hasCount(0)
         hasValues(defaults(), ['Installation start': '18:00'])
-        assertThat(select(defaults(), 'How many privileged accounts')).hasText('None')
+        assertThat(selected(defaults(), 'How many privileged accounts')).hasText('None')
 
         when:
         fillIn(defaults(), ['Backout plan': 'Switch the gateway back to the previous release.', 'Installation start': '19:30'])
