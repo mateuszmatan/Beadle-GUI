@@ -203,7 +203,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private ProductionChange synced(ProductionChange stored) {
-        return synced(List.of(stored), serviceNow.read(List.of(stored))).getFirst();
+        return synced(List.of(stored), serviceNow.read(List.of(stored))).get(0);
     }
 
     private List<ProductionChange> synced(List<ProductionChange> open, Map<String, ProductionChange> remote) {

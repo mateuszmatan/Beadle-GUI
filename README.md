@@ -134,7 +134,9 @@ the `@Library` line of every migrated job, until every job carries a key.
 
 ## Running it locally
 
-Needs Java 21. The Gradle wrapper downloads Gradle, and the build downloads its own Node.js for the GUI.
+Needs Java 17, and Node.js 20.19 or a later 20.x with npm 10.8 or a later 10.x on the `PATH` (the build calls `npm` and
+`npx` from there, or the paths in `npm.executable` and `npx.executable` when those files exist). The Gradle wrapper
+downloads Gradle 8.14 from the BBH Nexus.
 
 ```bash
 ./gradlew :backend:bootJar
@@ -313,16 +315,64 @@ Liquibase creates and updates the schema at start-up, on Oracle and on H2. The B
 pipelines share are stored in the database and edited in Admin > Library defaults. Secrets never reach the portal:
 services name Jenkins credentials IDs, and the generated configuration carries only those IDs.
 
+## Build
+
+The build follows the BBH Gradle layout: one root `build.gradle` and two modules, `frontend` and `backend`.
+
+| File | Holds |
+|------|-------|
+| `settings.gradle` | the BBH Nexus repositories for plugins and dependencies, and the two modules |
+| `build.gradle` | the plugins, Java 17, SonarQube, the npm tasks of `frontend` and how `backend` packages and publishes the jar |
+| `backend/build.gradle`, `frontend/build.gradle` | the dependencies and the test suites of each module |
+| `gradle.properties` | the BBH npm registry, proxy and CA file, and the `npm`/`npx` paths on Windows |
+| `gradle/libs.versions.toml` | the plugin and library versions |
+| `gradle/wrapper/gradle-wrapper.properties` | Gradle 8.14 from the BBH Nexus |
+| `frontend/.npmrc` | the BBH npm registry and the Node.js and npm versions of `package.json` as hard requirements |
+
+The frontend tasks call npm from the `PATH`, with the `npm.*` properties of `gradle.properties` as npm settings:
+`installNpmCIDeps` (`npm ci`), `buildAngular` (`npx ng build --configuration=production` into `frontend/dist`),
+`testAngular` (`npx ng test --watch=false --coverage`, Vitest on jsdom, so it needs no browser) and `copyToBackend`
+(`frontend/dist` into `backend/src/main/resources/static`, which git ignores). `bootJar`, `bootRun` and the backend
+smoke test depend on `copyToBackend`; `-PskipFrontend` builds the backend without the GUI.
+
+```bash
+./gradlew :backend:bootJar          # the jar with the GUI inside
+./gradlew check                     # every suite of both modules, see Tests
+./gradlew sonar                     # SonarQube at tools.bbh.com/sonar, project DSOMgmtPortal, token in SONAR_AUTH_TOKEN
+./gradlew publish                   # the jar to the BBH Nexus (bbhNexusUsername and bbhNexusPassword as Gradle properties)
+./gradlew :backend:bootJar -PartifactVersion=1.4.0
+```
+
+`publish` sends a `-SNAPSHOT` version to `nexus.snapshotsUrl` and any other to `nexus.releasesUrl`, both in
+`gradle.properties`.
+
+### Outside the BBH network
+
+The BBH Nexus, the npm registry and the `njproxy` proxy only answer inside BBH. Elsewhere, put these lines into
+`~/.gradle/gradle.properties` (they win over the project's `gradle.properties`):
+
+```properties
+bbhNetwork=false
+systemProp.http.proxyHost=
+systemProp.https.proxyHost=
+```
+
+`bbhNetwork=false` takes plugins from the Gradle Plugin Portal and dependencies from Maven Central, and runs npm
+against `https://registry.npmjs.org/` (`npm.publicRegistry` names another) without the BBH proxy and CA file. The
+empty proxy hosts switch `njproxy` off; set them to your own proxy if you have one. The wrapper's Gradle download also
+sits on the BBH Nexus, so run a local Gradle 8.14 (`gradle check`, for example from SDKMAN) until the wrapper has
+it in `~/.gradle/wrapper/dists`. Running npm by hand outside BBH needs `--registry=https://registry.npmjs.org/`.
+
 ## OpenShift
 
-The portal ships as one container image (UBI 9 with Java 21, any non-root UID). `Dockerfile` and the Kustomize
+The portal ships as one container image (UBI 9 with Java 17, any non-root UID). `Dockerfile` and the Kustomize
 manifests for `rd`, `qc` and `prod` are described in [deploy/openshift/README.md](deploy/openshift/README.md).
 
 ## Architecture
 
 ```
-gui/        Angular 22 + Angular Material: views, shared components, API services
-backend/    Spring Boot 4.1, Java 21, Spring Data JPA, Liquibase; serves the API and the built GUI
+frontend/   Angular 21 + Angular Material: views, shared components, API services
+backend/    Spring Boot 4.1, Java 17, Spring Data JPA, Liquibase; serves the API and the built GUI
 deploy/     the OpenShift manifests
 examples/   Jenkinsfiles, API calls, a rendered configuration and GUI screenshots; see Examples below
 ```
@@ -898,12 +948,12 @@ builds everything and runs every suite of both modules:
 | backend | regression (`src/regressionTest`) | the API end to end on H2 in Oracle mode, with the pinned configuration contract (`-Dregression.updateExpected=true` rewrites the expected files) |
 | backend | smoke (`src/smokeTest`) | starts the portal and checks health, the API and the UI; `-Dsmoke.baseUrl=https://...` checks a deployed portal |
 | backend | performance (`src/performanceTest`) | p95 latencies of the main calls on 25 products x 16 services |
-| gui | unit (Vitest) | components and form models; fails below 60% of lines and statements |
-| gui | smoke, regression, performance | Spock and Playwright in Chromium against a stub API: every page, the user journeys with the requests they send, and page timings on a large catalogue |
+| frontend | unit (Vitest, `testAngular`) | components and form models; fails below 60% of lines and statements |
+| frontend | smoke, regression, performance | Spock and Playwright in Chromium against a stub API: every page, the user journeys with the requests they send, and page timings on a large catalogue |
 
 `-Dperformance.factor=2` relaxes the performance limits on a slow machine. Run one suite with, for example,
-`./gradlew :backend:regressionTest` or `./gradlew :gui:smokeTest`; [gui/README.md](gui/README.md) covers the GUI in
-detail, including its development server.
+`./gradlew :backend:regressionTest` or `./gradlew :frontend:smokeTest`; [frontend/README.md](frontend/README.md) covers
+the GUI in detail, including its development server.
 
 ## Known gaps
 
