@@ -1,5 +1,5 @@
 import { DEFAULT_DIALOG_CONFIG, DialogConfig, DialogRef } from '@angular/cdk/dialog';
-import { Directive, OnInit, Provider, inject, input } from '@angular/core';
+import { Directive, OnDestroy, OnInit, Provider, inject, input } from '@angular/core';
 import { uniqueId } from './form-field';
 
 @Directive({
@@ -16,13 +16,17 @@ export class DialogClose {
   selector: '[dsoDialogTitle]',
   host: { class: 'modal-title', '[id]': 'id' },
 })
-export class DialogTitle implements OnInit {
+export class DialogTitle implements OnInit, OnDestroy {
   protected readonly id = uniqueId('dso-dialog-title');
-  private readonly ref = inject(DialogRef, { optional: true });
+  private readonly container = inject(DialogRef, { optional: true })?.containerInstance as
+    { _addAriaLabelledBy?(id: string): void; _removeAriaLabelledBy?(id: string): void } | undefined;
 
   ngOnInit(): void {
-    const container = this.ref?.containerInstance as { _addAriaLabelledBy?(id: string): void };
-    container?._addAriaLabelledBy?.(this.id);
+    Promise.resolve().then(() => this.container?._addAriaLabelledBy?.(this.id));
+  }
+
+  ngOnDestroy(): void {
+    Promise.resolve().then(() => this.container?._removeAriaLabelledBy?.(this.id));
   }
 }
 
