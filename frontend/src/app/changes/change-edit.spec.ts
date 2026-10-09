@@ -9,6 +9,8 @@ import {
   changeSchedule,
   changeTask,
   productionChange,
+  releaseDetails,
+  taskDetails,
 } from '../testing/change-fixtures';
 import { buttonOf, fieldOf, inputOf, text } from '../testing/dom';
 import { ProductionChange } from './change-api';
@@ -23,11 +25,12 @@ describe('ChangeEdit', () => {
   const page = () => fixture.nativeElement as HTMLElement;
   const edit = () => fixture.componentInstance;
   const form = () => edit()['form']()!;
+  const taskRows = () => [...page().querySelectorAll<HTMLElement>('dso-change-tasks-form .task-row')];
   const stored = productionChange({
     tasks: [
       changeTask(),
-      changeTask({ number: 'CTASK0020002', state: 'CANCELED', shortDescription: 'Old one' }),
-      changeTask({ number: 'CTASK0020003', state: 'CLOSED', shortDescription: 'Backup' }),
+      changeTask({ number: 'CTASK0020002', state: 'CANCELED', details: taskDetails('Old one') }),
+      changeTask({ number: 'CTASK0020003', state: 'CLOSED', details: taskDetails('Backup') }),
     ],
   });
 
@@ -91,7 +94,7 @@ describe('ChangeEdit', () => {
     ).toBe('true');
     expect(inputOf(page(), 'Installation hours').value).toBe('2');
     expect(fieldOf(page(), 'Downtime start')).toBeNull();
-    expect([...page().querySelectorAll('dso-change-tasks-form .number')].map(text)).toEqual([
+    expect(taskRows().map((row) => inputOf(row, 'Number').value)).toEqual([
       'CTASK0020001',
       'CTASK0020003',
     ]);
@@ -106,9 +109,11 @@ describe('ChangeEdit', () => {
     );
     buttonOf(page(), 'Add a change task').click();
     await settle();
-    form()
-      .controls.tasks.at(2)
-      .patchValue({ shortDescription: 'Tell the users', description: 'Mail.' });
+    form().controls.tasks.at(2).controls.details.patchValue({
+      assignmentGroup: 'Release Management',
+      shortDescription: 'Tell the users',
+      description: 'Mail.',
+    });
     expect(edit().hasUnsavedChanges()).toBe(true);
     await publish();
 
@@ -132,15 +137,15 @@ describe('ChangeEdit', () => {
       tasks: [
         {
           number: 'CTASK0020001',
-          shortDescription: 'Deploy CertScanner to production',
-          description: 'Deploy the release of CertScanner.',
+          details: taskDetails('Deploy CertScanner to production', 'Deploy the release of CertScanner.'),
+          start: null,
         },
+        { number: 'CTASK0020003', details: taskDetails('Backup'), start: null },
         {
-          number: 'CTASK0020003',
-          shortDescription: 'Backup',
-          description: 'Deploy the release of CertScanner.',
+          number: null,
+          details: releaseDetails('Tell the users', 'Mail.'),
+          start: '2026-10-10T06:01:00.000Z',
         },
-        { number: null, shortDescription: 'Tell the users', description: 'Mail.' },
       ],
     });
     const saved = productionChange({ shortDescription: 'CertScanner 4.2', version: 5 });
@@ -156,7 +161,7 @@ describe('ChangeEdit', () => {
   it('refuses to publish while a field needs attention', async () => {
     await show();
     await type('Short description', ' ');
-    form().controls.tasks.at(0).controls.description.setValue('');
+    form().controls.tasks.at(0).controls.details.controls.description.setValue('');
     form().controls.schedule.controls.installationStart.setValue('2020-01-01T10:00');
     await publish();
 
@@ -166,6 +171,20 @@ describe('ChangeEdit', () => {
     expect(text(page().querySelector('dso-change-schedule .choice-error'))).toBe(
       'The installation must start in the future',
     );
+  });
+
+  it('shows the installation window of the change on its tasks and follows a moved start', async () => {
+    await show();
+
+    expect(inputOf(taskRows()[0], 'Change number').value).toBe('CHG0012345');
+    expect(inputOf(taskRows()[0], 'Installation start').value).toBe(
+      inputOf(page(), 'Installation start').value,
+    );
+    form().controls.schedule.controls.installationStart.setValue('2026-10-11T10:00');
+    await settle();
+
+    expect(inputOf(taskRows()[0], 'Installation start').value).toBe('2026-10-11T10:00');
+    expect(inputOf(taskRows()[0], 'Installation end').value).toBe('2026-10-11T12:00');
   });
 
   it('keeps an installation start that already passed when it is not moved', async () => {
@@ -196,7 +215,7 @@ describe('ChangeEdit', () => {
         detail: '2 fields are invalid',
         errors: [
           { field: 'schedule.validationEnd', message: 'must be after the start' },
-          { field: 'tasks[0].shortDescription', message: 'is used twice' },
+          { field: 'tasks[0].details.shortDescription', message: 'is used twice' },
           { field: 'tasks', message: 'CTASK0020009 is closed in ProTech and cannot be removed' },
         ],
       },
@@ -210,7 +229,7 @@ describe('ChangeEdit', () => {
       'Change task 1: short description: is used twice',
       'Change tasks: CTASK0020009 is closed in ProTech and cannot be removed',
     ]);
-    expect(form().controls.tasks.at(0).controls.shortDescription.errors).toEqual({
+    expect(form().controls.tasks.at(0).controls.details.controls.shortDescription.errors).toEqual({
       server: 'is used twice',
     });
     expect(form().controls.schedule.controls.validationHours.errors).toEqual({

@@ -218,8 +218,9 @@
       @case ('review') {
         <h2>Check and raise the change</h2>
         <p class="lead">
-          The texts come from the Jira epics and stories and the ProTech fields. Change them and the
-          change tasks if you like before you raise the change.
+          The texts come from the Jira epics and stories and the ProTech fields. Change them if you
+          like before you raise the change. Its change tasks follow once ProTech has given the change
+          its number.
         </p>
         @if (previewing()) {
           <mat-progress-bar mode="indeterminate" />
@@ -229,9 +230,6 @@
             [ngTemplateOutlet]="changeTexts"
             [ngTemplateOutletContext]="{ $implicit: draft }"
           />
-          <h3 class="tasks-title">Change tasks</h3>
-          <p class="hint">Each change task is created in ProTech with the change.</p>
-          <dso-change-tasks-form [tasks]="tasks()!" />
           <h3>Summary</h3>
           <dso-change-summary [change]="draft" />
           <p class="scope">
@@ -240,26 +238,16 @@
             {{ draft.fixVersion }}
           </p>
         }
-        @if (raising()) {
-          <mat-progress-bar mode="indeterminate" />
-        }
-        @if (problem(); as error) {
-          <div class="banner save-problem" role="alert">
-            <div>
-              <strong>{{ error }}</strong>
-              @if (problems().length) {
-                <ul class="problems">
-                  @for (message of problems(); track message) {
-                    <li>{{ message }}</li>
-                  }
-                </ul>
-              }
-            </div>
-            @if (!preview()) {
-              <span class="spacer"></span>
-              <button mat-button type="button" (click)="loadPreview()">Try again</button>
-            }
-          </div>
+      }
+      @case ('tasks') {
+        @if (raised(); as change) {
+          <h2>Change tasks of {{ change.number }}</h2>
+          <p class="lead">
+            ProTech has raised {{ change.number }}. Each change task is now created against it,
+            starting from the default change tasks of the product. A Release Management task takes the
+            platform, the start in the installation window, the application and the packages.
+          </p>
+          <dso-change-tasks-form [tasks]="tasks()!" />
         }
       }
       @case ('raised') {
@@ -280,8 +268,11 @@
               <ul class="review-list">
                 @for (task of change.tasks; track $index) {
                   <li>
-                    <span class="mono">{{ task.number }}</span> · {{ task.shortDescription }}
+                    <span class="mono">{{ task.number }}</span> · {{ task.details.shortDescription }}
+                    <span class="muted"> · {{ task.details.assignmentGroup }}</span>
                   </li>
+                } @empty {
+                  <li class="muted">None yet: add them on the change page.</li>
                 }
               </ul>
             </dd>
@@ -324,6 +315,28 @@
       }
     }
 
+    @if (raising()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+    @if (problem(); as error) {
+      <div class="banner save-problem" role="alert">
+        <div>
+          <strong>{{ error }}</strong>
+          @if (problems().length) {
+            <ul class="problems">
+              @for (message of problems(); track message) {
+                <li>{{ message }}</li>
+              }
+            </ul>
+          }
+        </div>
+        @if (stepKey() === 'review' && !preview()) {
+          <span class="spacer"></span>
+          <button mat-button type="button" (click)="loadPreview()">Try again</button>
+        }
+      </div>
+    }
+
     @if (checked() && stepProblem(); as message) {
       <p class="choice-error step-problem" role="alert">{{ message }}</p>
     }
@@ -334,7 +347,11 @@
         <span class="spacer"></span>
         <button mat-flat-button type="button" (click)="restart()">Raise another change</button>
       } @else {
-        @if (step() > 0) {
+        @if (stepKey() === 'tasks') {
+          <button mat-button type="button" [disabled]="raising()" (click)="later()">
+            Add them later
+          </button>
+        } @else if (step() > 0) {
           <button mat-button type="button" [disabled]="raising() || previewing()" (click)="back()">
             Back
           </button>

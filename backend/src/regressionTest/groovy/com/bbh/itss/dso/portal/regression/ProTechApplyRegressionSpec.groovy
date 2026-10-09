@@ -4,6 +4,7 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 
 import static com.bbh.itss.dso.portal.support.ApiJson.product
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.changeTaskJson
 
 class ProTechApplyRegressionSpec extends ChangeRegressionSpecification {
 
@@ -15,7 +16,8 @@ class ProTechApplyRegressionSpec extends ChangeRegressionSpecification {
     def "an update ProTech applies a moment later is pending first and applied when the change is read again"() {
         given:
         def raised = raise(createProduct(product(code: uniqueCode(), name: "Later ${uniqueCode()}")))
-        def added = [shortDescription: 'Check the audit trail', description: 'Open it.']
+        def added = changeTaskJson(assignmentGroup: 'Service Desk', shortDescription: 'Check the audit trail',
+                description: 'Open it.')
 
         when:
         def updated = api.put("/api/changes/$raised.id", editOf(raised, [shortDescription: 'Renamed release',
@@ -32,7 +34,11 @@ class ProTechApplyRegressionSpec extends ChangeRegressionSpecification {
         opened.shortDescription == 'Renamed release'
         opened.tasks*.number.take(2) == raised.tasks*.number
         opened.tasks[2].number ==~ /CTASK\d{7}/
-        opened.tasks[2].subMap('shortDescription', 'description', 'state') == added + [state: 'OPEN']
+        opened.tasks[2].details.subMap('assignmentGroup', 'shortDescription', 'description', 'configurationItem',
+                'importance') == added.details + [configurationItem: raised.template.configurationItem,
+                                                  importance: '3 - Moderate']
+        opened.tasks[2].subMap('start', 'approval', 'state') == [start: null, approval: 'Not Yet Requested',
+                                                                 state: 'OPEN']
         opened.version > updated.version
         opened.editedVersion == updated.editedVersion
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PRODUCTION_CHANGE_TASK WHERE CHANGE_ID = ?', Integer,

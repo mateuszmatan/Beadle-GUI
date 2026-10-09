@@ -97,6 +97,9 @@ export interface ChangeOptions {
   categories: string[];
   types: TypeOption[];
   risk: Record<RiskQuestion, string[]>;
+  platforms: string[];
+  importances: string[];
+  releaseManagement: string;
 }
 
 export interface ChangeProfile {
@@ -105,7 +108,7 @@ export interface ChangeProfile {
   version: number | null;
   updatedAt: string | null;
   template: ChangeTemplate;
-  tasks: TaskText[];
+  tasks: TaskDetails[];
 }
 
 export interface ChangeProfileSummary {
@@ -139,13 +142,28 @@ export interface ChangeSchedule {
   downtimeEnd: string | null;
 }
 
-export interface TaskText {
+export interface TaskDetails {
+  assignmentGroup: string;
+  assignedTo: string | null;
+  configurationItem: string | null;
+  platform: string | null;
+  application: string | null;
+  packages: string | null;
+  backoutPackages: string | null;
+  importance: string | null;
   shortDescription: string;
   description: string;
+  additionalComments: string | null;
 }
 
-export interface ChangeTask extends TaskText {
+export interface TaskRequest {
   number: string | null;
+  details: TaskDetails;
+  start: string | null;
+}
+
+export interface ChangeTask extends TaskRequest {
+  approval: string;
   state: TaskState;
 }
 
@@ -197,13 +215,8 @@ export interface ChangeRequest {
   storyKeys: string[];
   schedule: ChangeSchedule;
   template: ChangeTemplate;
-  tasks: TaskText[];
   shortDescription?: string;
   description?: string;
-}
-
-export interface EditedTask extends TaskText {
-  number: string | null;
 }
 
 export interface ChangeEditRequest {
@@ -213,7 +226,13 @@ export interface ChangeEditRequest {
   description: string;
   schedule: ChangeSchedule;
   template: ChangeTemplate;
-  tasks: EditedTask[];
+  tasks: TaskRequest[];
+}
+
+export interface ChangeTasksRequest {
+  version: number;
+  departmentId: number;
+  tasks: TaskRequest[];
 }
 
 export interface ChangeIntegrations {
@@ -282,6 +301,10 @@ export class ChangesApi {
     return this.http.put<ProductionChange>(`/api/changes/${id}`, request);
   }
 
+  createTasks(id: number, request: ChangeTasksRequest): Observable<ProductionChange> {
+    return this.http.post<ProductionChange>(`/api/changes/${id}/tasks`, request);
+  }
+
   integrations(): Observable<ChangeIntegrations> {
     return this.http.get<ChangeIntegrations>('/api/changes/integrations');
   }
@@ -330,7 +353,7 @@ export class ChangesApi {
     productId: number,
     version: number | null,
     template: ChangeTemplate,
-    tasks: TaskText[],
+    tasks: TaskDetails[],
   ): Observable<ChangeProfile> {
     return this.http.put<ChangeProfile>(`/api/products/${productId}/change-profile`, {
       version,

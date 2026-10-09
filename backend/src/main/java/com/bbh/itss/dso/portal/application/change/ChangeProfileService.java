@@ -10,15 +10,15 @@ import com.bbh.itss.dso.portal.domain.change.ChangeProduct;
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile;
 import com.bbh.itss.dso.portal.domain.change.ChangeProfileSummary;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
-import com.bbh.itss.dso.portal.domain.change.TaskText;
+import com.bbh.itss.dso.portal.domain.change.TaskDetails;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.suggestedFor;
-import static com.bbh.itss.dso.portal.domain.change.TaskText.suggestedTasks;
-import static com.bbh.itss.dso.portal.domain.change.TaskText.validateTasks;
+import static com.bbh.itss.dso.portal.domain.change.TaskDetails.suggestedTasks;
+import static com.bbh.itss.dso.portal.domain.change.TaskDetails.validateTasks;
 
 @UseCase
 @RequiredArgsConstructor
@@ -37,14 +37,17 @@ public class ChangeProfileService implements ChangeProfilesUseCase {
     @ReadOnly
     public ChangeProfileView get(long productId) {
         ChangeProduct product = products.get(productId);
-        return profiles.find(productId).map(profile -> view(product, profile))
-                .orElseGet(() -> ChangeProfileView.builder().productId(productId).productName(product.name())
-                        .template(suggestedFor(product.code(), product.name(), product.ownerTeam()))
-                        .tasks(suggestedTasks(product.name())).build());
+        return profiles.find(productId).map(profile -> view(product, profile)).orElseGet(() -> suggested(product));
+    }
+
+    private static ChangeProfileView suggested(ChangeProduct product) {
+        ChangeTemplate template = suggestedFor(product.code(), product.name(), product.ownerTeam());
+        return ChangeProfileView.builder().productId(product.id()).productName(product.name()).template(template)
+                .tasks(suggestedTasks(product.name(), template.assignmentGroup())).build();
     }
 
     @Override
-    public ChangeProfileView save(long productId, Long version, ChangeTemplate template, List<TaskText> tasks) {
+    public ChangeProfileView save(long productId, Long version, ChangeTemplate template, List<TaskDetails> tasks) {
         ChangeProduct product = products.get(productId);
         ValidationProblems problems = new ValidationProblems();
         template.validate(problems.at("template"));

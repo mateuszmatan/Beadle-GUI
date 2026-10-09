@@ -94,8 +94,10 @@ Beadle, in three tabs:
   7. **Risk assessment**: nine questions in two columns, each answered from a fixed list; the template's answers are
      the defaults.
   8. **Secure coding**: the secure coding ticket number.
-  9. **Review**: every value with the change tasks, which stay editable; raising it creates one change (CHG) with its
-     change tasks (CTASK) in ProTech.
+  9. **Review**: every value of the change; raising it creates the change (CHG) in ProTech, which gives it its number.
+  10. **Change tasks**: the change tasks (CTASK) of the raised change, created against its number and prefilled from
+      the default change tasks of the template (see [Change tasks](#change-tasks)); **Add them later** skips them, and
+      the Edit page of the change adds them afterwards.
 - **Admin**, in two tabs: **Departments** (the same departments as DevSecOps Admin, without the pipeline counts) and
   **Products**: every product by department with the state of its change template. Add a product with its name,
   code, department, owner team and contact e-mail (no DevSecOps setting); on its page change its name, department,
@@ -188,8 +190,9 @@ seeded there. Every demo product without a saved change template gets a filled o
 its owner team, its direct business service from the configuration item search, approvers, schedule defaults,
 planning texts, a risk assessment from the fixed answers, affected clients and users affected that match the
 answers, downtime for the products whose risk is High, a secure coding ticket, privileged access for Payments Hub,
-and two or three default change tasks ("Deploy <product> to production", "Run the database scripts of <product>"
-for the products whose risk is Moderate or High, "Validate <product> in production"). Requested for, requested by,
+and two or three default change tasks ("Deploy <product> to production" for Release Management, "Run the database
+scripts of <product>" for Database Administration for the products whose risk is Moderate or High, "Validate
+<product> in production" for its support group). Requested for, requested by,
 the department and assigned to stay empty, so each change takes the signed-in user and the product's department.
 The demo Jira knows two released and one or two unreleased FixVersions per project, for example `PAYHUB 2.4`.
 At start-up twelve demo changes are raised in the demo ProTech (`adapter/out/servicenow/DemoProTechChanges.java`),
@@ -700,8 +703,9 @@ product's page:
 - **Risk assessment**: nine questions, each answered from its list (below); an answer left out is the first of its
   list.
 - **Secure coding**: the secure coding ticket number.
-- **Change tasks**: the default CTASKs of a change, one to fifty, each with a short description (up to 160 bytes) and
-  a description (up to 4000 bytes).
+- **Change tasks**: the default CTASKs of a change, one to fifty, each with the fields of
+  [Change tasks](#change-tasks) except those the change gives it: the number, the change number, the approval, the
+  installation window and the task start.
 
 | Question | Answers |
 |----------|---------|
@@ -724,7 +728,8 @@ its list (More than 3, Very, All users, More than 2, Unable to test, All clients
 
 A product without a saved template gets suggested values from its code, name and owner team (category
 Application, type Standard, the product as affected CI), and two suggested change tasks: "Deploy <product> to
-production" and "Validate <product> in production". The demo data fills in every demo product. Templates saved
+production" for Release Management with the product as its application, and "Validate <product> in production" for
+the assignment group of the template. The demo data fills in every demo product. Templates saved
 before change tasks existed got one task per service of the product ("Deploy <service> of <product> to production")
 when the portal was updated.
 
@@ -762,7 +767,7 @@ by and assigned to of the template; an empty department becomes the product's de
 
 ### Raising a change
 
-New Change starts from the template and lets the app owner change any field and the change tasks for this change. It
+New Change starts from the template and lets the app owner change any field for this change. It
 adds what changes this time: the Jira FixVersion with its epics (the epics that carry the FixVersion or have a story
 that does) and the chosen epics' stories that carry it, and the schedule: installation start and end, post-install
 validation start and end and first usage, in that order, the installation in the future, and the downtime window.
@@ -772,14 +777,42 @@ when the change is previewed or raised and refuses an epic or story the FixVersi
 FixVersion unless the template or the user name another, and the people and the department left empty are filled as
 [Signed-in user](#signed-in-user) describes.
 The short description names the product, the FixVersion and the epics; the description names the product, its
-department, the schedule with the downtime window (or "No downtime") and the change tasks, lists every epic with its
+department and the schedule with the downtime window (or "No downtime"), lists every epic with its
 chosen stories, then the planning texts, privileged access, the risk with every answer, the users affected and the
 secure coding ticket, cut to the 160 and 4000 bytes ProTech takes. Both stay
-editable until the change is raised; the review writes them again when its change tasks change, keeping a text the
-user edited and offering the new one. The change belongs to the department of its product, so New Change lists only
+editable until the change is raised; each new preview writes them again, keeping a text the user edited and offering
+the new one. The change belongs to the department of its product, so New Change lists only
 the products in a department; an admin places the others in one in Beadle Admin first.
 A raised change is stored in the portal with its numbers, who opened it, its texts, its tasks and a copy of the fields
 it used, so it outlives later edits of the template and the product itself; it starts in Draft.
+
+### Change tasks
+
+ProTech creates a change task (CTASK) only under a change it holds, so New Change raises the change first and then
+creates its change tasks one by one against the new CHG number (`POST /api/changes/{id}/tasks`); an open change gets
+more on its Edit page. A task form lays its fields out in two columns, left then right, and its assignment group
+decides which fields it has. A group whose name contains "Release Management" (ignoring case) makes a release task:
+
+- number (given by ProTech) and change number;
+- assignment group and assigned to, each with a magnifier;
+- affected CI (the affected CI of the change when left empty) and approval (Not Yet Requested until ProTech asks
+  for it);
+- installation start and end, from the change;
+- platform (None, Mainframe, Distributed, OpenShift or Cognos/Motio; None by default) and task start, at least a
+  minute after the installation start and not after its end (one minute after the installation start by default);
+- application (OCP on OpenShift, free text otherwise), packages and backout packages;
+- short description, description and additional comments.
+
+Any other group, for example Cloud Engineering, Data Movement - API or OIS Support, has the number, the change
+number, the assignment group, assigned to, importance (1 - Critical, 2 - High, 3 - Moderate, 4 - Low or 5 - Planning;
+3 - Moderate by default), the affected CI, the approval, the installation start and end, the short description, the
+description and additional comments. Changing the group changes the form, and the fields the other kind has are
+neither sent nor stored. A short description takes up to 160 bytes, a description 4000, packages, backout packages
+and comments 2000, the group, the person and the CI 200, and the application 100. A change holds at most fifty tasks,
+and a schedule moved on the Edit page keeps the start of every release task inside the new installation window or
+is refused at that task. The demo ProTech asks for the approval of the tasks when the change reaches CTask approval
+and approves them once the change moves past it. `022-change-task-fields.sql` added the fields; a task stored before takes the
+assignment group and the affected CI of its change or template.
 
 ### Synchronisation and the workflow
 
@@ -913,15 +946,16 @@ secrets.
 | `GET /api/evidence/products/{id}` | the change evidence of a product's pipelines |
 | `GET`/`PUT /api/settings` | the DSOEnhanced library defaults (Admin > Library defaults); `PUT` carries the `version` it was read at |
 | `GET`/`PUT /api/service-template` | the template of a new service (Admin > Service template): `agentLabels`, `jenkinsJob`, the Gradle, Maven and Flutter tasks, artifacts and scan patterns, `deliveryTasks`, `nexusIqApplication`, `repositoryUrl`, `bitbucketCredentialsId`, `openShiftProject`, `imageRegistry` and `healthCheckUrl`; `version` is `null` until it is saved (it then holds the BBH defaults), and `PUT` carries the `version` it was read at (409 when stale); a placeholder other than `{CODE}`, `{code}`, `{service}` (and `{type}` in the job) is refused, and so is a name too long for its column once the longest code and service name are filled in |
-| `GET`/`PUT /api/products/{id}/change-profile` | the change template of a product: `template` with the ProTech fields (among them `requestedFor`, `requestedBy`, `department`, `assignedTo`, `directBusinessService`, `usersAffected`, `secureCodingTicket`, `riskAssessment` with the nine answers and `risk`, which is computed and ignored when sent) and `tasks`, its default change tasks (`shortDescription`, `description`; one to fifty); `version` is `null` until it is saved (it then holds the suggestion), and `PUT` carries `version`, `template` and `tasks` |
+| `GET`/`PUT /api/products/{id}/change-profile` | the change template of a product: `template` with the ProTech fields (among them `requestedFor`, `requestedBy`, `department`, `assignedTo`, `directBusinessService`, `usersAffected`, `secureCodingTicket`, `riskAssessment` with the nine answers and `risk`, which is computed and ignored when sent) and `tasks`, its default change tasks (the `details` fields of `POST /api/changes/{id}/tasks`; one to fifty); `version` is `null` until it is saved (it then holds the suggestion), and `PUT` carries `version`, `template` and `tasks` |
 | `GET /api/change-profiles` | the products with a saved change template: `productId`, `productName`, `version`, `updatedAt` |
 | `GET /api/products/{id}/jira/versions`, `/jira/epics?fixVersion=`, `/jira/stories?fixVersion=&epics=` | the FixVersions of the product's Jira project (unreleased first), the epics of a FixVersion and the stories of the chosen epics that carry it; `project=` names another Jira project key |
 | `GET /api/me` | the signed-in user, `{name}`; `dso.signed-in-user` until BBH single sign-on |
-| `GET /api/changes/options` | the lists of the wizard: `categories`, `types` (each `value` and `label`) and `risk`, the answers of each of the nine risk questions |
+| `GET /api/changes/options` | the lists of the wizard: `categories`, `types` (each `value` and `label`), `risk`, the answers of each of the nine risk questions, the `platforms` and `importances` of change tasks and `releaseManagement`, the group name that makes a release task |
 | `GET /api/lookups/{kind}?q=` | at most 20 ProTech entries (`value`, `detail`) that contain `q` in either, ignoring case, for `users`, `departments`, `assignment-groups`, `releases`, `configuration-items`, `incidents`, `problems` or `clients`; 404 for any other kind |
-| `POST /api/changes/preview`, `POST /api/changes` | draft a production change, or raise it in ProTech (`productId`, `fixVersion`, `epicKeys`, `storyKeys`, `schedule` with `installationStart`, `installationEnd`, `validationStart`, `validationEnd`, `firstUsage` and, only with `template.downtime`, `downtimeStart` and `downtimeEnd`, the ProTech fields as `template`, the change tasks as `tasks` with `shortDescription` and `description`, and optionally the edited `shortDescription` and `description`) |
-| `GET /api/changes?departmentId=`, `GET /api/changes/{id}` | the raised changes, newest first, all or of one department, and one change, each read from ProTech first (closed changes of the list are not read again): with `departmentId`, `openedBy`, `state`, `workflow` (each stage with `enteredAt`), the tasks with their `number` and `state`, `syncedAt`, `syncProblem` when ProTech could not be read, `update` (the status of the last update from Beadle), `version` and `editedVersion` |
-| `PUT /api/changes/{id}` | update an open change in ProTech: `version`, `departmentId` (the user's department, which must own the change), `shortDescription`, `description`, `schedule`, `template` and `tasks` (each with its `number`, or none for a new task); answers the change with `update.status` `PENDING`, `APPLIED` or `NOT_APPLIED`; 403 for another department, 409 when stale or closed, 503 when ProTech cannot be reached |
+| `POST /api/changes/preview`, `POST /api/changes` | draft a production change, or raise it in ProTech without change tasks (`productId`, `fixVersion`, `epicKeys`, `storyKeys`, `schedule` with `installationStart`, `installationEnd`, `validationStart`, `validationEnd`, `firstUsage` and, only with `template.downtime`, `downtimeStart` and `downtimeEnd`, the ProTech fields as `template`, and optionally the edited `shortDescription` and `description`) |
+| `POST /api/changes/{id}/tasks` | create change tasks under a raised, open change in ProTech, one by one: `version`, `departmentId` (which must own the change) and `tasks`, one to fifty, each with `details` (`assignmentGroup`, `assignedTo`, `configurationItem`, `platform`, `application`, `packages`, `backoutPackages`, `importance`, `shortDescription`, `description`, `additionalComments`) and, for a release task, `start`; answers the change with the numbered tasks; 403 for another department, 409 when stale, pending or closed |
+| `GET /api/changes?departmentId=`, `GET /api/changes/{id}` | the raised changes, newest first, all or of one department, and one change, each read from ProTech first (closed changes of the list are not read again): with `departmentId`, `openedBy`, `state`, `workflow` (each stage with `enteredAt`), the tasks with their `number`, `details`, `start`, `approval` and `state`, `syncedAt`, `syncProblem` when ProTech could not be read, `update` (the status of the last update from Beadle), `version` and `editedVersion` |
+| `PUT /api/changes/{id}` | update an open change in ProTech: `version`, `departmentId` (the user's department, which must own the change), `shortDescription`, `description`, `schedule`, `template` and `tasks` (each with its `number`, or none for a new task, its `details` and its `start`; the list may be empty); answers the change with `update.status` `PENDING`, `APPLIED` or `NOT_APPLIED`; 403 for another department, 409 when stale or closed, 503 when ProTech cannot be reached |
 | `GET /api/changes/integrations` | whether Jira and ProTech are connected (`jiraConnected`, `serviceNowConnected`) |
 
 A `range` is a number of days from `1d` to `730d`, `30d` when left out. Errors are RFC 9457 problem details;

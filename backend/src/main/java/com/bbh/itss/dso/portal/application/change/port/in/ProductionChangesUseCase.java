@@ -25,4 +25,6 @@ public interface ProductionChangesUseCase {
     ProductionChange preview(ChangeCommand command);
 
     ProductionChange raise(ChangeCommand command);
+
+    ProductionChange createTasks(long id, ChangeTasksCommand command);
 }

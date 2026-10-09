@@ -4,8 +4,8 @@ import com.bbh.itss.dso.portal.support.PortalSpecification
 
 import java.time.Instant
 
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.changeTasksJson
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.scheduleJson
-import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasksJson
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.templateJson
 import static java.net.URLEncoder.encode
 import static java.nio.charset.StandardCharsets.UTF_8
@@ -17,7 +17,7 @@ abstract class ChangeRegressionSpecification extends PortalSpecification {
     static final Instant START = Instant.now().plus(3, DAYS).truncatedTo(HOURS)
     static final String SIGNED_IN = 'Mateusz Matan'
 
-    protected Map raise(Map product) {
+    protected Map raise(Map product, List tasks = changeTasksJson()) {
         String key = 'CHG' + product.id
         String fixVersion = api.get("/api/products/$product.id/jira/versions?project=$key").json[0].name
         String epic = api.get("/api/products/$product.id/jira/epics?fixVersion=${enc(fixVersion)}&project=$key")
@@ -25,7 +25,17 @@ abstract class ChangeRegressionSpecification extends PortalSpecification {
         def response = api.post('/api/changes', change(product, fixVersion, [epic], [],
                 [template: templateJson(jiraProjectKey: key)]))
         assert response.status == 201: response
+        tasks ? createTasks(response.json as Map, tasks) : response.json as Map
+    }
+
+    protected Map createTasks(Map change, List tasks) {
+        def response = api.post("/api/changes/$change.id/tasks", tasksOf(change, tasks))
+        assert response.status == 200: response
         response.json as Map
+    }
+
+    protected static Map tasksOf(Map change, List tasks) {
+        [version: change.version, departmentId: change.departmentId, tasks: tasks]
     }
 
     protected static Map editOf(Map change, Map edits) {
@@ -36,7 +46,7 @@ abstract class ChangeRegressionSpecification extends PortalSpecification {
 
     protected static Map change(Map product, String fixVersion, List epicKeys, List storyKeys = [], Map edits = [:]) {
         [productId: product.id, fixVersion: fixVersion, epicKeys: epicKeys, storyKeys: storyKeys,
-         schedule: scheduleJson(START), template: templateJson(), tasks: tasksJson()] + edits
+         schedule: scheduleJson(START), template: templateJson()] + edits
     }
 
     protected static Map raisedAs(Map template, String release, String department = 'Corporate Technology') {

@@ -9,7 +9,7 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess
 import com.bbh.itss.dso.portal.domain.change.Lookup
 import com.bbh.itss.dso.portal.domain.change.RiskAssessment
-import com.bbh.itss.dso.portal.domain.change.TaskText
+import com.bbh.itss.dso.portal.domain.change.TaskDetails
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
@@ -17,8 +17,8 @@ import static com.bbh.itss.dso.portal.adapter.in.startup.DemoChangeProfiles.PRIV
 import static com.bbh.itss.dso.portal.adapter.in.startup.DemoChangeProfiles.PRIVILEGED_USERS
 import static com.bbh.itss.dso.portal.adapter.in.startup.DemoChangeProfiles.tasksFor
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.suggestedFor
-import static com.bbh.itss.dso.portal.domain.change.TaskText.suggestedTasks
-import static com.bbh.itss.dso.portal.domain.change.TaskText.validateTasks
+import static com.bbh.itss.dso.portal.domain.change.TaskDetails.suggestedTasks
+import static com.bbh.itss.dso.portal.domain.change.TaskDetails.validateTasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.risk
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
@@ -45,7 +45,7 @@ class DemoChangeProfilesSpec extends Specification {
         def suggested = suggestedFor('PAYHUB', 'PayHub', 'Payments Engineering')
         products.list(null) >> [summary(1, 'CERT'), summary(2, 'PAYHUB'), summary(3, 'FXR')]
         Map<Long, ChangeTemplate> saved = [:]
-        Map<Long, List<TaskText>> savedTasks = [:]
+        Map<Long, List<TaskDetails>> savedTasks = [:]
 
         when:
         seeder.fillIn()
@@ -53,11 +53,11 @@ class DemoChangeProfilesSpec extends Specification {
         then:
         1 * profiles.get(1L) >> new ChangeProfileView(1L, 'CertScanner', 4L, EPOCH, template(), tasks())
         1 * profiles.get(2L) >> ChangeProfileView.builder().productId(2L).productName('PayHub').template(suggested)
-                .tasks(suggestedTasks('PayHub')).build()
+                .tasks(suggestedTasks('PayHub', suggested.assignmentGroup())).build()
         1 * profiles.get(3L) >> ChangeProfileView.builder().productId(3L).productName('FX Rates').template(suggested)
-                .tasks(suggestedTasks('FX Rates')).build()
+                .tasks(suggestedTasks('FX Rates', suggested.assignmentGroup())).build()
         2 * profiles.save({ it in [2L, 3L] }, null, _, _) >> {
-            long id, Long version, ChangeTemplate template, List<TaskText> chosen ->
+            long id, Long version, ChangeTemplate template, List<TaskDetails> chosen ->
             saved[id] = template
             savedTasks[id] = chosen
             null
@@ -72,9 +72,11 @@ class DemoChangeProfilesSpec extends Specification {
         saved[2L].privilegedAccess() == new PrivilegedAccess(true, PRIVILEGED_USERS)
         saved[3L].privilegedAccess().users() == []
         saved[2L].assignmentGroup() == 'Team of PAYHUB Application Support'
-        savedTasks[2L].first() == suggestedTasks('PayHub').first()
-        savedTasks[2L].last() == suggestedTasks('PayHub').last()
-        savedTasks[3L].first() == suggestedTasks('FX Rates').first()
+        savedTasks[2L].first() == suggestedTasks('PAYHUB', saved[2L].assignmentGroup()).first()
+        savedTasks[2L].last() == suggestedTasks('PAYHUB', saved[2L].assignmentGroup()).last()
+        savedTasks[2L].last().assignmentGroup() == 'Team of PAYHUB Application Support'
+        savedTasks[3L].first() == suggestedTasks('FXR', saved[3L].assignmentGroup()).first()
+        savedTasks.values().every { it.first().releaseManagement() }
         savedTasks.every { id, chosen -> chosen.size() == (saved[id].risk() == 'Low' ? 2 : 3) }
     }
 
@@ -83,18 +85,19 @@ class DemoChangeProfilesSpec extends Specification {
         def problems = new ValidationProblems()
 
         when:
-        def chosen = tasksFor(summary(2, 'PayHub'), template(riskAssessment: assessment), suggestedTasks('PayHub'))
+        def chosen = tasksFor(summary(2, 'PayHub'), template(riskAssessment: assessment))
         validateTasks(chosen, problems)
 
         then:
         chosen*.shortDescription() == expected
+        chosen*.assignmentGroup() == groups
         problems.list() == []
 
         where:
-        assessment                                                      || risk       | expected
-        RiskAssessment.builder().bbhUsers('Less than 5').build()        || 'Low'      | ['Deploy PayHub to production', 'Validate PayHub in production']
-        risk(businessImpact: 'Medium')                                  || 'Moderate' | ['Deploy PayHub to production', 'Run the database scripts of PayHub', 'Validate PayHub in production']
-        risk(businessImpact: 'High')                                    || 'High'     | ['Deploy PayHub to production', 'Run the database scripts of PayHub', 'Validate PayHub in production']
+        assessment                                                      || risk       | expected                                                                                                      | groups
+        RiskAssessment.builder().bbhUsers('Less than 5').build()        || 'Low'      | ['Deploy PayHub to production', 'Validate PayHub in production']                                                | ['Release Management', 'Technology Architecture']
+        risk(businessImpact: 'Medium')                                  || 'Moderate' | ['Deploy PayHub to production', 'Run the database scripts of PayHub', 'Validate PayHub in production']          | ['Release Management', 'Database Administration', 'Technology Architecture']
+        risk(businessImpact: 'High')                                    || 'High'     | ['Deploy PayHub to production', 'Run the database scripts of PayHub', 'Validate PayHub in production']          | ['Release Management', 'Database Administration', 'Technology Architecture']
     }
 
     def "the demo defaults of every demo product are complete, realistic and valid"() {
