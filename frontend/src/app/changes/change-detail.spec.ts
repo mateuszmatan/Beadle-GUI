@@ -10,6 +10,8 @@ import {
   changeTemplate,
   changeUpdate,
   productionChange,
+  releaseDetails,
+  taskDetails,
 } from '../testing/change-fixtures';
 import { buttonOf, text } from '../testing/dom';
 import { ProductionChange } from './change-api';
@@ -124,9 +126,24 @@ describe('ChangeDetail', () => {
           secureCodingTicket: 'SEC-12',
         }),
         tasks: [
-          changeTask(),
-          changeTask({ number: 'CTASK0020002', state: 'CANCELED', shortDescription: 'Old one' }),
-          changeTask({ number: null, shortDescription: 'Tell the users' }),
+          changeTask({
+            details: releaseDetails(
+              'Deploy CertScanner to production',
+              'Deploy the release of CertScanner.',
+              { platform: 'OpenShift', application: 'OCP' },
+            ),
+            start: '2026-10-10T06:01:00Z',
+            approval: 'Requested',
+          }),
+          changeTask({
+            number: 'CTASK0020002',
+            state: 'CANCELED',
+            details: taskDetails('Old one', 'Deploy the release of CertScanner.'),
+          }),
+          changeTask({
+            number: null,
+            details: taskDetails('Tell the users', 'Send the e-mail.', { assignedTo: 'Mateusz Matan' }),
+          }),
         ],
       }),
     );
@@ -209,9 +226,13 @@ describe('ChangeDetail', () => {
       ),
     ).toContain('Validation plan: Run the smoke tests.');
     expect([...page().querySelectorAll('.tasks li')].map(text)).toEqual([
-      'CTASK0020001OpenDeploy CertScanner to productionDeploy the release of CertScanner.',
-      'CTASK0020002CanceledOld oneDeploy the release of CertScanner.',
-      'not in ProTech yetOpenTell the usersDeploy the release of CertScanner.',
+      'CTASK0020001OpenRequestedDeploy CertScanner to production' +
+        `Release Management · OpenShift · OCP · starts ${momentText('2026-10-10T06:01:00Z')}` +
+        'Deploy the release of CertScanner.',
+      'CTASK0020002CanceledNot Yet RequestedOld one' +
+        'Technology Architecture · 3 - ModerateDeploy the release of CertScanner.',
+      'not in ProTech yetOpenNot Yet RequestedTell the users' +
+        'Technology Architecture · Mateusz Matan · 3 - ModerateSend the e-mail.',
     ]);
     expect(page().querySelector('.tasks li.canceled')).not.toBeNull();
     expect(text(page().querySelector('pre'))).toBe('Production release of CertScanner (CERT).');
@@ -219,6 +240,16 @@ describe('ChangeDetail', () => {
     expect(page().querySelector('a[href="/beadle/admin/products/1"]')).not.toBeNull();
     expect(page().querySelector('a[href="/beadle/changes/7/edit"]')).not.toBeNull();
     expect(page().querySelector('.banner.update')).toBeNull();
+  });
+
+  it('says how to add the change tasks of a change without any', async () => {
+    await show(productionChange({ tasks: [] }));
+
+    expect(text(page().querySelector('.tasks'))).toBe('None yet: add them with Edit.');
+    fixture.destroy();
+
+    await show(productionChange({ tasks: [], state: 'CLOSED' }));
+    expect(text(page().querySelector('.tasks'))).toBe('None');
   });
 
   it('says when it read the change from ProTech and when ProTech could not be reached', async () => {

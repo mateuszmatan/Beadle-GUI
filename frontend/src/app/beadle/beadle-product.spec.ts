@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { changeOptions, changeProfile, changeTemplate, taskText } from '../testing/change-fixtures';
+import { changeOptions, changeProfile, changeTemplate, releaseDetails } from '../testing/change-fixtures';
 import { buttonOf, fieldOf, text } from '../testing/dom';
 import { productDetails } from '../testing/fixtures';
 import { BeadleProduct } from './beadle-product';
@@ -85,7 +85,7 @@ describe('BeadleProduct', () => {
     access.users.at(0).setValue({ user: ' Jane Smith ', account: 'adm_jsmith' });
     template().patchValue({ riskAssessment: { businessImpact: 'High' } });
     buttonOf(page(), 'Remove change task 2').click();
-    tasks().at(0).patchValue({ shortDescription: ' Deploy it ' });
+    tasks().at(0).controls.details.patchValue({ shortDescription: ' Deploy it ' });
     expect(editor().hasUnsavedChanges()).toBe(true);
 
     buttonOf(page(), 'Save the template').click();
@@ -95,7 +95,7 @@ describe('BeadleProduct', () => {
       privilegedAccess: { required: true, users: [{ user: 'Jane Smith', account: 'adm_jsmith' }] },
       riskAssessment: { ...changeTemplate().riskAssessment, businessImpact: 'High' },
     });
-    const savedTasks = [taskText('Deploy it', 'Deploy the release of CertScanner.')];
+    const savedTasks = [releaseDetails('Deploy it', 'Deploy the release of CertScanner.')];
     expect(request.request.body).toEqual({ version: null, template: expected, tasks: savedTasks });
     request.flush(changeProfile({ version: 0, template: expected, tasks: savedTasks }));
     await settle();
@@ -144,7 +144,7 @@ describe('BeadleProduct', () => {
   it('does not send a template with missing values or without a change task', async () => {
     await open();
     template().patchValue({ jiraProjectKey: 'cert-1', planning: { backoutPlan: '' } });
-    tasks().at(1).controls.description.setValue(' ');
+    tasks().at(1).controls.details.controls.description.setValue(' ');
 
     editor()['save']();
     fixture.detectChanges();
@@ -200,7 +200,7 @@ describe('BeadleProduct', () => {
     expect(editor()['saveError']()).toBe('Some fields need your attention.');
 
     template().controls.riskAssessment.controls.bbhUsers.setValue('26-250');
-    tasks().at(1).controls.shortDescription.setValue('Validate it');
+    tasks().at(1).controls.details.controls.shortDescription.setValue('Validate it');
     editor()['save']();
     saved().flush(
       { detail: 'Invalid request', errors: [{ field: 'version', message: 'is unknown' }] },

@@ -19,7 +19,12 @@ import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { ChangeProfile, ChangesApi } from '../changes/change-api';
 import { ChangeTasksForm } from '../changes/change-tasks-form';
-import { tasksForm, toTaskTexts } from '../changes/change-tasks-model';
+import {
+  drafts,
+  nestedTaskProblems,
+  tasksForm,
+  toTaskDetails,
+} from '../changes/change-tasks-model';
 import { ChangeTemplateForm } from '../changes/change-template-form';
 import { templateForm, toTemplate } from '../changes/change-template-model';
 import { errorMessage, fieldProblems } from '../core/errors';
@@ -32,7 +37,7 @@ import { ProductAdmin } from './product-admin';
 export function profileForm(profile: ChangeProfile) {
   return new FormGroup({
     template: templateForm(profile.template),
-    tasks: tasksForm(profile.tasks),
+    tasks: tasksForm(drafts(profile.tasks)),
   });
 }
 
@@ -212,7 +217,7 @@ export class BeadleProduct implements HasUnsavedChanges {
         this.id(),
         this.version(),
         toTemplate(form.controls.template),
-        toTaskTexts(form.controls.tasks),
+        toTaskDetails(form.controls.tasks),
       )
       .pipe(
         finalize(() => this.saving.set(false)),
@@ -226,7 +231,7 @@ export class BeadleProduct implements HasUnsavedChanges {
         },
         error: (error) => {
           const problems = fieldProblems(error);
-          const unmatched = applyFieldProblems(form, problems);
+          const unmatched = applyFieldProblems(form, nestedTaskProblems(problems));
           this.saveError.set(
             unmatched.length || !problems.length
               ? errorMessage(error)

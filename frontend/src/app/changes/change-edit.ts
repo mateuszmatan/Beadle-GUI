@@ -32,7 +32,7 @@ import { problemText } from './change-problems';
 import { onHours, scheduleForm, scheduleValue } from './change-schedule-model';
 import { changeFacts } from './change-sections';
 import { ChangeTasksForm } from './change-tasks-form';
-import { tasksForm, toEditedTasks } from './change-tasks-model';
+import { setTaskWindow, taskWindow, tasksForm, toTaskRequests } from './change-tasks-model';
 import { ChangeTemplateForm } from './change-template-form';
 import { templateForm, toTemplate } from './change-template-model';
 import { PublishedChange } from './published-change';
@@ -49,12 +49,17 @@ interface Failure {
 export function editForm(change: ProductionChange) {
   const template = templateForm(change.template);
   template.controls.type.disable();
+  const schedule = scheduleForm(template.controls.downtime, change.schedule);
+  const tasks = tasksForm(activeTasks(change.tasks), taskWindow(change.number, change.schedule));
+  schedule.valueChanges.subscribe(() =>
+    setTaskWindow(tasks, taskWindow(change.number, scheduleValue(schedule, false))),
+  );
   return new FormGroup({
     shortDescription: text(change.shortDescription, filled, fits(160)),
     description: text(change.description, filled, fits(4000)),
-    schedule: scheduleForm(template.controls.downtime, change.schedule),
+    schedule,
     template,
-    tasks: tasksForm(activeTasks(change.tasks)),
+    tasks,
   });
 }
 
@@ -146,7 +151,7 @@ export type EditForm = ReturnType<typeof editForm>;
               <p class="note">
                 A new change task is created in ProTech and a removed one is canceled there.
               </p>
-              <dso-change-tasks-form [tasks]="f.controls.tasks" [numbers]="true" />
+              <dso-change-tasks-form [tasks]="f.controls.tasks" />
             </section>
             @if (failure()?.problems?.length) {
               <div class="banner danger problems-banner" role="alert">
@@ -290,7 +295,7 @@ export class ChangeEdit implements HasUnsavedChanges {
         description: value.description,
         schedule: scheduleValue(form.controls.schedule, value.template.downtime),
         template: toTemplate(form.controls.template),
-        tasks: toEditedTasks(form.controls.tasks),
+        tasks: toTaskRequests(form.controls.tasks),
       })
       .pipe(
         finalize(() => this.saving.set(false)),

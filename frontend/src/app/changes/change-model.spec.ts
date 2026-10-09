@@ -6,7 +6,6 @@ import {
   jiraVersion,
   productionChange,
   story,
-  taskText,
 } from '../testing/change-fixtures';
 import {
   activeTasks,
@@ -88,7 +87,7 @@ describe('change model', () => {
     ).toEqual(['Ann']);
   });
 
-  it('asks for a change with the scope, the times and the confirmed template', () => {
+  it('asks for a change with the scope, the times and the confirmed template, without tasks', () => {
     const schedule = changeSchedule();
     const template = changeTemplate();
 
@@ -102,7 +101,6 @@ describe('change model', () => {
         },
         schedule,
         template,
-        [taskText('Deploy it')],
       ),
     ).toEqual({
       productId: 1,
@@ -111,7 +109,6 @@ describe('change model', () => {
       storyKeys: ['CERT-2'],
       schedule,
       template,
-      tasks: [taskText('Deploy it')],
     });
   });
 

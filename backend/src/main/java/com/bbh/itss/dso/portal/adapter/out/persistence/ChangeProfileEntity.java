@@ -6,7 +6,6 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
-import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
@@ -44,7 +43,7 @@ public class ChangeProfileEntity extends AuditedEntity {
     @ElementCollection
     @CollectionTable(name = "DSO_CHANGE_PROFILE_TASK", joinColumns = @JoinColumn(name = "PROFILE_ID"))
     @OrderColumn(name = "POSITION")
-    private List<TaskEmbeddable> tasks = new ArrayList<>();
+    private List<TaskDetailsEmbeddable> tasks = new ArrayList<>();
 
     ChangeProfileEntity(long productId) {
         this.productId = productId;
@@ -53,7 +52,7 @@ public class ChangeProfileEntity extends AuditedEntity {
     void apply(ChangeProfile profile) {
         this.template = ChangeTemplateEmbeddable.of(profile.template());
         replace(privilegedUsers, ChangeTemplateEmbeddable.usersOf(profile.template()));
-        replace(tasks, profile.tasks().stream().map(task -> map(task, TaskEmbeddable.class)).toList());
+        replace(tasks, profile.tasks().stream().map(task -> map(task, TaskDetailsEmbeddable.class)).toList());
     }
 
     ChangeTemplate template() {
@@ -62,9 +61,5 @@ public class ChangeProfileEntity extends AuditedEntity {
 
     ChangeProfile toDomain() {
         return map(ChangeProfile.class, this);
-    }
-
-    @Embeddable
-    public record TaskEmbeddable(String shortDescription, String description) {
     }
 }

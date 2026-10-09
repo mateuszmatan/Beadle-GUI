@@ -3,6 +3,7 @@ package com.bbh.itss.dso.portal.application.change
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeCommand
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeEditCommand
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeIntegrations
+import com.bbh.itss.dso.portal.application.change.port.in.ChangeTasksCommand
 import com.bbh.itss.dso.portal.application.change.port.out.ChangeProductsPort
 import com.bbh.itss.dso.portal.application.change.port.out.JiraPort
 import com.bbh.itss.dso.portal.application.change.port.out.ProductionChangeRepositoryPort
@@ -18,7 +19,6 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Timing
 import com.bbh.itss.dso.portal.domain.change.ChangeUpdate
 import com.bbh.itss.dso.portal.domain.change.JiraVersion
 import com.bbh.itss.dso.portal.domain.change.ProductionChange
-import com.bbh.itss.dso.portal.domain.change.TaskText
 import com.bbh.itss.dso.portal.domain.change.WorkflowStep
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException.FieldProblem
@@ -43,11 +43,13 @@ import static com.bbh.itss.dso.portal.domain.shared.Failures.staleVersion
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.FIX_VERSION
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.RAISED
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.changeProduct
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.ctask
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.details
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.epic
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.raised
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.releaseTask
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.schedule
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.story
-import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
 import static java.time.Clock.fixed
 import static java.time.ZoneOffset.UTC
@@ -57,7 +59,8 @@ class ProductionChangeServiceSpec extends Specification {
     static final Instant NOW = Instant.parse('2026-10-07T10:00:00Z')
     static final List ISSUES = [epic('CERT-1', 'Expiry alerts'), epic('CERT-5', 'Audit trail'),
                                 story('CERT-2', 'E-mail the owner', 'CERT-1'), story('CERT-6', 'Record it', 'CERT-5')]
-    static final ChangeTask NEW_TASK = new ChangeTask(null, 'Check the audit trail', 'Open the audit trail.', null)
+    static final ChangeTask NEW_TASK = ctask(null, 'Check the audit trail', 'Open the audit trail.', null)
+    static final String CLOSED_REFUSAL = 'ProTech does not change a closed change'
     static final String PENDING_REFUSAL = 'The last update of CHG0031001 is still waiting for ProTech; change it' +
             ' again once ProTech has applied it'
 
@@ -82,20 +85,18 @@ class ProductionChangeServiceSpec extends Specification {
         }
     }
 
-    def "the preview drafts the change of the product's department with its tasks and the chosen Jira issues"() {
+    def "the preview drafts the change of the product's department with the chosen Jira issues and no tasks yet"() {
         when:
-        def draft = service.preview(command(tasks: tasks(3)))
+        def draft = service.preview(command())
 
         then:
-        draft == ProductionChange.draft(certScanner, 'Mateusz Matan', tasks(3), FIX_VERSION, schedule(), template(),
+        draft == ProductionChange.draft(certScanner, 'Mateusz Matan', FIX_VERSION, schedule(), template(),
                 ISSUES.take(2), ISSUES.drop(2), null, null)
         draft.departmentId() == 3L
         draft.openedBy() == 'Mateusz Matan'
         [draft.template().requestedFor(), draft.template().requestedBy(), draft.template().assignedTo(),
          draft.template().department()] == ['Mateusz Matan', 'Mateusz Matan', 'Mateusz Matan', 'Corporate Technology']
-        draft.tasks()*.shortDescription() == tasks(3)*.shortDescription()
-        draft.tasks()*.number() == [null, null, null]
-        draft.tasks()*.state() == [OPEN] * 3
+        draft.tasks() == []
         draft.template().release() == FIX_VERSION
         draft.state() == DRAFT
         draft.workflow() == []
@@ -110,7 +111,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         when:
         def preview = service.preview(command(productId: 2L, template: payHub, epicKeys: ['PAY-1'], storyKeys: [],
-                fixVersion: ' PAY 1.0 ', tasks: tasks(1)))
+                fixVersion: ' PAY 1.0 '))
 
         then:
         preview.productCode() == 'PAYHUB'
@@ -120,7 +121,7 @@ class ProductionChangeServiceSpec extends Specification {
         preview.template() == payHub.releasedAs('PAY 1.0').openedBy('Mateusz Matan', 'Custody')
         preview.shortDescription() == 'PayHub PAY 1.0: Instant payments'
         preview.description().startsWith('Production release PAY 1.0 of PayHub (PAYHUB) in Custody.')
-        preview.description().contains('Change tasks: Task 1 of the CertScanner release.')
+        !preview.description().contains('Change tasks')
     }
 
     def "a change of a product outside every department is refused on the product when it is #action"() {
@@ -140,18 +141,17 @@ class ProductionChangeServiceSpec extends Specification {
         'raised'    | { ProductionChangeService it -> it.raise(command(productId: 3L)) }
     }
 
-    def "a raised change is filed in ProTech and stored with its numbers, its draft stage and its sync time"() {
+    def "a raised change is filed in ProTech without tasks and stored with its number, its draft stage and its sync time"() {
         when:
         def raised = service.raise(command(storyKeys: [], shortDescription: 'Mine'))
 
         then:
         1 * serviceNow.raise({ it.number() == null && it.shortDescription() == 'Mine' && it.createdAt() == NOW }) >>
-                new RaisedChange('CHG0012345', ['CTASK0020001', 'CTASK0020002'], 'https://bbh.service-now.com/CHG0012345')
+                new RaisedChange('CHG0012345', 'https://bbh.service-now.com/CHG0012345')
         1 * changes.save({ it.number() == 'CHG0012345' }) >> { ProductionChange change -> change }
         0 * serviceNow._
         raised.number() == 'CHG0012345'
-        raised.tasks()*.number() == ['CTASK0020001', 'CTASK0020002']
-        raised.tasks()*.shortDescription() == tasks()*.shortDescription()
+        raised.tasks() == []
         raised.departmentId() == 3L
         raised.departmentName() == 'Corporate Technology'
         raised.state() == DRAFT
@@ -176,10 +176,6 @@ class ProductionChangeServiceSpec extends Specification {
 
         where:
         refusal                         | edits                                              || problems
-        'a change without tasks'        | [tasks: []]                                        || [tasks: 'add at least one change task']
-        'a change with 51 tasks'        | [tasks: tasks(51)]                                 || [tasks: 'may list at most 50 change tasks']
-        'a blank task'                  | [tasks: [new TaskText(' ', null)]]                 || ['tasks[0].shortDescription': 'is required', 'tasks[0].description': 'is required']
-        'a task over 160 bytes'         | [tasks: tasks(1) + new TaskText('é' * 81, 'Long.')] || ['tasks[1].shortDescription': 'is too long: it may take at most 160 bytes']
         'a change without a FixVersion' | [fixVersion: ' ']                                  || [fixVersion: 'choose the FixVersion of the release']
         'a FixVersion over 100 bytes'   | [fixVersion: 'é' * 51]                             || [fixVersion: 'is too long: it may take at most 100 bytes']
         'a change without epics'        | [epicKeys: [], storyKeys: []]                      || [epicKeys: 'choose at least one epic']
@@ -711,7 +707,7 @@ class ProductionChangeServiceSpec extends Specification {
         when:
         service.update(7L, edit(shortDescription: ' ', schedule: schedule(installationStart: '2026-10-07T09:00:00Z'),
                 template: template(category: 'Software'),
-                tasks: [stored.tasks()[0], stored.tasks()[0], new ChangeTask('CTASK9', ' ', 'Other task.', OPEN)]))
+                tasks: [stored.tasks()[0], stored.tasks()[0], ctask('CTASK9', ' ', 'Other task.', OPEN)]))
 
         then:
         def refused = thrown(InvalidRequestException)
@@ -720,7 +716,7 @@ class ProductionChangeServiceSpec extends Specification {
                                        'Infrastructure, System Software, Network, Telecom, Data Amendment, ' +
                                        'Desktop Software, Storage, Facilities, Other, Database'),
                                new FieldProblem('schedule.installationStart', 'must be in the future'),
-                               new FieldProblem('tasks[2].shortDescription', 'is required')]
+                               new FieldProblem('tasks[2].details.shortDescription', 'is required')]
         0 * serviceNow.update(_)
         0 * changes.save(_)
     }
@@ -731,7 +727,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         when:
         service.update(7L, edit(tasks: [stored.tasks()[0], stored.tasks()[0],
-                                         new ChangeTask('CTASK9', 'Other', 'Other task.', OPEN)]))
+                                         ctask('CTASK9', 'Other', 'Other task.', OPEN)]))
 
         then:
         1 * changes.load(7L) >> Optional.of(stored)
@@ -804,6 +800,78 @@ class ProductionChangeServiceSpec extends Specification {
         updated.update().status() == APPLIED
     }
 
+    def "the tasks of a raised change are created in ProTech one by one against its number and stored with theirs"() {
+        given:
+        def stored = raised(tasks: [])
+
+        when:
+        def change = service.createTasks(7L, created())
+
+        then:
+        1 * changes.load(7L) >> Optional.of(stored)
+        1 * serviceNow.read([stored]) >> [CHG0031001: stored]
+        1 * changes.synced([7L], NOW)
+
+        then:
+        1 * serviceNow.createTask('CHG0031001', releaseTask([configurationItem: 'CertScanner'])) >> 'CTASK0050001'
+
+        then:
+        1 * serviceNow.createTask('CHG0031001', ChangeTask.of(details(2, [configurationItem: 'CertScanner']))) >>
+                'CTASK0050002'
+
+        then:
+        1 * changes.save({ ProductionChange it -> it.tasks()*.number() == ['CTASK0050001', 'CTASK0050002'] }) >>
+                { ProductionChange saved -> saved.toBuilder().version(1L).build() }
+        0 * changes._
+        0 * serviceNow._
+        change.tasks()*.number() == ['CTASK0050001', 'CTASK0050002']
+        change.tasks()[0].start() == Instant.parse('2026-10-10T06:01:00Z')
+        change.tasks()*.approval() == ['Not Yet Requested'] * 2
+        change.version() == 1L
+    }
+
+    def "change tasks are not created when #problem"() {
+        given:
+        changes.load(7L) >> Optional.of(raised(tasks: []))
+        changes.save(_) >> { ProductionChange it -> it }
+        serviceNow.read(_) >> [CHG0031001: remote]
+
+        when:
+        service.createTasks(7L, command)
+
+        then:
+        def refused = thrown(type)
+        refused.message == message
+        0 * serviceNow.createTask(*_)
+
+        where:
+        problem                          | command                                           | remote                          || type                    | message
+        'another department asks'        | created(departmentId: 4L)                         | raised(tasks: [])               || SecurityException       | 'Only Corporate Technology can change CHG0031001'
+        'the change moved on meanwhile'  | created(version: 1L)                              | raised(tasks: [])               || IllegalStateException   | STALE_VERSION
+        'ProTech has closed the change'  | created()                                         | raised(tasks: [], state: CLOSED) || IllegalStateException  | 'CHG0031001 is closed in ProTech and can no longer be changed'
+        'a release task starts too late' | created(tasks: [releaseTask([:], '2026-10-10T10:01:00Z')]) | raised(tasks: [])      || InvalidRequestException | 'must not be after the installation end'
+    }
+
+    def "the tasks ProTech created before it refused one are stored and the refusal is passed on"() {
+        given:
+        changes.load(7L) >> Optional.of(raised(tasks: []))
+        serviceNow.read(_) >> [CHG0031001: raised(tasks: [])]
+
+        when:
+        service.createTasks(7L, created())
+
+        then:
+        1 * serviceNow.createTask('CHG0031001', _) >> 'CTASK0050001'
+
+        then:
+        1 * serviceNow.createTask('CHG0031001', _) >> { throw new IllegalStateException(CLOSED_REFUSAL) }
+
+        then:
+        1 * changes.save({ ProductionChange it -> it.tasks()*.number() == ['CTASK0050001'] }) >> { it[0] }
+        def refused = thrown(IllegalStateException)
+        refused.message == CLOSED_REFUSAL
+    }
+
     def "a refusal of ProTech puts the stored change back and is passed on"() {
         when:
         service.update(7L, edit(shortDescription: 'Renamed'))
@@ -827,11 +895,16 @@ class ProductionChangeServiceSpec extends Specification {
 
     static ChangeCommand command(Map changes = [:]) {
         Map values = [productId: 1L, fixVersion: FIX_VERSION, epicKeys: ['CERT-1', 'CERT-5'],
-                      storyKeys: ['CERT-2', 'CERT-6'], schedule: schedule(), template: template(), tasks: tasks()] +
-                changes
+                      storyKeys: ['CERT-2', 'CERT-6'], schedule: schedule(), template: template()] + changes
         new ChangeCommand(values.productId as long, values.fixVersion as String, values.epicKeys as List,
                 values.storyKeys as List, values.schedule as ChangeSchedule, values.template as ChangeTemplate,
-                values.tasks as List, values.shortDescription as String, values.description as String)
+                values.shortDescription as String, values.description as String)
+    }
+
+    static ChangeTasksCommand created(Map changes = [:]) {
+        Map values = [version: 0L, departmentId: 3L, tasks: [releaseTask([:], null), ChangeTask.of(details(2))]] +
+                changes
+        new ChangeTasksCommand(values.version as Long, values.departmentId as Long, values.tasks as List)
     }
 
     static ChangeEditCommand edit(Map changes = [:]) {
