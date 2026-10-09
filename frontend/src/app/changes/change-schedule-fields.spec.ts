@@ -11,8 +11,8 @@ describe('ChangeScheduleFields', () => {
   let downtime: FormControl<boolean>;
 
   const page = () => fixture.nativeElement as HTMLElement;
-  const labels = () => [...page().querySelectorAll('mat-form-field mat-label')].map(text);
-  const hint = (label: string) => text(fieldOf(page(), label)?.querySelector('mat-hint'));
+  const labels = () => [...page().querySelectorAll('dso-form-field dso-label')].map(text);
+  const hint = (label: string) => text(fieldOf(page(), label)?.querySelector('dso-hint'));
 
   async function settle() {
     TestBed.tick();

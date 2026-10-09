@@ -12,11 +12,6 @@ import {
 } from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { MyDepartment } from '../beadle/my-department';
@@ -26,6 +21,8 @@ import { CHANGES, beadleChange } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { applyFieldProblems, filled, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
+import { FORM_FIELD } from '../ui/form-field';
+import { DsoLoading, DsoSpinner } from '../ui/loading';
 import { ChangesApi, ProductionChange, isOpen } from './change-api';
 import { activeTasks, editHint, fits } from './change-model';
 import { problemText } from './change-problems';
@@ -70,11 +67,9 @@ export type EditForm = ReturnType<typeof editForm>;
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatProgressBarModule,
-    MatProgressSpinnerModule,
+    DsoLoading,
+    DsoSpinner,
+    FORM_FIELD,
     ChangeTasksForm,
     ChangeTemplateForm,
   ],
@@ -91,7 +86,7 @@ export type EditForm = ReturnType<typeof editForm>;
         <span>Edit</span>
       </nav>
       @if (change.isLoading()) {
-        <mat-progress-bar mode="indeterminate" />
+        <dso-loading />
       }
       @if (change.error(); as error) {
         <div class="banner">{{ errorMessage(error) }}</div>
@@ -111,32 +106,34 @@ export type EditForm = ReturnType<typeof editForm>;
           <div class="banner refused" role="alert">
             <span>{{ c.number }} is closed in ProTech and can no longer be changed</span>
             <span class="spacer"></span>
-            <a mat-button [routerLink]="changeLink(id())">Back to the change</a>
+            <a class="btn btn-link" [routerLink]="changeLink(id())">Back to the change</a>
           </div>
         } @else if (hint(); as message) {
           <div class="banner refused" role="alert">
             <span>{{ message }}</span>
             <span class="spacer"></span>
-            <a mat-button [routerLink]="changeLink(id())">Back to the change</a>
+            <a class="btn btn-link" [routerLink]="changeLink(id())">Back to the change</a>
           </div>
         } @else if (form(); as f) {
           <form [formGroup]="f" (ngSubmit)="publish()" novalidate>
             <section class="card block texts">
               <h2>Texts</h2>
-              <mat-form-field>
-                <mat-label>Short description</mat-label>
-                <input matInput formControlName="shortDescription" maxlength="160" />
-                <mat-hint align="end"
-                  >{{ f.controls.shortDescription.value.length }} / 160</mat-hint
+              <dso-form-field>
+                <dso-label>Short description</dso-label>
+                <input dsoInput formControlName="shortDescription" maxlength="160" />
+                <dso-hint class="length-hint"
+                  >{{ f.controls.shortDescription.value.length }} / 160</dso-hint
                 >
-                <mat-error>{{ errorText(f.controls.shortDescription) }}</mat-error>
-              </mat-form-field>
-              <mat-form-field>
-                <mat-label>Description</mat-label>
-                <textarea matInput rows="9" formControlName="description"></textarea>
-                <mat-hint align="end">{{ f.controls.description.value.length }} / 4000</mat-hint>
-                <mat-error>{{ errorText(f.controls.description) }}</mat-error>
-              </mat-form-field>
+                <dso-error>{{ errorText(f.controls.shortDescription) }}</dso-error>
+              </dso-form-field>
+              <dso-form-field>
+                <dso-label>Description</dso-label>
+                <textarea dsoInput rows="9" formControlName="description"></textarea>
+                <dso-hint class="length-hint"
+                  >{{ f.controls.description.value.length }} / 4000</dso-hint
+                >
+                <dso-error>{{ errorText(f.controls.description) }}</dso-error>
+              </dso-form-field>
             </section>
             <section class="fields" aria-labelledby="protech-fields">
               <h2 id="protech-fields">ProTech fields</h2>
@@ -166,16 +163,16 @@ export type EditForm = ReturnType<typeof editForm>;
               @if (failure(); as failed) {
                 <span class="save-error" role="alert">{{ failed.message }}</span>
                 @if (failed.reload) {
-                  <button mat-button type="button" (click)="reload()">Reload</button>
+                  <button type="button" class="btn btn-link" (click)="reload()">Reload</button>
                 }
               } @else if (f.dirty) {
                 <span class="muted">Unsaved changes</span>
               }
               <span class="spacer"></span>
-              <a mat-button [routerLink]="changeLink(id())">Cancel</a>
-              <button mat-flat-button type="submit" [disabled]="saving()">
+              <a class="btn btn-link" [routerLink]="changeLink(id())">Cancel</a>
+              <button type="submit" class="btn btn-primary" [disabled]="saving()">
                 @if (saving()) {
-                  <mat-spinner diameter="18" />
+                  <dso-spinner />
                 }
                 Publish to ProTech
               </button>
@@ -204,6 +201,11 @@ export type EditForm = ReturnType<typeof editForm>;
       textarea {
         font-family: var(--dso-mono);
         font-size: 12px;
+      }
+
+      .length-hint {
+        display: block;
+        text-align: end;
       }
     }
 

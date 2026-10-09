@@ -9,7 +9,6 @@ import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.details
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.BUTTON
-import static com.microsoft.playwright.options.AriaRole.OPTION
 
 class ChangeTemplateAdminSpec extends EditorSpecification {
 
@@ -34,22 +33,22 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         assertThat(hintOf(defaults(), 'Requested For')).hasText('left empty: the user who opens the change')
         assertThat(hintOf(defaults(), 'Assigned to')).hasText('left empty: the user who opens the change')
         assertThat(hintOf(defaults(), 'Department')).hasText('left empty: the department of the product')
-        assertThat(select(defaults(), 'Downtime')).hasText('No')
-        assertThat(select(defaults(), 'How many privileged accounts')).hasText('None')
+        assertThat(selected(defaults(), 'Downtime')).hasText('No')
+        assertThat(selected(defaults(), 'How many privileged accounts')).hasText('None')
         assertThat(defaults().locator('fieldset.account')).hasCount(0)
-        assertThat(select(defaults(), 'Number of BBH users impacted')).hasText('5-25')
-        assertThat(select(defaults(), 'Platform status')).hasText('Existing')
+        assertThat(selected(defaults(), 'Number of BBH users impacted')).hasText('5-25')
+        assertThat(selected(defaults(), 'Platform status')).hasText('Existing')
         assertThat(page.locator('.default-tasks h3')).hasText('Default change tasks')
         assertThat(taskRows().locator('.kind')).hasText(['Release Management', 'Change task'] as String[])
         assertThat(taskRows().locator('.chip')).hasCount(0)
-        assertThat(taskRows().nth(0).locator('mat-label')).hasText((RELEASE_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
-        assertThat(taskRows().nth(1).locator('mat-label')).hasText((OTHER_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
+        assertThat(taskRows().nth(0).locator('dso-label')).hasText((RELEASE_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
+        assertThat(taskRows().nth(1).locator('dso-label')).hasText((OTHER_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
         hasValues(taskRows().nth(0), ['Assignment group': 'Release Management', 'Affected CI': '', 'Application': 'CertScanner'])
-        assertThat(select(taskRows().nth(0), 'Platform')).hasText('None')
+        assertThat(selected(taskRows().nth(0), 'Platform')).hasText('None')
         hasValues(taskRows().nth(1), ['Assignment group' : 'Technology Architecture',
                                       'Short description': 'Validate CertScanner in production',
                                       'Description'      : CERT_TASKS[1].description])
-        assertThat(select(taskRows().nth(1), 'Importance')).hasText('3 - Moderate')
+        assertThat(selected(taskRows().nth(1), 'Importance')).hasText('3 - Moderate')
 
         when:
         fillIn(defaults(), ['Assignment group': 'Certificate Services', 'Installation hours': '3',
@@ -61,10 +60,10 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
 
         then:
         assertThat(input(defaults(), 'Problem')).hasValue('PRB0040319')
-        assertThat(page.getByRole(OPTION)).hasText(['Simple', 'Moderate', 'Very'] as String[])
+        assertThat(select(defaults(), 'Complexity of the change').locator('option')).hasText(['Simple', 'Moderate', 'Very'] as String[])
 
         when:
-        page.getByRole(OPTION, new Page.GetByRoleOptions().setName('Very').setExact(true)).click()
+        choose(defaults(), 'Complexity of the change', 'Very')
         choose(defaults(), 'How many privileged accounts', '2')
         fillIn(account(defaults(), 0), ['Person': 'Jane Smith', 'Privileged account': 'adm_jsmith'])
         fillIn(account(defaults(), 1), ['Person': 'Tom Brown', 'Privileged account': 'adm_tbrown'])
@@ -75,7 +74,7 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         assertThat(input(defaults(), 'Risk')).hasValue('High')
         assertThat(account(defaults(), 1).locator('legend')).hasText('Privileged account 2')
         assertThat(taskRows().nth(2).locator('.kind')).hasText('Release Management')
-        assertThat(taskRows().nth(2).locator('mat-label')).hasText((RELEASE_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
+        assertThat(taskRows().nth(2).locator('dso-label')).hasText((RELEASE_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
 
         when:
         lookUp(taskRows().nth(2), 'Assignment group', 'data', 'Data Movement - API')
@@ -86,7 +85,7 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
 
         then:
         assertThat(taskRows().nth(2).locator('.kind')).hasText('Change task')
-        assertThat(taskRows().nth(2).locator('mat-label')).hasText((OTHER_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
+        assertThat(taskRows().nth(2).locator('dso-label')).hasText((OTHER_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
         assertThat(input(taskRows().nth(0), 'Application')).hasValue('OCP')
         assertThat(input(taskRows().nth(0), 'Application')).isDisabled()
 
@@ -131,13 +130,13 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         then:
         hasValues(defaults(), ['Assignment group': 'Certificate Services', 'Person': 'Jane Smith',
                                'Privileged account': 'adm_jsmith', 'Risk': 'High'])
-        assertThat(select(defaults(), 'How many privileged accounts')).hasText('1')
-        assertThat(select(defaults(), 'Complexity of the change')).hasText('Very')
-        assertThat(select(defaults(), 'Downtime')).hasText('Yes')
+        assertThat(selected(defaults(), 'How many privileged accounts')).hasText('1')
+        assertThat(selected(defaults(), 'Complexity of the change')).hasText('Very')
+        assertThat(selected(defaults(), 'Downtime')).hasText('Yes')
         assertThat(taskRows().locator('.kind')).hasText(['Change task', 'Change task'] as String[])
         hasValues(taskRows().nth(0), ['Short description': 'Validate CertScanner in production'])
         hasValues(taskRows().nth(1), ['Assignment group': 'Data Movement - API'])
-        assertThat(select(taskRows().nth(1), 'Importance')).hasText('2 - High')
+        assertThat(selected(taskRows().nth(1), 'Importance')).hasText('2 - High')
 
         when:
         button('Remove change task 2', true).click()
@@ -157,8 +156,8 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         assertThat(page.locator('.banner.info')).containsText('Not saved yet')
         hasValues(defaults(), ['Jira project': 'PAYHUB', 'Assignment group': 'Payments Engineering',
                                'Affected CI' : 'Payments Hub', 'L1 approver': '', 'Risk': 'Low'])
-        assertThat(select(defaults(), 'Number of BBH users impacted')).hasText('Less than 5')
-        assertThat(select(defaults(), 'Business impact')).hasText('None')
+        assertThat(selected(defaults(), 'Number of BBH users impacted')).hasText('Less than 5')
+        assertThat(selected(defaults(), 'Business impact')).hasText('None')
         hasValues(taskRows().nth(0), ['Short description': 'Deploy Payments Hub to production'])
 
         when:
@@ -194,7 +193,7 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         assertThat(saveError()).hasCount(0)
         assertThat(page.locator('.banner.info')).hasCount(0)
         hasValues(defaults(), ['Installation start': '18:00'])
-        assertThat(select(defaults(), 'How many privileged accounts')).hasText('None')
+        assertThat(selected(defaults(), 'How many privileged accounts')).hasText('None')
 
         when:
         fillIn(defaults(), ['Backout plan': 'Switch the gateway back to the previous release.', 'Installation start': '19:30'])
@@ -228,7 +227,7 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         Page other = context.newPage()
         other.navigate(url(path))
         other.getByRole(BUTTON, new Page.GetByRoleOptions().setName('Save the template').setExact(true)).click()
-        assertThat(other.locator('mat-snack-bar-container')).containsText('is saved')
+        assertThat(other.locator('dso-toast')).containsText('is saved')
         other.close()
     }
 }

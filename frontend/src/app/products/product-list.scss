@@ -9,6 +9,7 @@
 
 .search {
   flex: 1 1 240px;
+  width: auto;
   max-width: 420px;
 }
 
@@ -71,16 +72,7 @@
   -webkit-line-clamp: 2;
   line-clamp: 2;
   font-size: 12px;
-}
-
-td.mat-mdc-cell {
-  padding-top: 5px;
-  padding-bottom: 5px;
-}
-
-.number {
-  text-align: right;
-  padding-right: 24px;
+  line-height: 1.4;
 }
 
 .pipelines {
@@ -92,45 +84,4 @@ td.mat-mdc-cell {
 .revoked {
   color: var(--dso-danger);
   font-size: 12px;
-}
-
-.mat-column-pipelines,
-.mat-column-updatedAt,
-.mat-column-services {
-  white-space: nowrap;
-}
-
-.mat-mdc-table {
-  width: 100%;
-}
-
-.mat-column-ownerTeam {
-  width: 200px;
-  min-width: 110px;
-}
-
-.mat-column-services {
-  width: 80px;
-}
-
-.mat-column-pipelines {
-  width: 200px;
-}
-
-.mat-column-updatedAt {
-  width: 110px;
-}
-
-.mat-column-product {
-  min-width: 200px;
-}
-
-@media (max-width: 700px) {
-  .mat-column-updatedAt {
-    display: none;
-  }
-
-  .number {
-    padding-right: 12px;
-  }
 }

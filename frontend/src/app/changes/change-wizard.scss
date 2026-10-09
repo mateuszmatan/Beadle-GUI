@@ -3,7 +3,7 @@
 }
 
 .step-bar {
-  grid-template-columns: repeat(10, minmax(0, 1fr));
+  grid-template-columns: repeat(11, minmax(0, 1fr));
 
   button {
     align-items: flex-start;
@@ -40,9 +40,19 @@
     width: 280px;
   }
 
-  button {
-    margin-top: 2px;
+  > .btn {
+    margin-top: 20px;
   }
+}
+
+.versions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 100%;
+  max-height: 260px;
+  margin-top: 2px;
+  overflow-y: auto;
 }
 
 .issue-actions {
@@ -65,10 +75,6 @@
   h4 {
     margin: 2px 0;
     font-size: 13px;
-  }
-
-  mat-checkbox {
-    display: block;
   }
 }
 
@@ -93,17 +99,22 @@
   .new-text {
     align-self: flex-start;
   }
+
+  .length-hint {
+    display: block;
+    text-align: end;
+  }
 }
 
 @media (max-width: 760px) {
   .step-bar {
-    grid-template-columns: repeat(10, auto);
+    grid-template-columns: repeat(11, auto);
   }
 }
 
 @media (max-width: 480px) {
   .step-bar {
-    grid-template-columns: repeat(10, minmax(0, 1fr));
+    grid-template-columns: repeat(11, minmax(0, 1fr));
     gap: 3px;
 
     button {

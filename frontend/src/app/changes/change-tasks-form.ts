@@ -1,7 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
 import { LookupKind } from '../core/models';
-import { Field, FieldOption, Fields, area, choice, line, mono } from '../shared/fields';
+import {
+  Field,
+  FieldOption,
+  Fields,
+  area,
+  choice,
+  formRevision,
+  line,
+  mono,
+} from '../shared/fields';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
 import { TASK_STATES, TaskState, labelOf } from './change-api';
@@ -19,7 +27,14 @@ import {
 
 const find = (kind: LookupKind) => ({ lookup: { kind } });
 
-const CHANGE_ONLY = ['number', 'changeNumber', 'approval', 'installationStart', 'installationEnd', 'start'];
+const CHANGE_ONLY = [
+  'number',
+  'changeNumber',
+  'approval',
+  'installationStart',
+  'installationEnd',
+  'start',
+];
 
 const NUMBER = mono('number', 'Number', '', 6, { placeholder: 'Given by ProTech when created' });
 const CHANGE = mono('changeNumber', 'Change number', '', 6);
@@ -94,7 +109,7 @@ export const TASK_LABELS: Record<string, string> = Object.fromEntries(
 
 @Component({
   selector: 'dso-change-tasks-form',
-  imports: [MatButtonModule, Fields],
+  imports: [Fields],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     @let list = tasks();
@@ -103,7 +118,9 @@ export const TASK_LABELS: Record<string, string> = Object.fromEntries(
         <li class="task-row" [class.closed]="isClosed(task)">
           <div class="task-head">
             <span class="index">{{ i + 1 }}</span>
-            <span class="kind">{{ isReleaseTask(task) ? 'Release Management' : 'Change task' }}</span>
+            <span class="kind">{{
+              isReleaseTask(task) ? 'Release Management' : 'Change task'
+            }}</span>
             @if (inChange()) {
               <span class="chip neutral">{{ stateLabel(task.controls.state.value) }}</span>
             }
@@ -112,9 +129,8 @@ export const TASK_LABELS: Record<string, string> = Object.fromEntries(
             }
             <span class="spacer"></span>
             <button
-              mat-button
               type="button"
-              class="danger"
+              class="btn btn-link danger"
               [attr.aria-label]="'Remove change task ' + (i + 1)"
               [disabled]="!canRemove(list, i)"
               (click)="remove(i)"
@@ -132,7 +148,12 @@ export const TASK_LABELS: Record<string, string> = Object.fromEntries(
       <p class="choice-error" role="alert">{{ errorText(list) }}</p>
     }
     <div class="task-actions">
-      <button mat-stroked-button type="button" [disabled]="list.length >= maxTasks" (click)="add()">
+      <button
+        type="button"
+        class="btn btn-outline-primary"
+        [disabled]="list.length >= maxTasks"
+        (click)="add()"
+      >
         Add a change task
       </button>
       <span class="muted">{{ counted(list.length, 'change task') }}</span>
@@ -188,6 +209,7 @@ export class ChangeTasksForm {
   readonly tasks = input.required<TasksForm>();
 
   private readonly lists = inject(ChangeOptionLists);
+  private readonly revision = formRevision(() => this.tasks());
 
   protected readonly maxTasks = MAX_TASKS;
   protected readonly errorText = errorText;
@@ -205,6 +227,7 @@ export class ChangeTasksForm {
   });
 
   protected fieldsOf(task: TaskForm): Field[] {
+    this.revision();
     const sets = this.fieldSets();
     return isReleaseTask(task) ? sets.release : sets.other;
   }

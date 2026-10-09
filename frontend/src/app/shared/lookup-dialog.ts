@@ -7,21 +7,15 @@ import {
   untracked,
 } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { DIALOG_DATA, Dialog, DialogRef } from '@angular/cdk/dialog';
 import { AbstractControl, FormControl, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import {
-  MAT_DIALOG_DATA,
-  MatDialog,
-  MatDialogModule,
-  MatDialogRef,
-} from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { Observable, debounceTime, distinctUntilChanged, map } from 'rxjs';
 import { LookupsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { LookupItem, LookupKind } from '../core/models';
+import { DIALOG } from '../ui/dialog';
+import { FORM_FIELD } from '../ui/form-field';
+import { DsoLoading } from '../ui/loading';
 import { commaItems } from './form-controls';
 
 export const LOOKUP_DELAY = 250;
@@ -57,43 +51,35 @@ export function pickInto(
 }
 
 export function openLookup(
-  dialog: MatDialog,
+  dialog: Dialog,
   data: LookupDialogData,
 ): Observable<LookupItem | undefined> {
-  return dialog
-    .open<LookupDialog, LookupDialogData, LookupItem>(LookupDialog, {
-      data,
-      width: '440px',
-      maxWidth: '92vw',
-    })
-    .afterClosed();
+  return dialog.open<LookupItem, LookupDialogData, LookupDialog>(LookupDialog, {
+    data,
+    width: '440px',
+  }).closed;
 }
 
 @Component({
   selector: 'dso-lookup-dialog',
-  imports: [
-    ReactiveFormsModule,
-    MatButtonModule,
-    MatDialogModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatProgressBarModule,
-  ],
+  imports: [ReactiveFormsModule, DIALOG, FORM_FIELD, DsoLoading],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2 mat-dialog-title>Find {{ data.label }}</h2>
-    <mat-dialog-content>
-      <mat-form-field class="search">
-        <mat-label>Search</mat-label>
+    <div class="modal-header">
+      <h2 dsoDialogTitle>Find {{ data.label }}</h2>
+    </div>
+    <div class="modal-body">
+      <dso-form-field class="search">
+        <dso-label>Search</dso-label>
         <input
-          matInput
+          dsoInput
           autocomplete="off"
           [formControl]="query"
           (keydown.enter)="pickFirst($event)"
         />
-      </mat-form-field>
+      </dso-form-field>
       @if (results.isLoading()) {
-        <mat-progress-bar mode="indeterminate" />
+        <dso-loading />
       }
       @if (results.error(); as error) {
         <p class="choice-error" role="alert">{{ errorMessage(error) }}</p>
@@ -116,10 +102,10 @@ export function openLookup(
           }
         </ul>
       }
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-    </mat-dialog-actions>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-link" dsoDialogClose>Cancel</button>
+    </div>
   `,
   styles: `
     .search {
@@ -176,8 +162,8 @@ export function openLookup(
   `,
 })
 export class LookupDialog {
-  protected readonly data = inject<LookupDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<LookupDialog, LookupItem>>(MatDialogRef);
+  protected readonly data = inject<LookupDialogData>(DIALOG_DATA);
+  private readonly ref = inject<DialogRef<LookupItem, LookupDialog>>(DialogRef);
   private readonly api = inject(LookupsApi);
 
   protected readonly errorMessage = errorMessage;
@@ -204,7 +190,7 @@ export class LookupDialog {
           this.entered.set(null);
           const first = this.results.hasValue() ? this.results.value()[0] : undefined;
           if (first) {
-            this.pick(first);
+            Promise.resolve().then(() => this.pick(first));
           }
         });
       }

@@ -1,11 +1,11 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { Department, ProductSummary } from '../core/models';
-import { buttonOf, text } from '../testing/dom';
+import { buttonOf, gridCell, gridHeaders, gridRows, settleGrid, text, toast } from '../testing/dom';
 import { department, product, productSummary } from '../testing/fixtures';
 import { ChangeProfileSummary } from '../changes/change-api';
 import { BeadleProducts } from './beadle-products';
@@ -55,12 +55,9 @@ describe('BeadleProducts', () => {
   const card = (name: string) =>
     cards().find((section) => text(section.querySelector('h2')) === name)!;
   const rowOf = (name: string) =>
-    [...page().querySelectorAll<HTMLElement>('tr.mat-mdc-row')].find(
-      (row) => text(row.querySelector('.name')) === name,
-    )!;
-  const cells = (name: string) => [...rowOf(name).querySelectorAll('td')].map((cell) => text(cell));
-  const snack = () =>
-    [...document.querySelectorAll('mat-snack-bar-container')].map((bar) => text(bar)).join(' ');
+    gridRows(page()).find((row) => text(row.querySelector('.name')) === name)!;
+  const cells = (name: string) => [...rowOf(name).querySelectorAll('.ag-cell')].map(text);
+  const snack = () => text(toast());
 
   async function load(
     products: ProductSummary[] = [productSummary(), payments],
@@ -99,11 +96,12 @@ describe('BeadleProducts', () => {
     ]);
     expect(text(card('Corporate Technology').querySelector('.tally'))).toBe('1 product');
     expect(text(page().querySelector('.count'))).toBe('2 products in 2 departments');
-    expect([...page().querySelectorAll('th')].map((th) => text(th)).slice(0, 3)).toEqual([
+    expect(gridHeaders(card('Fund Services'))).toEqual([
       'Product',
       'Owner team',
       'Change template',
     ]);
+    expect(rowOf('CertScanner').classList).toContain('clickable');
     expect(cells('CertScanner')).toEqual([
       'CertScannerCERT',
       'Technology Architecture',
@@ -115,7 +113,14 @@ describe('BeadleProducts', () => {
       '/beadle/admin/products/1',
     );
 
-    rowOf('Payments Hub').click();
+    const follow = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    rowOf('CertScanner').querySelector<HTMLAnchorElement>('a.name')!.click();
+    await settleGrid();
+    expect(String(follow.mock.calls[0][0])).toBe('/beadle/admin/products/1');
+    expect(navigate).not.toHaveBeenCalled();
+
+    gridCell(rowOf('Payments Hub'), 'ownerTeam').click();
+    await settleGrid();
     expect(navigate).toHaveBeenCalledWith(['/beadle/admin/products', 2]);
   });
 
@@ -123,7 +128,7 @@ describe('BeadleProducts', () => {
     await load(undefined, undefined, null);
 
     expect(page().querySelector('.banner')).toBeNull();
-    const state = rowOf('CertScanner').querySelector('.mat-column-template span')!;
+    const state = gridCell(rowOf('CertScanner'), 'template').querySelector('dso-grid-cell span')!;
     expect(text(state)).toBe('Unknown');
     expect(state.getAttribute('title')).toBe('The change templates are not available');
   });
@@ -182,11 +187,9 @@ describe('BeadleProducts', () => {
   it('adds a product from the toolbar or a department card and opens it', async () => {
     await load();
     const created = product({ id: 7, name: 'Trade Archive' });
-    const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
+    const open = vi.spyOn(TestBed.inject(Dialog), 'open');
     [undefined, created].forEach((result) =>
-      open.mockReturnValueOnce({
-        afterClosed: () => of(result),
-      } as unknown as MatDialogRef<unknown>),
+      open.mockReturnValueOnce({ closed: of(result) } as unknown as DialogRef<unknown>),
     );
 
     buttonOf(page().querySelector('.toolbar')!, 'Add product').click();
@@ -200,6 +203,7 @@ describe('BeadleProducts', () => {
 
     buttonOf(card('Fund Services'), 'Add product').click();
     expect(open.mock.calls[1][1]?.data).toMatchObject({ departmentId: 5 });
+    await fixture.whenStable();
     expect(snack()).toContain('Trade Archive added');
     expect(navigate).toHaveBeenCalledWith(['/beadle/admin/products', 7]);
   });

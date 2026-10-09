@@ -38,7 +38,7 @@ class ChangesSpec extends EditorSpecification {
         then:
         assertThat(numbers()).hasText(['CHG0031001', 'CHG0030995', 'CHG0030990'] as String[])
         awaitRequest('GET', '/api/changes').params() == [departmentId: '3']
-        assertThat(page.locator('tr.mat-mdc-header-row').first().locator('th'))
+        assertThat(gridHeaders())
                 .hasText(['Change', 'Product', 'FixVersion', 'State', 'Installation', 'Short description', 'Tasks', 'Raised', ''] as String[])
         assertThat(column('state')).hasText(['Secondary Approval', 'Implementation', 'Closed'] as String[])
         assertThat(column('tasks')).hasText(['2', '2', '2'] as String[])
@@ -56,21 +56,21 @@ class ChangesSpec extends EditorSpecification {
 
         when:
         filter('FixVersion').fill('')
-        choose(page.locator('tr.filters'), 'Filter by state', 'Closed')
+        choose(page.locator('dso-grid'), 'Filter by state', 'Closed')
 
         then:
         assertThat(numbers()).hasText(['CHG0030990'] as String[])
 
         when:
-        choose(page.locator('tr.filters'), 'Filter by state', 'Open')
+        choose(page.locator('dso-grid'), 'Filter by state', 'Open')
         filter('short description').fill('no such change')
 
         then:
-        assertThat(page.locator('.no-match')).hasText('No change matches the filters.')
+        assertThat(page.locator('.dso-grid-empty')).hasText('No change matches the filters.')
 
         when:
         filter('short description').fill('')
-        choose(page.locator('tr.filters'), 'Filter by state', 'All')
+        choose(page.locator('dso-grid'), 'Filter by state', 'All')
         sortBy('State')
 
         then:
@@ -86,7 +86,7 @@ class ChangesSpec extends EditorSpecification {
         open('/beadle/changes')
 
         then:
-        assertThat(select(page.locator('.toolbar'), 'Your department')).hasText('Corporate Technology')
+        assertThat(selected(page.locator('.toolbar'), 'Your department')).hasText('Corporate Technology')
         assertThat(numbers()).hasText(['CHG0031001', 'CHG0030995', 'CHG0030990'] as String[])
 
         when:
@@ -114,7 +114,7 @@ class ChangesSpec extends EditorSpecification {
         page.waitForURL('**/beadle/new-change')
 
         then:
-        assertThat(select(page.locator('section.step'), 'Your department')).hasText('Fund Services')
+        assertThat(selected(page.locator('section.step'), 'Your department')).hasText('Fund Services')
         assertThat(hintOf(page.locator('section.step'), 'Product')).hasText('1 product in the department')
         ownErrors().isEmpty()
     }
@@ -123,7 +123,7 @@ class ChangesSpec extends EditorSpecification {
         when:
         open('/beadle/changes')
         choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
-        holdingText(page.locator('tbody tr'), 'CHG0031001').locator('td.mat-column-product').click()
+        gridCell(gridRow(page.locator('body'), 'CHG0031001'), 'product').click()
         page.waitForURL('**/beadle/changes/4')
 
         then:
@@ -195,7 +195,7 @@ class ChangesSpec extends EditorSpecification {
         hasValues(schedule(), ['Installation start'           : "${date}T17:00", 'Installation hours': '2',
                                'Post-install validation start': "${date}T19:00", 'Validation hours': '1',
                                'First use'                    : "${date}T20:00"])
-        assertThat(select(schedule(), 'Downtime')).hasText('No')
+        assertThat(selected(schedule(), 'Downtime')).hasText('No')
         hasValues(fields(), ['L1 approver': 'Olivia Bennett'])
         assertThat(input(fields(), 'Jira project')).hasCount(0)
         hasTaskNumbers('CTASK0310011', 'CTASK0310012')
@@ -206,8 +206,8 @@ class ChangesSpec extends EditorSpecification {
                                        'Installation start': "${date}T17:00", 'Installation end': "${date}T19:00",
                                        'Task start'        : "${date}T17:01", 'Affected CI': 'CertScanner',
                                        'Application'       : 'CertScanner'])
-        assertThat(select(taskRows().first(), 'Platform')).hasText('None')
-        assertThat(select(taskRows().nth(1), 'Importance')).hasText('3 - Moderate')
+        assertThat(selected(taskRows().first(), 'Platform')).hasText('None')
+        assertThat(selected(taskRows().nth(1), 'Importance')).hasText('3 - Moderate')
 
         when:
         input(request(), 'Assignment group').fill('Certificate Services')
@@ -286,7 +286,7 @@ class ChangesSpec extends EditorSpecification {
         then:
         hasTaskNumbers('CTASK0310011', 'CTASK0320001')
         hasValues(taskRows().first(), ['Task start': "${date}T17:30", 'Packages': 'certscanner-4.1.0.jar'])
-        assertThat(select(taskRows().first(), 'Platform')).hasText('Distributed')
+        assertThat(selected(taskRows().first(), 'Platform')).hasText('Distributed')
         hasValues(schedule(), ['Downtime start': "${date}T17:00", 'Downtime hours': '1'])
         ownErrors().isEmpty()
     }
@@ -430,15 +430,15 @@ class ChangesSpec extends EditorSpecification {
     }
 
     Locator column(String name) {
-        page.locator("tbody td.mat-column-${name}")
+        gridCells(page.locator('body'), name)
     }
 
     Locator filter(String label) {
-        page.locator("input[aria-label='Filter by ${label}']")
+        gridFilter(label)
     }
 
     void sortBy(String label) {
-        holdingText(page.locator('th[mat-sort-header]'), label).click()
+        holdingText(gridHeaders(), label).locator('.ag-header-cell-label').click()
     }
 
     Locator stages() {

@@ -1,12 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { Dialog } from '@angular/cdk/dialog';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatTableModule } from '@angular/material/table';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, filter, map } from 'rxjs';
 import { ChangesApi } from '../changes/change-api';
@@ -17,6 +12,9 @@ import { Notifier } from '../core/notifier';
 import { beadleProduct } from '../core/sections';
 import { DepartmentGroup, byDepartment } from '../products/departments';
 import { RelativeTimePipe, counted } from '../shared/formatting';
+import { DsoInput } from '../ui/form-field';
+import { GRID, GridColumn } from '../ui/grid';
+import { DsoLoading } from '../ui/loading';
 import { ProductDialog, ProductDialogData } from './product-dialog';
 
 function tally(group: DepartmentGroup): string {
@@ -25,16 +23,7 @@ function tally(group: DepartmentGroup): string {
 
 @Component({
   selector: 'dso-beadle-products',
-  imports: [
-    ReactiveFormsModule,
-    RouterLink,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatProgressBarModule,
-    MatTableModule,
-    RelativeTimePipe,
-  ],
+  imports: [ReactiveFormsModule, RouterLink, DsoInput, GRID, DsoLoading, RelativeTimePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './beadle-products.html',
   styleUrl: './beadle-products.scss',
@@ -43,12 +32,23 @@ export class BeadleProducts {
   private readonly api = inject(ProductsApi);
   private readonly departmentsApi = inject(DepartmentsApi);
   private readonly changesApi = inject(ChangesApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(Dialog);
   private readonly notifier = inject(Notifier);
   private readonly router = inject(Router);
 
   protected readonly beadleProduct = beadleProduct;
-  protected readonly columns = ['product', 'ownerTeam', 'template'];
+  protected readonly productId = (product: ProductSummary) => product.id;
+  protected readonly clickable = () => 'clickable';
+  protected readonly columns: GridColumn<ProductSummary>[] = [
+    { key: 'product', header: 'Product', value: (product) => product.name, minWidth: 200 },
+    {
+      key: 'ownerTeam',
+      header: 'Owner team',
+      value: (product) => product.ownerTeam ?? '–',
+      width: 220,
+    },
+    { key: 'template', header: 'Change template', width: 280 },
+  ];
   protected readonly search = new FormControl('', { nonNullable: true });
   protected readonly query = toSignal(
     this.search.valueChanges.pipe(
@@ -105,15 +105,14 @@ export class BeadleProducts {
 
   protected add(departmentId: number | null = null): void {
     this.dialog
-      .open<ProductDialog, ProductDialogData, Product>(ProductDialog, {
+      .open<Product, ProductDialogData, ProductDialog>(ProductDialog, {
         data: {
           departments: this.departments.hasValue() ? this.departments.value() : [],
           departmentId,
           product: null,
         },
       })
-      .afterClosed()
-      .pipe(filter((product): product is Product => !!product))
+      .closed.pipe(filter((product): product is Product => !!product))
       .subscribe((product) => {
         this.notifier.success(`${product.name} added`);
         this.router.navigate(beadleProduct(product.id));

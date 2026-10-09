@@ -7,7 +7,7 @@ import {
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormGroup } from '@angular/forms';
-import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { DIALOG_DATA, Dialog, DialogRef } from '@angular/cdk/dialog';
 import { of } from 'rxjs';
 import { LookupItem } from '../core/models';
 import { buttonOf, fieldOf, text } from '../testing/dom';
@@ -33,10 +33,10 @@ describe('LookupDialog', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         {
-          provide: MAT_DIALOG_DATA,
+          provide: DIALOG_DATA,
           useValue: { kind: 'configuration-items', label: 'Affected CI' },
         },
-        { provide: MatDialogRef, useValue: { close } },
+        { provide: DialogRef, useValue: { close } },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -179,9 +179,9 @@ describe('Fields with a lookup', () => {
   });
 
   function picking(result: LookupItem | undefined) {
-    return vi.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
-      afterClosed: () => of(result),
-    } as unknown as MatDialogRef<unknown>);
+    return vi.spyOn(TestBed.inject(Dialog), 'open').mockReturnValue({
+      closed: of(result),
+    } as unknown as DialogRef<unknown>);
   }
 
   it('puts a magnifier on the fields with a lookup only', () => {
@@ -191,7 +191,7 @@ describe('Fields with a lookup', () => {
       'Find Affected CI',
       'Find Affected clients',
     ]);
-    expect(text(magnifiers[0].querySelector('mat-icon'))).toBe('search');
+    expect(magnifiers[0].querySelector('svg-icon')?.getAttribute('name')).toBe('search');
     expect(fieldOf(page(), 'Direct business service')?.querySelector('input')?.readOnly).toBe(true);
     expect(fieldOf(page(), 'Direct business service')?.classList).toContain('read-only');
   });
@@ -211,8 +211,8 @@ describe('Fields with a lookup', () => {
     expect(group().controls.configurationItem.dirty).toBe(true);
 
     open.mockReturnValue({
-      afterClosed: () => of(item('Asset Servicing')),
-    } as unknown as MatDialogRef<unknown>);
+      closed: of(item('Asset Servicing')),
+    } as unknown as DialogRef<unknown>);
     buttonOf(page(), 'Find Affected clients').click();
     expect(group().controls.affectedClients.value).toBe('Funds, Asset Servicing');
   });

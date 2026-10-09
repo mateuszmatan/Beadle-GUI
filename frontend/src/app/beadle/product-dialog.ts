@@ -1,12 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import {
   Observable,
   catchError,
@@ -23,6 +19,8 @@ import { errorMessage, fieldProblems } from '../core/errors';
 import { Department, PRODUCT_CODE } from '../core/models';
 import { applyFieldProblems, filled, max, optional, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
+import { DIALOG } from '../ui/dialog';
+import { FORM_FIELD } from '../ui/form-field';
 import { ProductDetails, ProductDetailsApi } from './product-details-api';
 
 export interface ProductDialogData {
@@ -37,88 +35,83 @@ const CODE_HELP = "Start with a letter; use A-Z, 0-9, '-' or '_'";
 
 @Component({
   selector: 'dso-product-dialog',
-  imports: [
-    ReactiveFormsModule,
-    MatButtonModule,
-    MatDialogModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-  ],
+  imports: [ReactiveFormsModule, DIALOG, FORM_FIELD],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2 mat-dialog-title>{{ product ? 'Change ' + product.name : 'Add product' }}</h2>
+    <div class="modal-header">
+      <h2 dsoDialogTitle>{{ product ? 'Change ' + product.name : 'Add product' }}</h2>
+    </div>
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
-      <mat-dialog-content>
+      <div class="modal-body">
         @if (!product) {
           <p class="intro">Add its change template on the product's page.</p>
         }
         <div class="fields">
-          <mat-form-field>
-            <mat-label>Product name</mat-label>
+          <dso-form-field>
+            <dso-label>Product name</dso-label>
             <input
-              matInput
+              dsoInput
               formControlName="name"
               placeholder="CertScanner"
               autocomplete="off"
               required
             />
-            <mat-error>{{ errorText(form.controls.name) }}</mat-error>
-          </mat-form-field>
+            <dso-error>{{ errorText(form.controls.name) }}</dso-error>
+          </dso-form-field>
           @if (!product) {
-            <mat-form-field>
-              <mat-label>Code</mat-label>
+            <dso-form-field>
+              <dso-label>Code</dso-label>
               <input
-                matInput
+                dsoInput
                 class="mono"
                 formControlName="code"
                 placeholder="CERTSCANNER"
                 autocomplete="off"
                 required
               />
-              <mat-hint>Made from the name; you can change it</mat-hint>
-              <mat-error>{{ errorText(form.controls.code, codeHelp) }}</mat-error>
-            </mat-form-field>
+              <dso-hint>Made from the name; you can change it</dso-hint>
+              <dso-error>{{ errorText(form.controls.code, codeHelp) }}</dso-error>
+            </dso-form-field>
           }
-          <mat-form-field>
-            <mat-label>Department</mat-label>
-            <mat-select formControlName="departmentId" required>
+          <dso-form-field>
+            <dso-label>Department</dso-label>
+            <select dsoInput formControlName="departmentId" required>
               @for (department of data.departments; track department.id) {
-                <mat-option [value]="department.id">{{ department.name }}</mat-option>
+                <option [ngValue]="department.id">{{ department.name }}</option>
               }
-            </mat-select>
-            <mat-error>{{ errorText(form.controls.departmentId) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Owner team</mat-label>
-            <input matInput formControlName="ownerTeam" placeholder="Technology Architecture" />
-            <mat-error>{{ errorText(form.controls.ownerTeam) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Contact e-mail</mat-label>
+            </select>
+            <dso-error>{{ errorText(form.controls.departmentId) }}</dso-error>
+          </dso-form-field>
+          <dso-form-field>
+            <dso-label>Owner team</dso-label>
+            <input dsoInput formControlName="ownerTeam" placeholder="Technology Architecture" />
+            <dso-error>{{ errorText(form.controls.ownerTeam) }}</dso-error>
+          </dso-form-field>
+          <dso-form-field>
+            <dso-label>Contact e-mail</dso-label>
             <input
-              matInput
+              dsoInput
               type="email"
               formControlName="contactEmail"
               placeholder="team@bbh.com"
             />
-            <mat-error>{{ errorText(form.controls.contactEmail) }}</mat-error>
-          </mat-form-field>
+            <dso-error>{{ errorText(form.controls.contactEmail) }}</dso-error>
+          </dso-form-field>
         </div>
         @if (error(); as message) {
           <div class="banner" role="alert">{{ message }}</div>
         }
-      </mat-dialog-content>
-      <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancel</button>
-        <button mat-flat-button type="submit" [disabled]="saving()">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link" dsoDialogClose>Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="saving()">
           {{ product ? 'Save' : 'Add product' }}
         </button>
-      </mat-dialog-actions>
+      </div>
     </form>
   `,
   styles: `
-    mat-dialog-content {
+    .modal-body {
       width: min(560px, 80vw);
     }
 
@@ -146,9 +139,8 @@ const CODE_HELP = "Start with a letter; use A-Z, 0-9, '-' or '_'";
   `,
 })
 export class ProductDialog {
-  protected readonly data = inject<ProductDialogData>(MAT_DIALOG_DATA);
-  private readonly dialogRef =
-    inject<MatDialogRef<ProductDialog, ProductDialogResult>>(MatDialogRef);
+  protected readonly data = inject<ProductDialogData>(DIALOG_DATA);
+  private readonly dialogRef = inject<DialogRef<ProductDialogResult, ProductDialog>>(DialogRef);
   private readonly api = inject(ProductsApi);
   private readonly detailsApi = inject(ProductDetailsApi);
 

@@ -4,8 +4,8 @@ import {
   TestRequest,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
+import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { MY_DEPARTMENT_KEY, MyDepartment } from '../beadle/my-department';
@@ -22,7 +22,7 @@ import {
   story,
   taskDetails,
 } from '../testing/change-fixtures';
-import { buttonOf, fieldOf, inputOf, text } from '../testing/dom';
+import { buttonOf, choose, fieldOf, inputOf, optionsOf, selectOf, text } from '../testing/dom';
 import { department, productSummary } from '../testing/fixtures';
 import { isoDate } from './change-model';
 import { localInput } from './change-schedule-model';
@@ -98,12 +98,9 @@ describe('ChangeWizard', () => {
   }
 
   async function chooseOption(label: string, option: string) {
-    fieldOf(page(), label)!.querySelector<HTMLElement>('mat-select')!.click();
-    await settle();
-    const panels = document.querySelectorAll('.mat-mdc-select-panel');
-    const options = [...panels[panels.length - 1].querySelectorAll<HTMLElement>('mat-option')];
-    const choices = options.map(text);
-    options.find((element) => text(element) === option)!.click();
+    const select = selectOf(page(), label);
+    const choices = optionsOf(select);
+    choose(select, option);
     await settle();
     return choices;
   }
@@ -116,9 +113,9 @@ describe('ChangeWizard', () => {
   }
 
   function picking(item: LookupItem) {
-    vi.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
-      afterClosed: () => of(item),
-    } as unknown as MatDialogRef<unknown>);
+    vi.spyOn(TestBed.inject(Dialog), 'open').mockReturnValue({
+      closed: of(item),
+    } as unknown as DialogRef<unknown>);
   }
 
   async function chooseCertScanner(profile = changeProfile()) {
@@ -214,7 +211,7 @@ describe('ChangeWizard', () => {
     expect(await chooseOption('Your department', 'Corporate Technology')).toEqual([
       'Corporate Technology',
     ]);
-    expect(text(fieldOf(page(), 'Your department')?.querySelector('.mat-mdc-select-value'))).toBe(
+    expect(text(selectOf(page(), 'Your department').selectedOptions[0])).toBe(
       'Corporate Technology',
     );
     expect(wizard()['departmentId'].value).toBe(3);
@@ -223,7 +220,7 @@ describe('ChangeWizard', () => {
         ['productsInDepartment']()
         .map((p) => p.name),
     ).toEqual(['CertScanner']);
-    expect(text(fieldOf(page(), 'Product')?.querySelector('mat-hint'))).toBe(
+    expect(text(fieldOf(page(), 'Product')?.querySelector('dso-hint'))).toBe(
       '1 product in the department',
     );
 
@@ -288,7 +285,7 @@ describe('ChangeWizard', () => {
     await next();
     expect(wizard()['step']()).toBe(0);
     expect(text(page().querySelector('.step-problem'))).toBe('Some fields need your attention.');
-    expect(text(fieldOf(page(), 'Assignment group')?.querySelector('mat-error'))).toBe('Required');
+    expect(text(fieldOf(page(), 'Assignment group')?.querySelector('dso-error'))).toBe('Required');
   });
 
   it('raises a change from the request data, the Jira scope, the schedule and the other sections', async () => {
@@ -452,9 +449,7 @@ describe('ChangeWizard', () => {
     ]);
     expect(inputOf(rows()[0], 'Change number').value).toBe('CHG0012345');
     expect(inputOf(rows()[0], 'Affected CI').value).toBe('Payments Hub');
-    expect(tasks.at(0).controls.start.value).toBe(
-      localInput(new Date('2026-10-10T06:01:00Z')),
-    );
+    expect(tasks.at(0).controls.start.value).toBe(localInput(new Date('2026-10-10T06:01:00Z')));
     tasks.at(1).controls.details.controls.shortDescription.setValue(' ');
     await next();
     expect(wizard()['step']()).toBe(9);
@@ -598,10 +593,9 @@ describe('ChangeWizard', () => {
     await type('Description', 'Mine');
     wizard()['shortDescription'].setValue('é'.repeat(81));
     expect(wizard()['shortDescription'].hasError('bytes')).toBe(true);
-    wizard()['shortDescription'].setValue('é'.repeat(80));
+    await type('Short description', 'é'.repeat(80));
     expect(wizard()['shortDescription'].valid).toBe(true);
-    await settle();
-    expect(text(fieldOf(page(), 'Short description')?.querySelector('mat-hint'))).toBe('160 / 160');
+    expect(text(fieldOf(page(), 'Short description')?.querySelector('dso-hint'))).toBe('160 / 160');
 
     wizard()['back']();
     await next();
@@ -820,9 +814,73 @@ describe('ChangeWizard', () => {
     expect(wizard().hasUnsavedChanges()).toBe(true);
   });
 
+  it('lists the matching FixVersions under the field and picks one with the keyboard or the mouse', async () => {
+    await chooseCertScanner();
+    await next();
+    const input = inputOf(page(), 'FixVersion');
+    const list = () => page().querySelector('[role="listbox"]');
+    const options = () => [...page().querySelectorAll<HTMLElement>('[role="option"]')];
+    const active = () => input.getAttribute('aria-activedescendant');
+    async function press(key: string) {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key }));
+      await settle();
+    }
+    expect(input.getAttribute('role')).toBe('combobox');
+    expect(input.getAttribute('aria-expanded')).toBe('false');
+    expect(list()).toBeNull();
+
+    input.dispatchEvent(new Event('focus'));
+    await settle();
+    expect(options().map(text)).toEqual([
+      'CERT 4.2 · unreleased · 2030-10-20',
+      'CERT 4.3 · unreleased · 2030-12-01',
+      'CERT 4.1 · released · 2026-09-01',
+    ]);
+    expect(input.getAttribute('aria-expanded')).toBe('true');
+    expect(input.getAttribute('aria-controls')).toBe(list()!.id);
+    expect(active()).toBeNull();
+
+    await press('ArrowUp');
+    expect(active()).toBe(options()[2].id);
+    await press('ArrowDown');
+    expect(active()).toBe(options()[0].id);
+    await press('ArrowDown');
+    expect(options().map((option) => option.getAttribute('aria-selected'))).toEqual([
+      'false',
+      'true',
+      'false',
+    ]);
+    await press('Enter');
+    expect(wizard()['fixVersion'].value).toBe('CERT 4.3');
+    expect(list()).toBeNull();
+    expect(jira('epics').request.params.get('fixVersion')).toBe('CERT 4.3');
+
+    await type('FixVersion', '4.1');
+    expect(options().map(text)).toEqual(['CERT 4.1 · released · 2026-09-01']);
+    await press('Escape');
+    expect(list()).toBeNull();
+    await press('ArrowDown');
+    expect(active()).toBeNull();
+    options()[0].click();
+    await settle();
+    expect(wizard()['fixVersion'].value).toBe('CERT 4.1');
+    expect(list()).toBeNull();
+    expect(jira('epics').request.params.get('fixVersion')).toBe('CERT 4.1');
+
+    await type('FixVersion', 'CERT 9');
+    expect(list()).toBeNull();
+    await press('Enter');
+    expect(jira('epics').request.params.get('fixVersion')).toBe('CERT 9');
+    await type('FixVersion', 'CERT');
+    expect(options().length).toBe(3);
+    input.dispatchEvent(new Event('blur'));
+    await settle();
+    expect(list()).toBeNull();
+  });
+
   it('plans the schedule from the release date, moves the later windows along and refuses times out of order', async () => {
     await toSchedule();
-    expect(text(fieldOf(page(), 'Installation hours')?.querySelector('mat-hint'))).toBe(
+    expect(text(fieldOf(page(), 'Installation hours')?.querySelector('dso-hint'))).toBe(
       'until Sun, 20 Oct 2030, 20:00',
     );
 
@@ -961,10 +1019,8 @@ describe('ChangeWizard of a chosen department', () => {
     await settled(fixture);
 
     const page = fixture.nativeElement as HTMLElement;
-    expect(text(fieldOf(page, 'Your department')?.querySelector('.mat-mdc-select-value'))).toBe(
-      'Corporate Technology',
-    );
-    expect(text(fieldOf(page, 'Product')?.querySelector('mat-hint'))).toBe(
+    expect(text(selectOf(page, 'Your department').selectedOptions[0])).toBe('Corporate Technology');
+    expect(text(fieldOf(page, 'Product')?.querySelector('dso-hint'))).toBe(
       '1 product in the department',
     );
     http.verify();

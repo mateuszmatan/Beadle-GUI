@@ -20,7 +20,7 @@ describe('ChangeTasksForm', () => {
   const page = () => fixture.nativeElement as HTMLElement;
   const rows = () => [...page().querySelectorAll<HTMLElement>('.task-row')];
   const labels = (row: HTMLElement) =>
-    [...row.querySelectorAll('mat-label')].map((label) => text(label));
+    [...row.querySelectorAll('dso-label')].map((label) => text(label));
   const window = () => taskWindow('CHG0012345', changeSchedule());
 
   async function render(form: TasksForm) {
@@ -136,7 +136,9 @@ describe('ChangeTasksForm', () => {
   });
 
   it('keeps a closed task as it is', async () => {
-    await render(tasksForm([changeTask({ state: 'CLOSED' }), changeTask({ number: null })], window()));
+    await render(
+      tasksForm([changeTask({ state: 'CLOSED' }), changeTask({ number: null })], window()),
+    );
 
     expect(text(rows()[0].querySelector('.task-head'))).toBe(
       '1Change taskClosedClosed in ProTech, so it stays as it is Remove',

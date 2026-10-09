@@ -9,10 +9,20 @@ import {
   changeUpdate,
   productionChange,
 } from '../testing/change-fixtures';
-import { text } from '../testing/dom';
+import {
+  choose,
+  gridCell,
+  gridColumn,
+  gridFilter,
+  gridHeaders,
+  gridRows,
+  selectOf,
+  sortBy,
+  text,
+} from '../testing/dom';
 import { department } from '../testing/fixtures';
 import { ProductionChange } from './change-api';
-import { ChangeFilters, ChangesList, changeRow, matches, sorted } from './changes-list';
+import { ChangeFilters, ChangesList, changeRow, matches } from './changes-list';
 
 const zoneNote = `Times are in your time zone, ${Intl.DateTimeFormat().resolvedOptions().timeZone}.`;
 
@@ -87,35 +97,6 @@ describe('the rows of the changes table', () => {
     expect(filtered({ installation: 'nov' })).toEqual(['CHG0012347']);
     expect(filtered({ shortDescription: 'nothing like it' })).toEqual([]);
   });
-
-  it('sorts the state by the workflow and the installation and raise by time', () => {
-    expect(numbers(sorted(rows, { active: 'state', direction: 'asc' }))).toEqual([
-      'CHG0012347',
-      'CHG0012345',
-      'CHG0012346',
-    ]);
-    expect(numbers(sorted(rows, { active: 'state', direction: 'desc' }))).toEqual([
-      'CHG0012346',
-      'CHG0012345',
-      'CHG0012347',
-    ]);
-    expect(numbers(sorted(rows, { active: 'installation', direction: 'asc' }))).toEqual([
-      'CHG0012346',
-      'CHG0012345',
-      'CHG0012347',
-    ]);
-    expect(numbers(sorted(rows, { active: 'raised', direction: 'desc' }))).toEqual([
-      'CHG0012347',
-      'CHG0012345',
-      'CHG0012346',
-    ]);
-    expect(numbers(sorted(rows, { active: 'product', direction: 'desc' }))).toEqual([
-      'CHG0012346',
-      'CHG0012345',
-      'CHG0012347',
-    ]);
-    expect(numbers(sorted(rows, { active: 'tasks', direction: '' }))).toEqual(numbers(rows));
-  });
 });
 
 describe('ChangesList', () => {
@@ -123,7 +104,9 @@ describe('ChangesList', () => {
   let fixture: ComponentFixture<ChangesList>;
 
   const page = () => fixture.nativeElement as HTMLElement;
-  const shownNumbers = () => [...page().querySelectorAll('tbody tr td:first-child')].map(text);
+  const shownNumbers = () => gridColumn(page(), 'number');
+  const cells = (row: HTMLElement, ...columns: string[]) =>
+    columns.map((column) => text(gridCell(row, column)));
 
   async function settle() {
     TestBed.tick();
@@ -153,24 +136,31 @@ describe('ChangesList', () => {
     await settle();
   }
 
-  async function choose(label: string, option: string) {
-    const select = [...page().querySelectorAll<HTMLElement>('mat-select')].find(
-      (element) =>
-        element.getAttribute('aria-label') === label ||
-        text(element.closest('mat-form-field')?.querySelector('mat-label')) === label,
-    )!;
-    select.click();
-    await settle();
-    [...document.querySelectorAll<HTMLElement>('mat-option')]
-      .find((element) => text(element) === option)!
-      .click();
+  async function pick(select: HTMLSelectElement, option: string) {
+    choose(select, option);
     await settle();
   }
 
+  const chooseDepartment = (option: string) => pick(selectOf(page(), 'Your department'), option);
+  const state = (option: string) => pick(gridFilter(page(), 'state'), option);
+
   async function filter(label: string, value: string) {
-    const input = page().querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
+    const input = gridFilter(page(), label);
     input.value = value;
     input.dispatchEvent(new Event('input'));
+    await settle();
+  }
+
+  async function sort(column: string, clicks = 1) {
+    for (let click = 0; click < clicks; click++) {
+      await sortBy(page(), column);
+    }
+    return shownNumbers();
+  }
+
+  async function listed() {
+    await open('3');
+    http.expectOne('/api/changes?departmentId=3').flush([certScanner, payments, draft]);
     await settle();
   }
 
@@ -186,12 +176,12 @@ describe('ChangesList', () => {
     expect(text(page().querySelector('.empty-state h3'))).toBe(
       'Choose your department to see its ProTech changes.',
     );
-    expect(page().querySelector('table')).toBeNull();
+    expect(page().querySelector('dso-grid')).toBeNull();
     expect(text(page().querySelector('dso-integration-note'))).toContain(
       'ProTech is not connected yet',
     );
 
-    await choose('Your department', 'Fund Services');
+    await chooseDepartment('Fund Services');
     expect(localStorage.getItem(MY_DEPARTMENT_KEY)).toBe('5');
     http.expectOne('/api/changes?departmentId=5').flush([]);
     await settle();
@@ -200,14 +190,16 @@ describe('ChangesList', () => {
       'No ProTech change of Fund Services yet',
     );
     expect(page().querySelector('.empty-state a')?.getAttribute('href')).toBe('/beadle/new-change');
+    expect(page().querySelector('dso-grid')?.closest('section')?.hidden).toBe(true);
   });
 
   it('lists the changes of the remembered department with their state, tasks and an edit link when open', async () => {
-    await open('3');
-    http.expectOne('/api/changes?departmentId=3').flush([certScanner, payments, draft]);
-    await settle();
+    await listed();
 
-    expect([...page().querySelectorAll('thead tr:first-child th')].map(text)).toEqual([
+    expect(text(selectOf(page(), 'Your department').selectedOptions[0])).toBe(
+      'Corporate Technology',
+    );
+    expect(gridHeaders(page())).toEqual([
       'Change',
       'Product',
       'FixVersion',
@@ -218,8 +210,19 @@ describe('ChangesList', () => {
       'Raised',
       '',
     ]);
-    const cells = [...page().querySelectorAll('tbody tr:first-child td')].map(text);
-    expect(cells.slice(0, 7)).toEqual([
+    const [first, second] = gridRows(page());
+    expect(
+      cells(
+        first,
+        'number',
+        'product',
+        'fixVersion',
+        'state',
+        'installation',
+        'shortDescription',
+        'tasks',
+      ),
+    ).toEqual([
       'CHG0012345',
       'CertScanner',
       'CERT 4.2',
@@ -228,7 +231,10 @@ describe('ChangesList', () => {
       'CertScanner CERT 4.2: Expiry alerts',
       '1',
     ]);
-    expect(cells[8]).toBe('Edit');
+    expect(text(gridCell(first, 'actions'))).toBe('Edit');
+    expect(gridCell(first, 'number').querySelector('a')?.getAttribute('href')).toBe(
+      '/beadle/changes/7',
+    );
     expect(text(page().querySelector('.shown'))).toBe('3 of 3 changes');
     expect(
       [...page().querySelectorAll<HTMLAnchorElement>('a[aria-label^="Edit "]')].map((link) =>
@@ -242,51 +248,63 @@ describe('ChangesList', () => {
     );
 
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-    page().querySelector<HTMLElement>('tbody tr:nth-child(2)')!.click();
+    gridCell(second, 'product').click();
+    await settle();
     expect(navigate).toHaveBeenCalledWith(['/beadle/changes', 8]);
   });
 
-  it('filters and sorts the table in its header', async () => {
-    await open('3');
-    http.expectOne('/api/changes?departmentId=3').flush([certScanner, payments, draft]);
-    await settle();
+  it('filters the table in its header by the text of a column or the state', async () => {
+    await listed();
 
-    await filter('Filter by product', 'pay');
+    await filter('product', 'pay');
     expect(shownNumbers()).toEqual(['CHG0012346']);
     expect(text(page().querySelector('.shown'))).toBe('1 of 3 changes');
-    await filter('Filter by product', '');
+    await filter('product', '');
 
-    await choose('Filter by state', 'Open');
+    await state('Open');
     expect(shownNumbers()).toEqual(['CHG0012345', 'CHG0012347']);
-    await choose('Filter by state', 'Closed');
+    await state('Closed');
     expect(shownNumbers()).toEqual(['CHG0012346']);
-    await filter('Filter by change', '2345');
-    expect(text(page().querySelector('.no-match'))).toBe('No change matches the filters.');
-    await filter('Filter by change', '');
-    await choose('Filter by state', 'All');
+    await filter('change', '2345');
+    expect(gridRows(page())).toEqual([]);
+    expect(text(page().querySelector('.dso-grid-empty'))).toBe('No change matches the filters.');
+    await filter('change', '');
+    await state('All');
+    await filter('FixVersion', '4.3');
+    expect(shownNumbers()).toEqual(['CHG0012347']);
+    await filter('FixVersion', '');
+    await filter('installation', 'nov');
+    expect(shownNumbers()).toEqual(['CHG0012347']);
+    await filter('installation', '');
+    await filter('short description', 'nothing like it');
+    expect(gridRows(page())).toEqual([]);
+  });
 
-    const header = (label: string) =>
-      [...page().querySelectorAll<HTMLElement>('thead tr:first-child th')].find(
-        (cell) => text(cell) === label,
-      )!;
-    header('State').click();
-    await settle();
-    expect(shownNumbers()).toEqual(['CHG0012347', 'CHG0012345', 'CHG0012346']);
-    header('State').click();
-    await settle();
-    expect(shownNumbers()).toEqual(['CHG0012346', 'CHG0012345', 'CHG0012347']);
-    header('Installation').click();
-    await settle();
-    expect(shownNumbers()).toEqual(['CHG0012346', 'CHG0012345', 'CHG0012347']);
+  it('sorts in the header the state by the workflow and the installation and raise by time', async () => {
+    await listed();
 
-    await choose('Your department', 'Fund Services');
+    expect(await sort('state')).toEqual(['CHG0012347', 'CHG0012345', 'CHG0012346']);
+    expect(await sort('state')).toEqual(['CHG0012346', 'CHG0012345', 'CHG0012347']);
+    expect(await sort('state')).toEqual(['CHG0012345', 'CHG0012346', 'CHG0012347']);
+    expect(await sort('raised', 2)).toEqual(['CHG0012347', 'CHG0012345', 'CHG0012346']);
+    expect(await sort('product', 2)).toEqual(['CHG0012346', 'CHG0012345', 'CHG0012347']);
+    expect(await sort('installation')).toEqual(['CHG0012346', 'CHG0012345', 'CHG0012347']);
+  });
+
+  it('keeps the sort when the department changes', async () => {
+    await listed();
+    const installation = () =>
+      page().querySelector('.ag-header-cell[col-id="installation"]')?.getAttribute('aria-sort');
+
+    await sort('installation');
+    await chooseDepartment('Fund Services');
     http.expectOne('/api/changes?departmentId=5').flush([certScanner, payments, draft]);
     await settle();
-    expect(header('Installation').getAttribute('aria-sort')).toBe('ascending');
+
+    expect(installation()).toBe('ascending');
     expect(shownNumbers()).toEqual(['CHG0012346', 'CHG0012345', 'CHG0012347']);
-    header('Installation').click();
-    await settle();
-    expect(shownNumbers()).toEqual(['CHG0012347', 'CHG0012345', 'CHG0012346']);
+    expect(await sort('installation')).toEqual(['CHG0012347', 'CHG0012345', 'CHG0012346']);
+    expect(installation()).toBe('descending');
   });
 
   it('says when ProTech could not be reached and the table shows what Beadle last read', async () => {

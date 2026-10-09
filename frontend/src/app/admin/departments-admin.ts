@@ -1,9 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { Dialog } from '@angular/cdk/dialog';
 import { rxResource } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatTableModule } from '@angular/material/table';
 import { filter, switchMap } from 'rxjs';
 import { DepartmentsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
@@ -13,10 +10,12 @@ import { DepartmentDialog } from '../products/department-dialog';
 import { BarChart, BarRow } from '../shared/bar-chart';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
 import { counted } from '../shared/formatting';
+import { GRID, GridColumn } from '../ui/grid';
+import { DsoLoading } from '../ui/loading';
 
 @Component({
   selector: 'dso-departments-admin',
-  imports: [MatButtonModule, MatProgressBarModule, MatTableModule, BarChart],
+  imports: [GRID, DsoLoading, BarChart],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './departments-admin.html',
   styleUrl: './departments-admin.scss',
@@ -25,15 +24,39 @@ export class DepartmentsAdmin {
   readonly pipelines = input(false);
 
   private readonly api = inject(DepartmentsApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(Dialog);
   private readonly notifier = inject(Notifier);
 
   protected readonly departments = rxResource({ stream: () => this.api.list() });
-  protected readonly columns = computed(() =>
-    this.pipelines()
-      ? ['name', 'products', 'services', 'pipelines', 'actions']
-      : ['name', 'products', 'actions'],
-  );
+  protected readonly departmentId = (department: Department) => department.id;
+  protected readonly columns = computed<GridColumn<Department>[]>(() => [
+    { key: 'name', header: 'Department', value: (department) => department.name, minWidth: 200 },
+    {
+      key: 'products',
+      header: 'Products',
+      value: (department) => department.productCount,
+      numeric: true,
+      width: 120,
+    },
+    ...(this.pipelines()
+      ? [
+          {
+            key: 'services',
+            header: 'Services',
+            value: (department: Department) => department.serviceCount,
+            numeric: true,
+            width: 120,
+          },
+          {
+            key: 'pipelines',
+            header: 'DevSecOps pipelines',
+            value: (department: Department) => department.pipelineCount,
+            minWidth: 240,
+          },
+        ]
+      : []),
+    { key: 'actions', header: '', width: 170 },
+  ]);
   protected readonly summary = computed(() => {
     const departments = this.departments.hasValue() ? this.departments.value() : [];
     const sum = (count: (department: Department) => number) =>
@@ -100,7 +123,7 @@ export class DepartmentsAdmin {
 
   protected delete(department: Department): void {
     this.dialog
-      .open<ConfirmDialog, ConfirmDialogData, boolean>(ConfirmDialog, {
+      .open<boolean, ConfirmDialogData, ConfirmDialog>(ConfirmDialog, {
         data: {
           title: `Delete ${department.name}?`,
           message: 'The department has no products. It is removed from the portal.',
@@ -108,8 +131,7 @@ export class DepartmentsAdmin {
           danger: true,
         },
       })
-      .afterClosed()
-      .pipe(
+      .closed.pipe(
         filter((confirmed) => confirmed === true),
         switchMap(() => this.api.delete(department.id)),
       )
@@ -124,9 +146,8 @@ export class DepartmentsAdmin {
 
   private edit(department: Department | null, message: (saved: Department) => string): void {
     this.dialog
-      .open<DepartmentDialog, Department | null, Department>(DepartmentDialog, { data: department })
-      .afterClosed()
-      .pipe(filter((saved): saved is Department => !!saved))
+      .open<Department, Department | null, DepartmentDialog>(DepartmentDialog, { data: department })
+      .closed.pipe(filter((saved): saved is Department => !!saved))
       .subscribe((saved) => {
         this.notifier.success(message(saved));
         this.departments.reload();

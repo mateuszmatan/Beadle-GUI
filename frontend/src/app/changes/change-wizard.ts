@@ -5,30 +5,15 @@ import {
   computed,
   effect,
   inject,
+  linkedSignal,
   signal,
   untracked,
-  viewChild,
 } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatAutocompleteModule, MatAutocompleteTrigger } from '@angular/material/autocomplete';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSelectModule } from '@angular/material/select';
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import {
-  EMPTY,
-  Observable,
-  Subject,
-  catchError,
-  finalize,
-  of,
-  switchMap,
-} from 'rxjs';
+import { EMPTY, Observable, Subject, catchError, finalize, of, switchMap } from 'rxjs';
 import { MyDepartment } from '../beadle/my-department';
 import { DepartmentsApi, ProductsApi, UserApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
@@ -38,6 +23,9 @@ import { byDepartment } from '../products/departments';
 import { applyProblemsAt, byteLength, filled } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
+import { DsoCheckbox } from '../ui/checkbox';
+import { FORM_FIELD } from '../ui/form-field';
+import { DsoLoading } from '../ui/loading';
 import { ChangeRequest, ChangesApi, JiraIssue, ProductionChange } from './change-api';
 import {
   approverNames,
@@ -112,13 +100,9 @@ const ATTENTION = 'Some fields need your attention.';
     NgTemplateOutlet,
     ReactiveFormsModule,
     RouterLink,
-    MatAutocompleteModule,
-    MatButtonModule,
-    MatCheckboxModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatProgressBarModule,
-    MatSelectModule,
+    DsoCheckbox,
+    DsoLoading,
+    FORM_FIELD,
     ChangeScheduleFields,
     ChangeSummary,
     ChangeTasksForm,
@@ -226,7 +210,7 @@ export class ChangeWizard implements HasUnsavedChanges {
   });
   private readonly fixVersionText = toSignal(this.fixVersion.valueChanges, { initialValue: '' });
   protected readonly searched = signal<string | null>(null);
-  private readonly versionTrigger = viewChild(MatAutocompleteTrigger);
+  protected readonly versionsOpen = signal(false);
   protected readonly versions = rxResource({
     params: () => (this.details() ? (this.chosenProduct() ?? undefined) : undefined),
     stream: ({ params }) => this.changesApi.versions(params),
@@ -234,6 +218,13 @@ export class ChangeWizard implements HasUnsavedChanges {
   protected readonly versionOptions = computed(() =>
     matchingVersions(this.versions.hasValue() ? this.versions.value() : [], this.fixVersionText()),
   );
+  protected readonly versionsShown = computed(
+    () => this.versionsOpen() && this.versionOptions().length > 0,
+  );
+  protected readonly activeVersion = linkedSignal({
+    source: () => this.versionsShown() && this.versionOptions(),
+    computation: (): number | null => null,
+  });
 
   protected readonly epicKeys = signal<string[]>([]);
   protected readonly storyKeys = signal<string[]>([]);
@@ -427,7 +418,7 @@ export class ChangeWizard implements HasUnsavedChanges {
   }
 
   protected findEpics(): void {
-    this.versionTrigger()?.closePanel();
+    this.versionsOpen.set(false);
     this.fixVersion.markAsTouched();
     if (this.fixVersion.invalid) {
       return;
@@ -439,6 +430,40 @@ export class ChangeWizard implements HasUnsavedChanges {
       this.forgetIssues();
       this.searched.set(fixVersion);
     }
+  }
+
+  protected versionKey(event: KeyboardEvent): void {
+    const options = this.versionOptions();
+    const active = this.activeVersion();
+    switch (event.key) {
+      case 'Enter':
+        event.preventDefault();
+        if (this.versionsShown() && active !== null) {
+          this.pickVersion(options[active].name);
+        } else {
+          this.findEpics();
+        }
+        break;
+      case 'Escape':
+        this.versionsOpen.set(false);
+        break;
+      case 'ArrowDown':
+      case 'ArrowUp':
+        event.preventDefault();
+        if (!this.versionsShown()) {
+          this.versionsOpen.set(true);
+        } else if (event.key === 'ArrowDown') {
+          this.activeVersion.set(((active ?? -1) + 1) % options.length);
+        } else {
+          this.activeVersion.set(((active ?? 0) + options.length - 1) % options.length);
+        }
+        break;
+    }
+  }
+
+  protected pickVersion(name: string): void {
+    this.fixVersion.setValue(name);
+    this.findEpics();
   }
 
   protected toggleEpic(key: string, on: boolean): void {

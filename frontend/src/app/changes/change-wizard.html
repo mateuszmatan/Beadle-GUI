@@ -39,29 +39,27 @@
           <p class="choice-error">The products could not be loaded: {{ error }}</p>
         }
         <div class="fields">
-          <mat-form-field>
-            <mat-label>Your department</mat-label>
-            <mat-select [formControl]="departmentId">
+          <dso-form-field>
+            <dso-label>Your department</dso-label>
+            <select dsoInput [formControl]="departmentId">
               @for (group of groups(); track group.department.id) {
-                <mat-option [value]="group.department.id">{{ group.department.name }}</mat-option>
+                <option [ngValue]="group.department.id">{{ group.department.name }}</option>
               }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Product</mat-label>
-            <mat-select [formControl]="productId">
+            </select>
+          </dso-form-field>
+          <dso-form-field>
+            <dso-label>Product</dso-label>
+            <select dsoInput [formControl]="productId">
               @for (product of productsInDepartment(); track product.id) {
-                <mat-option [value]="product.id"
-                  >{{ product.name }} ({{ product.code }})</mat-option
-                >
+                <option [ngValue]="product.id">{{ product.name }} ({{ product.code }})</option>
               }
-            </mat-select>
+            </select>
             @if (chosenDepartment() !== null) {
-              <mat-hint
-                >{{ counted(productsInDepartment().length, 'product') }} in the department</mat-hint
+              <dso-hint
+                >{{ counted(productsInDepartment().length, 'product') }} in the department</dso-hint
               >
             }
-          </mat-form-field>
+          </dso-form-field>
         </div>
         @if (unplaced(); as names) {
           <p class="hint unplaced">
@@ -70,7 +68,7 @@
           </p>
         }
         @if (profile.isLoading()) {
-          <mat-progress-bar mode="indeterminate" />
+          <dso-loading />
         }
         @if (profile.error()) {
           <p class="choice-error">The product could not be loaded.</p>
@@ -84,7 +82,9 @@
                 filled in. An admin can set it in Beadle Admin.</span
               >
               <span class="spacer"></span>
-              <a mat-button [routerLink]="templateLink(chosen.productId)">Set the template</a>
+              <a class="btn btn-link" [routerLink]="templateLink(chosen.productId)"
+                >Set the template</a
+              >
             </div>
           }
           <dso-template-section [form]="form" section="request" [facts]="facts()" />
@@ -94,35 +94,64 @@
         <h2>{{ current()!.title }}</h2>
         <p class="lead">{{ current()!.lead }}</p>
         <div class="find">
-          <mat-form-field class="project read-only">
-            <mat-label>Jira project</mat-label>
+          <dso-form-field class="project read-only">
+            <dso-label>Jira project</dso-label>
             <input
-              matInput
+              dsoInput
               readonly
               class="mono"
               [value]="details()!.controls.jiraProjectKey.value"
             />
-          </mat-form-field>
-          <mat-form-field class="version">
-            <mat-label>FixVersion</mat-label>
+          </dso-form-field>
+          <dso-form-field class="version">
+            <dso-label>FixVersion</dso-label>
             <input
-              matInput
+              dsoInput
               autocomplete="off"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-haspopup="listbox"
+              [attr.aria-expanded]="versionsShown()"
+              [attr.aria-controls]="versionsShown() ? 'fix-versions' : null"
+              [attr.aria-activedescendant]="
+                versionsShown() && activeVersion() !== null
+                  ? 'fix-version-' + activeVersion()
+                  : null
+              "
               [formControl]="fixVersion"
-              [matAutocomplete]="versionList"
-              (keydown.enter)="findEpics()"
+              (focus)="versionsOpen.set(true)"
+              (click)="versionsOpen.set(true)"
+              (input)="versionsOpen.set(true)"
+              (blur)="versionsOpen.set(false)"
+              (keydown)="versionKey($event)"
             />
-            <mat-autocomplete #versionList="matAutocomplete" (optionSelected)="findEpics()">
-              @for (version of versionOptions(); track version.name) {
-                <mat-option [value]="version.name">
-                  {{ version.name }}
-                  <span class="muted"> · {{ versionText(version) }}</span>
-                </mat-option>
-              }
-            </mat-autocomplete>
-            <mat-error>{{ errorText(fixVersion) }}</mat-error>
-          </mat-form-field>
-          <button mat-stroked-button type="button" (click)="findEpics()">Find epics</button>
+            @if (versionsShown()) {
+              <ul id="fix-versions" class="dropdown-menu dso-menu show versions" role="listbox">
+                @for (version of versionOptions(); track version.name; let index = $index) {
+                  <li role="none">
+                    <button
+                      type="button"
+                      role="option"
+                      tabindex="-1"
+                      class="dropdown-item"
+                      [id]="'fix-version-' + index"
+                      [class.active]="index === activeVersion()"
+                      [attr.aria-selected]="index === activeVersion()"
+                      (mousedown)="$event.preventDefault()"
+                      (click)="pickVersion(version.name)"
+                    >
+                      {{ version.name }}
+                      <span class="muted"> · {{ versionText(version) }}</span>
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+            <dso-error>{{ errorText(fixVersion) }}</dso-error>
+          </dso-form-field>
+          <button type="button" class="btn btn-outline-primary" (click)="findEpics()">
+            Find epics
+          </button>
         </div>
         @if (versions.error(); as error) {
           <p class="choice-error">
@@ -131,7 +160,7 @@
         }
         <h3>Epics</h3>
         @if (epics.isLoading()) {
-          <mat-progress-bar mode="indeterminate" />
+          <dso-loading />
         }
         @if (epics.error(); as error) {
           <p class="choice-error">The epics could not be loaded: {{ errorMessage(error) }}</p>
@@ -147,13 +176,13 @@
             </div>
             <div class="issues">
               @for (epic of epics.value(); track epic.key) {
-                <mat-checkbox
+                <dso-checkbox
                   [checked]="epicKeys().includes(epic.key)"
-                  (change)="toggleEpic(epic.key, $event.checked)"
+                  (checkedChange)="toggleEpic(epic.key, $event)"
                 >
                   <span class="mono key">{{ epic.key }}</span> {{ epic.summary }}
                   <span class="muted"> · {{ issueText(epic) }}</span>
-                </mat-checkbox>
+                </dso-checkbox>
               }
             </div>
           } @else {
@@ -162,7 +191,7 @@
         }
         <h3>Stories of the chosen epics</h3>
         @if (stories.isLoading()) {
-          <mat-progress-bar mode="indeterminate" />
+          <dso-loading />
         }
         @if (stories.error(); as error) {
           <p class="choice-error">The stories could not be loaded: {{ errorMessage(error) }}</p>
@@ -173,13 +202,13 @@
               <span class="mono">{{ group.key }}</span> {{ group.epic?.summary }}
             </h4>
             @for (story of group.stories; track story.key) {
-              <mat-checkbox
+              <dso-checkbox
                 [checked]="storyKeys().includes(story.key)"
-                (change)="toggleStory(story.key, $event.checked)"
+                (checkedChange)="toggleStory(story.key, $event)"
               >
                 <span class="mono key">{{ story.key }}</span> {{ story.summary }}
                 <span class="muted"> · {{ issueText(story) }}</span>
-              </mat-checkbox>
+              </dso-checkbox>
             } @empty {
               <p class="empty">
                 {{
@@ -219,11 +248,11 @@
         <h2>Check and raise the change</h2>
         <p class="lead">
           The texts come from the Jira epics and stories and the ProTech fields. Change them if you
-          like before you raise the change. Its change tasks follow once ProTech has given the change
-          its number.
+          like before you raise the change. Its change tasks follow once ProTech has given the
+          change its number.
         </p>
         @if (previewing()) {
-          <mat-progress-bar mode="indeterminate" />
+          <dso-loading />
         }
         @if (preview(); as draft) {
           <ng-container
@@ -244,8 +273,8 @@
           <h2>Change tasks of {{ change.number }}</h2>
           <p class="lead">
             ProTech has raised {{ change.number }}. Each change task is now created against it,
-            starting from the default change tasks of the product. A Release Management task takes the
-            platform, the start in the installation window, the application and the packages.
+            starting from the default change tasks of the product. A Release Management task takes
+            the platform, the start in the installation window, the application and the packages.
           </p>
           <dso-change-tasks-form [tasks]="tasks()!" />
         }
@@ -268,7 +297,8 @@
               <ul class="review-list">
                 @for (task of change.tasks; track $index) {
                   <li>
-                    <span class="mono">{{ task.number }}</span> · {{ task.details.shortDescription }}
+                    <span class="mono">{{ task.number }}</span> ·
+                    {{ task.details.shortDescription }}
                     <span class="muted"> · {{ task.details.assignmentGroup }}</span>
                   </li>
                 } @empty {
@@ -316,7 +346,7 @@
     }
 
     @if (raising()) {
-      <mat-progress-bar mode="indeterminate" />
+      <dso-loading />
     }
     @if (problem(); as error) {
       <div class="banner save-problem" role="alert">
@@ -332,7 +362,7 @@
         </div>
         @if (stepKey() === 'review' && !preview()) {
           <span class="spacer"></span>
-          <button mat-button type="button" (click)="loadPreview()">Try again</button>
+          <button type="button" class="btn btn-link" (click)="loadPreview()">Try again</button>
         }
       </div>
     }
@@ -343,23 +373,30 @@
 
     <div class="step-actions">
       @if (stepKey() === 'raised') {
-        <a mat-button [routerLink]="changeLink(raised()?.id ?? '')">Open the change</a>
+        <a class="btn btn-link" [routerLink]="changeLink(raised()?.id ?? '')">Open the change</a>
         <span class="spacer"></span>
-        <button mat-flat-button type="button" (click)="restart()">Raise another change</button>
+        <button type="button" class="btn btn-primary" (click)="restart()">
+          Raise another change
+        </button>
       } @else {
         @if (stepKey() === 'tasks') {
-          <button mat-button type="button" [disabled]="raising()" (click)="later()">
+          <button type="button" class="btn btn-link" [disabled]="raising()" (click)="later()">
             Add them later
           </button>
         } @else if (step() > 0) {
-          <button mat-button type="button" [disabled]="raising() || previewing()" (click)="back()">
+          <button
+            type="button"
+            class="btn btn-link"
+            [disabled]="raising() || previewing()"
+            (click)="back()"
+          >
             Back
           </button>
         }
         <span class="spacer"></span>
         <button
-          mat-flat-button
           type="button"
+          class="btn btn-primary"
           [disabled]="raising() || previewing() || (stepKey() === 'review' && !preview())"
           (click)="next()"
         >
@@ -381,12 +418,12 @@
         Use the generated text
       </button>
     }
-    <mat-form-field>
-      <mat-label>Short description</mat-label>
-      <input matInput [formControl]="shortDescription" maxlength="160" />
-      <mat-hint align="end">{{ byteLength(shortDescription.value) }} / 160</mat-hint>
-      <mat-error>{{ errorText(shortDescription) }}</mat-error>
-    </mat-form-field>
+    <dso-form-field>
+      <dso-label>Short description</dso-label>
+      <input dsoInput [formControl]="shortDescription" maxlength="160" />
+      <dso-hint class="length-hint">{{ byteLength(shortDescription.value) }} / 160</dso-hint>
+      <dso-error>{{ errorText(shortDescription) }}</dso-error>
+    </dso-form-field>
     @if (description.value !== draft.description) {
       <button
         type="button"
@@ -397,11 +434,11 @@
         Use the generated text
       </button>
     }
-    <mat-form-field>
-      <mat-label>Description</mat-label>
-      <textarea matInput rows="11" [formControl]="description"></textarea>
-      <mat-hint align="end">{{ byteLength(description.value) }} / 4000</mat-hint>
-      <mat-error>{{ errorText(description) }}</mat-error>
-    </mat-form-field>
+    <dso-form-field>
+      <dso-label>Description</dso-label>
+      <textarea dsoInput rows="11" [formControl]="description"></textarea>
+      <dso-hint class="length-hint">{{ byteLength(description.value) }} / 4000</dso-hint>
+      <dso-error>{{ errorText(description) }}</dso-error>
+    </dso-form-field>
   </div>
 </ng-template>

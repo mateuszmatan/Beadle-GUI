@@ -8,26 +8,25 @@ import {
   input,
   output,
 } from '@angular/core';
+import { Dialog } from '@angular/cdk/dialog';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { filter, switchMap } from 'rxjs';
 import { DepartmentsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { Notifier } from '../core/notifier';
 import { NOT_IN_A_DEPARTMENT } from '../products/departments';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
+import { DsoLoading } from '../ui/loading';
 import { ProductDetails, ProductDetailsApi } from './product-details-api';
 import { ProductDialog, ProductDialogData, ProductDialogResult } from './product-dialog';
 
 @Component({
   selector: 'dso-product-admin',
-  imports: [MatButtonModule, MatProgressBarModule],
+  imports: [DsoLoading],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (product.isLoading()) {
-      <mat-progress-bar mode="indeterminate" />
+      <dso-loading />
     }
     @if (product.error(); as error) {
       <div class="banner">{{ errorMessage(error) }}</div>
@@ -37,8 +36,8 @@ import { ProductDialog, ProductDialogData, ProductDialogResult } from './product
         <header class="card-header">
           <h2>Product</h2>
           <div class="actions">
-            <button mat-stroked-button type="button" (click)="change()">Change</button>
-            <button mat-button type="button" class="danger" (click)="delete()">
+            <button type="button" class="btn btn-outline-primary" (click)="change()">Change</button>
+            <button type="button" class="btn btn-link danger" (click)="delete()">
               Delete product
             </button>
           </div>
@@ -97,7 +96,7 @@ export class ProductAdmin {
 
   private readonly api = inject(ProductDetailsApi);
   private readonly departmentsApi = inject(DepartmentsApi);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(Dialog);
   private readonly notifier = inject(Notifier);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -119,15 +118,14 @@ export class ProductAdmin {
   protected change(): void {
     const product = this.product.value()!;
     this.dialog
-      .open<ProductDialog, ProductDialogData, ProductDialogResult>(ProductDialog, {
+      .open<ProductDialogResult, ProductDialogData, ProductDialog>(ProductDialog, {
         data: {
           departments: this.departments.hasValue() ? this.departments.value() : [],
           departmentId: null,
           product,
         },
       })
-      .afterClosed()
-      .subscribe((result) => {
+      .closed.subscribe((result) => {
         if (result instanceof HttpErrorResponse) {
           this.reload(result, product);
         } else if (result) {
@@ -139,7 +137,7 @@ export class ProductAdmin {
   protected delete(): void {
     const product = this.product.value()!;
     this.dialog
-      .open<ConfirmDialog, ConfirmDialogData, boolean>(ConfirmDialog, {
+      .open<boolean, ConfirmDialogData, ConfirmDialog>(ConfirmDialog, {
         data: {
           title: `Delete ${product.name}?`,
           message: `${product.name} is deleted with its change template. This cannot be undone.`,
@@ -147,8 +145,7 @@ export class ProductAdmin {
           danger: true,
         },
       })
-      .afterClosed()
-      .pipe(
+      .closed.pipe(
         filter((confirmed) => confirmed === true),
         switchMap(() => this.api.delete(product.id)),
       )
