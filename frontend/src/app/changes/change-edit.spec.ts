@@ -12,7 +12,7 @@ import {
   releaseDetails,
   taskDetails,
 } from '../testing/change-fixtures';
-import { buttonOf, fieldOf, inputOf, text } from '../testing/dom';
+import { buttonOf, fieldOf, inputOf, selectOf, text } from '../testing/dom';
 import { ProductionChange } from './change-api';
 import { ChangeEdit, STALE } from './change-edit';
 import { PublishedChange } from './published-change';
@@ -25,7 +25,9 @@ describe('ChangeEdit', () => {
   const page = () => fixture.nativeElement as HTMLElement;
   const edit = () => fixture.componentInstance;
   const form = () => edit()['form']()!;
-  const taskRows = () => [...page().querySelectorAll<HTMLElement>('dso-change-tasks-form .task-row')];
+  const taskRows = () => [
+    ...page().querySelectorAll<HTMLElement>('dso-change-tasks-form .task-row'),
+  ];
   const stored = productionChange({
     tasks: [
       changeTask(),
@@ -89,9 +91,7 @@ describe('ChangeEdit', () => {
     expect(inputOf(page(), 'Approval').value).toBe('Requested');
     expect(inputOf(page(), 'Opened By').value).toBe('Mateusz Matan');
     expect(inputOf(page(), 'State').value).toBe('Primary Approval');
-    expect(
-      fieldOf(page(), 'Type')?.querySelector('mat-select')?.getAttribute('aria-disabled'),
-    ).toBe('true');
+    expect(selectOf(page(), 'Type').disabled).toBe(true);
     expect(inputOf(page(), 'Installation hours').value).toBe('2');
     expect(fieldOf(page(), 'Downtime start')).toBeNull();
     expect(taskRows().map((row) => inputOf(row, 'Number').value)).toEqual([
@@ -137,7 +137,10 @@ describe('ChangeEdit', () => {
       tasks: [
         {
           number: 'CTASK0020001',
-          details: taskDetails('Deploy CertScanner to production', 'Deploy the release of CertScanner.'),
+          details: taskDetails(
+            'Deploy CertScanner to production',
+            'Deploy the release of CertScanner.',
+          ),
           start: null,
         },
         { number: 'CTASK0020003', details: taskDetails('Backup'), start: null },
@@ -167,7 +170,7 @@ describe('ChangeEdit', () => {
 
     http.expectNone({ method: 'PUT', url: '/api/changes/7' });
     expect(text(page().querySelector('.save-error'))).toBe('Some fields need your attention.');
-    expect(text(fieldOf(page(), 'Short description')?.querySelector('mat-error'))).toBe('Required');
+    expect(text(fieldOf(page(), 'Short description')?.querySelector('dso-error'))).toBe('Required');
     expect(text(page().querySelector('dso-change-schedule .choice-error'))).toBe(
       'The installation must start in the future',
     );

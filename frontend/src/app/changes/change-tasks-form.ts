@@ -1,6 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { LookupKind } from '../core/models';
-import { Field, FieldOption, Fields, area, choice, line, mono } from '../shared/fields';
+import {
+  Field,
+  FieldOption,
+  Fields,
+  area,
+  choice,
+  formRevision,
+  line,
+  mono,
+} from '../shared/fields';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
 import { TASK_STATES, TaskState, labelOf } from './change-api';
@@ -18,7 +27,14 @@ import {
 
 const find = (kind: LookupKind) => ({ lookup: { kind } });
 
-const CHANGE_ONLY = ['number', 'changeNumber', 'approval', 'installationStart', 'installationEnd', 'start'];
+const CHANGE_ONLY = [
+  'number',
+  'changeNumber',
+  'approval',
+  'installationStart',
+  'installationEnd',
+  'start',
+];
 
 const NUMBER = mono('number', 'Number', '', 6, { placeholder: 'Given by ProTech when created' });
 const CHANGE = mono('changeNumber', 'Change number', '', 6);
@@ -102,7 +118,9 @@ export const TASK_LABELS: Record<string, string> = Object.fromEntries(
         <li class="task-row" [class.closed]="isClosed(task)">
           <div class="task-head">
             <span class="index">{{ i + 1 }}</span>
-            <span class="kind">{{ isReleaseTask(task) ? 'Release Management' : 'Change task' }}</span>
+            <span class="kind">{{
+              isReleaseTask(task) ? 'Release Management' : 'Change task'
+            }}</span>
             @if (inChange()) {
               <span class="chip neutral">{{ stateLabel(task.controls.state.value) }}</span>
             }
@@ -191,6 +209,7 @@ export class ChangeTasksForm {
   readonly tasks = input.required<TasksForm>();
 
   private readonly lists = inject(ChangeOptionLists);
+  private readonly revision = formRevision(() => this.tasks());
 
   protected readonly maxTasks = MAX_TASKS;
   protected readonly errorText = errorText;
@@ -208,6 +227,7 @@ export class ChangeTasksForm {
   });
 
   protected fieldsOf(task: TaskForm): Field[] {
+    this.revision();
     const sets = this.fieldSets();
     return isReleaseTask(task) ? sets.release : sets.other;
   }

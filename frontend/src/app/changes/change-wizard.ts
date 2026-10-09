@@ -13,15 +13,7 @@ import { rxResource, takeUntilDestroyed, toObservable, toSignal } from '@angular
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import {
-  EMPTY,
-  Observable,
-  Subject,
-  catchError,
-  finalize,
-  of,
-  switchMap,
-} from 'rxjs';
+import { EMPTY, Observable, Subject, catchError, finalize, of, switchMap } from 'rxjs';
 import { MyDepartment } from '../beadle/my-department';
 import { DepartmentsApi, ProductsApi, UserApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';

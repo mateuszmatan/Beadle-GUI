@@ -296,8 +296,8 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(button('Back', true)).hasCount(0)
         assertThat(taskRows().locator('.kind')).hasText(['Release Management', 'Change task'] as String[])
         assertThat(taskRows().locator('.chip')).hasText(['Open', 'Open'] as String[])
-        assertThat(taskRows().nth(0).locator('mat-label')).hasText(RELEASE_TASK_FIELDS as String[])
-        assertThat(taskRows().nth(1).locator('mat-label')).hasText(OTHER_TASK_FIELDS as String[])
+        assertThat(taskRows().nth(0).locator('dso-label')).hasText(RELEASE_TASK_FIELDS as String[])
+        assertThat(taskRows().nth(1).locator('dso-label')).hasText(OTHER_TASK_FIELDS as String[])
         hasValues(taskRows().nth(0), ['Number'            : '', 'Change number': 'CHG0031002', 'Assignment group': 'Release Management',
                                       'Affected CI'       : 'CertScanner', 'Approval': 'Not Yet Requested',
                                       'Installation start': "${RELEASE_DATE}T18:00", 'Installation end': "${RELEASE_DATE}T20:00",
@@ -306,11 +306,11 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(input(taskRows().nth(0), 'Number')).hasAttribute('placeholder', 'Given by ProTech when created')
         assertThat(input(taskRows().nth(0), 'Number')).isDisabled()
         assertThat(input(taskRows().nth(0), 'Installation start')).isDisabled()
-        assertThat(select(taskRows().nth(0), 'Platform')).hasText('None')
+        assertThat(selected(taskRows().nth(0), 'Platform')).hasText('None')
         assertThat(hintOf(taskRows().nth(0), 'Application')).hasText('OCP on OpenShift')
         hasValues(taskRows().nth(1), ['Assignment group': 'Technology Architecture', 'Affected CI': 'CertScanner',
                                       'Description'     : CERT_TASKS[1].description])
-        assertThat(select(taskRows().nth(1), 'Importance')).hasText('3 - Moderate')
+        assertThat(selected(taskRows().nth(1), 'Importance')).hasText('3 - Moderate')
         with(awaitRequest('POST', '/api/changes').json()) {
             productId == 1
             !containsKey('tasks')
@@ -339,7 +339,7 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(input(taskRows().nth(0), 'Application')).hasValue('OCP')
         assertThat(input(taskRows().nth(0), 'Application')).isDisabled()
         assertThat(errorOf(taskRows().nth(0), 'Task start')).hasText('At least a minute after the installation start')
-        assertThat(taskRows().nth(1).locator('mat-label')).hasText(OTHER_TASK_FIELDS as String[])
+        assertThat(taskRows().nth(1).locator('dso-label')).hasText(OTHER_TASK_FIELDS as String[])
         hasValues(taskRows().nth(1), ['Number': '', 'Change number': 'CHG0031002', 'Approval': 'Not Yet Requested', 'Affected CI': ''])
         assertThat(hintOf(taskRows().nth(1), 'Affected CI')).hasText('left empty: the Affected CI of the change')
         assertThat(errorOf(taskRows().nth(1), 'Description')).hasText('Required')

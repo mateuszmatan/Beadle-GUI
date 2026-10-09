@@ -121,7 +121,7 @@ export type EditForm = ReturnType<typeof editForm>;
               <dso-form-field>
                 <dso-label>Short description</dso-label>
                 <input dsoInput formControlName="shortDescription" maxlength="160" />
-                <dso-hint class="count"
+                <dso-hint class="length-hint"
                   >{{ f.controls.shortDescription.value.length }} / 160</dso-hint
                 >
                 <dso-error>{{ errorText(f.controls.shortDescription) }}</dso-error>
@@ -129,7 +129,7 @@ export type EditForm = ReturnType<typeof editForm>;
               <dso-form-field>
                 <dso-label>Description</dso-label>
                 <textarea dsoInput rows="9" formControlName="description"></textarea>
-                <dso-hint class="count"
+                <dso-hint class="length-hint"
                   >{{ f.controls.description.value.length }} / 4000</dso-hint
                 >
                 <dso-error>{{ errorText(f.controls.description) }}</dso-error>
@@ -203,7 +203,7 @@ export type EditForm = ReturnType<typeof editForm>;
         font-size: 12px;
       }
 
-      .count {
+      .length-hint {
         display: block;
         text-align: end;
       }

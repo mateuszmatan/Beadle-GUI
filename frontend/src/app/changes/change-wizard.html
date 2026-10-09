@@ -82,7 +82,9 @@
                 filled in. An admin can set it in Beadle Admin.</span
               >
               <span class="spacer"></span>
-              <a class="btn btn-link" [routerLink]="templateLink(chosen.productId)">Set the template</a>
+              <a class="btn btn-link" [routerLink]="templateLink(chosen.productId)"
+                >Set the template</a
+              >
             </div>
           }
           <dso-template-section [form]="form" section="request" [facts]="facts()" />
@@ -112,7 +114,9 @@
               [attr.aria-expanded]="versionsShown()"
               [attr.aria-controls]="versionsShown() ? 'fix-versions' : null"
               [attr.aria-activedescendant]="
-                versionsShown() && activeVersion() !== null ? 'fix-version-' + activeVersion() : null
+                versionsShown() && activeVersion() !== null
+                  ? 'fix-version-' + activeVersion()
+                  : null
               "
               [formControl]="fixVersion"
               (focus)="versionsOpen.set(true)"
@@ -244,8 +248,8 @@
         <h2>Check and raise the change</h2>
         <p class="lead">
           The texts come from the Jira epics and stories and the ProTech fields. Change them if you
-          like before you raise the change. Its change tasks follow once ProTech has given the change
-          its number.
+          like before you raise the change. Its change tasks follow once ProTech has given the
+          change its number.
         </p>
         @if (previewing()) {
           <dso-loading />
@@ -269,8 +273,8 @@
           <h2>Change tasks of {{ change.number }}</h2>
           <p class="lead">
             ProTech has raised {{ change.number }}. Each change task is now created against it,
-            starting from the default change tasks of the product. A Release Management task takes the
-            platform, the start in the installation window, the application and the packages.
+            starting from the default change tasks of the product. A Release Management task takes
+            the platform, the start in the installation window, the application and the packages.
           </p>
           <dso-change-tasks-form [tasks]="tasks()!" />
         }
@@ -293,7 +297,8 @@
               <ul class="review-list">
                 @for (task of change.tasks; track $index) {
                   <li>
-                    <span class="mono">{{ task.number }}</span> · {{ task.details.shortDescription }}
+                    <span class="mono">{{ task.number }}</span> ·
+                    {{ task.details.shortDescription }}
                     <span class="muted"> · {{ task.details.assignmentGroup }}</span>
                   </li>
                 } @empty {
@@ -416,7 +421,7 @@
     <dso-form-field>
       <dso-label>Short description</dso-label>
       <input dsoInput [formControl]="shortDescription" maxlength="160" />
-      <dso-hint class="count">{{ byteLength(shortDescription.value) }} / 160</dso-hint>
+      <dso-hint class="length-hint">{{ byteLength(shortDescription.value) }} / 160</dso-hint>
       <dso-error>{{ errorText(shortDescription) }}</dso-error>
     </dso-form-field>
     @if (description.value !== draft.description) {
@@ -432,7 +437,7 @@
     <dso-form-field>
       <dso-label>Description</dso-label>
       <textarea dsoInput rows="11" [formControl]="description"></textarea>
-      <dso-hint class="count">{{ byteLength(description.value) }} / 4000</dso-hint>
+      <dso-hint class="length-hint">{{ byteLength(description.value) }} / 4000</dso-hint>
       <dso-error>{{ errorText(description) }}</dso-error>
     </dso-form-field>
   </div>

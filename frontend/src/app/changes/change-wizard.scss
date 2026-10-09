@@ -3,7 +3,7 @@
 }
 
 .step-bar {
-  grid-template-columns: repeat(10, minmax(0, 1fr));
+  grid-template-columns: repeat(11, minmax(0, 1fr));
 
   button {
     align-items: flex-start;
@@ -100,7 +100,7 @@
     align-self: flex-start;
   }
 
-  .count {
+  .length-hint {
     display: block;
     text-align: end;
   }
@@ -108,13 +108,13 @@
 
 @media (max-width: 760px) {
   .step-bar {
-    grid-template-columns: repeat(10, auto);
+    grid-template-columns: repeat(11, auto);
   }
 }
 
 @media (max-width: 480px) {
   .step-bar {
-    grid-template-columns: repeat(10, minmax(0, 1fr));
+    grid-template-columns: repeat(11, minmax(0, 1fr));
     gap: 3px;
 
     button {

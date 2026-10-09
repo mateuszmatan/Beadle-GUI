@@ -114,7 +114,7 @@ class ChangesSpec extends EditorSpecification {
         page.waitForURL('**/beadle/new-change')
 
         then:
-        assertThat(select(page.locator('section.step'), 'Your department')).hasText('Fund Services')
+        assertThat(selected(page.locator('section.step'), 'Your department')).hasText('Fund Services')
         assertThat(hintOf(page.locator('section.step'), 'Product')).hasText('1 product in the department')
         ownErrors().isEmpty()
     }
@@ -195,7 +195,7 @@ class ChangesSpec extends EditorSpecification {
         hasValues(schedule(), ['Installation start'           : "${date}T17:00", 'Installation hours': '2',
                                'Post-install validation start': "${date}T19:00", 'Validation hours': '1',
                                'First use'                    : "${date}T20:00"])
-        assertThat(select(schedule(), 'Downtime')).hasText('No')
+        assertThat(selected(schedule(), 'Downtime')).hasText('No')
         hasValues(fields(), ['L1 approver': 'Olivia Bennett'])
         assertThat(input(fields(), 'Jira project')).hasCount(0)
         hasTaskNumbers('CTASK0310011', 'CTASK0310012')
@@ -206,8 +206,8 @@ class ChangesSpec extends EditorSpecification {
                                        'Installation start': "${date}T17:00", 'Installation end': "${date}T19:00",
                                        'Task start'        : "${date}T17:01", 'Affected CI': 'CertScanner',
                                        'Application'       : 'CertScanner'])
-        assertThat(select(taskRows().first(), 'Platform')).hasText('None')
-        assertThat(select(taskRows().nth(1), 'Importance')).hasText('3 - Moderate')
+        assertThat(selected(taskRows().first(), 'Platform')).hasText('None')
+        assertThat(selected(taskRows().nth(1), 'Importance')).hasText('3 - Moderate')
 
         when:
         input(request(), 'Assignment group').fill('Certificate Services')
@@ -233,6 +233,7 @@ class ChangesSpec extends EditorSpecification {
         api.protech.applying = false
         button('Publish to ProTech', true).click()
         page.waitForURL('**/beadle/changes/4')
+        page.waitForCondition({ page.evaluate('window.scrollY') == 0 } as BooleanSupplier)
 
         then:
         page.evaluate('window.scrollY') == 0
@@ -286,7 +287,7 @@ class ChangesSpec extends EditorSpecification {
         then:
         hasTaskNumbers('CTASK0310011', 'CTASK0320001')
         hasValues(taskRows().first(), ['Task start': "${date}T17:30", 'Packages': 'certscanner-4.1.0.jar'])
-        assertThat(select(taskRows().first(), 'Platform')).hasText('Distributed')
+        assertThat(selected(taskRows().first(), 'Platform')).hasText('Distributed')
         hasValues(schedule(), ['Downtime start': "${date}T17:00", 'Downtime hours': '1'])
         ownErrors().isEmpty()
     }

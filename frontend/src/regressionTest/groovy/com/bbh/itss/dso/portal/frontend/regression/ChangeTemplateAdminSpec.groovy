@@ -41,14 +41,14 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         assertThat(page.locator('.default-tasks h3')).hasText('Default change tasks')
         assertThat(taskRows().locator('.kind')).hasText(['Release Management', 'Change task'] as String[])
         assertThat(taskRows().locator('.chip')).hasCount(0)
-        assertThat(taskRows().nth(0).locator('mat-label')).hasText((RELEASE_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
-        assertThat(taskRows().nth(1).locator('mat-label')).hasText((OTHER_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
+        assertThat(taskRows().nth(0).locator('dso-label')).hasText((RELEASE_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
+        assertThat(taskRows().nth(1).locator('dso-label')).hasText((OTHER_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
         hasValues(taskRows().nth(0), ['Assignment group': 'Release Management', 'Affected CI': '', 'Application': 'CertScanner'])
-        assertThat(select(taskRows().nth(0), 'Platform')).hasText('None')
+        assertThat(selected(taskRows().nth(0), 'Platform')).hasText('None')
         hasValues(taskRows().nth(1), ['Assignment group' : 'Technology Architecture',
                                       'Short description': 'Validate CertScanner in production',
                                       'Description'      : CERT_TASKS[1].description])
-        assertThat(select(taskRows().nth(1), 'Importance')).hasText('3 - Moderate')
+        assertThat(selected(taskRows().nth(1), 'Importance')).hasText('3 - Moderate')
 
         when:
         fillIn(defaults(), ['Assignment group': 'Certificate Services', 'Installation hours': '3',
@@ -74,7 +74,7 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         assertThat(input(defaults(), 'Risk')).hasValue('High')
         assertThat(account(defaults(), 1).locator('legend')).hasText('Privileged account 2')
         assertThat(taskRows().nth(2).locator('.kind')).hasText('Release Management')
-        assertThat(taskRows().nth(2).locator('mat-label')).hasText((RELEASE_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
+        assertThat(taskRows().nth(2).locator('dso-label')).hasText((RELEASE_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
 
         when:
         lookUp(taskRows().nth(2), 'Assignment group', 'data', 'Data Movement - API')
@@ -85,7 +85,7 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
 
         then:
         assertThat(taskRows().nth(2).locator('.kind')).hasText('Change task')
-        assertThat(taskRows().nth(2).locator('mat-label')).hasText((OTHER_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
+        assertThat(taskRows().nth(2).locator('dso-label')).hasText((OTHER_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
         assertThat(input(taskRows().nth(0), 'Application')).hasValue('OCP')
         assertThat(input(taskRows().nth(0), 'Application')).isDisabled()
 
@@ -136,7 +136,7 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         assertThat(taskRows().locator('.kind')).hasText(['Change task', 'Change task'] as String[])
         hasValues(taskRows().nth(0), ['Short description': 'Validate CertScanner in production'])
         hasValues(taskRows().nth(1), ['Assignment group': 'Data Movement - API'])
-        assertThat(select(taskRows().nth(1), 'Importance')).hasText('2 - High')
+        assertThat(selected(taskRows().nth(1), 'Importance')).hasText('2 - High')
 
         when:
         button('Remove change task 2', true).click()
@@ -227,7 +227,7 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         Page other = context.newPage()
         other.navigate(url(path))
         other.getByRole(BUTTON, new Page.GetByRoleOptions().setName('Save the template').setExact(true)).click()
-        assertThat(other.locator('mat-snack-bar-container')).containsText('is saved')
+        assertThat(other.locator('dso-toast')).containsText('is saved')
         other.close()
     }
 }

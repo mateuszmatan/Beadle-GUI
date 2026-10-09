@@ -97,10 +97,10 @@ describe('ChangeTemplateForm', () => {
     form.markAllAsTouched();
     await settle();
 
-    expect(text(fieldOf(page(), 'Jira project')?.querySelector('mat-error'))).toBe(
+    expect(text(fieldOf(page(), 'Jira project')?.querySelector('dso-error'))).toBe(
       '1 to 10 letters, digits or _, starting with a letter',
     );
-    expect(text(fieldOf(page(), 'Installation start')?.querySelector('mat-error'))).toBe(
+    expect(text(fieldOf(page(), 'Installation start')?.querySelector('dso-error'))).toBe(
       'Required',
     );
   });
