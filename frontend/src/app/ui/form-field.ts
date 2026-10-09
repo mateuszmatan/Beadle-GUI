@@ -44,6 +44,7 @@ export class DsoInput implements DoCheck {
   private readonly revision = signal(0);
   private watched: AbstractControl | null = null;
   private subscription?: Subscription;
+  private snapshot = '';
 
   private readonly field = inject(DsoFormField, { optional: true });
 
@@ -69,6 +70,10 @@ export class DsoInput implements DoCheck {
       this.subscription = control
         ? merge(control.events, this.form?.ngSubmit ?? []).subscribe(() => this.changed())
         : undefined;
+    }
+    const snapshot = `${control?.status}|${control?.touched}`;
+    if (snapshot !== this.snapshot) {
+      this.snapshot = snapshot;
       this.changed();
     }
   }
