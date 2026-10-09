@@ -28,7 +28,7 @@ class ChangesSpec extends EditorSpecification {
         then:
         assertThat(page.locator('h1')).hasText('ProTech Changes')
         assertThat(page.locator('.page-header .page-description'))
-                .hasText('The ProTech changes of your department, read from ProTech each time you open them')
+                .hasText('The ProTech changes of your department and where each one is in its approval workflow. A change is read again from ProTech when you open it.')
         assertThat(page.locator('.empty-state h3')).hasText('Choose your department to see its ProTech changes.')
         api.requests('GET', '/api/changes').isEmpty()
 

@@ -28,7 +28,7 @@ class NewChangeSpec extends EditorSpecification {
         then:
         assertThat(page.locator('h1')).hasText('New ProTech Change')
         assertThat(page.locator('.page-header .page-description'))
-                .hasText('Raise a ProTech change (CHG) with its change tasks (CTASK), written from Jira')
+                .hasText('Raise a ProTech change for a production release in guided steps. The product\'s change template fills in the answers and Jira provides the scope.')
         assertThat(page.locator('dso-integration-note')).containsText('Jira is not connected yet')
         assertThat(page.locator('dso-integration-note')).containsText('ProTech is not connected yet')
 

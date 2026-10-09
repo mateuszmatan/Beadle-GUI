@@ -59,6 +59,7 @@ a {
 code {
   padding: 0 3px;
   background: var(--dso-neutral-bg);
+  color: var(--dso-neutral);
   font-family: var(--dso-mono);
   font-size: 11px;
 }
@@ -521,6 +522,12 @@ h3 {
 
 .table-scroll {
   overflow-x: auto;
+}
+
+.section-help {
+  margin: -2px 0 8px;
+  color: var(--dso-muted);
+  font-size: 12px;
 }
 
 .empty-state {
