@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   Directive,
+  ElementRef,
   booleanAttribute,
   computed,
   forwardRef,
@@ -12,6 +13,8 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
+const ARROWS: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+
 @Component({
   selector: 'dso-toggle-group',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -21,6 +24,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
   host: {
     class: 'btn-group btn-group-sm dso-toggle-group',
     '[attr.role]': "multiple() ? 'group' : 'radiogroup'",
+    '(keydown)': 'move($event)',
   },
   template: '<ng-content />',
 })
@@ -29,6 +33,7 @@ export class DsoToggleGroup implements ControlValueAccessor {
   readonly multiple = input(false, { transform: booleanAttribute });
 
   readonly disabled = signal(false);
+  private readonly element = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private changed: (value: unknown) => void = () => undefined;
   private touched: () => void = () => undefined;
 
@@ -39,6 +44,9 @@ export class DsoToggleGroup implements ControlValueAccessor {
 
   pick(value: unknown): void {
     const current = this.value();
+    if (!this.multiple() && value === current) {
+      return;
+    }
     const next = this.multiple()
       ? this.selected(value)
         ? (current as unknown[]).filter((item) => item !== value)
@@ -47,6 +55,23 @@ export class DsoToggleGroup implements ControlValueAccessor {
     this.value.set(next);
     this.changed(next);
     this.touched();
+  }
+
+  protected move(event: KeyboardEvent): void {
+    const step = ARROWS[event.key];
+    if (this.multiple() || !step) {
+      return;
+    }
+    const buttons = [
+      ...this.element.querySelectorAll<HTMLButtonElement>('button[role=radio]:not(:disabled)'),
+    ];
+    const at = buttons.indexOf(event.target as HTMLButtonElement);
+    const next = buttons[(at + step + buttons.length) % buttons.length];
+    if (at >= 0 && next) {
+      event.preventDefault();
+      next.focus();
+      next.click();
+    }
   }
 
   writeValue(value: unknown): void {

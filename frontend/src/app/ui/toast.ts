@@ -8,8 +8,6 @@ export type ToastKind = 'info' | 'error';
   host: {
     class: 'toast show dso-toast',
     '[class.error]': "kind() === 'error'",
-    '[attr.role]': "kind() === 'error' ? 'alert' : 'status'",
-    'aria-live': 'polite',
   },
   template: `
     <div class="toast-body">{{ message() }}</div>

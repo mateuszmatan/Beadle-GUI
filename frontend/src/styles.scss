@@ -1019,7 +1019,8 @@ svg-icon svg {
   box-shadow: 0 8px 28px rgba(12, 35, 64, 0.28);
   outline: none;
 
-  > * {
+  > *,
+  > * > form {
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;

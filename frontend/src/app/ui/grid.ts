@@ -33,12 +33,7 @@ import {
   RowClickedEvent,
   RowStyleModule,
 } from 'ag-grid-community';
-import {
-  ClipboardModule,
-  ContextMenuModule,
-  ExcelExportModule,
-  LicenseManager,
-} from 'ag-grid-enterprise';
+import { LicenseManager } from 'ag-grid-enterprise';
 import { GRID_THEME } from './design-system';
 
 ModuleRegistry.registerModules([
@@ -48,9 +43,6 @@ ModuleRegistry.registerModules([
   RowAutoHeightModule,
   CustomFilterModule,
   CsvExportModule,
-  ClipboardModule,
-  ContextMenuModule,
-  ExcelExportModule,
 ]);
 LicenseManager.setLicenseKey(AG_GRID_LICENSE_KEY);
 
@@ -201,7 +193,7 @@ const INTERACTIVE = 'a, button, input, select, textarea, label';
   selector: 'dso-grid',
   imports: [AgGridAngular],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'dso-grid' },
+  host: { class: 'dso-grid', role: 'region', '[attr.aria-label]': 'label()' },
   template: `
     <ag-grid-angular
       [class]="theme"
@@ -209,7 +201,6 @@ const INTERACTIVE = 'a, button, input, select, textarea, label';
       [columnDefs]="columnDefs()"
       [rowData]="rowData()"
       [overlayNoRowsTemplate]="emptyTemplate()"
-      [attr.aria-label]="label()"
       (rowClicked)="clicked($event)"
     />
   `,
@@ -224,7 +215,7 @@ export class DsoGrid<T> {
   readonly columns = input.required<readonly GridColumn<T>[]>();
   readonly rowId = input.required<(row: T) => string | number>();
   readonly rowClass = input<(row: T) => string | string[] | undefined>();
-  readonly empty = input('Nothing to show.');
+  readonly empty = input('');
   readonly label = input<string>();
   readonly rowClick = output<T>();
 
@@ -246,6 +237,7 @@ export class DsoGrid<T> {
     suppressMovableColumns: true,
     suppressDragLeaveHidesColumns: true,
     enableCellTextSelection: true,
+    suppressCellFocus: true,
     rowHeight: 34,
     headerHeight: 34,
     floatingFiltersHeight: 38,

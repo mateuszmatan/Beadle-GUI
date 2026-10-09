@@ -1,3 +1,4 @@
+import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { ComponentPortal } from '@angular/cdk/portal';
 import { Injectable, inject } from '@angular/core';
@@ -7,6 +8,7 @@ import { errorMessage } from './errors';
 @Injectable({ providedIn: 'root' })
 export class Notifier {
   private readonly overlay = inject(Overlay);
+  private readonly announcer = inject(LiveAnnouncer);
   private shown: OverlayRef | null = null;
   private timer?: ReturnType<typeof setTimeout>;
 
@@ -40,6 +42,7 @@ export class Notifier {
     toast.setInput('action', action);
     toast.instance.closed.subscribe(() => this.dismiss());
     this.shown = shown;
+    this.announcer.announce(message, kind === 'error' ? 'assertive' : 'polite');
     this.timer = setTimeout(() => this.dismiss(), duration);
   }
 }

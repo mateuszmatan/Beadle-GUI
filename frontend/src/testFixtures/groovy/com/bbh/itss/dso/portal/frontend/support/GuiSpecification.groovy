@@ -310,7 +310,7 @@ abstract class GuiSpecification extends Specification {
 
     List<String> ownErrors() {
         def origin = baseUrl()
-        consoleErrors.findAll { !it.contains('localhost:3000') && !it.contains('grafana') && !it.startsWith('*') } +
+        consoleErrors.findAll { !it.contains('localhost:3000') && !it.contains('grafana') } +
                 failedRequests.findAll { it.contains(origin) }
     }
 
