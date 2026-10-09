@@ -3,14 +3,19 @@ package com.bbh.itss.dso.portal.regression
 import java.time.Instant
 import java.time.LocalDateTime
 
-import static com.bbh.itss.dso.portal.domain.change.TaskText.suggestedTasks
+import static com.bbh.itss.dso.portal.domain.change.TaskDetails.suggestedTasks
 import static com.bbh.itss.dso.portal.support.ApiJson.product
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.changeTaskJson
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.changeTasksJson
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.detailsJson
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.scheduleJson
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasksJson
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.templateJson
 import static java.time.ZoneOffset.UTC
 import static java.time.temporal.ChronoUnit.DAYS
 import static java.time.temporal.ChronoUnit.HOURS
+import static java.time.temporal.ChronoUnit.MINUTES
 
 class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
 
@@ -28,6 +33,12 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
     static final List<String> SCHEDULE_PATHS = ['schedule.installationStart', 'schedule.installationEnd',
                                                 'schedule.validationStart', 'schedule.validationEnd',
                                                 'schedule.firstUsage']
+    static final List<String> TASK_KEYS = ['number', 'details', 'start', 'approval', 'state']
+    static final List<String> TASK_DETAIL_KEYS = ['assignmentGroup', 'assignedTo', 'configurationItem', 'platform',
+                                                  'application', 'packages', 'backoutPackages', 'importance',
+                                                  'shortDescription', 'description', 'additionalComments']
+    static final String MODERATE = '3 - Moderate'
+    static final String NOT_YET_REQUESTED = 'Not Yet Requested'
 
     def "a product first gets a suggested template, then saves and changes its own at the version it read"() {
         given:
@@ -60,15 +71,21 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
                  secureCodingTicket: null]
         suggested.json.template.planning.keySet() as List ==
                 ['testSummary', 'implementationPlan', 'validationPlan', 'backoutPlan', 'firstUsePlan']
-        suggested.json.tasks == suggestedTasks(created.name as String).collect {
-            [shortDescription: it.shortDescription(), description: it.description()]
-        }
+        suggested.json.tasks == suggestedTasks(created.name as String, 'Ledger Ops').collect { detailsJson(it) }
+        suggested.json.tasks.every { it.keySet() as List == TASK_DETAIL_KEYS }
+        suggested.json.tasks*.subMap('assignmentGroup', 'platform', 'application', 'importance', 'shortDescription') ==
+                [[assignmentGroup: 'Release Management', platform: 'None', application: created.name, importance: null,
+                  shortDescription: "Deploy $created.name to production".toString()],
+                 [assignmentGroup: 'Ledger Ops', platform: null, application: null, importance: MODERATE,
+                  shortDescription: "Validate $created.name in production".toString()]]
 
         when:
         def saved = api.put("/api/products/$created.id/change-profile", [version: null, template: templateJson(),
                                                                          tasks: tasksJson()])
         def changed = api.put("/api/products/$created.id/change-profile", [version: 0, template: privileged,
-                tasks: [[shortDescription: ' Deploy the ledger ', description: ' Deploy it. ']]])
+                tasks: [[assignmentGroup: ' release management ', shortDescription: ' Deploy the ledger ',
+                         description: ' Deploy it. ', platform: 'OpenShift', application: 'Ledger',
+                         packages: ' ledger-2.0.jar ', importance: '1 - Critical']]])
         def stale = api.put("/api/products/$created.id/change-profile", [version: 0, template: templateJson(),
                                                                          tasks: tasksJson()])
 
@@ -76,12 +93,16 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         saved.status == 200
         saved.json.version == 0
         saved.json.template == templateJson()
-        saved.json.tasks == tasksJson()
+        saved.json.tasks == tasks().collect { detailsJson(it) }
+        saved.json.tasks*.importance == [MODERATE] * 2
         changed.json.version == 1
         changed.json.template == templateJson('privilegedAccess.required': true,
                 'privilegedAccess.users': [[user: 'Jane Smith', account: 'adm_jsmith'], [user: 'Ann Lee', account: 'adm_alee']],
                 'approvers.l1Manager': 'Emma Brooks', jiraProjectKey: 'LEDG', incident: 'INC0012345')
-        changed.json.tasks == [[shortDescription: 'Deploy the ledger', description: 'Deploy it.']]
+        changed.json.tasks == [[assignmentGroup: 'release management', assignedTo: null, configurationItem: null,
+                                platform: 'OpenShift', application: 'OCP', packages: 'ledger-2.0.jar',
+                                backoutPackages: null, importance: null, shortDescription: 'Deploy the ledger',
+                                description: 'Deploy it.', additionalComments: null]]
         stale.status == 409
         api.get("/api/products/$created.id/change-profile").json == changed.json
         api.get('/api/change-profiles').json.find { it.productId == created.id } ==
@@ -123,8 +144,11 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         'eight privileged users'         | ['privilegedAccess.required': true, 'privilegedAccess.users': (1..8).collect { [user: "U$it", account: "u$it"] }] | tasksJson() || 'template.privilegedAccess.users'
         'no planning'                    | [planning: null]                    | tasksJson()   || 'template.planning'
         'no tasks'                       | [:]                                 | []            || 'tasks'
-        'a task without description'     | [:]                                 | [[shortDescription: 'Deploy', description: ' ']] || 'tasks[0].description'
-        'a long task'                    | [:]                                 | [[shortDescription: 'é' * 81, description: 'Deploy.']] || 'tasks[0].shortDescription'
+        'a task without assignment group' | [:]                                | [[shortDescription: 'Deploy', description: 'Deploy.']] || 'tasks[0].assignmentGroup'
+        'a task without description'     | [:]                                 | [[assignmentGroup: 'Ops', shortDescription: 'Deploy', description: ' ']] || 'tasks[0].description'
+        'a long task'                    | [:]                                 | [[assignmentGroup: 'Ops', shortDescription: 'é' * 81, description: 'Deploy.']] || 'tasks[0].shortDescription'
+        'an importance off the list'     | [:]                                 | tasksJson() + [[assignmentGroup: 'Ops', shortDescription: 'Deploy', description: 'Deploy.', importance: 'Urgent']] || 'tasks[2].importance'
+        'a platform off the list'        | [:]                                 | [[assignmentGroup: 'Release Management', shortDescription: 'Deploy', description: 'Deploy.', platform: 'Windows']] || 'tasks[0].platform'
         'fifty-one tasks'                | [:]                                 | tasksJson(51) || 'tasks'
     }
 
@@ -179,7 +203,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         api.get("/api/products/$created.id/jira/stories?fixVersion=${enc(version)}&project=OTHER").json == []
     }
 
-    def "a change is drafted from the epics and stories of a FixVersion, raised with its change tasks and listed"() {
+    def "a change is drafted from the epics and stories of a FixVersion, raised without change tasks and listed"() {
         given:
         def created = createProduct(product(code: uniqueCode(), name: "Payments ${uniqueCode()}"))
         def key = 'PAY' + created.id
@@ -195,7 +219,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
                 "&epics=${chosen.join(',')}").json
         def template = templateJson(jiraProjectKey: key, 'riskAssessment.businessImpact': 'Medium')
         def preview = api.post('/api/changes/preview', change(created, fixVersion, chosen, stories*.key,
-                [template: template, tasks: tasksJson(3)]))
+                [template: template]))
 
         then:
         fixVersion.startsWith(key + ' ')
@@ -216,30 +240,31 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         preview.json.template == raisedAs(template, fixVersion)
         preview.json.shortDescription == "$created.name $fixVersion: ${epics.take(2)*.summary.join('; ')}"
         preview.json.description.startsWith("Production release $fixVersion of $created.name ($created.code) in Corporate Technology.\n")
-        preview.json.description.contains('Change tasks: Task 1 of the CertScanner release; Task 2 of the CertScanner release; Task 3 of the CertScanner release.')
+        !preview.json.description.contains('Change tasks')
         preview.json.description.contains("Scope from Jira project $key, FixVersion $fixVersion:\n${epics[0].key} ${epics[0].summary}")
         stories.every { preview.json.description.contains("- $it.key $it.summary") }
         preview.json.description.contains('Backout plan:\nRedeploy the previous release.\n')
         preview.json.description.contains('Privileged access: not needed.')
         preview.json.description.contains('Risk: Moderate\nNumber of BBH workgroups impacted: Single\n')
         preview.json.description.contains('Business impact: Medium')
-        preview.json.tasks == tasksJson(3).collect { it + [number: null, state: 'OPEN'] }
-        preview.json.tasks[0].keySet() as List == ['number', 'shortDescription', 'description', 'state']
+        preview.json.tasks == []
 
         when:
         def raised = api.post('/api/changes', change(created, fixVersion, chosen, stories*.key,
                 [shortDescription: ' Payments release 42 ', description: preview.json.description + '\nExtra.',
                  template: templateJson(jiraProjectKey: key, release: 'Payments 42'),
-                 tasks: tasksJson().collect { it + [number: 'CTASK0000001'] }]))
+                 tasks: [[number: 'CTASK0000001', shortDescription: ' ', description: 'Deploy.']]]))
 
         then:
         raised.status == 201
         raised.header('Location') == "$api.baseUrl/api/changes/${raised.json.id}"
         raised.json.number ==~ /CHG\d{7}/
-        raised.json.tasks*.number.every { it ==~ /CTASK\d{7}/ && it != 'CTASK0000001' }
-        raised.json.tasks*.state == ['OPEN', 'OPEN']
+        raised.json.tasks == []
         raised.json.shortDescription == 'Payments release 42'
         raised.json.description.endsWith('\nExtra.')
+        !raised.json.description.contains('Change tasks')
+        jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PRODUCTION_CHANGE_TASK WHERE CHANGE_ID = ?', Integer,
+                raised.json.id) == 0
         raised.json.fixVersion == fixVersion
         raised.json.schedule == scheduleJson(START)
         raised.json.template.release == 'Payments 42'
@@ -286,7 +311,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         api.get('/api/changes?departmentId=999999').json == []
     }
 
-    def "a product without stored ProTech defaults raises a change with the template and tasks it sends"() {
+    def "a product without stored ProTech defaults raises a change with the template it sends and the tasks it creates"() {
         given:
         def created = createProduct(product(code: uniqueCode(), name: "Fresh ${uniqueCode()}"))
         def template = templateJson(jiraProjectKey: 'FRESH', 'privilegedAccess.required': true,
@@ -295,13 +320,15 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         def epic = api.get("/api/products/$created.id/jira/epics?fixVersion=${enc(fixVersion)}&project=FRESH").json[0]
 
         when:
-        def raised = api.post('/api/changes', change(created, fixVersion, [epic.key], [],
-                [template: template, tasks: tasksJson(1)]))
+        def raised = api.post('/api/changes', change(created, fixVersion, [epic.key], [], [template: template]))
+        def tasked = createTasks(raised.json as Map, changeTasksJson(1))
 
         then:
         raised.status == 201
         raised.json.template == raisedAs(template, fixVersion)
-        raised.json.tasks*.shortDescription == ['Task 1 of the CertScanner release']
+        raised.json.tasks == []
+        tasked.tasks*.details*.shortDescription == ['Task 1 of the CertScanner release']
+        tasked.template == raised.json.template
         raised.json.description.contains('Privileged access needed for: Jane Smith (adm_jsmith).')
         api.get("/api/products/$created.id/change-profile").json.version == null
     }
@@ -328,9 +355,6 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         where:
         refusal                       | edits                                                          || fields
         'no FixVersion'               | [fixVersion: ' ']                                              || ['fixVersion']
-        'no change tasks'             | [tasks: []]                                                    || ['tasks']
-        'a missing task list'         | [tasks: null]                                                  || ['tasks']
-        'a task without short text'   | [tasks: [[shortDescription: ' ', description: 'Deploy.']]]    || ['tasks[0].shortDescription']
         'an installation in the past' | [schedule: scheduleJson(Instant.parse('2020-01-01T08:00:00Z'))] || ['schedule.installationStart']
         'an installation ending first' | [schedule: scheduleJson(START) + [installationEnd: START.toString()]] || ['schedule.installationEnd']
         'a validation before the end' | [schedule: scheduleJson(START) + [validationStart: START.toString()]] || ['schedule.validationStart']
@@ -407,6 +431,217 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
                                                                    'schedule.validationEnd', 'schedule.firstUsage']
     }
 
+    def "the change tasks of a raised change are created in ProTech one by one, numbered and shown when it is read"() {
+        given:
+        def raised = raise(createProduct(product(code: uniqueCode(), name: "Tasks ${uniqueCode()}")), [])
+        def release = changeTaskJson(assignmentGroup: 'Release Management', shortDescription: ' Deploy the release ',
+                description: 'Run the deployment jobs.', application: 'Payments', packages: 'payments-4.2.jar',
+                backoutPackages: 'payments-4.1.jar', importance: '1 - Critical', additionalComments: 'Page on-call.')
+        def generic = changeTaskJson([assignmentGroup: 'Service Desk', assignedTo: 'Grace Turner',
+                                      configurationItem: 'Payments Gateway', shortDescription: 'Tell the users',
+                                      description: 'Post the notice.', platform: 'Mainframe', application: 'Payments',
+                                      packages: 'payments-4.2.jar'], START.plus(1, HOURS)) + [number: 'CTASK0000001']
+
+        when:
+        def tasked = api.post("/api/changes/$raised.id/tasks", tasksOf(raised, [release, generic]))
+
+        then:
+        raised.tasks == []
+        tasked.status == 200
+        tasked.json.keySet() as List == CHANGE_KEYS
+        tasked.json.tasks.every { it.keySet() as List == TASK_KEYS && it.details.keySet() as List == TASK_DETAIL_KEYS }
+        tasked.json.tasks*.number.every { it ==~ /CTASK\d{7}/ && it != 'CTASK0000001' }
+        tasked.json.tasks*.number.toSet().size() == 2
+        tasked.json.tasks*.subMap('details', 'start', 'approval', 'state') ==
+                [[details : [assignmentGroup  : 'Release Management', assignedTo: null,
+                             configurationItem: raised.template.configurationItem, platform: 'None',
+                             application      : 'Payments', packages: 'payments-4.2.jar',
+                             backoutPackages  : 'payments-4.1.jar', importance: null,
+                             shortDescription : 'Deploy the release', description: 'Run the deployment jobs.',
+                             additionalComments: 'Page on-call.'],
+                  start   : START.plus(1, MINUTES).toString(), approval: NOT_YET_REQUESTED, state: 'OPEN'],
+                 [details : [assignmentGroup  : 'Service Desk', assignedTo: 'Grace Turner',
+                             configurationItem: 'Payments Gateway', platform: null, application: null, packages: null,
+                             backoutPackages  : null, importance: MODERATE, shortDescription: 'Tell the users',
+                             description      : 'Post the notice.', additionalComments: null],
+                  start   : null, approval: NOT_YET_REQUESTED, state: 'OPEN']]
+        tasked.json.findAll { !(it.key in ['tasks', 'version', 'editedVersion', 'syncedAt']) } ==
+                raised.findAll { !(it.key in ['tasks', 'version', 'editedVersion', 'syncedAt']) }
+        tasked.json.version > raised.version
+        !tasked.json.description.contains('Change tasks')
+        jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PRODUCTION_CHANGE_TASK WHERE CHANGE_ID = ?', Integer,
+                raised.id) == 2
+
+        when:
+        def opened = api.get("/api/changes/$raised.id").json
+        def listed = api.get('/api/changes?departmentId=3').json.find { it.id == raised.id }
+        def more = api.post("/api/changes/$raised.id/tasks", tasksOf(opened, changeTasksJson(1)))
+
+        then:
+        opened.findAll { it.key != 'syncedAt' } == tasked.json.findAll { it.key != 'syncedAt' }
+        listed.tasks == opened.tasks
+        more.status == 200
+        more.json.tasks*.number.take(2) == opened.tasks*.number
+        more.json.tasks[2].number ==~ /CTASK\d{7}/
+        more.json.tasks*.details*.shortDescription == ['Deploy the release', 'Tell the users',
+                                                      'Task 1 of the CertScanner release']
+        api.get("/api/changes/$raised.id").json.tasks == more.json.tasks
+    }
+
+    def "a #kind is created with the platform, application, importance and start that fit it"() {
+        given:
+        def raised = raise(createProduct(product(code: uniqueCode(), name: "Platform ${uniqueCode()}")), [])
+
+        when:
+        def tasked = api.post("/api/changes/$raised.id/tasks", tasksOf(raised, [changeTaskJson([assignmentGroup: group,
+                platform: platform, application: 'Payments', importance: '2 - High'], start)]))
+
+        then:
+        tasked.status == 200
+        tasked.json.tasks[0].details.subMap('assignmentGroup', 'platform', 'application', 'importance') ==
+                [assignmentGroup: group] + expected
+        tasked.json.tasks[0].start == planned?.toString()
+
+        where:
+        kind                                    | group                         | platform       | start                  || expected                                                               | planned
+        'release task on OpenShift'             | 'Release Management'          | 'OpenShift'    | START.plus(2, HOURS)   || [platform: 'OpenShift', application: 'OCP', importance: null]          | START.plus(2, HOURS)
+        'release task without a platform'       | 'Release Management'          | ' '            | null                   || [platform: 'None', application: 'Payments', importance: null]          | START.plus(1, MINUTES)
+        'task of a release management team'     | 'CT release management team'  | 'Cognos/Motio' | START.plus(1, MINUTES) || [platform: 'Cognos/Motio', application: 'Payments', importance: null]  | START.plus(1, MINUTES)
+        'generic task on OpenShift'             | 'OpenShift Platform Support'  | 'OpenShift'    | START.plus(1, HOURS)   || [platform: null, application: null, importance: '2 - High']            | null
+    }
+
+    def "change tasks with #problem are refused against the field to fix"() {
+        given:
+        def raised = raise(createProduct(product(code: uniqueCode(), name: "Invalid ${uniqueCode()}")), [])
+
+        when:
+        def response = api.post("/api/changes/$raised.id/tasks", tasksOf(raised, tasks) + edits)
+
+        then:
+        response.status == 400
+        response.json.title == 'Validation failed'
+        response.json.errors.collectEntries { [it.field, it.message] } == errors
+        api.get("/api/changes/$raised.id").json.subMap('tasks', 'version') == [tasks: [], version: raised.version]
+        jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PRODUCTION_CHANGE_TASK WHERE CHANGE_ID = ?', Integer,
+                raised.id) == 0
+
+        where:
+        problem                                       | tasks                                                                                       | edits                || errors
+        'a release task starting with the installation' | [changeTaskJson([assignmentGroup: 'Release Management'], START)]                          | [:]                  || ['tasks[0].start': 'must be at least a minute after the installation start']
+        'a release task starting after the installation' | [changeTaskJson([assignmentGroup: 'Release Management'], START.plus(2, HOURS).plusSeconds(1))] | [:]           || ['tasks[0].start': 'must not be after the installation end']
+        'a second task without assignment group'      | [changeTaskJson(), changeTaskJson(assignmentGroup: ' ')]                                    | [:]                  || ['tasks[1].details.assignmentGroup': 'must not be blank']
+        'a task without description'                  | [changeTaskJson(description: '')]                                                           | [:]                  || ['tasks[0].details.description': 'must not be blank']
+        'an importance off the list'                  | [changeTaskJson(importance: '6 - Someday')]                                                 | [:]                  || ['tasks[0].details.importance': 'must be one of 1 - Critical, 2 - High, 3 - Moderate, 4 - Low, 5 - Planning']
+        'a platform off the list'                     | [changeTaskJson(assignmentGroup: 'Release Management', platform: 'Windows')]                | [:]                  || ['tasks[0].details.platform': 'must be one of None, Mainframe, Distributed, OpenShift, Cognos/Motio']
+        'a short description over 160 bytes'          | [changeTaskJson(shortDescription: 'é' * 81)]                                                | [:]                  || ['tasks[0].details.shortDescription': 'is too long: it may take at most 160 bytes']
+        'a task without details'                      | [[start: null]]                                                                             | [:]                  || ['tasks[0].details.assignmentGroup': 'must not be blank', 'tasks[0].details.shortDescription': 'must not be blank', 'tasks[0].details.description': 'must not be blank']
+        'no tasks'                                    | []                                                                                          | [:]                  || [tasks: 'size must be between 1 and 50']
+        'no task list'                                | null                                                                                        | [:]                  || [tasks: 'must not be null']
+        'fifty-one tasks'                             | changeTasksJson(51)                                                                         | [:]                  || [tasks: 'size must be between 1 and 50']
+        'no version'                                  | changeTasksJson(1)                                                                          | [version: null]      || [version: 'must not be null']
+        'no department'                               | changeTasksJson(1)                                                                          | [departmentId: null] || [departmentId: 'must not be null']
+    }
+
+    def "a change holds at most 50 change tasks"() {
+        given:
+        def raised = raise(createProduct(product(code: uniqueCode(), name: "Full ${uniqueCode()}")), changeTasksJson(50))
+
+        when:
+        def response = api.post("/api/changes/$raised.id/tasks", tasksOf(raised, changeTasksJson(1)))
+
+        then:
+        raised.tasks*.number.toSet().size() == 50
+        response.status == 400
+        response.json.errors == [[field: 'tasks', message: "$raised.number may hold at most 50 change tasks".toString()]]
+        api.get("/api/changes/$raised.id").json.tasks*.number == raised.tasks*.number
+    }
+
+    def "change tasks are refused #refusal"() {
+        given:
+        def raised = raise(createProduct(product(code: uniqueCode(), name: "Refused ${uniqueCode()}")))
+        if (unowned) {
+            jdbc.update('UPDATE DSO_PRODUCTION_CHANGE SET DEPARTMENT_ID = NULL WHERE ID = ?', raised.id)
+        }
+        Instant now = Instant.now()
+        def number = closed ? adopt(raised.id, now.minus(9, DAYS), now.minus(6, DAYS), now.minus(5, DAYS))
+                : raised.number
+
+        when:
+        def response = api.post("/api/changes/$raised.id/tasks", tasksOf(raised, changeTasksJson(1)) + edits)
+
+        then:
+        response.status == status
+        response.json.title == (status == 403 ? 'Forbidden' : 'Conflict')
+        response.json.detail == detail(number)
+        api.get("/api/changes/$raised.id").json.tasks*.number == raised.tasks*.number
+
+        where:
+        refusal                                        | unowned | closed | edits             || status | detail
+        'for another department'                       | false   | false  | [departmentId: 4] || 403    | { "Only Corporate Technology can change $it".toString() }
+        'for a change no department owns'              | true    | false  | [:]               || 403    | { "No department owns $it, so it cannot be changed in Beadle".toString() }
+        'at a version read before the last tasks came' | false   | false  | [version: 0]      || 409    | { 'The record was changed by someone else in the meantime. Reload it and apply your change again.' }
+        'once ProTech has closed the change'           | false   | true   | [:]               || 409    | { "$it is closed in ProTech and can no longer be changed".toString() }
+    }
+
+    def "ProTech asks for the approval of the change tasks once the change reaches the change task approval"() {
+        given:
+        def raised = raise(createProduct(product(code: uniqueCode(), name: "Approval ${uniqueCode()}")))
+        Instant now = Instant.now()
+
+        when:
+        def drafted = api.get("/api/changes/$raised.id").json
+        adopt(raised.id, now.minus(9, MINUTES), now.plus(3, DAYS), now.plus(3, DAYS).plus(3, HOURS))
+        def requested = api.get("/api/changes/$raised.id").json
+
+        then:
+        drafted.state == 'DRAFT'
+        drafted.tasks*.approval == [NOT_YET_REQUESTED] * 2
+        requested.state == 'CTASK_APPROVAL'
+        requested.tasks*.approval == ['Requested'] * 2
+        requested.tasks*.state == ['OPEN'] * 2
+        requested.tasks*.number == raised.tasks*.number
+    }
+
+    def "a change without change tasks is updated and gets its tasks afterwards"() {
+        given:
+        def raised = raise(createProduct(product(code: uniqueCode(), name: "Untasked ${uniqueCode()}")), [])
+
+        when:
+        def updated = api.put("/api/changes/$raised.id", editOf(raised, [shortDescription: 'Renamed release']))
+        def tasked = api.post("/api/changes/$raised.id/tasks", tasksOf(updated.json, changeTasksJson()))
+
+        then:
+        updated.status == 200
+        updated.json.tasks == []
+        updated.json.update.subMap('status', 'fields') == [status: 'APPLIED', fields: []]
+        tasked.status == 200
+        tasked.json.shortDescription == 'Renamed release'
+        tasked.json.tasks*.details*.shortDescription == changeTasksJson()*.details*.shortDescription
+        tasked.json.update == updated.json.update
+    }
+
+    def "an update keeps the release tasks inside the installation window it moves to"() {
+        given:
+        def raised = raise(createProduct(product(code: uniqueCode(), name: "Window ${uniqueCode()}")),
+                [changeTaskJson(assignmentGroup: 'Release Management'), changeTaskJson()])
+        def later = scheduleJson(START.plus(1, DAYS))
+
+        when:
+        def kept = api.put("/api/changes/$raised.id", editOf(raised, [schedule: later]))
+        def moved = api.put("/api/changes/$raised.id", editOf(raised, [schedule: later,
+                tasks: [raised.tasks[0] + [start: null], raised.tasks[1]]]))
+
+        then:
+        raised.tasks*.start == [START.plus(1, MINUTES).toString(), null]
+        kept.status == 400
+        kept.json.errors == [[field: 'tasks[0].start', message: 'must be at least a minute after the installation start']]
+        moved.status == 200
+        moved.json.tasks*.number == raised.tasks*.number
+        moved.json.tasks*.start == [START.plus(1, DAYS).plus(1, MINUTES).toString(), null]
+        moved.json.update.subMap('status', 'fields') == [status: 'APPLIED', fields: []]
+        api.get("/api/changes/$raised.id").json.tasks == moved.json.tasks
+    }
+
     def "its department updates an open change, ProTech applies it and Beadle shows it as applied"() {
         given:
         def raised = raise(createProduct(product(code: uniqueCode(), name: "Update ${uniqueCode()}")))
@@ -414,8 +649,11 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         def edit = editOf(raised, [shortDescription: ' Renamed release ', schedule: later,
                                    template: raised.template + [category: 'Hardware', jiraProjectKey: 'OTHER',
                                                                 usersAffected: 'Ledger operators', risk: 'High'],
-                                   tasks: [raised.tasks[0] + [shortDescription: 'Deploy it all'],
-                                           [shortDescription: 'Check the audit trail', description: 'Open it.']]])
+                                   tasks: [raised.tasks[0] + [details: raised.tasks[0].details +
+                                                                       [shortDescription: 'Deploy it all']],
+                                           changeTaskJson(assignmentGroup: 'Service Desk',
+                                                   shortDescription: 'Check the audit trail',
+                                                   description: 'Open it.')]])
 
         when:
         def updated = api.put("/api/changes/$raised.id", edit)
@@ -429,17 +667,20 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         updated.json.template.usersAffected == 'Ledger operators'
         updated.json.template.risk == 'Moderate'
         updated.json.template.jiraProjectKey == raised.template.jiraProjectKey
-        updated.json.tasks*.shortDescription == ['Deploy it all', 'Check the audit trail',
-                                                 raised.tasks[1].shortDescription]
+        updated.json.tasks*.details*.shortDescription == ['Deploy it all', 'Check the audit trail',
+                                                          raised.tasks[1].details.shortDescription]
         updated.json.tasks*.state == ['OPEN', 'OPEN', 'CANCELED']
         updated.json.tasks[0].number == raised.tasks[0].number
         updated.json.tasks[1].number ==~ /CTASK\d{7}/
+        updated.json.tasks[1].details.subMap('assignmentGroup', 'configurationItem', 'importance') ==
+                [assignmentGroup: 'Service Desk', configurationItem: raised.template.configurationItem,
+                 importance: MODERATE]
         updated.json.tasks[2].number == raised.tasks[1].number
         updated.json.update.subMap('status', 'departmentName', 'fields', 'message') ==
                 [status: 'APPLIED', departmentName: 'Corporate Technology', fields: [], message: null]
         !Instant.parse(updated.json.update.checkedAt).isBefore(Instant.parse(updated.json.update.requestedAt))
         updated.json.syncProblem == null
-        updated.json.version == 2
+        updated.json.version == raised.version + 2
 
         when:
         def opened = api.get("/api/changes/$raised.id").json
@@ -463,11 +704,13 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
                                                                          shortDescription: 'Moved release']))
         def waiting = api.get("/api/changes/$raised.id").json
         def refused = api.put("/api/changes/$raised.id", editOf(waiting, [shortDescription: 'Again']))
+        def untasked = api.post("/api/changes/$raised.id/tasks", tasksOf(waiting, [changeTaskJson()]))
 
         then:
         opened.number == number
         opened.state == 'IMPLEMENTATION'
         opened.tasks*.state == ['WORK_IN_PROGRESS'] * 2
+        opened.tasks*.approval == ['Approved'] * 2
         opened.workflow*.state == ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL',
                                    'CTASK_APPROVAL', 'IMPLEMENTATION']
         updated.status == 200
@@ -478,7 +721,10 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         waiting.update.status == 'PENDING'
         refused.status == 409
         refused.json.detail == "The last update of $number is still waiting for ProTech; change it again once ProTech has applied it".toString()
-        api.get("/api/changes/$raised.id").json.shortDescription == 'Moved release'
+        untasked.status == 409
+        untasked.json.detail == refused.json.detail
+        api.get("/api/changes/$raised.id").json.subMap('shortDescription', 'tasks') ==
+                [shortDescription: 'Moved release', tasks: waiting.tasks]
     }
 
     def "a change ProTech has closed is synced when opened and can no longer be updated"() {
@@ -495,7 +741,8 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         opened.state == 'CLOSED'
         opened.workflow*.state.last() == 'CLOSED'
         opened.tasks*.state == ['CLOSED'] * 2
-        opened.version == 1
+        opened.tasks*.approval == ['Approved'] * 2
+        opened.version == raised.version + 1
         refused.status == 409
         refused.json.detail == "$number is closed in ProTech and can no longer be changed".toString()
         api.get("/api/changes/$raised.id").json.shortDescription == raised.shortDescription
@@ -515,7 +762,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         response.status == status
         response.json.title == (status == 400 ? 'Validation failed' : 'Forbidden')
         (status == 400 ? response.json.errors*.field : response.json.detail) == expected(raised)
-        api.get("/api/changes/$raised.id").json.version == 0
+        api.get("/api/changes/$raised.id").json.version == raised.version
 
         where:
         refusal                              | unowned | edits                                                     || status | expected
@@ -523,9 +770,12 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         'for a change no department owns'    | true    | { [departmentId: 3] }                                     || 403    | { "No department owns $it.number, so it cannot be changed in Beadle".toString() }
         'without a department'               | false   | { [departmentId: null] }                                  || 400    | { ['departmentId'] }
         'without a version'                  | false   | { [version: null] }                                       || 400    | { ['version'] }
-        'without tasks'                      | false   | { [tasks: []] }                                           || 400    | { ['tasks'] }
+        'without a task list'                | false   | { [tasks: null] }                                         || 400    | { ['tasks'] }
         'with a blank short description'     | false   | { [shortDescription: ' '] }                               || 400    | { ['shortDescription'] }
-        'with a task of another change'      | false   | { [tasks: [[number: 'CTASK0000001', shortDescription: 'A', description: 'B']]] } || 400 | { ['tasks[0].number'] }
+        'with a task of another change'      | false   | { [tasks: [changeTaskJson() + [number: 'CTASK0000001']]] } || 400   | { ['tasks[0].number'] }
+        'with a task without assignment group' | false | { Map change -> [tasks: [change.tasks[0] + [details: change.tasks[0].details + [assignmentGroup: ' ']]]] } || 400 | { ['tasks[0].details.assignmentGroup'] }
+        'with a release task starting with the installation' | false | { [tasks: [changeTaskJson([assignmentGroup: 'Release Management'], START)]] } || 400 | { ['tasks[0].start'] }
+        'with fifty-one tasks'               | false   | { [tasks: changeTasksJson(51)] }                          || 400    | { ['tasks'] }
         'with a task listed twice'           | false   | { Map change -> [tasks: [change.tasks[0], change.tasks[0]]] } || 400 | { ['tasks[1].number'] }
         'with an installation in the past'   | false   | { [schedule: scheduleJson(Instant.parse('2026-01-05T17:00:00Z'))] } || 400 | { ['schedule.installationStart'] }
     }
@@ -539,8 +789,8 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
                 .json[0].key
         api.put("/api/products/$created.id/change-profile", [template: templateJson(jiraProjectKey: key),
                                                              tasks: tasksJson()])
-        def raised = api.post('/api/changes', change(created, fixVersion, [epic], [],
-                [template: templateJson(jiraProjectKey: key)])).json
+        def raised = createTasks(api.post('/api/changes', change(created, fixVersion, [epic], [],
+                [template: templateJson(jiraProjectKey: key)])).json as Map, changeTasksJson())
 
         when:
         def deleted = api.delete("/api/products/$created.id")
@@ -553,6 +803,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         kept.departmentId == 3
         kept.fixVersion == fixVersion
         kept.tasks*.number == raised.tasks*.number
+        kept.tasks*.number.size() == 2
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_CHANGE_PROFILE WHERE PRODUCT_ID = ?', Integer, created.id) == 0
         api.get("/api/products/$created.id/jira/versions").status == 404
 
@@ -563,6 +814,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         api.get('/api/products/1/jira/versions?project=ce-rt').json.errors*.field == ['project']
         api.get('/api/changes/99999').status == 404
         api.put('/api/changes/99999', editOf(raised, [:])).status == 404
+        api.post('/api/changes/99999/tasks', tasksOf(raised, changeTasksJson(1))).status == 404
         api.get('/api/changes/integrations').json == [jiraConnected: false, serviceNowConnected: false]
     }
 

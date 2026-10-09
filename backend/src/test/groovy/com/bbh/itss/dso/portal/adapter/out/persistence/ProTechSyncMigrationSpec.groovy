@@ -6,7 +6,7 @@ import com.bbh.itss.dso.portal.domain.change.ChangeProfile
 import com.bbh.itss.dso.portal.domain.change.ChangeTask
 import com.bbh.itss.dso.portal.domain.change.ChangeUpdate
 import com.bbh.itss.dso.portal.domain.change.ProductionChange
-import com.bbh.itss.dso.portal.domain.change.TaskText
+import com.bbh.itss.dso.portal.domain.change.TaskDetails
 import com.bbh.itss.dso.portal.domain.change.WorkflowStep
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
@@ -20,12 +20,14 @@ import static com.bbh.itss.dso.portal.domain.change.ChangeState.IMPLEMENTATION
 import static com.bbh.itss.dso.portal.domain.change.ChangeUpdate.Status.APPLIED
 import static com.bbh.itss.dso.portal.domain.change.TaskState.OPEN
 import static com.bbh.itss.dso.portal.domain.change.TaskState.WORK_IN_PROGRESS
-import static com.bbh.itss.dso.portal.domain.change.TaskText.suggestedTasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.FIX_VERSION
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.RAISED
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.changeProduct
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.ctask
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.epic
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.schedule
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.migratedTasks
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.task
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
 import static com.bbh.itss.dso.portal.support.Fixtures.account
@@ -97,10 +99,12 @@ class ProTechSyncMigrationSpec extends MigrationSpecification {
 
         then:
         profiles.find(product.id()).get().tasks() == ['api', 'gui'].collect {
-            new TaskText("Deploy $it of CertScanner to production",
-                    "Deploy $it of CertScanner, then run its smoke tests and confirm the result in this task.")
+            TaskDetails.builder().assignmentGroup('Technology Architecture').configurationItem('CertScanner')
+                    .shortDescription("Deploy $it of CertScanner to production")
+                    .description("Deploy $it of CertScanner, then run its smoke tests and confirm the result in this"
+                            + ' task.').build()
         }
-        profiles.find(ledger).get().tasks() == suggestedTasks('Ledger')
+        profiles.find(ledger).get().tasks() == migratedTasks('Ledger')
         change.departmentId() == 3L
         inTransaction { changes.load(moved.id()).get() }.departmentId() == 5L
         inTransaction { changes.load(renamed.id()).get() }.departmentId() == 3L
@@ -109,7 +113,7 @@ class ProTechSyncMigrationSpec extends MigrationSpecification {
         change.workflow() == [new WorkflowStep(DRAFT, RAISED)]
         change.syncedAt() == null
         change.update() == null
-        change.tasks() == [new ChangeTask('CTASK0041001', 'Task 1 of the CertScanner release',
+        change.tasks() == [ctask('CTASK0041001', 'Task 1 of the CertScanner release',
                 'Step 1 of the CertScanner release.', OPEN)]
         !columns('DSO_PRODUCTION_CHANGE_TASK').contains('SERVICE_NAME')
         nullable('DSO_PRODUCTION_CHANGE_TASK', 'TASK_NUMBER')
@@ -127,11 +131,12 @@ class ProTechSyncMigrationSpec extends MigrationSpecification {
     }
 
     private static ProductionChange changeOf(Product product, String number = 'CHG0031001',
-                                             String task = 'CTASK0041001', String department = 'Corporate Technology') {
+                                             String taskNumber = 'CTASK0041001', String department = 'Corporate Technology') {
         ProductionChange draft = ProductionChange.draft(changeProduct(id: product.id(), code: product.code(),
-                name: product.name(), departmentName: department), 'Mateusz Matan', tasks(2), FIX_VERSION, schedule(),
+                name: product.name(), departmentName: department), 'Mateusz Matan', FIX_VERSION, schedule(),
                 template(), [epic('CERT-1', 'Expiry alerts')], [], null, null).raisedAt(RAISED)
-                .numbered(number, [task, task + '2'], null)
+                .numbered(number, null)
+                .withTasks([task(1).numbered(taskNumber), task(2).numbered(taskNumber + '2')])
         draft.toBuilder().state(IMPLEMENTATION)
                 .workflow([new WorkflowStep(DRAFT, RAISED), new WorkflowStep(BUSINESS_APPROVAL, RAISED.plusSeconds(120)),
                            new WorkflowStep(IMPLEMENTATION, RAISED.plusSeconds(600))])

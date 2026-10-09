@@ -80,6 +80,11 @@ public class ChangeController {
         return created(fromCurrentRequest().path("/{id}").buildAndExpand(raised.id()).toUri()).body(raised);
     }
 
+    @PostMapping("/changes/{id}/tasks")
+    public ProductionChange createTasks(@PathVariable long id, @Valid @RequestBody ChangeTasksRequest request) {
+        return changes.createTasks(id, request.toCommand());
+    }
+
     @GetMapping("/products/{id}/jira/versions")
     public List<JiraVersion> versions(@PathVariable long id, @RequestParam(required = false) String project) {
         return changes.versions(id, project);

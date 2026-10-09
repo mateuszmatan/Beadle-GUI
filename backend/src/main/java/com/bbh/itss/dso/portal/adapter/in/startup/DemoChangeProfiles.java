@@ -13,7 +13,7 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Timing;
 import com.bbh.itss.dso.portal.domain.change.Lookup;
 import com.bbh.itss.dso.portal.domain.change.RiskAssessment;
 import com.bbh.itss.dso.portal.domain.change.RiskAssessment.Question;
-import com.bbh.itss.dso.portal.domain.change.TaskText;
+import com.bbh.itss.dso.portal.domain.change.TaskDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
@@ -36,6 +36,7 @@ import static com.bbh.itss.dso.portal.domain.change.RiskAssessment.Question.CHAN
 import static com.bbh.itss.dso.portal.domain.change.RiskAssessment.Question.CLIENTS_OUTSIDE_BBH;
 import static com.bbh.itss.dso.portal.domain.change.RiskAssessment.Question.PLATFORM_STATUS;
 import static com.bbh.itss.dso.portal.domain.change.RiskAssessment.Question.VALIDATION_COMPLEXITY;
+import static com.bbh.itss.dso.portal.domain.change.TaskDetails.suggestedTasks;
 import static com.bbh.itss.dso.portal.domain.shared.Text.abbreviateBytes;
 import static java.util.Collections.shuffle;
 import static java.util.stream.Collectors.joining;
@@ -49,6 +50,7 @@ import static org.apache.commons.lang3.StringUtils.trim;
 public class DemoChangeProfiles {
 
     static final String PRIVILEGED_PRODUCT = "PAYHUB";
+    static final String DATABASE_GROUP = "Database Administration";
     static final List<PrivilegedUser> PRIVILEGED_USERS = List.of(
             new PrivilegedUser("Priya Natarajan", "adm_pnatarajan"), new PrivilegedUser("Marcus Webb", "adm_mwebb"));
     static final List<String> IMPACTS = List.of("None", "Medium", "High");
@@ -77,21 +79,23 @@ public class DemoChangeProfiles {
             ChangeProfileView profile = profiles.get(product.id());
             if (profile.version() == null) {
                 ChangeTemplate defaults = defaultsFor(product, profile.template());
-                profiles.save(product.id(), null, defaults, tasksFor(product, defaults, profile.tasks()));
+                profiles.save(product.id(), null, defaults, tasksFor(product, defaults));
                 filled++;
             }
         }
         log.info("Filled in the demo ProTech change template of {} product(s)", filled);
     }
 
-    static List<TaskText> tasksFor(ProductSummaryView product, ChangeTemplate defaults, List<TaskText> suggested) {
+    static List<TaskDetails> tasksFor(ProductSummaryView product, ChangeTemplate defaults) {
+        List<TaskDetails> tasks = new ArrayList<>(suggestedTasks(product.name(), defaults.assignmentGroup()));
         if (LOW.equals(defaults.risk())) {
-            return suggested;
+            return tasks;
         }
-        List<TaskText> tasks = new ArrayList<>(suggested);
-        tasks.add(1, new TaskText("Run the database scripts of " + product.name(), "Run the reviewed database"
-                + " scripts of the " + product.name() + " release on the production database before the deployment,"
-                + " then record the scripts and their result in this task."));
+        tasks.add(1, TaskDetails.builder().assignmentGroup(DATABASE_GROUP)
+                .shortDescription("Run the database scripts of " + product.name())
+                .description("Run the reviewed database scripts of the " + product.name() + " release on the"
+                        + " production database before the deployment, then record the scripts and their result in"
+                        + " this task.").build());
         return tasks;
     }
 

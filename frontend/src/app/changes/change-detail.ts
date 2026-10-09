@@ -28,6 +28,7 @@ import {
 import { editHint, momentText } from './change-model';
 import { fieldLabels } from './change-problems';
 import { ChangeSummary } from './change-summary';
+import { taskFacts } from './change-tasks-model';
 import { PublishedChange } from './published-change';
 import { WorkflowProgress } from './workflow-progress';
 
@@ -149,10 +150,14 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
                       <span class="muted">not in ProTech yet</span>
                     }
                     <span class="chip neutral">{{ taskState(task.state) }}</span>
+                    <span class="muted">{{ task.approval }}</span>
                   </span>
-                  <strong>{{ task.shortDescription }}</strong>
-                  <span class="muted">{{ task.description }}</span>
+                  <strong>{{ task.details.shortDescription }}</strong>
+                  <span class="facts">{{ taskFacts(task) }}</span>
+                  <span class="muted">{{ task.details.description }}</span>
                 </li>
+              } @empty {
+                <li class="none muted">{{ open() ? 'None yet: add them with Edit.' : 'None' }}</li>
               }
             </ol>
           </section>
@@ -216,6 +221,16 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
         overflow-wrap: anywhere;
       }
 
+      .facts {
+        color: var(--dso-muted);
+        font-size: 12px;
+      }
+
+      .none {
+        list-style: none;
+        margin-left: -20px;
+      }
+
       .canceled {
         color: var(--dso-muted);
 
@@ -252,6 +267,7 @@ export class ChangeDetail {
   protected readonly productLink = beadleProduct;
   protected readonly changeLink = beadleChange;
   protected readonly updateText = updateText;
+  protected readonly taskFacts = taskFacts;
   protected readonly tones = TONES;
   protected readonly change = rxResource({
     params: () => this.id(),

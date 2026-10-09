@@ -8,7 +8,7 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedUser;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Timing;
 import com.bbh.itss.dso.portal.domain.change.RiskAssessment;
-import com.bbh.itss.dso.portal.domain.change.TaskText;
+import com.bbh.itss.dso.portal.domain.change.TaskDetails;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -32,22 +32,19 @@ import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.TIME_OF_DAY;
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.TIME_OF_DAY_MESSAGE;
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.DESCRIPTION_MAX;
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.SHORT_DESCRIPTION_MAX;
-import static com.bbh.itss.dso.portal.domain.change.TaskText.MAX_TASKS;
+import static com.bbh.itss.dso.portal.domain.change.TaskDetails.MAX_TASKS;
 import static jakarta.validation.constraints.Pattern.Flag.CASE_INSENSITIVE;
 
 public record ChangeProfileRequest(Long version, @NotNull @Valid TemplateDto template,
-                                   @NotNull @Size(min = 1, max = MAX_TASKS) List<@NotNull @Valid TaskTextDto> tasks) {
+                                   @NotNull @Size(min = 1, max = MAX_TASKS)
+                                   List<@NotNull @Valid TaskDetailsDto> tasks) {
 
     ChangeTemplate toTemplate() {
         return map(template, ChangeTemplate.class);
     }
 
-    List<TaskText> toTasks() {
-        return tasksOf(tasks);
-    }
-
-    static List<TaskText> tasksOf(List<TaskTextDto> tasks) {
-        return tasks.stream().map(task -> map(task, TaskText.class)).toList();
+    List<TaskDetails> toTasks() {
+        return tasks.stream().map(task -> map(task, TaskDetails.class)).toList();
     }
 
     public record TemplateDto(
@@ -103,9 +100,18 @@ public record ChangeProfileRequest(Long version, @NotNull @Valid TemplateDto tem
             implements Mirrors<PrivilegedUser> {
     }
 
-    public record TaskTextDto(@NotBlank @Size(max = SHORT_DESCRIPTION_MAX) String shortDescription,
-                              @NotBlank @Size(max = DESCRIPTION_MAX) String description)
-            implements Mirrors<TaskText> {
+    public record TaskDetailsDto(@NotBlank @Size(max = GROUP_MAX) String assignmentGroup,
+                                 @Size(max = GROUP_MAX) String assignedTo,
+                                 @Size(max = GROUP_MAX) String configurationItem,
+                                 String platform,
+                                 @Size(max = NAME_MAX) String application,
+                                 @Size(max = TEXT_MAX) String packages,
+                                 @Size(max = TEXT_MAX) String backoutPackages,
+                                 String importance,
+                                 @NotBlank @Size(max = SHORT_DESCRIPTION_MAX) String shortDescription,
+                                 @NotBlank @Size(max = DESCRIPTION_MAX) String description,
+                                 @Size(max = TEXT_MAX) String additionalComments)
+            implements Mirrors<TaskDetails> {
     }
 
     public record RiskAssessmentDto(String bbhWorkgroups, String changeComplexity, String bbhUsers,

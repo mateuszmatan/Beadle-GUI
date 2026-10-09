@@ -11,6 +11,9 @@ import com.bbh.itss.dso.portal.domain.change.RiskAssessment.Question;
 import java.util.LinkedHashMap;
 
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.CATEGORIES;
+import static com.bbh.itss.dso.portal.domain.change.TaskDetails.IMPORTANCES;
+import static com.bbh.itss.dso.portal.domain.change.TaskDetails.PLATFORMS;
+import static com.bbh.itss.dso.portal.domain.change.TaskDetails.RELEASE_MANAGEMENT;
 import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.toMap;
 
@@ -23,6 +26,6 @@ public class ChangeOptionsService implements ChangeOptionsUseCase {
         return new ChangeOptions(CATEGORIES,
                 stream(Type.values()).map(type -> new TypeOption(type.name(), type.label())).toList(),
                 stream(Question.values()).collect(toMap(Question::field, Question::options, (first, second) -> first,
-                        LinkedHashMap::new)));
+                        LinkedHashMap::new)), PLATFORMS, IMPORTANCES, RELEASE_MANAGEMENT);
     }
 }

@@ -5,6 +5,7 @@ import com.microsoft.playwright.Page
 
 import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.CERT_TASKS
 import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.STALE
+import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.details
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.BUTTON
@@ -38,9 +39,16 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         assertThat(selected(defaults(), 'Number of BBH users impacted')).hasText('5-25')
         assertThat(selected(defaults(), 'Platform status')).hasText('Existing')
         assertThat(page.locator('.default-tasks h3')).hasText('Default change tasks')
-        assertThat(taskRows()).hasCount(2)
-        hasValues(taskRows().nth(1), ['Short description': 'Validate CertScanner in production',
+        assertThat(taskRows().locator('.kind')).hasText(['Release Management', 'Change task'] as String[])
+        assertThat(taskRows().locator('.chip')).hasCount(0)
+        assertThat(taskRows().nth(0).locator('mat-label')).hasText((RELEASE_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
+        assertThat(taskRows().nth(1).locator('mat-label')).hasText((OTHER_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
+        hasValues(taskRows().nth(0), ['Assignment group': 'Release Management', 'Affected CI': '', 'Application': 'CertScanner'])
+        assertThat(select(taskRows().nth(0), 'Platform')).hasText('None')
+        hasValues(taskRows().nth(1), ['Assignment group' : 'Technology Architecture',
+                                      'Short description': 'Validate CertScanner in production',
                                       'Description'      : CERT_TASKS[1].description])
+        assertThat(select(taskRows().nth(1), 'Importance')).hasText('3 - Moderate')
 
         when:
         fillIn(defaults(), ['Assignment group': 'Certificate Services', 'Installation hours': '3',
@@ -60,12 +68,26 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         fillIn(account(defaults(), 0), ['Person': 'Jane Smith', 'Privileged account': 'adm_jsmith'])
         fillIn(account(defaults(), 1), ['Person': 'Tom Brown', 'Privileged account': 'adm_tbrown'])
         button('Add a change task', true).click()
-        fillIn(taskRows().nth(2), ['Short description': 'Run the database scripts',
-                                   'Description'      : 'Run the Liquibase changesets of CertScanner.'])
+        input(taskRows().nth(2), 'Assignment group').fill('release management')
 
         then:
         assertThat(input(defaults(), 'Risk')).hasValue('High')
         assertThat(account(defaults(), 1).locator('legend')).hasText('Privileged account 2')
+        assertThat(taskRows().nth(2).locator('.kind')).hasText('Release Management')
+        assertThat(taskRows().nth(2).locator('mat-label')).hasText((RELEASE_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
+
+        when:
+        lookUp(taskRows().nth(2), 'Assignment group', 'data', 'Data Movement - API')
+        choose(taskRows().nth(2), 'Importance', '2 - High')
+        fillIn(taskRows().nth(2), ['Short description': 'Run the database scripts',
+                                   'Description'      : 'Run the Liquibase changesets of CertScanner.'])
+        choose(taskRows().nth(0), 'Platform', 'OpenShift')
+
+        then:
+        assertThat(taskRows().nth(2).locator('.kind')).hasText('Change task')
+        assertThat(taskRows().nth(2).locator('mat-label')).hasText((OTHER_TASK_FIELDS - CHANGE_ONLY_FIELDS) as String[])
+        assertThat(input(taskRows().nth(0), 'Application')).hasValue('OCP')
+        assertThat(input(taskRows().nth(0), 'Application')).isDisabled()
 
         when:
         button('Save the template', true).click()
@@ -85,8 +107,9 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
             template.privilegedAccess == [required: true, users: [[user: 'Jane Smith', account: 'adm_jsmith'],
                                                                   [user: 'Tom Brown', account: 'adm_tbrown']]]
             template.secureCodingTicket == 'SEC-1234'
-            tasks == CERT_TASKS + [[shortDescription: 'Run the database scripts',
-                                    description     : 'Run the Liquibase changesets of CertScanner.']]
+            tasks == [CERT_TASKS[0] + [platform: 'OpenShift', application: 'OCP'], CERT_TASKS[1],
+                      details('Data Movement - API', 'Run the database scripts', 'Run the Liquibase changesets of CertScanner.',
+                              [importance: '2 - High'])]
         }
 
         when:
@@ -110,8 +133,17 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         assertThat(selected(defaults(), 'How many privileged accounts')).hasText('1')
         assertThat(selected(defaults(), 'Complexity of the change')).hasText('Very')
         assertThat(selected(defaults(), 'Downtime')).hasText('Yes')
-        assertThat(taskRows()).hasCount(2)
+        assertThat(taskRows().locator('.kind')).hasText(['Change task', 'Change task'] as String[])
         hasValues(taskRows().nth(0), ['Short description': 'Validate CertScanner in production'])
+        hasValues(taskRows().nth(1), ['Assignment group': 'Data Movement - API'])
+        assertThat(select(taskRows().nth(1), 'Importance')).hasText('2 - High')
+
+        when:
+        button('Remove change task 2', true).click()
+
+        then:
+        assertThat(taskRows()).hasCount(1)
+        assertThat(button('Remove change task 1', true)).isDisabled()
         ownErrors().isEmpty()
     }
 
@@ -169,12 +201,14 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         lookUp(defaults(), 'Person', 'ann', 'Ann Lee')
         input(defaults(), 'Privileged account').fill('alee')
         input(taskRows().nth(1), 'Short description').fill('Validate the gateway')
-        api.respond('PUT', '/api/products/2/change-profile', problem(400, 'Bad Request', '1 field is invalid',
-                [errors: [[field: 'template.privilegedAccess.users[0].account', message: 'must be a privileged account']]]))
+        api.respond('PUT', '/api/products/2/change-profile', problem(400, 'Bad Request', '2 fields are invalid',
+                [errors: [[field: 'template.privilegedAccess.users[0].account', message: 'must be a privileged account'],
+                          [field: 'tasks[1].assignedTo', message: 'is not a ProTech user']]]))
         button('Save the template', true).click()
 
         then:
         assertThat(errorOf(defaults(), 'Privileged account')).hasText('must be a privileged account')
+        assertThat(errorOf(taskRows().nth(1), 'Assigned to')).hasText('is not a ProTech user')
         assertThat(saveError()).hasText('The portal did not accept some values. They are marked below.')
         with(awaitRequest('PUT', '/api/products/2/change-profile', 3).json()) {
             version == 0
@@ -186,11 +220,7 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
     }
 
     Locator defaults() {
-        page.locator('section.defaults')
-    }
-
-    Locator taskRows() {
-        page.locator('.default-tasks .task-row')
+        page.locator('section.defaults dso-change-template-form')
     }
 
     void saveFromAnotherTab(String path) {
