@@ -341,9 +341,10 @@ git ignores). `bootJar`, `bootRun` and the backend smoke test depend on `copyToB
 backend without the GUI.
 
 The BBH Design System packages live only in the BBH npm registry, so `package.json` does not list them and `npm ci`
-works anywhere. `-PdesignSystem.packages="@v6/v6-themes@21 @v6/v6-table @v6/v6-icons"` names other versions. AG Grid
-Enterprise needs BBH's licence key at build time: `-PagGridLicenseKey=...` or the `AG_GRID_LICENSE_KEY` environment
-variable; without it the grids work and print AG Grid's licence notice in the browser console.
+works anywhere. `-PdesignSystem.packages="@v6/v6-themes@21 @v6/v6-table @v6/v6-icons"` names other versions. The tables
+use `ag-grid-enterprise` with only AG Grid's community features so far, so they need no licence; the build hands BBH's
+licence key to AG Grid for the day an Enterprise feature is added: `-PagGridLicenseKey=...` or the
+`AG_GRID_LICENSE_KEY` environment variable.
 
 ```bash
 ./gradlew :backend:bootJar          # the jar with the GUI inside
