@@ -49,48 +49,52 @@ export class DepartmentsAdmin {
           },
           {
             key: 'pipelines',
-            header: 'DevSecOps pipelines',
+            header: 'Pipelines',
             value: (department: Department) => department.pipelineCount,
-            minWidth: 240,
+            minWidth: 220,
           },
         ]
       : []),
     { key: 'actions', header: '', width: 170 },
   ]);
+  protected readonly empty = computed(
+    () => this.departments.hasValue() && this.departments.value().length === 0,
+  );
   protected readonly summary = computed(() => {
     const departments = this.departments.hasValue() ? this.departments.value() : [];
-    const sum = (count: (department: Department) => number) =>
-      departments.reduce((total, department) => total + count(department), 0);
-    return [
-      counted(departments.length, 'department'),
+    const total = (noun: string, count: (department: Department) => number) =>
       counted(
-        sum((department) => department.productCount),
-        'product',
-      ),
-      ...(this.pipelines()
-        ? [
-            counted(
-              sum((department) => department.serviceCount),
-              'service',
-            ),
-          ]
-        : []),
-    ].join(' · ');
+        departments.reduce((sum, department) => sum + count(department), 0),
+        noun,
+      );
+    const products = total('product', (department) => department.productCount);
+    const contents = this.pipelines()
+      ? `${products} and ${total('service', (department) => department.serviceCount)}`
+      : products;
+    return `${counted(departments.length, 'department')} with ${contents}`;
   });
+  protected readonly help = computed(
+    () =>
+      'Every product belongs to one department, and people choose their department to see ' +
+      (this.pipelines() ? 'its products and pipelines. ' : 'its changes. ') +
+      'Only an empty department can be deleted.',
+  );
   protected readonly chart = computed<BarRow[]>(() =>
     this.pipelines() && this.departments.hasValue()
-      ? this.departments.value().map((department) => ({
-          label: department.name,
-          note: `${counted(department.pipelineCount, 'pipeline')} · ${counted(department.productCount, 'product')}`,
-          segments: [
-            { swatch: 'active', label: 'active', count: department.activePipelineCount },
-            {
-              swatch: 'disabled',
-              label: 'invalidated',
-              count: department.pipelineCount - department.activePipelineCount,
-            },
-          ],
-        }))
+      ? this.departments.value().map((department) => {
+          const invalidated = this.invalidated(department);
+          return {
+            label: department.name,
+            note: [
+              counted(department.pipelineCount, 'pipeline'),
+              ...(invalidated ? [this.keysInvalidated(invalidated)] : []),
+            ].join(', '),
+            segments: [
+              { swatch: 'active', label: 'active', count: department.activePipelineCount },
+              { swatch: 'disabled', label: 'key invalidated', count: invalidated },
+            ],
+          };
+        })
       : [],
   );
 
@@ -100,21 +104,26 @@ export class DepartmentsAdmin {
     return department.pipelineCount - department.activePipelineCount;
   }
 
+  protected keysInvalidated(count: number): string {
+    return `${counted(count, 'key')} invalidated`;
+  }
+
   protected deleteHint(department: Department): string | null {
     if (department.productCount) {
+      const them = department.productCount === 1 ? 'it' : 'them';
       return (
-        `${department.name} still has ${counted(department.productCount, 'product')}. ` +
-        'Move them to another department first.'
+        `Only an empty department can be deleted. ${department.name} still has ` +
+        `${counted(department.productCount, 'product')}: move ${them} to another department first.`
       );
     }
     return department.changeCount
-      ? `${department.name} still owns ${counted(department.changeCount, 'change')} raised in Beadle, ` +
-          'so it cannot be deleted.'
+      ? `${department.name} cannot be deleted: it has ` +
+          `${counted(department.changeCount, 'change')} raised in Beadle.`
       : null;
   }
 
   protected add(): void {
-    this.edit(null, (saved) => `${saved.name} added`);
+    this.edit(null, (saved) => `${saved.name} added. Add its products on the Products tab.`);
   }
 
   protected rename(department: Department): void {
@@ -125,8 +134,10 @@ export class DepartmentsAdmin {
     this.dialog
       .open<boolean, ConfirmDialogData, ConfirmDialog>(ConfirmDialog, {
         data: {
-          title: `Delete ${department.name}?`,
-          message: 'The department has no products. It is removed from the portal.',
+          title: `Delete the department ${department.name}?`,
+          message:
+            `${department.name} has no products, so nothing else is deleted with it. ` +
+            'It disappears from every list of departments in the portal. This cannot be undone.',
           confirmLabel: 'Delete department',
           danger: true,
         },
