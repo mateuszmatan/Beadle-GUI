@@ -22,6 +22,7 @@ import {
 } from '../testing/change-fixtures';
 import { buttonOf, fieldOf, inputOf, text } from '../testing/dom';
 import { department, productSummary } from '../testing/fixtures';
+import { isoDate } from './change-model';
 import { ChangeWizard, PREVIEW_DELAY } from './change-wizard';
 
 const ME = { name: 'Mateusz Matan' };
@@ -746,7 +747,7 @@ describe('ChangeWizard', () => {
     );
   });
 
-  it('moves the installation start it filled in to the release date of another FixVersion', async () => {
+  it('moves the installation start it filled in to the release date of another FixVersion, or the next day', async () => {
     await toSchedule();
     const start = () => schedule().controls.installationStart.value;
     expect(start()).toBe('2030-10-20T18:00');
@@ -770,7 +771,9 @@ describe('ChangeWizard', () => {
     expect(start()).toBe('2030-12-01T18:00');
 
     await rescope('CERT 4.1');
-    expect(start()).toBe('');
+    const now = new Date();
+    const tomorrow = isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+    expect(start()).toBe(`${tomorrow}T18:00`);
 
     schedule().controls.installationStart.setValue('2030-11-02T18:00');
     await rescope('CERT 4.2');

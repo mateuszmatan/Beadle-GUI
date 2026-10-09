@@ -116,6 +116,12 @@ export function scheduleInput(schedule: ChangeSchedule): ScheduleInput {
   };
 }
 
+export function plannedDay(releaseDate: string | null, now = new Date()): string {
+  return releaseDate && releaseDate >= isoDate(now)
+    ? releaseDate
+    : isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+}
+
 export function plannedInput(day: string, timing: TimingInput): ScheduleInput {
   const start = day && timing.installationStart ? `${day}T${timing.installationStart}` : '';
   const validationStart = localEnd(start, timing.installationHours);

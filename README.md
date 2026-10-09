@@ -87,10 +87,12 @@ Beadle, in three tabs:
   3. **Approval and Notification**: business approver, L1 approver and L2 approver.
   4. **Schedule**: the installation start and its hours, the post-install validation start and its hours, the first
      use and, when the change has downtime, the downtime start and its hours, which default to the installation
-     window. The template's start time and hours are the defaults.
+     window. The template's start time and hours are the defaults, on the release date of the FixVersion while it is
+     ahead, otherwise on the next day.
   5. **Planning**: test summary, implementation plan, validation plan, backout plan and first use plan.
   6. **Privileged access**: how many privileged accounts (none to seven), each with its person and its account name.
-  7. **Risk assessment**: nine questions in two columns, each answered from a fixed list.
+  7. **Risk assessment**: nine questions in two columns, each answered from a fixed list; the template's answers are
+     the defaults.
   8. **Secure coding**: the secure coding ticket number.
   9. **Review**: every value with the change tasks, which stay editable; raising it creates one change (CHG) with its
      change tasks (CTASK) in ProTech.
@@ -619,8 +621,8 @@ ProTech is BBH's ServiceNow. Every product has a **change template**, kept by th
 product's page:
 
 - **Generic request data**: Jira project key, requested for, requested by, department, assignment group, category,
-  assigned to, type, release, affected CI, incident, direct business service, problem, affected clients, users
-  affected and a description of the product. The category is one of Application, Hardware, Infrastructure, System
+  assigned to, type, release, affected CI, incident, direct business service, problem, affected clients and users
+  affected. The category is one of Application, Hardware, Infrastructure, System
   Software, Network, Telecom, Data Amendment, Desktop Software, Storage, Facilities, Other and Database, and the type
   one of Standard, Emergency, Business Critical and Model. An empty requested for, requested by or assigned to means
   the user who raises the change, and an empty department the department of the product.
@@ -629,7 +631,8 @@ product's page:
   how many hours the post-install validation takes.
 - **Planning**: test summary, implementation plan, validation plan, backout plan and first use plan.
 - **Privileged access**: yes or no; when yes, up to seven users, each with the name of their privileged account.
-- **Risk assessment**: nine questions, each answered from its list or left open (below).
+- **Risk assessment**: nine questions, each answered from its list (below); an answer left out is the first of its
+  list.
 - **Secure coding**: the secure coding ticket number.
 - **Change tasks**: the default CTASKs of a change, one to fifty, each with a short description (up to 160 bytes) and
   a description (up to 4000 bytes).
@@ -651,10 +654,9 @@ A category, a type or an answer off its list is refused with 400 on that field, 
 through `GET /api/changes/options`. Nobody types the **risk**: the portal works it out from the answers whenever a
 template or a change is read or saved, and ignores a risk it is sent. It is **High** when any answer is the last of
 its list (More than 3, Very, All users, More than 2, Unable to test, All clients, Decommissioned, High), else
-**Moderate** when any answer is past the first of its list, else **Low**; with no answer at all the risk is empty
-("not assessed" in the description).
+**Moderate** when any answer is past the first of its list, else **Low**.
 
-A product without a saved template gets suggested values from its code, name, owner team and description (category
+A product without a saved template gets suggested values from its code, name and owner team (category
 Application, type Standard, the product as affected CI), and two suggested change tasks: "Deploy <product> to
 production" and "Validate <product> in production". The demo data fills in every demo product. Templates saved
 before change tasks existed got one task per service of the product ("Deploy <service> of <product> to production")
@@ -669,7 +671,9 @@ than one but not all); Low, Medium or Moderate and High or Very became Simple, M
 that names an existing, new or decommissioned platform became Existing, New or Decommissioned; a business impact of
 None, Low, Medium or High and a backout testing answer spelt as in its list were kept; anything else was emptied,
 and the number of impacted clients was dropped. A change with downtime got its installation window as its downtime
-window. Changes raised before keep an empty Opened By, requested for, requested by, department and assigned to.
+window. Changes raised before keep an empty Opened By, requested for, requested by, department and assigned to. An
+emptied answer reads as the first of its list, and `021-drop-product-description.sql` dropped the product description
+that templates and changes used to carry.
 
 ### Lookups
 
@@ -703,8 +707,8 @@ FixVersion unless the template or the user name another, and the people and the 
 [Signed-in user](#signed-in-user) describes.
 The short description names the product, the FixVersion and the epics; the description names the product, its
 department, the schedule with the downtime window (or "No downtime") and the change tasks, lists every epic with its
-chosen stories, then the planning texts, privileged access, the risk with every answer given, the users affected,
-the secure coding ticket and the product description, cut to the 160 and 4000 bytes ProTech takes. Both stay
+chosen stories, then the planning texts, privileged access, the risk with every answer, the users affected and the
+secure coding ticket, cut to the 160 and 4000 bytes ProTech takes. Both stay
 editable until the change is raised; the review writes them again when its change tasks change, keeping a text the
 user edited and offering the new one. The change belongs to the department of its product, so New Change lists only
 the products in a department; an admin places the others in one in Beadle Admin first.

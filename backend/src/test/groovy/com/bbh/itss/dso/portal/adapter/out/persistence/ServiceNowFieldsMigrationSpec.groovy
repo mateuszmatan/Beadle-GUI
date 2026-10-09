@@ -63,7 +63,7 @@ class ServiceNowFieldsMigrationSpec extends MigrationSpecification {
         profile.version() == 2
         profile.template() == ChangeTemplate.builder().jiraProjectKey('CERT')
                 .assignmentGroup('Technology Architecture').category('Application').type(STANDARD)
-                .configurationItem('CertScanner').description('Watches TLS certificates.')
+                .configurationItem('CertScanner')
                 .approvers(new Approvers('Olivia Bennett', 'James Carter', 'Emma Brooks')).downtime(false)
                 .timing(Timing.SUGGESTED)
                 .planning(new Planning('Pipeline tests passed on QC.', 'Deploy the services.',
@@ -78,7 +78,6 @@ class ServiceNowFieldsMigrationSpec extends MigrationSpecification {
         change.template().riskAssessment() == impact('Medium')
         change.template().planning() == new Planning('Tested.', 'Deploy.', 'Not recorded', 'Back out.',
                 'Not recorded')
-        change.template().description() == 'About CertScanner.'
         [change.epicKeys(), change.storyKeys()] == [['CERT-1'], ['CERT-2', 'CERT-3']]
         change.tasks()*.number() == ['CTASK0040001']
         DROPPED.every { !(it in columns('DSO_CHANGE_PROFILE')) && !(it in columns('DSO_PRODUCTION_CHANGE')) }

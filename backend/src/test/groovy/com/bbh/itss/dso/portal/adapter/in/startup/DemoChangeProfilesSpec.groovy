@@ -42,7 +42,7 @@ class DemoChangeProfilesSpec extends Specification {
 
     def "every product without a template gets its ProTech defaults and tasks, the others are left alone"() {
         given:
-        def suggested = suggestedFor('PAYHUB', 'PayHub', 'Payments Engineering', 'Payments.')
+        def suggested = suggestedFor('PAYHUB', 'PayHub', 'Payments Engineering')
         products.list(null) >> [summary(1, 'CERT'), summary(2, 'PAYHUB'), summary(3, 'FXR')]
         Map<Long, ChangeTemplate> saved = [:]
         Map<Long, List<TaskText>> savedTasks = [:]
@@ -65,7 +65,7 @@ class DemoChangeProfilesSpec extends Specification {
         0 * profiles.save(1L, *_)
         saved.values().every {
             it.jiraProjectKey() == 'PAYHUB' && it.planning() == suggested.planning() &&
-                    it.description() == 'Payments.' && it.release() == null &&
+                    it.release() == null &&
                     it.directBusinessService() == 'Fund Accounting' &&
                     [it.requestedFor(), it.requestedBy(), it.department(), it.assignedTo()] == [null] * 4
         }
@@ -100,7 +100,7 @@ class DemoChangeProfilesSpec extends Specification {
     def "the demo defaults of every demo product are complete, realistic and valid"() {
         when:
         def defaults = DEMO_CODES.collectEntries {
-            [it, seeder.defaultsFor(summary(1, it), suggestedFor(it, it, null, null))]
+            [it, seeder.defaultsFor(summary(1, it), suggestedFor(it, it, null))]
         }
 
         then:

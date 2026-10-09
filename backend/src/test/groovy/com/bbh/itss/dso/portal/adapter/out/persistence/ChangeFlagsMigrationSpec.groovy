@@ -58,7 +58,8 @@ class ChangeFlagsMigrationSpec extends MigrationSpecification {
                 .usersAffected('Fund accountants').build(), profile.tasks()))
 
         then:
-        executedSince('020-') == 1
+        jdbc.queryForList('SELECT ID FROM DATABASECHANGELOG WHERE ID LIKE ?', String, '%-change-flags-h2').sort() ==
+                ['020-change-flags-h2', '021-change-flags-h2']
         change.syncedAt() == SYNCED
         change.template().downtime()
         edited.shortDescription() == 'Synced from ProTech'

@@ -7,7 +7,7 @@ describe('change sections', () => {
     expect(templateLabel('configurationItem')).toBe('Affected CI');
     expect(templateLabel('requestedFor')).toBe('Requested For');
     expect(templateLabel('risk')).toBe('Risk');
-    expect(templateLabel('description')).toBe('Product description');
+    expect(templateLabel('description')).toBeNull();
     expect(templateLabel('secureCodingTicket')).toBe('Secure coding ticket number');
     expect(templateLabel('approvers.l2Manager')).toBe('L2 approver');
     expect(templateLabel('timing.installationStart')).toBe('Installation start');

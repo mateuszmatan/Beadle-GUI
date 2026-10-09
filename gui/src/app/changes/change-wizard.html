@@ -210,8 +210,8 @@
       @case ('schedule') {
         <h2>{{ current()!.title }}</h2>
         <p class="lead">
-          The installation starts on the release date of the FixVersion with the times of the change
-          template. Change any of it.
+          The installation starts on the release date of the FixVersion while it is ahead, otherwise
+          on the next day, with the times of the change template. Change any of it.
         </p>
         <dso-change-schedule [schedule]="schedule()!" [downtime]="details()!.controls.downtime" />
       }

@@ -30,7 +30,6 @@ public record ChangeTemplateEmbeddable(
         @Column(name = "PROBLEM_NUMBER") String problem,
         String affectedClients,
         String usersAffected,
-        String description,
         ApproversEmbeddable approvers,
         Boolean downtime,
         @EmbeddedColumnNaming("TIMING_%s") TimingEmbeddable timing,

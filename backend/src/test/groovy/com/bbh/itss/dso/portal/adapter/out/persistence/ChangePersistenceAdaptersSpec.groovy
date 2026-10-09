@@ -139,7 +139,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
 
     def "a template without approvers, privileged users or risk assessment reads back as such"() {
         given:
-        def bare = template(approvers: Approvers.NONE, riskAssessment: RiskAssessment.NONE)
+        def bare = template(approvers: Approvers.NONE, riskAssessment: RiskAssessment.DEFAULTS)
 
         when:
         profiles.save(ChangeProfile.create(product.id(), bare, tasks(1)))
@@ -178,11 +178,11 @@ class ChangePersistenceAdaptersSpec extends Specification {
         entities.clear()
 
         expect:
-        changeProducts.get(product.id()) == new ChangeProduct(product.id(), 'CERT', 'CertScanner', null, null, 3L,
+        changeProducts.get(product.id()) == new ChangeProduct(product.id(), 'CERT', 'CertScanner', null, 3L,
                 'Corporate Technology', 'CSCAN')
         changeProducts.get(product.id()).jiraProject() == 'CSCAN'
         changeProducts.get(ledger.id()).jiraProject() == 'LEDGER'
-        changeProducts.findAll() == [new ChangeProduct(access.id(), 'ACCESS', 'Access Hub', null, null, null, null, null),
+        changeProducts.findAll() == [new ChangeProduct(access.id(), 'ACCESS', 'Access Hub', null, null, null, null),
                                      changeProducts.get(product.id()), changeProducts.get(ledger.id())]
         changeProducts.get(ledger.id()).departmentName() == 'Custody'
 
@@ -243,7 +243,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
 
     def "a change raised with the empty people of its template names the signed-in user and its department"() {
         given:
-        def bare = template(riskAssessment: RiskAssessment.NONE)
+        def bare = template(riskAssessment: RiskAssessment.DEFAULTS)
 
         when:
         def saved = changes.save(ProductionChange.draft(changeProducts.get(product.id()), 'Mateusz Matan', tasks(1),
@@ -257,7 +257,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
             [it.template().requestedFor(), it.template().requestedBy(), it.template().assignedTo()] ==
                     ['Mateusz Matan'] * 3
             it.template().department() == 'Corporate Technology'
-            it.template().risk() == null
+            it.template().risk() == 'Low'
             it.schedule() == schedule()
         }
     }

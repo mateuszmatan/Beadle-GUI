@@ -28,7 +28,7 @@ final class ChangeStubs {
 
     static final List<String> EDITABLE = ['requestedFor', 'requestedBy', 'department', 'assignmentGroup', 'category',
                                           'assignedTo', 'release', 'configurationItem', 'incident', 'directBusinessService',
-                                          'problem', 'affectedClients', 'usersAffected', 'description', 'approvers', 'downtime',
+                                          'problem', 'affectedClients', 'usersAffected', 'approvers', 'downtime',
                                           'planning', 'privilegedAccess', 'riskAssessment', 'secureCodingTicket']
 
     static final int MAX_LOOKUPS = 20
@@ -49,7 +49,6 @@ final class ChangeStubs {
             assignmentGroup  : 'Technology Architecture', category: 'Application', assignedTo: null, type: 'STANDARD',
             release          : null, configurationItem: 'CertScanner', incident: null,
             directBusinessService: 'Certificate Management', problem: null, affectedClients: null, usersAffected: null,
-            description      : 'Scans TLS certificates.',
             approvers        : [businessApprover: 'Grace Turner', l1Manager: 'Olivia Bennett', l2Manager: 'James Carter'],
             downtime         : false,
             timing           : [installationStart: '18:00', installationHours: 2, validationHours: 1],
@@ -149,16 +148,19 @@ final class ChangeStubs {
     static Map suggested(Object id) {
         def product = product(id)
         def letters = (product.code as String).replaceAll(/[^A-Z0-9]/, '')
-        [jiraProjectKey    : letters.size() <= 6 ? letters : letters.take(4), requestedFor: null, requestedBy: null,
-         department        : null, assignmentGroup: product.ownerTeam ?: "$product.name Support", category: 'Application',
-         assignedTo        : null, type: 'STANDARD', release: null, configurationItem: product.name, incident: null,
-         directBusinessService: null, problem: null, risk: null, affectedClients: null, usersAffected: null,
-         description       : product.description,
-         approvers         : [businessApprover: null, l1Manager: null, l2Manager: null], downtime: false,
-         timing            : [installationStart: '18:00', installationHours: 2, validationHours: 1], planning: PLANNING,
-         privilegedAccess  : [required: false, users: []],
-         riskAssessment    : (OPTIONS.risk as Map).collectEntries { question, answers -> [question, null] },
-         secureCodingTicket: null]
+        withRisk([jiraProjectKey    : letters.size() <= 6 ? letters : letters.take(4), requestedFor: null,
+                  requestedBy       : null, department: null,
+                  assignmentGroup   : product.ownerTeam ?: "$product.name Support", category: 'Application',
+                  assignedTo        : null, type: 'STANDARD', release: null, configurationItem: product.name,
+                  incident          : null, directBusinessService: null, problem: null, affectedClients: null,
+                  usersAffected     : null, approvers: [businessApprover: null, l1Manager: null, l2Manager: null],
+                  downtime          : false,
+                  timing            : [installationStart: '18:00', installationHours: 2, validationHours: 1],
+                  planning          : PLANNING, privilegedAccess: [required: false, users: []],
+                  riskAssessment    : (OPTIONS.risk as Map<String, List>).collectEntries { question, answers ->
+                      [question, answers.first()]
+                  },
+                  secureCodingTicket: null])
     }
 
     static Map withRisk(Map template) {
