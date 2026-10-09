@@ -14,11 +14,14 @@ DevSecOps Management:
   configuration the library receives and the key history, replaces or invalidates the key and deletes the pipeline;
   an invalidated key is regenerated with one button.
 - **Self-service**: a step-by-step wizard for app owners who do not know DevSecOps. It sets up a new product or
-  changes one already in the portal: choose the department and the product, then the Static scan, Nexus IQ GoldenFix,
-  Security or Full pipeline (for a product in the portal the step shows which pipelines each service has today and how
-  many services already have each one), then the services: add new ones (name, AppScan application, Gradle or Maven,
-  virtual machines or OpenShift; for Nexus IQ GoldenFix also the Nexus IQ application and the Bitbucket repository of
-  each service), change the existing ones (including their build tool and where they run) or remove them.
+  changes one already in the portal: choose the department and the product, then the pipeline, in this order: SAST
+  (Static Application Security Tests) - HCL AppScan, OSA (Open Source Analysis) (NexusIQ with Golden Fix and Golden Pull
+  Request), Security (Unit Tests, NexusIQ, SAST, SonarQube) or Full (Static Security (unit test, NexusIQ, SAST,
+  SonarQube) + Extended (lower test region deployment, regression, performance, smoke, DAST, *higher test region
+  deployment)); for a product in the portal the step shows which pipelines each service has today and how many
+  services already have each one. Then the services: add new ones (name, AppScan application, Gradle or Maven, virtual
+  machines or OpenShift; for OSA also the Nexus IQ application and the Bitbucket repository of each service), change
+  the existing ones (including their build tool and where they run) or remove them.
   The review lists what is added, changed and removed, which services gain the pipeline and which pipelines a removal
   deletes; the last step lists what to do next in order, with the Jenkinsfile of each service ready to copy.
   The build tool and where a service runs start from the library defaults; the OpenShift project, the Nexus IQ
