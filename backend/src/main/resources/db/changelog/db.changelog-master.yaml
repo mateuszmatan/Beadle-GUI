@@ -56,3 +56,6 @@ databaseChangeLog:
   - include:
       file: oracle/019-service-template.sql
       relativeToChangelogFile: true
+  - include:
+      file: oracle/020-change-flags.sql
+      relativeToChangelogFile: true
