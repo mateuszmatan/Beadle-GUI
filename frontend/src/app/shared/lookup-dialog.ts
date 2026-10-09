@@ -190,7 +190,7 @@ export class LookupDialog {
           this.entered.set(null);
           const first = this.results.hasValue() ? this.results.value()[0] : undefined;
           if (first) {
-            this.pick(first);
+            Promise.resolve().then(() => this.pick(first));
           }
         });
       }

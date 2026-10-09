@@ -233,7 +233,6 @@ class ChangesSpec extends EditorSpecification {
         api.protech.applying = false
         button('Publish to ProTech', true).click()
         page.waitForURL('**/beadle/changes/4')
-        page.waitForCondition({ page.evaluate('window.scrollY') == 0 } as BooleanSupplier)
 
         then:
         page.evaluate('window.scrollY') == 0

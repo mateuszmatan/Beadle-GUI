@@ -87,6 +87,10 @@ pre.code-block {
   padding: 16px var(--dso-gutter) 32px;
 }
 
+:root {
+  scroll-behavior: auto;
+}
+
 h1 {
   font-size: 2em;
 }
