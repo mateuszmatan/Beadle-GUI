@@ -1,11 +1,11 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { changeOptions, changeProfile, changeTemplate, taskText } from '../testing/change-fixtures';
-import { buttonOf, fieldOf, text } from '../testing/dom';
+import { buttonOf, fieldOf, text, toast } from '../testing/dom';
 import { productDetails } from '../testing/fixtures';
 import { BeadleProduct } from './beadle-product';
 
@@ -16,8 +16,7 @@ describe('BeadleProduct', () => {
   const editor = () => fixture.componentInstance;
   const page = () => fixture.nativeElement as HTMLElement;
   const form = () => editor()['form']()!;
-  const snack = () =>
-    [...document.querySelectorAll('mat-snack-bar-container')].map((bar) => text(bar)).join(' ');
+  const snack = () => text(toast());
   const template = () => form().controls.template;
   const tasks = () => form().controls.tasks;
 
@@ -76,7 +75,7 @@ describe('BeadleProduct', () => {
       'Risk assessment',
       'Secure coding',
     ]);
-    expect(text(fieldOf(page(), 'Requested For')?.querySelector('mat-hint'))).toBe(
+    expect(text(fieldOf(page(), 'Requested For')?.querySelector('dso-hint'))).toBe(
       'left empty: the user who opens the change',
     );
     expect(fieldOf(page(), 'Opened By')).toBeNull();
@@ -124,9 +123,9 @@ describe('BeadleProduct', () => {
     await open();
     template().controls.category.setValue('Hardware');
     form().markAsDirty();
-    vi.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
-      afterClosed: () => of(true),
-    } as unknown as MatDialogRef<unknown>);
+    vi.spyOn(TestBed.inject(Dialog), 'open').mockReturnValue({
+      closed: of(true),
+    } as unknown as DialogRef<unknown>);
     const unsaved: boolean[] = [];
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockImplementation(() => {
       unsaved.push(editor().hasUnsavedChanges());
@@ -151,12 +150,12 @@ describe('BeadleProduct', () => {
 
     expect(editor()['saveError']()).toBe('Some fields need your attention.');
     expect(text(page().querySelector('.save-error'))).toBe('Some fields need your attention.');
-    expect(text(fieldOf(page(), 'Jira project')?.querySelector('mat-error'))).toBe(
+    expect(text(fieldOf(page(), 'Jira project')?.querySelector('dso-error'))).toBe(
       '1 to 10 letters, digits or _, starting with a letter',
     );
-    expect(text(fieldOf(page(), 'Backout plan')?.querySelector('mat-error'))).toBe('Required');
+    expect(text(fieldOf(page(), 'Backout plan')?.querySelector('dso-error'))).toBe('Required');
     const second = page().querySelectorAll('.task-row')[1];
-    expect(text(fieldOf(second, 'Description')?.querySelector('mat-error'))).toBe('Required');
+    expect(text(fieldOf(second, 'Description')?.querySelector('dso-error'))).toBe('Required');
     http.expectNone({ method: 'PUT', url: '/api/products/1/change-profile' });
   });
 
@@ -185,13 +184,13 @@ describe('BeadleProduct', () => {
     expect(editor()['saveError']()).toBe(
       'The portal did not accept some values. They are marked below.',
     );
-    expect(text(fieldOf(page(), 'Number of BBH users impacted')?.querySelector('mat-error'))).toBe(
+    expect(text(fieldOf(page(), 'Number of BBH users impacted')?.querySelector('dso-error'))).toBe(
       'is not one of the options',
     );
     expect(
       text(
         fieldOf(page().querySelectorAll('.task-row')[1], 'Short description')?.querySelector(
-          'mat-error',
+          'dso-error',
         ),
       ),
     ).toBe('is used twice');

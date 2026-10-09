@@ -40,7 +40,7 @@ class BeadleAdminSpec extends EditorSpecification {
         page.waitForURL('**/beadle/admin/departments')
 
         then:
-        assertThat(page.locator('th.mat-mdc-header-cell')).hasText(['Department', 'Products', ''] as String[])
+        assertThat(gridHeaders()).hasText(['Department', 'Products', ''] as String[])
         assertThat(page.locator('section.chart')).hasCount(0)
         assertThat(page.locator('.toolbar .count')).hasText('5 departments · 2 products')
 
@@ -52,7 +52,7 @@ class BeadleAdminSpec extends EditorSpecification {
         then:
         assertThat(snackBar()).containsText('Treasury added')
         awaitRequest('POST', '/api/departments').json() == [name: 'Treasury']
-        assertThat(page.locator('td.name')).hasText((DEPARTMENTS + 'Treasury') as String[])
+        assertThat(gridRows().locator('.name')).hasText((DEPARTMENTS + 'Treasury') as String[])
         ownErrors().isEmpty()
     }
 
@@ -65,10 +65,11 @@ class BeadleAdminSpec extends EditorSpecification {
         assertThat(card('Corporate Technology').locator('.tally')).hasText('1 product')
         assertThat(card('Custody').locator('.no-products')).hasText('No products in Custody yet.')
         assertThat(page.locator('.toolbar .count')).hasText('2 products in 5 departments')
-        assertThat(card('Fund Services').locator('th')).hasText(['Product', 'Owner team', 'Change template'] as String[])
-        assertThat(productRow('CertScanner').locator('td')).hasText(['CertScannerCERTSCANNER', 'Technology Architecture',
-                                                                    'Saved · 2 days ago'] as String[])
-        assertThat(productRow('Payments Hub').locator('.mat-column-template')).hasText('Suggested values')
+        assertThat(gridHeaders(card('Fund Services'))).hasText(['Product', 'Owner team', 'Change template'] as String[])
+        assertThat(productRow('CertScanner').locator('.ag-cell')).hasText(['CertScannerCERTSCANNER', 'Technology Architecture',
+                                                                          'Saved · 2 days ago'] as String[])
+        assertThat(productRow('CertScanner')).hasClass(~/\bclickable\b/)
+        assertThat(gridCell(productRow('Payments Hub'), 'template')).hasText('Suggested values')
 
         when:
         page.locator('input[aria-label="Search products"]').fill('pay')
@@ -82,11 +83,11 @@ class BeadleAdminSpec extends EditorSpecification {
         open('/beadle/admin/products')
 
         then:
-        assertThat(productRow('CertScanner').locator('.mat-column-template')).hasText('Unknown')
-        assertThat(productRow('CertScanner').locator('.mat-column-template span')).hasAttribute('title', 'The change templates are not available')
+        assertThat(gridCell(productRow('CertScanner'), 'template')).hasText('Unknown')
+        assertThat(gridCell(productRow('CertScanner'), 'template').locator('dso-grid-cell span')).hasAttribute('title', 'The change templates are not available')
 
         when:
-        productRow('Payments Hub').locator('td.mat-column-ownerTeam').click()
+        gridCell(productRow('Payments Hub'), 'ownerTeam').click()
 
         then:
         page.waitForURL('**/beadle/admin/products/2')
@@ -112,9 +113,9 @@ class BeadleAdminSpec extends EditorSpecification {
 
         then:
         assertThat(dialog().locator('h2')).hasText('Add product')
-        assertThat(dialog().locator('mat-label')).hasText(['Product name', 'Code', 'Department', 'Owner team',
+        assertThat(dialog().locator('dso-label')).hasText(['Product name', 'Code', 'Department', 'Owner team',
                                                            'Contact e-mail'] as String[])
-        assertThat(select(dialog(), 'Department')).hasText('Custody')
+        assertThat(selected(dialog(), 'Department')).hasText('Custody')
 
         when:
         dialogButton('Add product').click()
@@ -168,7 +169,7 @@ class BeadleAdminSpec extends EditorSpecification {
 
         then:
         assertThat(dialog().locator('h2')).hasText('Change CertScanner')
-        assertThat(dialog().locator('mat-label')).hasText(['Product name', 'Department', 'Owner team', 'Contact e-mail'] as String[])
+        assertThat(dialog().locator('dso-label')).hasText(['Product name', 'Department', 'Owner team', 'Contact e-mail'] as String[])
         hasValues(dialog(), ['Product name': 'CertScanner', 'Owner team': 'Technology Architecture', 'Contact e-mail': 'ta-team@bbh.com'])
 
         when:
@@ -269,7 +270,7 @@ class BeadleAdminSpec extends EditorSpecification {
     }
 
     Locator productRow(String name) {
-        holding(page.locator('tr.mat-mdc-row'), "a.name:text-is('${name}')")
+        holding(gridRows(), "a.name:text-is('${name}')")
     }
 
     Locator factsCard() {

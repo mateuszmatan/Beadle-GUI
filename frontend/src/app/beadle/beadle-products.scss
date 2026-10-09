@@ -9,6 +9,7 @@
 
 .search {
   flex: 1 1 240px;
+  width: auto;
   max-width: 420px;
 }
 
@@ -63,30 +64,7 @@
   gap: 8px;
 }
 
-td.mat-mdc-cell {
-  padding-top: 5px;
-  padding-bottom: 5px;
-}
-
 .saved {
   color: var(--dso-success);
   font-weight: 600;
-}
-
-.mat-mdc-table {
-  width: 100%;
-}
-
-.mat-column-product {
-  min-width: 200px;
-}
-
-.mat-column-ownerTeam {
-  width: 220px;
-  min-width: 110px;
-}
-
-.mat-column-template {
-  width: 280px;
-  white-space: nowrap;
 }

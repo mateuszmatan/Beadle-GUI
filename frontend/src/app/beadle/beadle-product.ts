@@ -12,9 +12,6 @@ import {
 } from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { ChangeProfile, ChangesApi } from '../changes/change-api';
@@ -27,6 +24,7 @@ import { Notifier } from '../core/notifier';
 import { BEADLE_ADMIN, BEADLE_PRODUCTS } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { applyFieldProblems } from '../shared/form-controls';
+import { DsoLoading, DsoSpinner } from '../ui/loading';
 import { ProductAdmin } from './product-admin';
 
 export function profileForm(profile: ChangeProfile) {
@@ -43,9 +41,8 @@ export type ProfileForm = ReturnType<typeof profileForm>;
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    MatButtonModule,
-    MatProgressBarModule,
-    MatProgressSpinnerModule,
+    DsoLoading,
+    DsoSpinner,
     ChangeTasksForm,
     ChangeTemplateForm,
     ProductAdmin,
@@ -71,7 +68,7 @@ export type ProfileForm = ReturnType<typeof profileForm>;
       </header>
       <dso-product-admin [id]="id()" (saved)="renamed($event)" (deleted)="leave()" />
       @if (profile.isLoading()) {
-        <mat-progress-bar mode="indeterminate" />
+        <dso-loading />
       }
       @if (profile.error(); as error) {
         <div class="banner">{{ errorMessage(error) }}</div>
@@ -97,16 +94,16 @@ export type ProfileForm = ReturnType<typeof profileForm>;
               @if (saveError(); as error) {
                 <span class="save-error" role="alert">{{ error }}</span>
                 @if (conflict()) {
-                  <button mat-button type="button" (click)="reload()">Reload</button>
+                  <button type="button" class="btn btn-link" (click)="reload()">Reload</button>
                 }
               } @else if (group.dirty) {
                 <span class="muted">Unsaved changes</span>
               }
               <span class="spacer"></span>
-              <a mat-button [routerLink]="products.path">Cancel</a>
-              <button mat-flat-button type="submit" [disabled]="saving()">
+              <a class="btn btn-link" [routerLink]="products.path">Cancel</a>
+              <button type="submit" class="btn btn-primary" [disabled]="saving()">
                 @if (saving()) {
-                  <mat-spinner diameter="18" />
+                  <dso-spinner />
                 }
                 Save the template
               </button>
@@ -117,6 +114,11 @@ export type ProfileForm = ReturnType<typeof profileForm>;
     </div>
   `,
   styles: `
+    .defaults > h2 {
+      margin: 16px 0 10px;
+      font-size: 19.5px;
+    }
+
     .default-tasks {
       margin-top: 10px;
       padding: 8px 14px 10px;

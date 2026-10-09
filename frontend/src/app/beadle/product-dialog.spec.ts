@@ -1,7 +1,7 @@
 import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { fieldOf, inputOf, text } from '../testing/dom';
 import { department, product, productDetails } from '../testing/fixtures';
 import { ProductDialog, ProductDialogData } from './product-dialog';
@@ -19,10 +19,10 @@ describe('ProductDialog', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         {
-          provide: MAT_DIALOG_DATA,
+          provide: DIALOG_DATA,
           useValue: { departments, departmentId: null, product: null, ...data },
         },
-        { provide: MatDialogRef, useValue: { close } },
+        { provide: DialogRef, useValue: { close } },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -37,8 +37,8 @@ describe('ProductDialog', () => {
 
   const page = () => fixture.nativeElement as HTMLElement;
   const form = () => fixture.componentInstance['form'];
-  const labels = () => [...page().querySelectorAll('mat-label')].map((label) => text(label));
-  const errorOf = (label: string) => text(fieldOf(page(), label)?.querySelector('mat-error'));
+  const labels = () => [...page().querySelectorAll('dso-label')].map((label) => text(label));
+  const errorOf = (label: string) => text(fieldOf(page(), label)?.querySelector('dso-error'));
 
   function type(label: string, value: string) {
     const input = inputOf(page(), label);

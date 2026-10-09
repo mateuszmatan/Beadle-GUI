@@ -1,10 +1,10 @@
 import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { buttonOf, text } from '../testing/dom';
+import { buttonOf, text, toast } from '../testing/dom';
 import { department, productDetails } from '../testing/fixtures';
 import { ProductAdmin } from './product-admin';
 import { ProductDetails } from './product-details-api';
@@ -35,8 +35,7 @@ describe('ProductAdmin', () => {
 
   const page = () => fixture.nativeElement as HTMLElement;
   const facts = () => [...page().querySelectorAll('.facts dd')].map((dd) => text(dd));
-  const snack = () =>
-    [...document.querySelectorAll('mat-snack-bar-container')].map((bar) => text(bar)).join(' ');
+  const snack = () => text(toast());
 
   async function settle() {
     TestBed.tick();
@@ -56,11 +55,9 @@ describe('ProductAdmin', () => {
   }
 
   function dialogClosing(...results: unknown[]) {
-    const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
+    const open = vi.spyOn(TestBed.inject(Dialog), 'open');
     results.forEach((result) =>
-      open.mockReturnValueOnce({
-        afterClosed: () => of(result),
-      } as unknown as MatDialogRef<unknown>),
+      open.mockReturnValueOnce({ closed: of(result) } as unknown as DialogRef<unknown>),
     );
     return open;
   }
@@ -166,6 +163,7 @@ describe('ProductAdmin', () => {
     http
       .expectOne({ method: 'DELETE', url: '/api/products/1/details' })
       .flush({ detail: 'The portal cannot be reached.' }, { status: 503, statusText: 'Down' });
+    await fixture.whenStable();
     expect(snack()).toContain('The portal cannot be reached.');
     expect(deleted).toEqual([]);
 
@@ -189,6 +187,7 @@ describe('ProductAdmin', () => {
       },
       { status: 409, statusText: 'Conflict' },
     );
+    await fixture.whenStable();
 
     expect(snack()).toContain(
       'CertScanner still has 2 service(s) in DevSecOps Management. Remove them there first.',
