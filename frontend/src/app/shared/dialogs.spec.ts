@@ -1,14 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { DIALOG_DATA } from '@angular/cdk/dialog';
 import { CodeDialog, CodeDialogData } from './code-dialog';
 import { ConfirmDialog, ConfirmDialogData } from './confirm-dialog';
-import { buttonOf } from '../testing/dom';
+import { buttonOf, toast } from '../testing/dom';
 
 describe('ConfirmDialog', () => {
   async function render(data: ConfirmDialogData) {
     TestBed.configureTestingModule({
       imports: [ConfirmDialog],
-      providers: [{ provide: MAT_DIALOG_DATA, useValue: data }],
+      providers: [{ provide: DIALOG_DATA, useValue: data }],
     });
     const fixture = TestBed.createComponent(ConfirmDialog);
     await fixture.whenStable();
@@ -27,7 +27,7 @@ describe('ConfirmDialog', () => {
     expect(page.querySelector('.message')?.textContent).toBe('Its key history is deleted.');
     const confirm = page.querySelectorAll('button')[1];
     expect(confirm.textContent?.trim()).toBe('Delete pipeline');
-    expect(confirm.classList).toContain('danger');
+    expect(confirm.classList).toContain('btn-danger');
   });
 });
 
@@ -37,7 +37,7 @@ describe('CodeDialog', () => {
   async function render(data: CodeDialogData) {
     TestBed.configureTestingModule({
       imports: [CodeDialog],
-      providers: [{ provide: MAT_DIALOG_DATA, useValue: data }],
+      providers: [{ provide: DIALOG_DATA, useValue: data }],
     });
     fixture = TestBed.createComponent(CodeDialog);
     await fixture.whenStable();
@@ -78,8 +78,6 @@ describe('CodeDialog', () => {
     buttonOf(page(), 'Copy')!.click();
     await fixture.whenStable();
 
-    expect(document.querySelector('mat-snack-bar-container')?.textContent).toContain(
-      'Copied to the clipboard',
-    );
+    expect(toast()?.textContent).toContain('Copied to the clipboard');
   });
 });

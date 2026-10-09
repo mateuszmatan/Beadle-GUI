@@ -9,15 +9,12 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Dialog } from '@angular/cdk/dialog';
 import { AbstractControl, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
+import { SvgIconComponent } from 'angular-svg-icon';
 import { BuildTool, DeployTarget } from '../core/models';
+import { DsoCheckbox } from '../ui/checkbox';
+import { FORM_FIELD } from '../ui/form-field';
 import { filled } from './form-controls';
 import { errorText } from './form-errors';
 import { Lookup, openLookup, pickInto } from './lookup-dialog';
@@ -128,31 +125,23 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
 
 @Component({
   selector: 'dso-fields',
-  imports: [
-    ReactiveFormsModule,
-    MatButtonModule,
-    MatCheckboxModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatSelectModule,
-  ],
+  imports: [ReactiveFormsModule, SvgIconComponent, DsoCheckbox, FORM_FIELD],
   changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     @for (field of fields(); track field.key) {
       @let control = controlOf(field);
       @let mandatory = required(control);
       @if (field.kind === 'check') {
-        <mat-checkbox [class]="span(field, 12)" [formControl]="control">
+        <dso-checkbox [class]="span(field, 12)" [formControl]="control">
           <span [innerHTML]="label(field)"></span>
-        </mat-checkbox>
+        </dso-checkbox>
       } @else {
-        <mat-form-field [class]="span(field, 6)" [class.read-only]="field.readonly">
-          <mat-label>{{ field.label }}</mat-label>
+        <dso-form-field [class]="span(field, 6)" [class.read-only]="field.readonly">
+          <dso-label>{{ field.label }}</dso-label>
           @switch (field.kind) {
             @case ('area') {
               <textarea
-                matInput
+                dsoInput
                 rows="2"
                 spellcheck="false"
                 [formControl]="control"
@@ -162,20 +151,23 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
               ></textarea>
             }
             @case ('select') {
-              <mat-select
-                [formControl]="control"
-                [required]="mandatory"
-                [multiple]="field.multiple"
-                canSelectNullableOptions
-              >
-                @for (option of field.options; track option.label) {
-                  <mat-option [value]="option.value">{{ option.label }}</mat-option>
-                }
-              </mat-select>
+              @if (field.multiple) {
+                <select dsoInput multiple [formControl]="control" [required]="mandatory">
+                  @for (option of field.options; track option.label) {
+                    <option [ngValue]="option.value">{{ option.label }}</option>
+                  }
+                </select>
+              } @else {
+                <select dsoInput [formControl]="control" [required]="mandatory">
+                  @for (option of field.options; track option.label) {
+                    <option [ngValue]="option.value">{{ option.label }}</option>
+                  }
+                </select>
+              }
             }
             @case ('number') {
               <input
-                matInput
+                dsoInput
                 type="number"
                 [formControl]="control"
                 [required]="mandatory"
@@ -186,7 +178,7 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
             }
             @default {
               <input
-                matInput
+                dsoInput
                 autocomplete="off"
                 [formControl]="control"
                 [required]="mandatory"
@@ -200,21 +192,20 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
           }
           @if (field.lookup; as lookup) {
             <button
-              mat-icon-button
-              matSuffix
+              dsoSuffix
               type="button"
-              class="lookup"
+              class="btn btn-link btn-icon lookup"
               [attr.aria-label]="'Find ' + field.label"
               (click)="find(field, lookup)"
             >
-              <mat-icon>search</mat-icon>
+              <svg-icon name="search" />
             </button>
           }
           @if (field.code || field.hint) {
-            <mat-hint [innerHTML]="hint(field)"></mat-hint>
+            <dso-hint><span [innerHTML]="hint(field)"></span></dso-hint>
           }
-          <mat-error>{{ errorText(control, field.error) }}</mat-error>
-        </mat-form-field>
+          <dso-error>{{ errorText(control, field.error) }}</dso-error>
+        </dso-form-field>
       }
     }
   `,
@@ -228,7 +219,7 @@ export class Fields {
   readonly group = input.required<AbstractControl>();
   readonly fields = input.required<readonly Field[]>();
 
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(Dialog);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly errorText = errorText;

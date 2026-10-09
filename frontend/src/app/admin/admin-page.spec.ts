@@ -75,7 +75,7 @@ describe('AdminPage', () => {
       '/admin/settings',
     ]);
     expect(text(page().querySelector('.tab-content'))).toBe('Departments');
-    expect(page().querySelector('mat-icon')).toBeNull();
+    expect(page().querySelector('svg-icon')).toBeNull();
   });
 
   it.each([

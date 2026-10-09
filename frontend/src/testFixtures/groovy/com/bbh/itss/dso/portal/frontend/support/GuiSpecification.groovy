@@ -8,6 +8,7 @@ import com.microsoft.playwright.Page
 import com.microsoft.playwright.Playwright
 import com.microsoft.playwright.Route
 import com.microsoft.playwright.TimeoutError
+import com.microsoft.playwright.options.SelectOption
 import spock.lang.Shared
 import spock.lang.Specification
 
@@ -23,7 +24,6 @@ import static com.microsoft.playwright.options.AriaRole.CHECKBOX
 import static com.microsoft.playwright.options.AriaRole.COMBOBOX
 import static com.microsoft.playwright.options.AriaRole.LINK
 import static com.microsoft.playwright.options.AriaRole.MENUITEM
-import static com.microsoft.playwright.options.AriaRole.OPTION
 import static com.microsoft.playwright.options.AriaRole.RADIO
 import static com.microsoft.playwright.options.LoadState.NETWORKIDLE
 import static java.nio.file.Files.createDirectories
@@ -210,7 +210,7 @@ abstract class GuiSpecification extends Specification {
 
     Locator menuLink(String menu, String label) {
         menuButton(menu).click()
-        page.locator('.mat-mdc-menu-panel').getByRole(MENUITEM, new Locator.GetByRoleOptions().setName(label).setExact(true))
+        page.locator('.dso-menu').getByRole(MENUITEM, new Locator.GetByRoleOptions().setName(label).setExact(true))
     }
 
     Locator tab(String label) {
@@ -226,11 +226,11 @@ abstract class GuiSpecification extends Specification {
     }
 
     Locator formField(Locator scope, String label) {
-        holding(scope.locator('mat-form-field'), "mat-label:text-is('${label}')")
+        holding(scope.locator('dso-form-field'), "dso-label:text-is('${label}')")
     }
 
     Locator errorOf(Locator scope, String label) {
-        formField(scope, label).locator('mat-error')
+        formField(scope, label).locator('dso-error')
     }
 
     Locator select(Locator scope, String label) {
@@ -238,9 +238,11 @@ abstract class GuiSpecification extends Specification {
     }
 
     void choose(Locator scope, String label, String option) {
-        select(scope, label).click()
-        page.getByRole(OPTION, new Page.GetByRoleOptions().setName(option).setExact(true)).click()
-        assertThat(page.locator('.mat-mdc-select-panel')).hasCount(0)
+        select(scope, label).selectOption(new SelectOption().setLabel(option))
+    }
+
+    List<String> optionsOf(Locator scope, String label) {
+        select(scope, label).locator('option').allTextContents()*.trim()
     }
 
     Locator checkbox(Locator scope, String label) {
@@ -252,11 +254,39 @@ abstract class GuiSpecification extends Specification {
     }
 
     Locator dialog() {
-        page.locator('mat-dialog-container')
+        page.locator('.cdk-dialog-container')
     }
 
     Locator snackBar() {
-        page.locator('mat-snack-bar-container:not(.mat-snack-bar-container-exit)').last()
+        page.locator('dso-toast').last()
+    }
+
+    Locator gridRows(Locator scope = page.locator('body')) {
+        scope.locator('.ag-center-cols-container .ag-row')
+    }
+
+    Locator gridRow(Locator scope, String text) {
+        holdingText(gridRows(scope), text)
+    }
+
+    Locator gridCells(Locator scope, String column) {
+        gridRows(scope).locator(".ag-cell[col-id='${column}']")
+    }
+
+    Locator gridCell(Locator row, String column) {
+        row.locator(".ag-cell[col-id='${column}']")
+    }
+
+    Locator gridHeaders(Locator scope = page.locator('body')) {
+        scope.locator('.ag-header-row-column .ag-header-cell')
+    }
+
+    void sortBy(String column, Locator scope = page.locator('body')) {
+        scope.locator(".ag-header-cell[col-id='${column}'] .ag-header-cell-label").click()
+    }
+
+    Locator gridFilter(String label, Locator scope = page.locator('body')) {
+        scope.locator(".ag-floating-filter [aria-label='Filter by ${label}']")
     }
 
     void recordClipboard() {
@@ -280,7 +310,7 @@ abstract class GuiSpecification extends Specification {
 
     List<String> ownErrors() {
         def origin = baseUrl()
-        consoleErrors.findAll { !it.contains('localhost:3000') && !it.contains('grafana') } +
+        consoleErrors.findAll { !it.contains('localhost:3000') && !it.contains('grafana') && !it.startsWith('*') } +
                 failedRequests.findAll { it.contains(origin) }
     }
 

@@ -3,7 +3,7 @@
     <span class="muted count">{{ summary() }}</span>
   }
   <span class="spacer"></span>
-  <button mat-flat-button type="button" (click)="add()">Add department</button>
+  <button type="button" class="btn btn-primary" (click)="add()">Add department</button>
 </section>
 
 @if (chart().length) {
@@ -20,7 +20,7 @@
 }
 
 @if (departments.isLoading()) {
-  <mat-progress-bar mode="indeterminate" />
+  <dso-loading />
 }
 
 @if (departments.error(); as error) {
@@ -33,74 +33,52 @@
     </section>
   } @else {
     <section class="card">
-      <div class="table-scroll">
-        <table mat-table [dataSource]="departments.value()">
-          <ng-container matColumnDef="name">
-            <th mat-header-cell *matHeaderCellDef>Department</th>
-            <td mat-cell *matCellDef="let department" class="name">{{ department.name }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="products">
-            <th mat-header-cell *matHeaderCellDef class="number">Products</th>
-            <td mat-cell *matCellDef="let department" class="number">
-              {{ department.productCount }}
-            </td>
-          </ng-container>
-
-          <ng-container matColumnDef="services">
-            <th mat-header-cell *matHeaderCellDef class="number">Services</th>
-            <td mat-cell *matCellDef="let department" class="number">
-              {{ department.serviceCount }}
-            </td>
-          </ng-container>
-
-          <ng-container matColumnDef="pipelines">
-            <th mat-header-cell *matHeaderCellDef>DevSecOps pipelines</th>
-            <td mat-cell *matCellDef="let department">
-              @if (department.pipelineCount === 0) {
-                <span class="muted">None yet</span>
-              } @else {
-                <span class="pipelines">
-                  <strong>{{ department.pipelineCount }}</strong>
-                  <span class="muted"> · {{ department.activePipelineCount }} active</span>
-                  @if (invalidated(department); as count) {
-                    <span class="revoked"> · {{ count }} invalidated</span>
-                  }
-                </span>
+      <dso-grid
+        label="Departments"
+        [rows]="departments.value()"
+        [columns]="columns()"
+        [rowId]="departmentId"
+      >
+        <ng-template dsoCell="name" let-department>
+          <span class="name">{{ department.name }}</span>
+        </ng-template>
+        <ng-template dsoCell="pipelines" let-department>
+          @if (department.pipelineCount === 0) {
+            <span class="muted">None yet</span>
+          } @else {
+            <span class="pipelines">
+              <strong>{{ department.pipelineCount }}</strong>
+              <span class="muted"> · {{ department.activePipelineCount }} active</span>
+              @if (invalidated(department); as count) {
+                <span class="revoked"> · {{ count }} invalidated</span>
               }
-            </td>
-          </ng-container>
-
-          <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef></th>
-            <td mat-cell *matCellDef="let department" class="actions">
+            </span>
+          }
+        </ng-template>
+        <ng-template dsoCell="actions" let-department>
+          <span class="actions">
+            <button
+              type="button"
+              class="btn btn-link"
+              [attr.aria-label]="'Rename ' + department.name"
+              (click)="rename(department)"
+            >
+              Rename
+            </button>
+            <span class="delete" [attr.title]="deleteHint(department)">
               <button
-                mat-button
                 type="button"
-                [attr.aria-label]="'Rename ' + department.name"
-                (click)="rename(department)"
+                class="btn btn-link danger"
+                [attr.aria-label]="'Delete ' + department.name"
+                [disabled]="deleteHint(department) !== null"
+                (click)="delete(department)"
               >
-                Rename
+                Delete
               </button>
-              <span class="delete" [attr.title]="deleteHint(department)">
-                <button
-                  mat-button
-                  type="button"
-                  class="danger"
-                  [attr.aria-label]="'Delete ' + department.name"
-                  [disabled]="deleteHint(department) !== null"
-                  (click)="delete(department)"
-                >
-                  Delete
-                </button>
-              </span>
-            </td>
-          </ng-container>
-
-          <tr mat-header-row *matHeaderRowDef="columns()"></tr>
-          <tr mat-row *matRowDef="let department; columns: columns()"></tr>
-        </table>
-      </div>
+            </span>
+          </span>
+        </ng-template>
+      </dso-grid>
     </section>
   }
 }

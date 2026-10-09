@@ -1,0 +1,88 @@
+:root {
+  --bs-body-font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --bs-body-font-size: 13px;
+  --bs-body-color: #1b1f24;
+  --bs-primary: #0c2340;
+  --bs-primary-rgb: 12, 35, 64;
+  --bs-link-color: #0c2340;
+  --bs-link-color-rgb: 12, 35, 64;
+  --bs-link-hover-color: #1d3a63;
+  --bs-link-hover-color-rgb: 29, 58, 99;
+  --bs-border-color: #d9dee6;
+  --bs-border-radius: 0;
+  --bs-border-radius-sm: 0;
+  --bs-border-radius-lg: 0;
+  --bs-focus-ring-color: rgba(12, 35, 64, 0.25);
+}
+
+.btn-primary {
+  --bs-btn-bg: #0c2340;
+  --bs-btn-border-color: #0c2340;
+  --bs-btn-hover-bg: #1d3a63;
+  --bs-btn-hover-border-color: #1d3a63;
+  --bs-btn-active-bg: #1d3a63;
+  --bs-btn-active-border-color: #1d3a63;
+  --bs-btn-disabled-bg: #8a96a8;
+  --bs-btn-disabled-border-color: #8a96a8;
+  --bs-btn-focus-shadow-rgb: 12, 35, 64;
+}
+
+.btn-outline-primary {
+  --bs-btn-color: #0c2340;
+  --bs-btn-border-color: #b9c3d3;
+  --bs-btn-hover-color: #0c2340;
+  --bs-btn-hover-bg: #e3e8f0;
+  --bs-btn-hover-border-color: #0c2340;
+  --bs-btn-active-color: #ffffff;
+  --bs-btn-active-bg: #0c2340;
+  --bs-btn-active-border-color: #0c2340;
+  --bs-btn-disabled-color: #8a96a8;
+  --bs-btn-disabled-border-color: #d9dee6;
+  --bs-btn-focus-shadow-rgb: 12, 35, 64;
+}
+
+.btn-link {
+  --bs-btn-color: #0c2340;
+  --bs-btn-hover-color: #1d3a63;
+  --bs-btn-active-color: #1d3a63;
+  --bs-btn-disabled-color: #8a96a8;
+}
+
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+  border-color: #1d3a63;
+  box-shadow: 0 0 0 0.2rem rgba(12, 35, 64, 0.18);
+}
+
+.form-check-input:checked {
+  border-color: #0c2340;
+  background-color: #0c2340;
+}
+
+.progress {
+  --bs-progress-bar-bg: #0c2340;
+  --bs-progress-bg: #e3e8f0;
+}
+
+.dropdown-menu {
+  --bs-dropdown-link-active-bg: #e3e8f0;
+  --bs-dropdown-link-active-color: #0c2340;
+}
+
+.ag-theme-balham {
+  --ag-font-family: var(--bs-body-font-family);
+  --ag-font-size: 13px;
+  --ag-foreground-color: #1b1f24;
+  --ag-header-foreground-color: #5b6475;
+  --ag-header-background-color: #ffffff;
+  --ag-background-color: #ffffff;
+  --ag-odd-row-background-color: #ffffff;
+  --ag-row-hover-color: #f1f4f8;
+  --ag-border-color: #d9dee6;
+  --ag-row-border-color: #e6e9ee;
+  --ag-secondary-border-color: #e6e9ee;
+  --ag-cell-horizontal-padding: 10px;
+  --ag-borders: none;
+  --ag-active-color: #0c2340;
+}

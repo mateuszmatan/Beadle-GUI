@@ -1,6 +1,6 @@
+import { DIALOG_DATA } from '@angular/cdk/dialog';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
+import { DIALOG } from '../ui/dialog';
 
 export interface ConfirmDialogData {
   title: string;
@@ -11,19 +11,27 @@ export interface ConfirmDialogData {
 
 @Component({
   selector: 'dso-confirm-dialog',
-  imports: [MatDialogModule, MatButtonModule],
+  imports: [DIALOG],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2 mat-dialog-title>{{ data.title }}</h2>
-    <mat-dialog-content
-      ><p class="message">{{ data.message }}</p></mat-dialog-content
-    >
-    <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-flat-button [class.danger]="data.danger" [mat-dialog-close]="true">
+    <div class="modal-header">
+      <h2 dsoDialogTitle>{{ data.title }}</h2>
+    </div>
+    <div class="modal-body">
+      <p class="message">{{ data.message }}</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-link" dsoDialogClose>Cancel</button>
+      <button
+        type="button"
+        class="btn"
+        [class.btn-primary]="!data.danger"
+        [class.btn-danger]="data.danger"
+        [dsoDialogClose]="true"
+      >
         {{ data.confirmLabel }}
       </button>
-    </mat-dialog-actions>
+    </div>
   `,
   styles: `
     .message {
@@ -33,5 +41,5 @@ export interface ConfirmDialogData {
   `,
 })
 export class ConfirmDialog {
-  protected readonly data = inject<ConfirmDialogData>(MAT_DIALOG_DATA);
+  protected readonly data = inject<ConfirmDialogData>(DIALOG_DATA);
 }

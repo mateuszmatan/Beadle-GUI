@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { Department } from '../core/models';
 import { inputOf } from '../testing/dom';
 import { department } from '../testing/fixtures';
@@ -18,8 +18,8 @@ describe('DepartmentDialog', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: MAT_DIALOG_DATA, useValue: data },
-        { provide: MatDialogRef, useValue: { close } },
+        { provide: DIALOG_DATA, useValue: data },
+        { provide: DialogRef, useValue: { close } },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -62,7 +62,7 @@ describe('DepartmentDialog', () => {
     await submit('   ');
 
     http.expectNone('/api/departments');
-    expect(page().querySelector('mat-error')?.textContent).toBe('Required');
+    expect(page().querySelector('dso-error')?.textContent).toBe('Required');
   });
 
   it('renames a department with the version it was read at', async () => {

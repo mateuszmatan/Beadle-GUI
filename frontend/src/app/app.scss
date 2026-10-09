@@ -92,8 +92,8 @@
 }
 
 .menu-item.active {
-  --mat-menu-item-label-text-color: var(--dso-navy);
-  --mat-menu-item-label-text-weight: 600;
+  color: var(--dso-navy);
+  font-weight: 600;
   box-shadow: inset 2px 0 0 var(--dso-navy);
 }
 

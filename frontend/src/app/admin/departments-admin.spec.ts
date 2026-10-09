@@ -1,12 +1,13 @@
+import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { of } from 'rxjs';
 import { Department } from '../core/models';
 import { DepartmentDialog } from '../products/department-dialog';
 import { ConfirmDialog } from '../shared/confirm-dialog';
-import { buttonOf, text } from '../testing/dom';
+import { buttonOf, gridCell, gridHeaders, gridRows, text, toast } from '../testing/dom';
+import { chartOptions } from '../testing/highcharts';
 import { department } from '../testing/fixtures';
 import { DepartmentsAdmin } from './departments-admin';
 
@@ -36,12 +37,10 @@ describe('DepartmentsAdmin', () => {
   afterEach(() => http.verify());
 
   const page = () => fixture.nativeElement as HTMLElement;
-  const rows = () => [...page().querySelectorAll<HTMLElement>('tr.mat-mdc-row')];
+  const rows = () => gridRows(page());
   const row = (name: string) => rows().find((tr) => text(tr.querySelector('.name')) === name)!;
-  const headers = () =>
-    [...page().querySelectorAll('th.mat-mdc-header-cell')].map((th) => text(th));
-  const snack = () =>
-    [...document.querySelectorAll('mat-snack-bar-container')].map((bar) => text(bar)).join(' ');
+  const headers = () => gridHeaders(page());
+  const snack = () => text(toast());
 
   async function load(departments: Department[] = [department(), fundServices]) {
     fixture.detectChanges();
@@ -50,11 +49,9 @@ describe('DepartmentsAdmin', () => {
   }
 
   const dialogClosing = (...results: unknown[]) => {
-    const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
+    const open = vi.spyOn(TestBed.inject(Dialog), 'open');
     results.forEach((result) =>
-      open.mockReturnValueOnce({
-        afterClosed: () => of(result),
-      } as unknown as MatDialogRef<unknown>),
+      open.mockReturnValueOnce({ closed: of(result) } as unknown as DialogRef<unknown>),
     );
     return open;
   };
@@ -66,14 +63,14 @@ describe('DepartmentsAdmin', () => {
 
     expect(text(page().querySelector('.count'))).toBe('2 departments · 1 product · 2 services');
     expect(headers()).toEqual(['Department', 'Products', 'Services', 'DevSecOps pipelines', '']);
-    expect(text(row('Corporate Technology').querySelector('.mat-column-pipelines'))).toBe(
+    expect(text(gridCell(row('Corporate Technology'), 'pipelines'))).toBe(
       '3 · 2 active · 1 invalidated',
     );
-    expect(text(row('Fund Services').querySelector('.mat-column-pipelines'))).toBe('None yet');
-    expect(
-      [...chart.querySelectorAll('.track')].map((track) => track.getAttribute('aria-label')),
-    ).toEqual(['Corporate Technology: 2 active, 1 invalidated', 'Fund Services: none']);
-    expect([...chart.querySelectorAll('.note')].map((note) => text(note))).toEqual([
+    expect(text(gridCell(row('Fund Services'), 'pipelines'))).toBe('None yet');
+    expect(chart.querySelector('dso-chart')?.getAttribute('aria-label')).toBe(
+      'Corporate Technology: 2 active, 1 invalidated; Fund Services: none',
+    );
+    expect(chartOptions(chart.querySelector('dso-chart')).xAxis[1].categories).toEqual([
       '3 pipelines · 1 product',
       '0 pipelines · 0 products',
     ]);
