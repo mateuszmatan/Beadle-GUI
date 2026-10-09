@@ -61,27 +61,31 @@ describe('ProductDialog', () => {
 
     expect(text(page().querySelector('h2'))).toBe('Add product');
     expect(text(page().querySelector('.intro'))).toBe(
-      "Add its change template on the product's page.",
+      'Its page opens next, where you fill in its change template. Fields marked * are required.',
     );
     expect(labels()).toEqual([
       'Product name',
-      'Code',
+      'Product code',
       'Department',
       'Owner team',
       'Contact e-mail',
     ]);
     expect(form().controls.departmentId.value).toBe(5);
+    expect(text(fieldOf(page(), 'Product code')?.querySelector('dso-hint'))).toBe(
+      'Short unique name used in reports, for example PAYHUB. Made from the name.',
+    );
+    expect(text(page().querySelector('button[type=submit]'))).toBe('Add product');
 
     await typeName('Trade Archive');
     http.expectOne('/api/products/code-suggestion?name=Trade%20Archive').flush({ code: 'TA' });
-    expect(inputOf(page(), 'Code').value).toBe('TA');
+    expect(inputOf(page(), 'Product code').value).toBe('TA');
 
     await typeName('Trade Archive 2');
     http.expectOne('/api/products/code-suggestion?name=Trade%20Archive%202').flush({ code: 'TA2' });
-    expect(inputOf(page(), 'Code').value).toBe('TA2');
+    expect(inputOf(page(), 'Product code').value).toBe('TA2');
 
-    type('Code', 'tarc');
-    expect(inputOf(page(), 'Code').value).toBe('TARC');
+    type('Product code', 'tarc');
+    expect(inputOf(page(), 'Product code').value).toBe('TARC');
     await typeName('Trade Archive 3');
     http.expectNone((request) => request.url === '/api/products/code-suggestion');
 
@@ -121,13 +125,15 @@ describe('ProductDialog', () => {
     fixture.detectChanges();
 
     http.expectNone('/api/products');
-    expect(errorOf('Code')).toBe('Required');
+    expect(errorOf('Product code')).toBe('Required');
     expect(errorOf('Department')).toBe('Required');
     expect(errorOf('Contact e-mail')).toBe('Enter an e-mail address');
 
-    type('Code', '1ARCHIVE');
+    type('Product code', '1ARCHIVE');
     fixture.detectChanges();
-    expect(errorOf('Code')).toBe("Start with a letter; use A-Z, 0-9, '-' or '_'");
+    expect(errorOf('Product code')).toBe(
+      "2 to 50 characters: a letter first, then A-Z, 0-9, '-' or '_'",
+    );
   });
 
   it('shows the problems of the portal on their fields and the rest above the buttons', async () => {
@@ -148,7 +154,7 @@ describe('ProductDialog', () => {
     fixture.detectChanges();
 
     expect(errorOf('Owner team')).toBe('is not a BBH team');
-    expect(errorOf('Code')).toBe('is reserved');
+    expect(errorOf('Product code')).toBe('is reserved');
     expect(page().querySelector('[role=alert]')).toBeNull();
 
     await submit();
@@ -165,7 +171,7 @@ describe('ProductDialog', () => {
     fixture.detectChanges();
 
     expect(text(page().querySelector('[role=alert]'))).toBe(
-      'A product named Archive already exists',
+      'The product could not be added. A product named Archive already exists',
     );
     expect(close).not.toHaveBeenCalled();
   });
@@ -174,8 +180,12 @@ describe('ProductDialog', () => {
     const stored = productDetails({ contactEmail: null });
     await render({ product: stored });
 
-    expect(text(page().querySelector('h2'))).toBe('Change CertScanner');
+    expect(text(page().querySelector('h2'))).toBe('Edit the details of CertScanner');
+    expect(text(page().querySelector('.intro'))).toBe(
+      'Its product code, CERT, stays as it is. Fields marked * are required.',
+    );
     expect(labels()).toEqual(['Product name', 'Department', 'Owner team', 'Contact e-mail']);
+    expect(text(page().querySelector('button[type=submit]'))).toBe('Save details');
     expect(inputOf(page(), 'Product name').value).toBe('CertScanner');
     expect(inputOf(page(), 'Owner team').value).toBe('Technology Architecture');
     expect(form().controls.departmentId.value).toBe(3);
@@ -206,6 +216,16 @@ describe('ProductDialog', () => {
 
   it('hands a conflict back so the product can be loaded again', async () => {
     await render({ product: productDetails() });
+
+    await submit();
+    http
+      .expectOne({ method: 'PUT', url: '/api/products/1/details' })
+      .flush({ detail: 'The database is busy' }, { status: 503, statusText: 'Unavailable' });
+    fixture.detectChanges();
+    expect(text(page().querySelector('[role=alert]'))).toBe(
+      'The details could not be saved. The database is busy',
+    );
+    expect(close).not.toHaveBeenCalled();
 
     await submit();
     http

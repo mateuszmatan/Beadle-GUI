@@ -67,9 +67,12 @@ class BeadleAdminSpec extends EditorSpecification {
         assertThat(page.locator('.toolbar .count')).hasText('2 products in 5 departments')
         assertThat(gridHeaders(card('Fund Services'))).hasText(['Product', 'Owner team', 'Change template'] as String[])
         assertThat(productRow('CertScanner').locator('.ag-cell')).hasText(['CertScannerCERTSCANNER', 'Technology Architecture',
-                                                                          'Saved · 2 days ago'] as String[])
+                                                                          'Filled in · saved 2 days ago'] as String[])
         assertThat(productRow('CertScanner')).hasClass(~/\bclickable\b/)
-        assertThat(gridCell(productRow('Payments Hub'), 'template')).hasText('Suggested values')
+        assertThat(gridCell(productRow('Payments Hub'), 'template')).hasText('Not filled in yet')
+        assertThat(page.locator('.tab-help')).hasText('Open a product to see its details and fill in its change template. ' +
+                'Until then, its new changes start with values suggested from its name, code and owner team.')
+        !page.locator('dso-beadle-products').textContent().contains('service')
 
         when:
         page.locator('input[aria-label="Search products"]').fill('pay')
@@ -83,8 +86,9 @@ class BeadleAdminSpec extends EditorSpecification {
         open('/beadle/admin/products')
 
         then:
-        assertThat(gridCell(productRow('CertScanner'), 'template')).hasText('Unknown')
-        assertThat(gridCell(productRow('CertScanner'), 'template').locator('dso-grid-cell span')).hasAttribute('title', 'The change templates are not available')
+        assertThat(gridCell(productRow('CertScanner'), 'template')).hasText('Not known')
+        assertThat(page.locator('.banner')).containsText('The products are listed, but the state of their change templates ' +
+                'could not be loaded. The change templates are not available')
 
         when:
         gridCell(productRow('Payments Hub'), 'ownerTeam').click()
@@ -109,26 +113,27 @@ class BeadleAdminSpec extends EditorSpecification {
 
         when:
         open('/beadle/admin/products')
-        buttonIn(card('Custody'), 'Add product').click()
+        buttonIn(card('Custody'), 'Add product to Custody').click()
 
         then:
         assertThat(dialog().locator('h2')).hasText('Add product')
-        assertThat(dialog().locator('dso-label')).hasText(['Product name', 'Code', 'Department', 'Owner team',
+        assertThat(dialog().locator('dso-label')).hasText(['Product name', 'Product code', 'Department', 'Owner team',
                                                            'Contact e-mail'] as String[])
+        assertThat(hintOf(dialog(), 'Product code')).hasText('Short unique name used in reports, for example PAYHUB. Made from the name.')
         assertThat(selected(dialog(), 'Department')).hasText('Custody')
 
         when:
         dialogButton('Add product').click()
 
         then:
-        hasErrors(dialog(), ['Product name': 'Required', 'Code': 'Required'])
+        hasErrors(dialog(), ['Product name': 'Required', 'Product code': 'Required'])
         api.requests('POST', '/api/products').isEmpty()
 
         when:
         input(dialog(), 'Product name').fill('Trade Archive')
 
         then:
-        assertThat(input(dialog(), 'Code')).hasValue('TRADEARCHIVE')
+        assertThat(input(dialog(), 'Product code')).hasValue('TRADEARCHIVE')
 
         when:
         fillIn(dialog(), ['Owner team': 'Custody'])
@@ -145,7 +150,7 @@ class BeadleAdminSpec extends EditorSpecification {
 
         then:
         page.waitForURL('**/beadle/admin/products/3')
-        assertThat(snackBar()).containsText('Trade Archive added')
+        assertThat(snackBar()).containsText('Trade Archive added. Now fill in its change template.')
         def request = awaitRequest('POST', '/api/products', 2)
         request.params() == [:]
         request.json() == [code        : 'TRADEARCHIVE', name: 'Trade Archive', description: null,
@@ -154,6 +159,7 @@ class BeadleAdminSpec extends EditorSpecification {
         store.product.name == 'Trade Archive'
         assertThat(facts()).hasText(['TRADEARCHIVE', 'Custody', 'Custody Technology', '–'] as String[])
         assertThat(page.locator('section.defaults .banner.info')).containsText('Not saved yet')
+        assertThat(page.locator('.defaults-header .chip')).hasText('Not filled in yet')
         assertThat(page.locator('dso-change-tasks-form .task-row')).hasCount(2)
         ownErrors().findAll { !it.contains('400') }.isEmpty()
     }
@@ -165,17 +171,17 @@ class BeadleAdminSpec extends EditorSpecification {
 
         when:
         open('/beadle/admin/products/1')
-        buttonIn(factsCard(), 'Change').click()
+        buttonIn(factsCard(), 'Edit details').click()
 
         then:
-        assertThat(dialog().locator('h2')).hasText('Change CertScanner')
+        assertThat(dialog().locator('h2')).hasText('Edit the details of CertScanner')
         assertThat(dialog().locator('dso-label')).hasText(['Product name', 'Department', 'Owner team', 'Contact e-mail'] as String[])
         hasValues(dialog(), ['Product name': 'CertScanner', 'Owner team': 'Technology Architecture', 'Contact e-mail': 'ta-team@bbh.com'])
 
         when:
         input(dialog(), 'Product name').fill('CertScanner Pro')
         choose(dialog(), 'Department', 'Fund Services')
-        dialogButton('Save').click()
+        dialogButton('Save details').click()
 
         then:
         assertThat(snackBar()).containsText('CertScanner Pro saved')
@@ -191,10 +197,10 @@ class BeadleAdminSpec extends EditorSpecification {
         when:
         store.product.version = 4
         store.product.ownerTeam = 'Security Engineering'
-        buttonIn(factsCard(), 'Change').click()
+        buttonIn(factsCard(), 'Edit details').click()
         assertThat(input(dialog(), 'Product name')).isFocused()
         input(dialog(), 'Contact e-mail').fill('certs@bbh.com')
-        dialogButton('Save').click()
+        dialogButton('Save details').click()
 
         then:
         assertThat(dialog()).hasCount(0)
@@ -203,10 +209,10 @@ class BeadleAdminSpec extends EditorSpecification {
         awaitRequest('PUT', '/api/products/1/details', 2).json().version == 1
 
         when:
-        buttonIn(factsCard(), 'Change').click()
+        buttonIn(factsCard(), 'Edit details').click()
         assertThat(input(dialog(), 'Product name')).isFocused()
         input(dialog(), 'Contact e-mail').fill('certs@bbh.com')
-        dialogButton('Save').click()
+        dialogButton('Save details').click()
 
         then:
         assertThat(snackBar()).containsText('CertScanner Pro saved')
@@ -228,8 +234,9 @@ class BeadleAdminSpec extends EditorSpecification {
         button('Delete product', true).click()
 
         then:
-        assertThat(dialog().locator('h2')).hasText('Delete CertScanner?')
-        assertThat(dialog().locator('.message')).hasText('CertScanner is deleted with its change template. This cannot be undone.')
+        assertThat(dialog().locator('h2')).hasText('Delete the product CertScanner?')
+        assertThat(dialog().locator('.message')).hasText('CertScanner and its change template are deleted. This cannot be undone.\n' +
+                'If CertScanner still has services in DevSecOps Management, it is not deleted; remove them there first.')
 
         when:
         dialogButton('Cancel').click()
@@ -243,7 +250,7 @@ class BeadleAdminSpec extends EditorSpecification {
         dialogButton('Delete product').click()
 
         then:
-        assertThat(snackBar()).containsText(HAS_SERVICES)
+        assertThat(snackBar()).containsText("CertScanner could not be deleted. $HAS_SERVICES")
         awaitRequest('DELETE', '/api/products/1/details')
         page.url().endsWith('/beadle/admin/products/1')
 

@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
@@ -44,6 +45,7 @@ export type ProfileForm = ReturnType<typeof profileForm>;
 @Component({
   selector: 'dso-beadle-product',
   imports: [
+    DatePipe,
     ReactiveFormsModule,
     RouterLink,
     DsoLoading,
@@ -66,8 +68,8 @@ export type ProfileForm = ReturnType<typeof profileForm>;
         <div>
           <h1>{{ productName() }}</h1>
           <p>
-            The product and the change template of its ProTech changes. Whoever raises a change sees
-            the template filled in and can change any of it.
+            The product's details and the change template its ProTech (ServiceNow) changes start
+            with.
           </p>
         </div>
       </header>
@@ -76,14 +78,33 @@ export type ProfileForm = ReturnType<typeof profileForm>;
         <dso-loading />
       }
       @if (profile.error(); as error) {
-        <div class="banner">{{ errorMessage(error) }}</div>
+        <div class="banner" role="alert">
+          <span>The change template could not be loaded. {{ errorMessage(error) }}</span>
+          <button type="button" class="btn btn-link" (click)="profile.reload()">Try again</button>
+        </div>
       }
       @if (form(); as group) {
         <section class="defaults" aria-labelledby="defaults-title">
-          <h2 id="defaults-title">Change template</h2>
+          <header class="defaults-header">
+            <h2 id="defaults-title">Change template</h2>
+            @if (version() === null) {
+              <span class="chip neutral">Not filled in yet</span>
+            } @else {
+              <span class="chip success">Filled in</span>
+              @if (savedAt(); as at) {
+                <span class="muted saved-at">last saved {{ at | date: 'd MMM y, HH:mm' }}</span>
+              }
+            }
+          </header>
+          <p class="section-help">
+            Every new change of {{ productName() }} starts with these answers; whoever raises a
+            change can still change each of them for that change. A field left empty is filled in
+            when the change is raised, as the note under the field says.
+          </p>
           @if (version() === null) {
             <div class="banner info" role="status">
-              Not saved yet. The values below are suggestions from the product.
+              Not saved yet. Until you save it, new changes of {{ productName() }} start with these
+              values, suggested from its name, code and owner team.
             </div>
           }
           <form [formGroup]="group" (ngSubmit)="save()" novalidate>
@@ -91,7 +112,10 @@ export type ProfileForm = ReturnType<typeof profileForm>;
             <section class="card default-tasks" aria-labelledby="tasks-title">
               <header>
                 <h3 id="tasks-title">Default change tasks</h3>
-                <p>Every new change of the product starts with these change tasks.</p>
+                <p>
+                  The pieces of work inside a change, each done by one team. Every new change of
+                  {{ productName() }} starts with these.
+                </p>
               </header>
               <dso-change-tasks-form [tasks]="group.controls.tasks" />
             </section>
@@ -119,8 +143,24 @@ export type ProfileForm = ReturnType<typeof profileForm>;
     </div>
   `,
   styles: `
-    .defaults > h2 {
-      margin: 16px 0 10px;
+    .defaults-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 2px 8px;
+      margin: 16px 0 4px;
+
+      h2 {
+        margin: 0;
+      }
+    }
+
+    .saved-at {
+      font-size: 12px;
+    }
+
+    .section-help {
+      margin: 0 0 10px;
     }
 
     .default-tasks {
@@ -171,6 +211,7 @@ export class BeadleProduct implements HasUnsavedChanges {
   );
   protected readonly form = signal<ProfileForm | null>(null);
   protected readonly version = signal<number | null>(null);
+  protected readonly savedAt = signal<string | null>(null);
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
   protected readonly conflict = signal(false);
@@ -179,6 +220,7 @@ export class BeadleProduct implements HasUnsavedChanges {
     effect(() => {
       if (this.profile.hasValue()) {
         this.version.set(this.profile.value().version);
+        this.savedAt.set(this.profile.value().updatedAt);
         this.form.set(profileForm(this.profile.value()));
       }
     });
@@ -227,6 +269,7 @@ export class BeadleProduct implements HasUnsavedChanges {
       .subscribe({
         next: (saved) => {
           this.version.set(saved.version);
+          this.savedAt.set(saved.updatedAt);
           form.markAsPristine();
           this.notifier.success(`The change template of ${saved.productName} is saved`);
         },

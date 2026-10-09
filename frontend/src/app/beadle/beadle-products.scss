@@ -1,3 +1,9 @@
+.tab-help {
+  margin: 0 0 10px;
+  color: var(--dso-muted);
+  font-size: 12.5px;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -64,7 +70,7 @@
   gap: 8px;
 }
 
-.saved {
-  color: var(--dso-success);
-  font-weight: 600;
+.saved-at {
+  margin-left: 2px;
+  font-size: 12px;
 }

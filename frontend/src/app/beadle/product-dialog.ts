@@ -31,7 +31,7 @@ export interface ProductDialogData {
 
 export type ProductDialogResult = ProductDetails | HttpErrorResponse;
 
-const CODE_HELP = "Start with a letter; use A-Z, 0-9, '-' or '_'";
+const CODE_HELP = "2 to 50 characters: a letter first, then A-Z, 0-9, '-' or '_'";
 
 @Component({
   selector: 'dso-product-dialog',
@@ -39,37 +39,33 @@ const CODE_HELP = "Start with a letter; use A-Z, 0-9, '-' or '_'";
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-header">
-      <h2 dsoDialogTitle>{{ product ? 'Change ' + product.name : 'Add product' }}</h2>
+      <h2 dsoDialogTitle>{{ product ? 'Edit the details of ' + product.name : 'Add product' }}</h2>
     </div>
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body">
-        @if (!product) {
-          <p class="intro">Add its change template on the product's page.</p>
-        }
+        <p class="intro">
+          @if (product) {
+            Its product code, <span class="mono">{{ product.code }}</span
+            >, stays as it is.
+          } @else {
+            Its page opens next, where you fill in its change template.
+          }
+          Fields marked * are required.
+        </p>
         <div class="fields">
           <dso-form-field>
             <dso-label>Product name</dso-label>
-            <input
-              dsoInput
-              formControlName="name"
-              placeholder="CertScanner"
-              autocomplete="off"
-              required
-            />
+            <input dsoInput formControlName="name" autocomplete="off" required />
             <dso-error>{{ errorText(form.controls.name) }}</dso-error>
           </dso-form-field>
           @if (!product) {
             <dso-form-field>
-              <dso-label>Code</dso-label>
-              <input
-                dsoInput
-                class="mono"
-                formControlName="code"
-                placeholder="CERTSCANNER"
-                autocomplete="off"
-                required
-              />
-              <dso-hint>Made from the name; you can change it</dso-hint>
+              <dso-label>Product code</dso-label>
+              <input dsoInput class="mono" formControlName="code" autocomplete="off" required />
+              <dso-hint
+                >Short unique name used in reports, for example PAYHUB. Made from the
+                name.</dso-hint
+              >
               <dso-error>{{ errorText(form.controls.code, codeHelp) }}</dso-error>
             </dso-form-field>
           }
@@ -84,17 +80,14 @@ const CODE_HELP = "Start with a letter; use A-Z, 0-9, '-' or '_'";
           </dso-form-field>
           <dso-form-field>
             <dso-label>Owner team</dso-label>
-            <input dsoInput formControlName="ownerTeam" placeholder="Technology Architecture" />
+            <input dsoInput formControlName="ownerTeam" />
+            <dso-hint>The team that looks after the product</dso-hint>
             <dso-error>{{ errorText(form.controls.ownerTeam) }}</dso-error>
           </dso-form-field>
           <dso-form-field>
             <dso-label>Contact e-mail</dso-label>
-            <input
-              dsoInput
-              type="email"
-              formControlName="contactEmail"
-              placeholder="team@bbh.com"
-            />
+            <input dsoInput type="email" formControlName="contactEmail" />
+            <dso-hint>Where questions about the product go</dso-hint>
             <dso-error>{{ errorText(form.controls.contactEmail) }}</dso-error>
           </dso-form-field>
         </div>
@@ -105,14 +98,14 @@ const CODE_HELP = "Start with a letter; use A-Z, 0-9, '-' or '_'";
       <div class="modal-footer">
         <button type="button" class="btn btn-link" dsoDialogClose>Cancel</button>
         <button type="submit" class="btn btn-primary" [disabled]="saving()">
-          {{ product ? 'Save' : 'Add product' }}
+          {{ product ? 'Save details' : 'Add product' }}
         </button>
       </div>
     </form>
   `,
   styles: `
     .modal-body {
-      width: min(560px, 80vw);
+      width: min(640px, 86vw);
     }
 
     .intro {
@@ -231,6 +224,11 @@ export class ProductDialog {
     }
     const problems = fieldProblems(error);
     const unmatched = applyFieldProblems(this.form, problems);
-    this.error.set(unmatched.length || !problems.length ? errorMessage(error) : null);
+    const failure = this.product
+      ? 'The details could not be saved.'
+      : 'The product could not be added.';
+    this.error.set(
+      unmatched.length || !problems.length ? `${failure} ${errorMessage(error)}` : null,
+    );
   }
 }
