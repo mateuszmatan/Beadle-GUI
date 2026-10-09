@@ -116,7 +116,6 @@ export type ProfileForm = ReturnType<typeof profileForm>;
   styles: `
     .defaults > h2 {
       margin: 16px 0 10px;
-      font-size: 19.5px;
     }
 
     .default-tasks {
