@@ -1,16 +1,23 @@
 <section class="card toolbar">
-  <input
-    dsoInput
-    class="search"
-    [formControl]="search"
-    placeholder="Search by name, code, team, department or description"
-    aria-label="Search products"
-  />
-  @if (groups()) {
-    <span class="muted count">{{ total() }}</span>
-  }
-  <span class="spacer"></span>
-  <a class="btn btn-primary" [routerLink]="newProduct">Add product</a>
+  <div class="toolbar-row">
+    <input
+      dsoInput
+      class="search"
+      [formControl]="search"
+      placeholder="Search by name, code, team, department or description"
+      aria-label="Search products"
+    />
+    @if (groups()) {
+      <span class="muted summary">{{ total() }}</span>
+    }
+    <span class="spacer"></span>
+    <a class="btn btn-primary" [routerLink]="newProduct">Add product</a>
+  </div>
+  <p class="section-help intro">
+    Every product has services, for example its API or its web front end, and each service has
+    pipelines: the automated build, test and security checks Jenkins runs for it. A pipeline is
+    active while its key is valid; one whose key was invalidated stops until a new key is issued.
+  </p>
 </section>
 
 @if (products.isLoading() || departments.isLoading()) {
@@ -18,16 +25,24 @@
 }
 
 @if (products.error() ?? departments.error(); as error) {
-  <div class="banner">{{ errorMessage(error) }}</div>
+  <div class="banner danger" role="alert">
+    <span>The product list could not be loaded. {{ errorMessage(error) }}</span>
+    <button type="button" class="btn btn-outline-primary retry" (click)="reload()">
+      Try again
+    </button>
+  </div>
 } @else if (groups(); as shown) {
   @if (empty()) {
     <section class="card empty-state">
       @if (query()) {
         <h3>No product matches "{{ query() }}"</h3>
         <p>Try another name, code, team or department.</p>
+        <button type="button" class="btn btn-outline-primary" (click)="clearSearch()">
+          Clear the search
+        </button>
       } @else {
         <h3>No products yet</h3>
-        <p>Add the first product and define its services to give them DevSecOps pipelines.</p>
+        <p>Add the first product with its services; each new service gets its own pipeline.</p>
         <a class="btn btn-primary" [routerLink]="newProduct">Add product</a>
       }
     </section>
@@ -35,26 +50,26 @@
   @for (group of shown; track group.department?.id) {
     <section class="card department">
       <header class="department-header">
-        <div class="department-title">
-          <h2>{{ group.name }}</h2>
-          @if (group.department || !query()) {
-            <span class="tally">{{ tally(group) }}</span>
+        <h2>{{ group.name }}</h2>
+        @if (group.department || !query()) {
+          @if (tally(group); as summary) {
+            <span class="tally">{{ summary }}</span>
           }
-        </div>
-        @if (group.department; as department) {
-          <a
-            class="btn btn-link"
-            [routerLink]="newProduct"
-            [queryParams]="{ department: department.id }"
-            >Add product</a
-          >
-        } @else {
+        }
+        @if (!group.department) {
           <p class="muted hint">Edit these products to choose their department.</p>
         }
       </header>
 
       @if (group.products.length === 0) {
-        <p class="muted no-products">No products in {{ group.name }} yet.</p>
+        <p class="no-products">
+          <span class="muted">No products in {{ group.name }} yet.</span>
+          @if (group.department; as department) {
+            <a [routerLink]="newProduct" [queryParams]="{ department: department.id }"
+              >Add a product to {{ group.name }}</a
+            >
+          }
+        </p>
       } @else {
         <dso-grid
           [label]="'Products of ' + group.name"
@@ -78,24 +93,12 @@
             </div>
           </ng-template>
           <ng-template dsoCell="pipelines" let-product>
-            @if (product.pipelineCount === 0) {
-              <span class="muted">None yet</span>
-            } @else {
-              <span class="pipelines">
-                <strong>{{ product.pipelineCount }}</strong>
-                <span class="muted">· {{ product.activePipelineCount }} active</span>
-                @if (product.pipelineCount > product.activePipelineCount) {
-                  <span class="revoked" title="Pipelines whose key is invalidated"
-                    >·
-                    {{ product.pipelineCount - product.activePipelineCount }}
-                    invalidated</span
-                  >
-                }
-              </span>
-            }
-          </ng-template>
-          <ng-template dsoCell="updatedAt" let-product>
-            <span class="muted">{{ product.updatedAt | relative }}</span>
+            <span
+              class="pipelines"
+              [class.muted]="!product.pipelineCount"
+              [class.revoked]="product.pipelineCount > product.activePipelineCount"
+              >{{ pipelineTally(product.pipelineCount, product.activePipelineCount) }}</span
+            >
           </ng-template>
         </dso-grid>
       }

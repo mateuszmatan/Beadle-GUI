@@ -61,18 +61,27 @@ describe('DepartmentsAdmin', () => {
     await load();
     const chart = page().querySelector('section.chart')!;
 
-    expect(text(page().querySelector('.count'))).toBe('2 departments · 1 product · 2 services');
-    expect(headers()).toEqual(['Department', 'Products', 'Services', 'DevSecOps pipelines', '']);
-    expect(text(gridCell(row('Corporate Technology'), 'pipelines'))).toBe(
-      '3 · 2 active · 1 invalidated',
+    expect(text(page().querySelector('.list-header h2'))).toBe('Departments');
+    expect(text(page().querySelector('.summary'))).toBe(
+      '2 departments with 1 product and 2 services',
     );
+    expect(text(page().querySelector('.departments .section-help'))).toBe(
+      'Every product belongs to one department, and people choose their department to see its products and pipelines. Only an empty department can be deleted.',
+    );
+    expect(headers()).toEqual(['Department', 'Products', 'Services', 'Pipelines', '']);
+    expect(text(gridCell(row('Corporate Technology'), 'pipelines'))).toBe('3, 1 key invalidated');
     expect(text(gridCell(row('Fund Services'), 'pipelines'))).toBe('None yet');
+    expect(text(chart.querySelector('h2'))).toBe('Pipelines per department');
+    expect([...chart.querySelectorAll('.legend span')].map(text)).toEqual([
+      'Active',
+      'Key invalidated',
+    ]);
     expect(chart.querySelector('dso-chart')?.getAttribute('aria-label')).toBe(
-      'Corporate Technology: 2 active, 1 invalidated; Fund Services: none',
+      'Corporate Technology: 2 active, 1 key invalidated; Fund Services: none',
     );
     expect(chartOptions(chart.querySelector('dso-chart')).xAxis[1].categories).toEqual([
-      '3 pipelines · 1 product',
-      '0 pipelines · 0 products',
+      '3 pipelines, 1 key invalidated',
+      '0 pipelines',
     ]);
   });
 
@@ -81,7 +90,10 @@ describe('DepartmentsAdmin', () => {
     await load();
 
     expect(headers()).toEqual(['Department', 'Products', '']);
-    expect(text(page().querySelector('.count'))).toBe('2 departments · 1 product');
+    expect(text(page().querySelector('.summary'))).toBe('2 departments with 1 product');
+    expect(text(page().querySelector('.departments .section-help'))).toBe(
+      'Every product belongs to one department, and people choose their department to see its changes. Only an empty department can be deleted.',
+    );
     expect(page().querySelector('section.chart')).toBeNull();
   });
 
@@ -90,7 +102,10 @@ describe('DepartmentsAdmin', () => {
     await load([]);
 
     expect(text(page().querySelector('.empty-state h3'))).toBe('No departments yet');
-    expect(text(page().querySelector('.count'))).toBe('0 departments · 0 products');
+    expect(text(page().querySelector('.summary'))).toBe('0 departments with 0 products');
+    expect(
+      [...page().querySelectorAll('button')].filter((button) => text(button) === 'Add department'),
+    ).toEqual([buttonOf(page().querySelector('.empty-state')!, 'Add department')]);
   });
 
   it('shows why the departments could not be loaded', async () => {
@@ -99,7 +114,17 @@ describe('DepartmentsAdmin', () => {
     http.expectOne('/api/departments').flush(null, { status: 0, statusText: 'Unknown Error' });
     await fixture.whenStable();
 
-    expect(page().querySelector('.banner')?.textContent).toContain('cannot be reached');
+    expect(text(page().querySelector('.banner'))).toContain(
+      'The departments could not be loaded: The portal cannot be reached.',
+    );
+
+    buttonOf(page().querySelector('.banner')!, 'Try again').click();
+    fixture.detectChanges();
+    http.expectOne('/api/departments').flush([department()]);
+    await fixture.whenStable();
+
+    expect(page().querySelector('.banner')).toBeNull();
+    expect(rows().length).toBe(1);
   });
 
   it('deletes only a department without products or changes', async () => {
@@ -116,15 +141,24 @@ describe('DepartmentsAdmin', () => {
         button.getAttribute('aria-label'),
       ),
     ).toEqual(['Rename Fund Services', 'Delete Fund Services']);
+    const reason = (name: string) => {
+      const id = buttonOf(row(name), 'Delete').getAttribute('aria-describedby');
+      return id ? text(page().querySelector(`#${id}`)) : null;
+    };
+    const productsLeft =
+      'Only an empty department can be deleted. Corporate Technology still has 1 product: move it to another department first.';
     expect(row('Corporate Technology').querySelector('.delete')?.getAttribute('title')).toBe(
-      'Corporate Technology still has 1 product. Move them to another department first.',
+      productsLeft,
     );
+    expect(reason('Corporate Technology')).toBe(productsLeft);
     expect(buttonOf(row('Fund Services'), 'Delete').disabled).toBe(false);
     expect(row('Fund Services').querySelector('.delete')?.hasAttribute('title')).toBe(false);
+    expect(reason('Fund Services')).toBeNull();
     expect(buttonOf(row('Custody'), 'Delete').disabled).toBe(true);
     expect(row('Custody').querySelector('.delete')?.getAttribute('title')).toBe(
-      'Custody still owns 2 changes raised in Beadle, so it cannot be deleted.',
+      'Custody cannot be deleted: it has 2 changes raised in Beadle.',
     );
+    expect(reason('Custody')).toBe('Custody cannot be deleted: it has 2 changes raised in Beadle.');
   });
 
   it('adds and renames a department and lists the departments again', async () => {
@@ -140,7 +174,7 @@ describe('DepartmentsAdmin', () => {
 
     expect(open.mock.calls[0][0]).toBe(DepartmentDialog);
     expect(open.mock.calls[0][1]?.data).toBeNull();
-    expect(snack()).toContain('Treasury added');
+    expect(snack()).toContain('Treasury added. Add its products on the Products tab.');
     expect(text(rows().at(-1)!.querySelector('.name'))).toBe('Treasury');
 
     buttonOf(row('Fund Services'), 'Rename').click();
@@ -163,7 +197,13 @@ describe('DepartmentsAdmin', () => {
 
     buttonOf(row('Fund Services'), 'Delete').click();
     expect(open.mock.calls[0][0]).toBe(ConfirmDialog);
-    expect(open.mock.calls[0][1]?.data).toMatchObject({ title: 'Delete Fund Services?' });
+    expect(open.mock.calls[0][1]?.data).toMatchObject({
+      title: 'Delete the department Fund Services?',
+      message:
+        'Fund Services has no products, so nothing else is deleted with it. It disappears from every list of departments in the portal. This cannot be undone.',
+      confirmLabel: 'Delete department',
+      danger: true,
+    });
     http.expectOne({ method: 'DELETE', url: '/api/departments/5' }).flush(null);
     fixture.detectChanges();
     http.expectOne('/api/departments').flush([department()]);

@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { Department } from '../core/models';
-import { inputOf } from '../testing/dom';
+import { inputOf, text } from '../testing/dom';
 import { department } from '../testing/fixtures';
 import { DepartmentDialog } from './department-dialog';
 
@@ -44,7 +44,12 @@ describe('DepartmentDialog', () => {
 
   it('adds a department with the trimmed name', async () => {
     await render(null);
-    expect(page().querySelector('h2')?.textContent).toBe('Add department');
+    expect(page().querySelector('h2')?.textContent).toBe('Add a department');
+    expect(text(page().querySelector('button[type=submit]'))).toBe('Add department');
+    expect(text(page().querySelector('dso-hint'))).toBe(
+      'The name people know the department by, for example Fund Services',
+    );
+    expect(page().querySelector('.intro')).toBeNull();
 
     await submit('  Treasury ');
 
@@ -68,6 +73,10 @@ describe('DepartmentDialog', () => {
   it('renames a department with the version it was read at', async () => {
     await render(department({ version: 2 }));
     expect(page().querySelector('h2')?.textContent).toBe('Rename Corporate Technology');
+    expect(text(page().querySelector('.intro'))).toBe(
+      'The new name shows everywhere in the portal at once. The products of the department stay as they are.',
+    );
+    expect(text(page().querySelector('button[type=submit]'))).toBe('Rename department');
     expect(inputOf(page(), 'Name').value).toBe('Corporate Technology');
 
     await submit('Corporate Tech');

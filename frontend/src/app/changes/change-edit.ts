@@ -19,7 +19,7 @@ import { errorMessage, fieldProblems } from '../core/errors';
 import { Notifier } from '../core/notifier';
 import { CHANGES, beadleChange } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
-import { applyFieldProblems, filled, text } from '../shared/form-controls';
+import { applyFieldProblems, byteLength, filled, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { FORM_FIELD } from '../ui/form-field';
 import { DsoLoading, DsoSpinner } from '../ui/loading';
@@ -89,7 +89,11 @@ export type EditForm = ReturnType<typeof editForm>;
         <dso-loading />
       }
       @if (change.error(); as error) {
-        <div class="banner">{{ errorMessage(error) }}</div>
+        <div class="banner" role="alert">
+          <span>The change could not be loaded: {{ errorMessage(error) }}</span>
+          <span class="spacer"></span>
+          <button type="button" class="btn btn-link" (click)="change.reload()">Try again</button>
+        </div>
       }
       @if (change.hasValue()) {
         @let c = change.value();
@@ -97,8 +101,8 @@ export type EditForm = ReturnType<typeof editForm>;
           <div>
             <h1>Edit {{ c.number }}</h1>
             <p>
-              What you publish goes to ProTech at once. The change page then shows whether ProTech
-              applied it.
+              Change any value and publish it: the update goes to ProTech at once, and the change
+              page then shows whether ProTech applied it. Fields marked * are required.
             </p>
           </div>
         </header>
@@ -116,27 +120,11 @@ export type EditForm = ReturnType<typeof editForm>;
           </div>
         } @else if (form(); as f) {
           <form [formGroup]="f" (ngSubmit)="publish()" novalidate>
-            <section class="card block texts">
-              <h2>Texts</h2>
-              <dso-form-field>
-                <dso-label>Short description</dso-label>
-                <input dsoInput formControlName="shortDescription" maxlength="160" />
-                <dso-hint class="length-hint"
-                  >{{ f.controls.shortDescription.value.length }} / 160</dso-hint
-                >
-                <dso-error>{{ errorText(f.controls.shortDescription) }}</dso-error>
-              </dso-form-field>
-              <dso-form-field>
-                <dso-label>Description</dso-label>
-                <textarea dsoInput rows="9" formControlName="description"></textarea>
-                <dso-hint class="length-hint"
-                  >{{ f.controls.description.value.length }} / 4000</dso-hint
-                >
-                <dso-error>{{ errorText(f.controls.description) }}</dso-error>
-              </dso-form-field>
-            </section>
             <section class="fields" aria-labelledby="protech-fields">
               <h2 id="protech-fields">ProTech fields</h2>
+              <p class="section-help">
+                The values ProTech holds for the change, in the sections of New Change.
+              </p>
               <dso-change-template-form
                 [form]="f.controls.template"
                 [facts]="facts()"
@@ -145,10 +133,35 @@ export type EditForm = ReturnType<typeof editForm>;
             </section>
             <section class="card block">
               <h2>Change tasks</h2>
-              <p class="note">
-                A new change task is created in ProTech and a removed one is canceled there.
+              <p class="section-help">
+                A change task (CTASK) is a piece of work inside the change, done by one team. When
+                you publish, a task you add is created in ProTech and a task you remove is canceled
+                there.
               </p>
               <dso-change-tasks-form [tasks]="f.controls.tasks" />
+            </section>
+            <section class="card block texts">
+              <h2>Text sent to ProTech</h2>
+              <p class="section-help">
+                The short description and description ProTech shows for the change. They are not
+                rewritten when you change the fields above, so bring them in line yourself.
+              </p>
+              <dso-form-field>
+                <dso-label>Short description</dso-label>
+                <input dsoInput formControlName="shortDescription" maxlength="160" required />
+                <dso-hint class="length-hint"
+                  >{{ byteLength(f.controls.shortDescription.value) }} / 160</dso-hint
+                >
+                <dso-error>{{ errorText(f.controls.shortDescription) }}</dso-error>
+              </dso-form-field>
+              <dso-form-field>
+                <dso-label>Description</dso-label>
+                <textarea dsoInput rows="9" formControlName="description" required></textarea>
+                <dso-hint class="length-hint"
+                  >{{ byteLength(f.controls.description.value) }} / 4000</dso-hint
+                >
+                <dso-error>{{ errorText(f.controls.description) }}</dso-error>
+              </dso-form-field>
             </section>
             @if (failure()?.problems?.length) {
               <div class="banner danger problems-banner" role="alert">
@@ -174,7 +187,7 @@ export type EditForm = ReturnType<typeof editForm>;
                 @if (saving()) {
                   <dso-spinner />
                 }
-                Publish to ProTech
+                Publish the update to ProTech
               </button>
             </div>
           </form>
@@ -241,6 +254,7 @@ export class ChangeEdit implements HasUnsavedChanges {
   protected readonly changeLink = beadleChange;
   protected readonly errorMessage = errorMessage;
   protected readonly errorText = errorText;
+  protected readonly byteLength = byteLength;
 
   protected readonly change = rxResource({
     params: () => this.id(),
@@ -307,7 +321,9 @@ export class ChangeEdit implements HasUnsavedChanges {
         next: (saved) => {
           form.markAsPristine();
           this.published.hand(saved);
-          this.notifier.success(`Your update of ${saved.number} is published to ProTech`);
+          this.notifier.success(
+            `Your update of ${saved.number} is published to ProTech. This page shows when ProTech has applied it.`,
+          );
           this.router.navigate(beadleChange(this.id()));
         },
         error: (error) => this.failed(form, error),
@@ -320,7 +336,10 @@ export class ChangeEdit implements HasUnsavedChanges {
     const conflict = error instanceof HttpErrorResponse && error.status === 409;
     const message = errorMessage(error);
     this.failure.set({
-      message: conflict && message.includes('changed by someone else') ? STALE : message,
+      message:
+        conflict && message.includes('changed by someone else')
+          ? STALE
+          : `The update could not be published: ${message}`,
       problems: problems.map(problemText),
       reload: conflict,
     });

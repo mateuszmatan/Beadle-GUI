@@ -40,14 +40,14 @@ export class BeadleProducts {
   protected readonly productId = (product: ProductSummary) => product.id;
   protected readonly clickable = () => 'clickable';
   protected readonly columns: GridColumn<ProductSummary>[] = [
-    { key: 'product', header: 'Product', value: (product) => product.name, minWidth: 200 },
+    { key: 'product', header: 'Product', value: (product) => product.name, minWidth: 240, flex: 2 },
     {
       key: 'ownerTeam',
       header: 'Owner team',
       value: (product) => product.ownerTeam ?? '–',
-      width: 220,
+      minWidth: 160,
     },
-    { key: 'template', header: 'Change template', width: 280 },
+    { key: 'template', header: 'Change template', width: 220 },
   ];
   protected readonly search = new FormControl('', { nonNullable: true });
   protected readonly query = toSignal(
@@ -99,6 +99,12 @@ export class BeadleProducts {
   protected readonly errorMessage = errorMessage;
   protected readonly tally = tally;
 
+  protected reload(): void {
+    [this.products, this.departments]
+      .filter((resource) => resource.error())
+      .forEach((resource) => resource.reload());
+  }
+
   protected open(product: ProductSummary): void {
     this.router.navigate(beadleProduct(product.id));
   }
@@ -114,7 +120,7 @@ export class BeadleProducts {
       })
       .closed.pipe(filter((product): product is Product => !!product))
       .subscribe((product) => {
-        this.notifier.success(`${product.name} added`);
+        this.notifier.success(`${product.name} added. Now fill in its change template.`);
         this.router.navigate(beadleProduct(product.id));
       });
   }

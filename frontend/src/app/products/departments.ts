@@ -1,5 +1,6 @@
 import { Department, ProductSummary } from '../core/models';
 import { counted } from '../shared/formatting';
+import { invalidatedKeys } from './pipeline-tally';
 
 export const NOT_IN_A_DEPARTMENT = 'Not in a department';
 
@@ -26,7 +27,7 @@ export function byDepartment<T extends { departmentId: number | null }>(
     : groups;
 }
 
-export function tally(group: DepartmentGroup): string {
+export function tally(group: DepartmentGroup): string | null {
   const sum = (count: (product: ProductSummary) => number) =>
     group.products.reduce((total, product) => total + count(product), 0);
   const { productCount, pipelineCount, activePipelineCount } = group.department ?? {
@@ -34,6 +35,10 @@ export function tally(group: DepartmentGroup): string {
     pipelineCount: sum((product) => product.pipelineCount),
     activePipelineCount: sum((product) => product.activePipelineCount),
   };
-  const text = `${counted(pipelineCount, 'DevSecOps pipeline')} for ${counted(productCount, 'product')}`;
-  return activePipelineCount < pipelineCount ? `${text} · ${activePipelineCount} active` : text;
+  if (productCount === 0) {
+    return null;
+  }
+  const invalidated = invalidatedKeys(pipelineCount, activePipelineCount);
+  const text = `${counted(productCount, 'product')}, ${counted(pipelineCount, 'pipeline')}`;
+  return invalidated ? `${text}, ${invalidated}` : text;
 }

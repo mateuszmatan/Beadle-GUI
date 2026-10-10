@@ -15,6 +15,41 @@ export const HIGHCHARTS = new InjectionToken<HighchartsStatic>('Highcharts', {
   factory: () => Highcharts,
 });
 
+const ENTITIES: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+};
+
+interface Axis {
+  categories?: string[];
+}
+
+interface Series {
+  name?: string;
+}
+
+export function plainText(text: string): string {
+  return text.replace(/[&<>"']/g, (character) => ENTITIES[character]);
+}
+
+function axisText(axis: Axis): Axis {
+  return axis.categories ? { ...axis, categories: axis.categories.map(plainText) } : axis;
+}
+
+export function withPlainText(options: Record<string, unknown>): Record<string, unknown> {
+  const { xAxis, series } = options as { xAxis?: Axis | Axis[]; series?: Series[] };
+  return {
+    ...options,
+    ...(xAxis && { xAxis: Array.isArray(xAxis) ? xAxis.map(axisText) : axisText(xAxis) }),
+    ...(series && {
+      series: series.map((item) => (item.name ? { ...item, name: plainText(item.name) } : item)),
+    }),
+  };
+}
+
 const DEFAULTS = {
   title: { text: null },
   credits: { enabled: false },
@@ -40,7 +75,10 @@ export class DsoChart {
     afterRenderEffect({
       write: () => {
         this.chart?.destroy();
-        this.chart = this.highcharts.chart(this.element, { ...DEFAULTS, ...this.options() });
+        this.chart = this.highcharts.chart(this.element, {
+          ...DEFAULTS,
+          ...withPlainText(this.options()),
+        });
       },
     });
     const resized =

@@ -27,7 +27,15 @@ export const INT_MAX = 2_147_483_647;
 export const text = (value: string | null | undefined = '', ...validators: ValidatorFn[]) =>
   new FormControl(value ?? '', { nonNullable: true, validators });
 
-export const max = (length: number) => Validators.maxLength(length);
+export const max =
+  (length: number): ValidatorFn =>
+  (control) => {
+    const value = String(control.value ?? '');
+    if (value.length > length) {
+      return { maxlength: { requiredLength: length, actualLength: value.length } };
+    }
+    return byteLength(value) > length ? { bytes: { max: length } } : null;
+  };
 
 export const url = (
   value: string | null | undefined,

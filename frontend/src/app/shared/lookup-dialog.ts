@@ -77,12 +77,16 @@ export function openLookup(
           [formControl]="query"
           (keydown.enter)="pickFirst($event)"
         />
+        <dso-hint>Searches ProTech as you type. Enter takes the first match.</dso-hint>
       </dso-form-field>
       @if (results.isLoading()) {
         <dso-loading />
       }
       @if (results.error(); as error) {
-        <p class="choice-error" role="alert">{{ errorMessage(error) }}</p>
+        <div class="search-error" role="alert">
+          <p class="choice-error">ProTech could not be searched: {{ errorMessage(error) }}</p>
+          <button type="button" class="btn btn-link" (click)="results.reload()">Try again</button>
+        </div>
       }
       @if (results.hasValue()) {
         <ul class="results" [attr.aria-label]="'Found ' + data.label">
@@ -97,7 +101,13 @@ export function openLookup(
             </li>
           } @empty {
             <li class="empty">
-              {{ searched() ? 'Nothing matches "' + searched() + '".' : 'Nothing to choose from.' }}
+              {{
+                searched()
+                  ? 'Nothing in ProTech matches "' +
+                    searched() +
+                    '". Try other words, or close this and type the value into the field.'
+                  : 'Nothing to choose from.'
+              }}
             </li>
           }
         </ul>
@@ -111,6 +121,14 @@ export function openLookup(
     .search {
       width: 100%;
       margin-top: 6px;
+    }
+
+    .search-error {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0 8px;
+      margin-top: 4px;
     }
 
     .results {

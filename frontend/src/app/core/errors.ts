@@ -3,6 +3,11 @@ import { FieldProblem } from './models';
 
 const DEFAULT_REASONS = new Set(['OK', 'Unknown Error']);
 
+export const RETRY = 'Try again in a moment; if it keeps failing, tell the portal administrator.';
+
+export const UNREACHABLE =
+  'The portal cannot be reached. Check your network connection and try again.';
+
 interface Problem {
   detail?: unknown;
   errors?: unknown;
@@ -11,16 +16,16 @@ interface Problem {
 export function errorMessage(error: unknown): string {
   if (error instanceof HttpErrorResponse) {
     if (error.status === 0) {
-      return 'The portal API cannot be reached.';
+      return UNREACHABLE;
     }
     const detail = problem(error)?.detail;
     if (typeof detail === 'string' && detail.trim()) {
       return detail;
     }
     const reason = error.statusText?.trim();
-    return reason && !DEFAULT_REASONS.has(reason)
-      ? `${error.status} ${reason}`
-      : `The request failed with status ${error.status}`;
+    const code =
+      reason && !DEFAULT_REASONS.has(reason) ? `${error.status} ${reason}` : error.status;
+    return `The portal could not complete the request (error ${code}). ${RETRY}`;
   }
   return error instanceof Error ? error.message : String(error);
 }

@@ -26,7 +26,7 @@ import { counted } from '../shared/formatting';
 import { DsoCheckbox } from '../ui/checkbox';
 import { FORM_FIELD } from '../ui/form-field';
 import { DsoLoading } from '../ui/loading';
-import { ChangeRequest, ChangesApi, JiraIssue, ProductionChange } from './change-api';
+import { ChangeRequest, ChangesApi, JiraIssue, JiraVersion, ProductionChange } from './change-api';
 import {
   approverNames,
   changeRequest,
@@ -281,7 +281,9 @@ export class ChangeWizard implements HasUnsavedChanges {
   private filledRelease: string | null = null;
   private filledStart: string | null = null;
 
-  protected readonly nextLabel = computed(() => NEXT_LABELS[this.stepKey()] ?? 'Continue');
+  protected readonly nextLabel = computed(
+    () => NEXT_LABELS[this.stepKey()] ?? `Next: ${STEPS[this.step() + 1]}`,
+  );
 
   constructor() {
     toObservable(this.jiraScope)
@@ -407,7 +409,7 @@ export class ChangeWizard implements HasUnsavedChanges {
           : null;
       case 'tasks':
         if (!this.tasks()!.length) {
-          return 'Add at least one change task, or add them later';
+          return 'Add at least one change task, or choose Add change tasks later';
         }
         return this.tasks()!.invalid ? 'Check the change tasks' : null;
       case 'raised':
@@ -423,9 +425,16 @@ export class ChangeWizard implements HasUnsavedChanges {
     if (this.fixVersion.invalid) {
       return;
     }
-    const fixVersion = this.fixVersion.value.trim();
+    const typed = this.fixVersion.value.trim();
+    const fixVersion = this.knownVersion(typed)?.name ?? typed;
+    if (fixVersion !== this.fixVersion.value) {
+      this.fixVersion.setValue(fixVersion);
+    }
     if (fixVersion === this.searched()) {
       this.epics.reload();
+      if (this.stories.error()) {
+        this.stories.reload();
+      }
     } else {
       this.forgetIssues();
       this.searched.set(fixVersion);
@@ -585,14 +594,17 @@ export class ChangeWizard implements HasUnsavedChanges {
     }
   }
 
+  private knownVersion(name: string | null): JiraVersion | undefined {
+    const typed = name?.toLowerCase();
+    return this.versions.hasValue()
+      ? this.versions.value().find((version) => version.name.toLowerCase() === typed)
+      : undefined;
+  }
+
   private suggestSchedule(): void {
-    const version = this.versions.hasValue()
-      ? this.versions.value().find((candidate) => candidate.name === this.searched())
-      : null;
-    const planned = plannedInput(
-      plannedDay(version?.releaseDate ?? null),
-      this.details()!.controls.timing.getRawValue(),
-    );
+    const timing = this.details()!.controls.timing.getRawValue();
+    const releaseDate = this.knownVersion(this.searched())?.releaseDate ?? null;
+    const planned = plannedInput(plannedDay(releaseDate, timing.installationStart ?? ''), timing);
     const schedule = this.schedule()!;
     const start = schedule.controls.installationStart.value;
     const kept =
@@ -667,7 +679,7 @@ export class ChangeWizard implements HasUnsavedChanges {
           this.checked.set(false);
           this.step.set(TASKS);
         },
-        error: (error) => this.fail(error),
+        error: (error) => this.fail(error, 'The change could not be raised: '),
       });
   }
 

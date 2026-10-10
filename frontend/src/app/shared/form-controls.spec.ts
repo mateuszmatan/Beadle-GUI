@@ -13,6 +13,7 @@ import {
   joinLines,
   joinWords,
   lines,
+  max,
   maxLines,
   maxWords,
   moveItem,
@@ -75,6 +76,18 @@ describe('validators', () => {
     control.setValue('ąbcd\nefghi');
     expect(control.hasError('columnLength')).toBe(true);
     expect(text('a, b, a', fitsColumn(words, ',', 3)).valid).toBe(true);
+  });
+
+  it('limits text in characters and in the UTF-8 bytes the Oracle column holds', () => {
+    const control = text('', max(5));
+    control.setValue('abcde');
+    expect(control.valid).toBe(true);
+    control.setValue('abcdef');
+    expect(control.errors).toEqual({ maxlength: { requiredLength: 5, actualLength: 6 } });
+    control.setValue('łódź');
+    expect(control.errors).toEqual({ bytes: { max: 5 } });
+    control.setValue(null as unknown as string);
+    expect(control.valid).toBe(true);
   });
 
   it('accepts only whole numbers within the range', () => {

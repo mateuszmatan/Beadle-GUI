@@ -120,6 +120,16 @@ class StubApi {
         on(method, path) { response }
     }
 
+    StubApi failOnce(String method, String path, StubResponse failure) {
+        Route route
+        route = new Route(method, Pattern.compile(path), { ->
+            routes.remove(route)
+            failure
+        })
+        routes.add(0, route)
+        this
+    }
+
     StubResponse handle(String method, String path, String query, String body) {
         def request = new RecordedRequest(method, path, query, body)
         recorded << request

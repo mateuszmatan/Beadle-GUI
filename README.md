@@ -7,12 +7,16 @@ DevSecOps Management:
 
 - **Pipelines**: the DevSecOps pipelines of your department. Pick your department (the browser remembers it, and Beadle
   uses the same choice) and see its pipelines in a table you can sort and filter in the header: service, product,
-  pipeline type, Jenkins job, key (by its hint, or Invalidated), the status of the last run and when it ran. **Edit**
-  in a row changes the pipeline's agents, Jenkins job and description. A row opens the page of its pipeline: the key
-  (shown on request and copied whole), when it was issued and last fetched, its settings, the Jenkinsfile ready to
-  copy and the last five runs, with links to its Jenkins job, its metrics and its product. Its **More** menu shows the
-  configuration the library receives and the key history, replaces or invalidates the key and deletes the pipeline;
-  an invalidated key is regenerated with one button.
+  pipeline type, Jenkins job, pipeline key (by its hint, or Invalidated), the result of the last run and when it
+  finished. **Set up pipelines in Self-service** opens the wizard. **Edit** in a row changes the pipeline's Jenkins
+  agents, Jenkins job and description; when someone else saved the pipeline meanwhile, the dialog loads their settings
+  and says so, so you make your change again on top of them. A row opens the page of its pipeline: the result of its
+  last run, the pipeline key (shown on request and copied whole) with when it was issued and last used by Jenkins, its
+  settings, the Jenkinsfile ready to copy and up to five of its latest runs of the past 30 days, with **Open in
+  Jenkins** and a link to every run and the delivery performance (DORA) in Pipeline Monitoring. **Edit settings**
+  opens the same dialog, and its **More** menu opens the product in Admin, shows the settings sent to Jenkins
+  (config.yaml) and the key history, replaces or invalidates the key and deletes the pipeline; an invalidated key is
+  regenerated with one button.
 - **Self-service**: a step-by-step wizard for app owners who do not know DevSecOps. It sets up a new product or
   changes one already in the portal: choose the department and the product, then the pipeline, in this order: SAST
   (Static Application Security Tests) - HCL AppScan, OSA (Open Source Analysis) (NexusIQ with Golden Fix and Golden Pull
@@ -21,89 +25,129 @@ DevSecOps Management:
   deployment)); for a product in the portal the step shows which pipelines each service has today and how many
   services already have each one. Then the services: add new ones (name, AppScan application, Gradle or Maven, virtual
   machines or OpenShift; for OSA also the Nexus IQ application and the Bitbucket repository of each service), change
-  the existing ones (including their build tool and where they run) or remove them.
-  The review lists what is added, changed and removed, which services gain the pipeline and which pipelines a removal
-  deletes; the last step lists what to do next in order, with the Jenkinsfile of each service ready to copy.
+  the existing ones (including their build tool and where they run) or remove them. Each step asks one question, and
+  the button at the bottom names the next step (**Next: Services**).
+  The review ("Is everything right?") says what happens to each service, tagged New, Changed or Removed, and which
+  pipelines a removal deletes; nothing is saved until **Create the pipelines** (**Save the changes** for a product in
+  the portal). The last step lists what to do next in order: the Jenkinsfile of each service ready to copy, with the
+  repository it goes into, the Jenkins job to ask for per service, the first run and where to follow the results.
   The build tool and where a service runs start from the library defaults; the OpenShift project, the Nexus IQ
   application, the Bitbucket repository, the build and the Jenkins job of each pipeline are filled in from the
-  service template, and every value can be changed. Everything else comes from the BBH library defaults and can be
-  fine-tuned in DevSecOps Admin.
-- **Pipeline Monitoring**: the DORA metrics and daily runs of all pipelines over the last 30 days, a chart of pipeline
-  status per department, every product with the status of its pipelines grouped by department, and per pipeline its
-  DORA metrics, daily activity, latest runs, the Jenkins job and your DSOEnhanced Grafana dashboard, all read from the
-  InfluxDB the pipelines write to.
-- **Change Evidence**: a read-only view of a product for ProTech change requests: per pipeline the unit, smoke,
+  service template, and every value can be changed. New services, and services that change their build tool or
+  where they run, wait for the service template: when it cannot be loaded, the Services step says so and offers
+  **Try again**. Everything else comes from the BBH library defaults and can be fine-tuned in DevSecOps Admin.
+- **Pipeline Monitoring**: "Latest results" counts the pipelines and how their latest runs ended (Passed, Failed or
+  passed with warnings, Keys invalidated), with a chart of them by department; "Products" lists every product with
+  the results of its pipelines, grouped by department; "Delivery performance (DORA)" rates the four DORA measures of
+  all pipelines over the last 30 days (today and the 29 days before it, in UTC, so the totals add up to the daily
+  bars) as Elite, High, Medium or Low, each with a one-line meaning, above their runs per day. A product shows each pipeline with its latest run and how many of its stages passed; a pipeline shows its
+  delivery performance, runs per day, latest run, recent runs, the Jenkins job and your DSOEnhanced Grafana dashboard
+  over a period of 7, 30, 90 or 180 days, and names the time zone of its times. Everything is read from the InfluxDB
+  the pipelines write to. A run reads Passed, Passed with warnings, Failed, Stopped or Not built; a pipeline without
+  runs shows No runs yet, and one whose key was invalidated Key invalidated.
+- **Change Evidence**: a read-only view of a product for ProTech change requests, with the products grouped by
+  department. **Show evidence** opens a product: "What the checks mean" explains each check in a sentence, and per
+  pipeline it shows the stages of its latest build, the release gate, the unit test coverage, the unit, smoke,
   regression and performance tests, the SAST, DAST, SonarQube and Nexus IQ results, the golden pull request GoldenFix
-  raised, the release gate and the Jenkins build that produced them, with its artifact version and the portal
-  configuration it ran with.
+  raised and the Jenkins build that produced them, with its artifact version and the portal settings it ran with.
+  **Copy for ProTech** copies the evidence of a pipeline as text to paste into the change; when the run results
+  cannot be read, the text starts with a warning to copy it again later.
 - **Admin**, for the portal administrator, in four tabs:
-  - **Departments**: add, rename and delete departments (only an empty one can be deleted), each with its products,
-    services and DevSecOps pipelines, and a chart of the active and invalidated pipelines of every department. The
-    five BBH departments (AI Lab, Capital Partners, Corporate Technology, Custody and Fund Services) come with the
-    database.
+  - **Departments**: add, rename and delete departments (only an empty one can be deleted, and a disabled Delete says
+    why), each with the number of its products, services and pipelines ("12, all active" or "12, 2 keys
+    invalidated"), and the chart "Pipelines per department" of the active pipelines and those whose key was
+    invalidated. The five BBH departments (AI Lab, Capital Partners, Corporate Technology, Custody and Fund Services)
+    come with the database.
   - **Products**: add a product with all of its services and every setting the DevSecOps library
     ([DSOEnhanced](https://github.com/mateuszmatan/DSOEnhanced)) reads from `config.yaml` today, edit or delete it.
     Every new service gets a full pipeline with its own key; keys can be invalidated, regenerated and linked to a
     Jenkins job, and each service names the Bitbucket repository where DSOEnhanced raises its GoldenFix pull
     requests. A product saved before departments existed shows as "Not in a department" until it is edited, which
-    means choosing one.
+    means choosing one. The product page lists each service with its build tool, where it is deployed, its Bitbucket
+    repository and its pipelines with their key, Jenkins job, Jenkins agents and monitoring tags; **Edit product**
+    opens the editor, **Add pipeline** adds a pipeline to a service, and the **More** menus of the product and of each
+    pipeline hold the rest: the settings sent to Jenkins (config.yaml), monitoring, the Jenkinsfile, the key history,
+    the pipeline settings, the key actions and deleting. In the editor **Edit settings** opens a service, and the
+    rarely changed settings of a section sit in its collapsed **Advanced settings** panel, which opens by itself
+    when a field in it needs attention.
   - **Service template**: what a new service and a new pipeline get, in Self-service and in the Add service and Add
     pipeline forms: the Jenkins agents and job of a pipeline, the Gradle and Maven tasks and artifacts, the Nexus IQ
     application, scan patterns and Bitbucket repository, and the OpenShift project, image registry and health check.
     The names take the placeholders `{CODE}` (the product code), `{code}` (the same in lower case) and `{service}`,
     and the job also `{type}` (full, security, extended, sast or nexusiq), so `DevSecOps/{CODE}/{service}-{type}`
-    names the full pipeline of `backend-api` in CERT `DevSecOps/CERT/backend-api-full`. An example shows what a
-    service gets while you type. The pipeline the portal creates for a new service takes its agents and job from it.
-  - **Library defaults**: the DSOEnhanced library defaults every pipeline shares and no service can override. They
-    replace the library's `defaults.yaml`.
+    names the full pipeline of `backend-api` in CERT `DevSecOps/CERT/backend-api-full`. The panel "What a new service
+    gets" shows what a service gets while you type and what each placeholder stands for. The pipeline the portal
+    creates for a new service takes its agents and job from it.
+  - **Library defaults**: the DSOEnhanced library defaults every pipeline shares, in the sections Tools and servers,
+    Deployment defaults, Security limits, Scans and coverage, Release gate, Service defaults and GoldenFix defaults.
+    They replace the library's `defaults.yaml`. A service can set its own SonarQube, Nexus IQ and InfluxDB values and
+    its own deployment, service and GoldenFix values in the product editor. **Show settings sent to Jenkins** shows
+    the part of `config.yaml` every pipeline receives, built from the saved defaults. The open source scan (SCA) has
+    only its security limits: its switch and waiting times are gone, since the library never read them. The release
+    gate result file is always `release-gate.json`, the one file the security pipeline archives and the extended
+    pipeline copies, so it is shown read-only and always sent.
 
 Beadle, in three tabs:
 
 - **Changes**: the ProTech (BBH's ServiceNow) changes of your department. Pick your department (the browser remembers
   it) and see its changes in a table you can sort and filter in the header: change number, product, FixVersion, the
-  ProTech workflow state, the installation window, the short description, the number of change tasks and when it was
-  raised. Opening a change reads it from ProTech first, so what was changed there (texts, schedule, fields, CTASKs and
-  their states) shows at once, with its change number, approval (Not Yet Requested in Draft, Requested in the
-  approval stages, Approved from Implementation on), who opened it, its state and the workflow progress through
-  Draft, Business Approval, Primary Approval, Secondary Approval, CTask approval, Escalated approval, Implementation
-  and Closed. An open change can be edited by its department, in the same sections as New Change: the update is
-  published to ProTech at once, and Beadle checks and shows whether ProTech applied it.
+  ProTech workflow state with what it means ("Waiting for the L1 approver"), the installation window, the short
+  description, the number of change tasks and when it was raised; **Raise a change** opens New Change. Opening a
+  change reads it from ProTech first, so what was changed there (texts, schedule, fields, CTASKs and their states)
+  shows at once. "Where the change is" names its state, what it waits for (the approver by name, for example) and the
+  workflow progress through Draft, Business Approval, Primary Approval, Secondary Approval, CTask approval, Escalated
+  approval, Implementation and Closed; "The change at a glance" shows when it installs, what it delivers and who
+  approves; then come its change tasks with their state in words, and two collapsed panels: "All ProTech fields",
+  with its change number, approval (Not Yet Requested in Draft, Requested in the approval stages, Approved from
+  Implementation on) and who opened it, and "Text sent to ProTech". An open change can be edited by its department
+  with **Edit the change** (**Edit change** in its row), in the same sections as New Change: the update is published
+  to ProTech at once, and Beadle checks and shows whether ProTech applied it (the row says "Update pending" until
+  then). While Jira or ProTech is not connected, a "Demo mode" banner on Changes and New Change says so.
   See [ProTech production changes](#protech-production-changes).
-- **New Change**: the guided wizard that raises a change for a production release. Choose the department and the
-  product: the product's change template fills in every step, and each value can be changed for this change. A
-  magnifier next to a person, the department, the assignment group, the release, the affected CI, the incident, the
-  problem and the affected clients searches ProTech (see [Lookups](#lookups)) and fills the field with the value
-  picked (affected clients adds it to the list); every such field also takes free text. The steps:
-  1. **Generic request data**, in two columns: the change number (given by ProTech when the change is raised),
-     approval (Not Yet Requested), Opened By (the signed-in user) and state (Draft), all read-only; then requested
+- **New Change**: the guided wizard that raises a change for a production release. A bar shows its eleven steps with
+  their numbers, "Step n of 11" heads each one, and the button at the bottom names the next step (**Next: Jira**).
+  Choose the department and the product: the product's change template fills in every step, and each value can be
+  changed for this change. A magnifier next to a person, the department, the assignment group, the release, the affected
+  CI, the incident, the problem and the affected clients searches ProTech (see [Lookups](#lookups)) and fills the field
+  with the value picked (affected clients adds it to the list); every such field also takes free text. The steps:
+  1. **Request details**, in two columns: the change number (given by ProTech when the change is raised),
+     approval (Not Yet Requested), Opened by (the signed-in user) and state (Draft), all read-only; then requested
      for, requested by, department, assignment group, category, assigned to, type, release, affected CI, incident,
      direct business service, problem, risk, affected clients and users affected. Requested for, requested by and
      assigned to default to the signed-in user and the department to the product's department; the direct business
      service comes with the CI picked from the search and the risk is worked out from the risk assessment, so neither
      is typed.
-  2. **Jira**: type the FixVersion of the release (the known versions are offered, unreleased first); its epics are
-     listed, and choosing epics loads their stories. The short description and the description are written from the
-     choice and stay editable.
-  3. **Approval and Notification**: business approver, L1 approver and L2 approver.
+  2. **Jira**: type the FixVersion, the Jira release the change delivers (the known versions are offered, unreleased
+     first, and one typed in another case takes Jira's spelling); its epics are listed, and choosing epics loads their
+     stories. The short description and the description are written from the choice under "Text sent to ProTech" and
+     stay editable.
+  3. **Approval and notification**: business approver, L1 approver and L2 approver.
   4. **Schedule**: the installation start and its hours, the post-install validation start and its hours, the first
      use and, when the change has downtime, the downtime start and its hours, which default to the installation
-     window. The template's start time and hours are the defaults, on the release date of the FixVersion while it is
-     ahead, otherwise on the next day.
+     window. The template's start time and hours are the defaults, on the release date of the FixVersion while that
+     start is still ahead, otherwise on the next day.
   5. **Planning**: test summary, implementation plan, validation plan, backout plan and first use plan.
   6. **Privileged access**: how many privileged accounts (none to seven), each with its person and its account name.
   7. **Risk assessment**: nine questions in two columns, each answered from a fixed list; the template's answers are
      the defaults.
   8. **Secure coding**: the secure coding ticket number.
-  9. **Review**: every value of the change; raising it creates the change (CHG) in ProTech, which gives it its number.
-  10. **Change tasks**: the change tasks (CTASK) of the raised change, created against its number and prefilled from
-      the default change tasks of the template (see [Change tasks](#change-tasks)); **Add them later** skips them, and
-      the Edit page of the change adds them afterwards.
+  9. **Review**: every value of the change and the text sent to ProTech, which can still be changed; **Raise the
+     change in ProTech** creates the change (CHG) in ProTech, which gives it its number.
+  10. **Change tasks**: the change tasks (CTASK) of the raised change, prefilled from the default change tasks of the
+      template (see [Change tasks](#change-tasks)) and created against its number with **Create the change tasks in
+      ProTech**; **Add change tasks later** skips them, and **Edit the change** on the change page adds them
+      afterwards.
+  11. **Raised**: the change number, the FixVersion, the installation window, the change tasks and what happens next,
+      with **Open the change** and **Raise another change**.
 - **Admin**, in two tabs: **Departments** (the same departments as DevSecOps Admin, without the pipeline counts) and
-  **Products**: every product by department with the state of its change template. Add a product with its name,
-  code, department, owner team and contact e-mail (no DevSecOps setting); on its page change its name, department,
-  owner team and contact e-mail, delete it with its change template while it has no services in DevSecOps
-  Management, and keep its **change template**: the ProTech fields in the sections and order of New Change, and the
-  default change tasks of its changes (see [ProTech production changes](#protech-production-changes)).
+  **Products**: every product by department with the state of its change template, "Filled in" (with when it was
+  saved) or "Not filled in yet". Add a product with its name, product code, department, owner team and contact e-mail
+  (no DevSecOps setting); its page opens next. On its page **Edit details** changes its name, department, owner team
+  and contact e-mail (a name another product has keeps the dialog open with your edits), **Delete product** deletes
+  it with its change template while it has no services in DevSecOps Management, and its **change template** keeps the
+  ProTech fields in the sections and order of New Change and the default change tasks of its changes (see
+  [ProTech production changes](#protech-production-changes)). Until the template is saved, the new changes of the
+  product start with values suggested from its name, code and owner team.
 
 Departments and products are one data set: both Admin areas edit the same records. Services stay in DevSecOps
 Management, where the pipelines need them; ProTech has no such thing, so Beadle neither shows nor uses them. Beadle
@@ -122,9 +166,9 @@ devSecOpsPipeline(pipelineKey: '6f1c2d3e-0000-4abc-9def-123456789abc')
 ```
 
 A run that builds several services of one product passes the keys of their pipelines of that type, the primary service
-first; the product page in DevSecOps Admin offers this Jenkinsfile in the menu of a pipeline, and the page of a
-pipeline in Pipelines shows its own. Extended pipelines join only when they name
-the same security pipeline, since the run reads the security run state of the primary's only:
+first; the product page in DevSecOps Admin offers this Jenkinsfile as "Jenkinsfile for several services" in the
+**More** menu of a pipeline, and the page of a pipeline in Pipelines shows its own. Extended pipelines join only when
+they name the same security pipeline, since the run reads the security run state of the primary's only:
 
 ```groovy
 devSecOpsPipeline(pipelineKeys: ['6f1c2d3e-0000-4abc-9def-123456789abc', 'a1b2c3d4-0000-4abc-9def-123456789abc'])
@@ -192,8 +236,9 @@ planning texts, a risk assessment from the fixed answers, affected clients and u
 answers, downtime for the products whose risk is High, a secure coding ticket, privileged access for Payments Hub,
 and two or three default change tasks ("Deploy <product> to production" for Release Management, "Run the database
 scripts of <product>" for Database Administration for the products whose risk is Moderate or High, "Validate
-<product> in production" for its support group). Requested for, requested by,
-the department and assigned to stay empty, so each change takes the signed-in user and the product's department.
+<product> in production" for its support group); the texts are cut to the bytes ProTech takes, and a product whose
+template ProTech would still refuse is skipped with a warning instead of stopping the start. Requested for, requested
+by, the department and assigned to stay empty, so each change takes the signed-in user and the product's department.
 The demo Jira knows two released and one or two unreleased FixVersions per project, for example `PAYHUB 2.4`.
 At start-up twelve demo changes are raised in the demo ProTech (`adapter/out/servicenow/DemoProTechChanges.java`),
 skipping those of a product that already has a change, so a database from an earlier version gets them too when the
@@ -220,11 +265,11 @@ applied update and one an update ProTech did not apply (a schedule change while 
 Build and deploy: *Gradle, VMs* is a Gradle build deployed to virtual machines with UrbanCode Deploy and the SSH
 deployment script; *Gradle, OpenShift* and *Maven, OpenShift* build with Gradle or Maven and deploy a container to the
 RD and QC OpenShift projects; *Flutter* is a Flutter mobile app built as an APK. Every service has a full pipeline
-plus the types listed after `FULL`. The keys of two SAST pipelines are revoked, so those pipelines show as disabled:
-Payments Hub `mobile-app` ("Mobile app moved to the new mobile platform pipeline") and Safekeeping Ledger `recon-batch`
-("Reconciliation moved to the mainframe scheduler"). Three services with a Nexus IQ application and a Bitbucket
-repository also have a Nexus IQ GoldenFix pipeline (`NEXUS_IQ`): DocSense `extraction-api`, Access Hub `workflow` and
-Payments Hub `gateway`. Jenkins jobs are named `DevSecOps/<CODE>/<service>-<type>`, for example
+plus the types listed after `FULL`. The keys of two SAST pipelines are revoked, so those pipelines show as Key
+invalidated: Payments Hub `mobile-app` ("Mobile app moved to the new mobile platform pipeline") and Safekeeping Ledger
+`recon-batch` ("Reconciliation moved to the mainframe scheduler"). Three services with a Nexus IQ application and a
+Bitbucket repository also have a Nexus IQ GoldenFix pipeline (`NEXUS_IQ`): DocSense `extraction-api`, Access Hub
+`workflow` and Payments Hub `gateway`. Jenkins jobs are named `DevSecOps/<CODE>/<service>-<type>`, for example
 `DevSecOps/PAYHUB/gateway-full` and `DevSecOps/PAYHUB/gateway-nexusiq`; CertScanner's full, security and extended
 pipelines share the jobs `DevSecOps/CertScanner-pipeline`, `-security-pipeline` and `-extended-pipeline` and the
 metrics project `CertScanner` for both services.
@@ -268,10 +313,10 @@ start over with a new catalogue and a history that ends at the new start.
 - Runs start in working hours, 06:00 to 21:00 UTC. A run that would start on a Saturday or Sunday moves to Monday
   four times out of five, so most runs fall on weekdays.
 - Each pipeline gets a health between 75% and 97%, the chance that a run succeeds. After a failed run the next one
-  succeeds only 45% of the time, so failures tend to repeat. A run that does not succeed fails (half of them), is
-  unstable with one warning check (four in ten) or is aborted (one in ten). A `NEXUS_IQ` run that would succeed is
-  unstable six times in ten instead, its Nexus IQ stage warning about a policy violation, so the demo shows golden
-  pull requests.
+  succeeds only 45% of the time, so failures tend to repeat. A run that does not succeed fails (half of them, Failed
+  in the portal), is unstable with one warning check (four in ten, Passed with warnings) or is aborted (one in ten,
+  Stopped). A `NEXUS_IQ` run that would succeed is unstable six times in ten instead, its Nexus IQ stage warning
+  about a policy violation, so the demo shows golden pull requests.
 - Runs build `develop` (55%), `main` (15%), a `feature/` branch (22%) or a `release/` branch (8%). A run is a
   deployment when it reached Deploy RD on a branch other than `feature/`, so only full and extended pipelines deploy;
   a deployment whose run failed is a change failure. Each pipeline has its own typical lead time of 2 to 47 hours.
@@ -307,7 +352,7 @@ start over with a new catalogue and a history that ends at the new start.
 | `GRAFANA_NAME` | `Grafana` | the name of that Grafana instance on the pipeline page |
 | `GRAFANA_2_DASHBOARD_URL`, `GRAFANA_2_SECURITY_DASHBOARD_URL`, `GRAFANA_2_NAME` | empty, empty, `Grafana 2` | the same for a second Grafana instance; both empty links leave it out |
 | `DSO_DEMO_DATA` | `true` with `local` | create the demo products when the database holds no other product, and without `INFLUX_URL` a run history; see [Demo data](#demo-data) |
-| `DSO_SIGNED_IN_USER` | `Mateusz Matan` | the user Beadle names as the signed-in user (`GET /api/me`, Opened By of a new change and the default requester and assignee) until BBH single sign-on exists |
+| `DSO_SIGNED_IN_USER` | `Mateusz Matan` | the user Beadle names as the signed-in user (`GET /api/me`, Opened by of a new change and the default requester and assignee) until BBH single sign-on exists |
 
 ```bash
 SPRING_PROFILES_ACTIVE=qc DB_URL=jdbc:oracle:thin:@//<host>:1521/<service> DB_USERNAME=DSO_PORTAL DB_PASSWORD=... \
@@ -570,7 +615,14 @@ repeat live in child tables of `DSO_SERVICE` (`DSO_SERVICE_TEST_JOB`, `DSO_SERVI
 `DSO_SERVICE_OPENSHIFT_TARGET`, `DSO_UCD_APPLICATION` with `DSO_UCD_COMPONENT`, `DSO_SERVICE_NEXUS_IQ_APP`), and the
 scanners' severity limits in `DSO_GLOBAL_SEVERITY_LIMIT`. The service template of Admin > Service template is the one
 row of `DSO_SERVICE_TEMPLATE`, written on its first save. `DSO_METRIC_POINT` exists on H2 only; see
-[Demo data](#demo-data).
+[Demo data](#demo-data). Changeset `023-release-gate-state-file` sets a release gate state file other than
+`release-gate.json` back to it, and `024-drop-sca-scan-settings` drops `SCA_ENABLED`, `SCA_POLL_TIMEOUT_MIN` and
+`SCA_POLL_INTERVAL_SEC` from `DSO_GLOBAL_SETTINGS`, which the library never read.
+
+Oracle counts `VARCHAR2` columns in bytes, so the portal checks texts in UTF-8 bytes and refuses a longer one with
+400 on its field ("is too long: it may take at most N bytes") instead of failing in the database: a product name and
+owner team take 200 bytes, a product description 4000, a service description 2000, a department name 100, a
+pipeline's Jenkins job and description 1000 each and the reason a key was revoked 500.
 
 Beadle keeps a product's change template in `DSO_CHANGE_PROFILE` with its privileged users and its default change
 tasks (`DSO_CHANGE_PROFILE_PRIVILEGED_USER`, `DSO_CHANGE_PROFILE_TASK`), and every raised change in
@@ -699,13 +751,15 @@ never does.
 ProTech is BBH's ServiceNow. Every product has a **change template**, kept by the administrator in Beadle Admin on the
 product's page:
 
-- **Generic request data**: Jira project key, requested for, requested by, department, assignment group, category,
-  assigned to, type, release, affected CI, incident, direct business service, problem, affected clients and users
-  affected. The category is one of Application, Hardware, Infrastructure, System
+- **Request details**: requested for, requested by, department, assignment group, category, assigned to, type,
+  release, affected CI, incident, direct business service, problem, affected clients and users affected. The category
+  is one of Application, Hardware, Infrastructure, System
   Software, Network, Telecom, Data Amendment, Desktop Software, Storage, Facilities, Other and Database, and the type
   one of Standard, Emergency, Business Critical and Model. An empty requested for, requested by or assigned to means
-  the user who raises the change, and an empty department the department of the product.
-- **Approval and Notification**: business approver, L1 approver and L2 approver.
+  the user who raises the change, and an empty department the department of the product, as the notes under those
+  fields say ("If left empty: the user who opens the change", "If left empty: the department of the product").
+- **Jira**: the Jira project key the epics and stories of a release come from.
+- **Approval and notification**: business approver, L1 approver and L2 approver.
 - **Schedule defaults**: downtime yes or no, the installation start time, how many hours the installation takes and
   how many hours the post-install validation takes.
 - **Planning**: test summary, implementation plan, validation plan, backout plan and first use plan.
@@ -752,7 +806,7 @@ than one but not all); Low, Medium or Moderate and High or Very became Simple, M
 that names an existing, new or decommissioned platform became Existing, New or Decommissioned; a business impact of
 None, Low, Medium or High and a backout testing answer spelt as in its list were kept; anything else was emptied,
 and the number of impacted clients was dropped. A change with downtime got its installation window as its downtime
-window. Changes raised before keep an empty Opened By, requested for, requested by, department and assigned to. An
+window. Changes raised before keep an empty Opened by, requested for, requested by, department and assigned to. An
 emptied answer reads as the first of its list, and `021-drop-product-description.sql` dropped the product description
 that templates and changes used to carry.
 
@@ -772,7 +826,7 @@ their business service, and a steady set of incidents, problems and clients; not
 
 Until BBH single sign-on exists, the signed-in user is the name in `dso.signed-in-user` (`DSO_SIGNED_IN_USER`,
 `Mateusz Matan` by default), behind the out port `SignedInUserPort` and served at `GET /api/me`. The wizard shows it
-as Opened By, raising a change stores it as the change's `openedBy`, and it fills an empty requested for, requested
+as Opened by, raising a change stores it as the change's `openedBy`, and it fills an empty requested for, requested
 by and assigned to of the template; an empty department becomes the product's department.
 
 ### Raising a change
@@ -783,7 +837,8 @@ that does) and the chosen epics' stories that carry it, and the schedule: instal
 validation start and end and first usage, in that order, the installation in the future, and the downtime window.
 A change with downtime needs the downtime start and end, the end after the start ("choose when the downtime starts");
 a change without downtime must leave both empty ("must be empty without downtime"). The portal asks Jira again
-when the change is previewed or raised and refuses an epic or story the FixVersion does not list. The release is the
+when the change is previewed or raised and refuses an epic or story the FixVersion does not list. A FixVersion typed
+in another case is stored as Jira spells it, and one Jira does not list is kept as typed. The release is the
 FixVersion unless the template or the user name another, and the people and the department left empty are filled as
 [Signed-in user](#signed-in-user) describes.
 The short description names the product, the FixVersion and the epics; the description names the product, its
@@ -834,8 +889,8 @@ state and the time each stage was entered, and the link. A change that read diff
 one that read the same only records the time it was read. The change also keeps the version at which a field Beadle
 edits last changed (`editedVersion`), so an editor's version only goes stale when someone updated the change in
 Beadle or ProTech changed its texts, fields or tasks, not when ProTech moved it through the workflow or a task changed
-state. When ProTech cannot be reached, Beadle shows what it read last with "ProTech could not be reached: ..."; a
-change ProTech does not hold says "ProTech has no change CHG...".
+state. When ProTech cannot be reached, Beadle shows what it read last with "ProTech could not be reached: ..." and
+**Try again**; a change ProTech does not hold says "ProTech has no change CHG...".
 
 The workflow of a change is Draft, Business Approval, Primary Approval, Secondary Approval, CTask approval, Escalated
 approval (only for a change at short notice), Implementation and Closed.
@@ -852,10 +907,11 @@ change back. The change carries the status of the update, with the department th
 not applied:
 
 - **PENDING**: ProTech has not applied every field yet; the change shows the values that were sent, and every later
-  read checks again.
+  read checks again. The change page checks every few seconds; when ProTech takes longer than usual it stops and
+  offers **Check again**.
 - **APPLIED**: ProTech holds every value that was sent.
 - **NOT_APPLIED**: ProTech still differs one minute (`ProductionChange.APPLY_LIMIT`) after the update was sent; the
-  change shows ProTech's values and the fields that were not applied.
+  change shows ProTech's values and the fields that were not applied, and **Edit the change** sends them again.
 
 Only the department of the change may update it (403 otherwise; a change without a department cannot be changed in
 Beadle, and a department that owns changes cannot be deleted), a stale version, a change ProTech changed meanwhile, a
@@ -867,7 +923,7 @@ requests store the same change at once, a read shows the copy the other request 
 
 Jira and ProTech sit behind three ports, `JiraPort`, `ServiceNowPort` and `ProTechLookupPort` (see
 [Lookups](#lookups)), and the signed-in user behind `SignedInUserPort`. The portal ships demo adapters only, and the
-pages say so: the Jira one makes up a steady set of epics and stories per project key, and the ProTech one
+pages say so ("Demo mode"): the Jira one makes up a steady set of epics and stories per project key, and the ProTech one
 (`DemoServiceNowAdapter`) keeps the changes in memory, hands out demo `CHG` and `CTASK` numbers and moves every change
 through the workflow by the clock: Business Approval 2 minutes after it was raised, Primary Approval after 4, Secondary
 Approval after 6, CTask approval after 8, then Implementation after 10 minutes, or, when the installation starts less
@@ -947,9 +1003,9 @@ secrets.
 | `GET /api/products/{id}/pipelines` | each service of a product with its pipelines |
 | `POST /api/services/{id}/pipelines` | add a pipeline; it starts with an active key |
 | `GET /api/pipelines?departmentId=` | the pipelines of a department's products as `{pipelines, metricsError}`, by product and service, each with its status and last run and its key by its hint; 404 for an unknown department |
-| `GET`/`PUT`/`DELETE /api/pipelines/{id}` | a pipeline with its key history |
+| `GET`/`PUT`/`DELETE /api/pipelines/{id}` | a pipeline with its key history and its `version`; `PUT` may carry the `version` it was read at (409 when stale) |
 | `POST /api/pipelines/{id}/keys` | issue a new key; an active key is invalidated with the reason "Replaced by a new key"; on a pipeline whose key was invalidated this is Regenerate, and the old keys stay refused |
-| `POST /api/pipelines/{id}/keys/revoke` | invalidate the active key, with a `reason` of at most 500 characters; 409 when the pipeline has no active key |
+| `POST /api/pipelines/{id}/keys/revoke` | invalidate the active key, with a `reason` of at most 500 bytes; 409 when the pipeline has no active key |
 | `GET /api/dso/config/{key}`, `GET /api/pipelines/{id}/config`, `GET /api/products/{id}/config`, `GET /api/settings/config` | the DSOEnhanced configuration as YAML, or as JSON with `?format=json`; see [DevSecOps integration](#devsecops-integration) |
 | `GET /api/monitoring/status`, `/products`, `/products/{id}`, `/pipelines/{id}?range=30d` | monitoring data |
 | `GET /api/monitoring/activity?range=30d` | the DORA summary and the daily activity of all pipelines together, as `{pipelines, dora, metricsError}`: the number of pipelines, the DORA metrics over the range with `dora.daily` (runs, failures and deployments per day), and the metrics error, if any |

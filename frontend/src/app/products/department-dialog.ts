@@ -16,10 +16,16 @@ import { FORM_FIELD } from '../ui/form-field';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-header">
-      <h2 dsoDialogTitle>{{ department ? 'Rename ' + department.name : 'Add department' }}</h2>
+      <h2 dsoDialogTitle>{{ department ? 'Rename ' + department.name : 'Add a department' }}</h2>
     </div>
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body">
+        @if (department) {
+          <p class="intro">
+            The new name shows everywhere in the portal at once. The products of the department stay
+            as they are.
+          </p>
+        }
         <dso-form-field class="full-width">
           <dso-label>Name</dso-label>
           <input
@@ -29,6 +35,7 @@ import { FORM_FIELD } from '../ui/form-field';
             autocomplete="off"
             required
           />
+          <dso-hint>The name people know the department by, for example Fund Services</dso-hint>
           <dso-error>{{ errorText(name) }}</dso-error>
         </dso-form-field>
         @if (error(); as message) {
@@ -37,13 +44,19 @@ import { FORM_FIELD } from '../ui/form-field';
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-link" dsoDialogClose>Cancel</button>
-        <button type="submit" class="btn btn-primary" [disabled]="saving()">Save</button>
+        <button type="submit" class="btn btn-primary" [disabled]="saving()">
+          {{ department ? 'Rename department' : 'Add department' }}
+        </button>
       </div>
     </form>
   `,
   styles: `
     .modal-body {
       width: min(420px, 80vw);
+    }
+    .intro {
+      margin: 0 0 10px;
+      color: var(--dso-muted);
     }
     .banner {
       margin: 8px 0 0;

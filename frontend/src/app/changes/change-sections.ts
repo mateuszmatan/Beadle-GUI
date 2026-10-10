@@ -32,20 +32,20 @@ export const SECTIONS: readonly Section[] = [
   {
     key: 'request',
     step: 'Request data',
-    title: 'Generic request data',
+    title: 'Request details',
     lead: 'Who asks for the change, who works on it and what it touches.',
   },
   {
     key: 'jira',
     step: 'Jira',
     title: 'Jira',
-    lead: 'Give the Jira FixVersion of the release and pick its epics and stories. They write the short description and the description of the change.',
+    lead: 'Type the FixVersion, the Jira release this change delivers, and find its epics. Then pick the epics and stories the change delivers: they write the text of the change for ProTech.',
     adminLead: 'The Jira project the epics and stories of a release come from.',
   },
   {
     key: 'approvals',
     step: 'Approval',
-    title: 'Approval and Notification',
+    title: 'Approval and notification',
     lead: 'Who approves the change in ProTech, in this order.',
   },
   {
@@ -54,7 +54,7 @@ export const SECTIONS: readonly Section[] = [
     title: 'Schedule',
     lead: 'When the change is installed, validated and first used, and whether it brings downtime.',
     adminLead:
-      'A new change starts on the release date of its FixVersion while it is ahead, otherwise on the next day, at this time, in local time.',
+      'A new change is planned on the release date of its FixVersion (the Jira release it delivers) while that date is ahead, otherwise on the next day, at this start time in local time.',
   },
   {
     key: 'planning',
@@ -66,7 +66,7 @@ export const SECTIONS: readonly Section[] = [
     key: 'privileged',
     step: 'Privileged access',
     title: 'Privileged access',
-    lead: `The privileged accounts the change needs, up to ${MAX_PRIVILEGED_USERS}: the person, then the account.`,
+    lead: `Accounts with extra rights, such as admin accounts, that people need for this change, up to ${MAX_PRIVILEGED_USERS}: the person, then the account.`,
   },
   {
     key: 'risk',
@@ -90,40 +90,44 @@ export function changeFacts(
   return [
     { label: 'Change number', value: change.number, placeholder: NUMBER_PENDING, mono: true },
     { label: 'Approval', value: approvalOf(change.state) },
-    { label: 'Opened By', value: change.openedBy },
+    { label: 'Opened by', value: change.openedBy },
     { label: 'State', value: labelOf(STATES, change.state) },
   ];
 }
 
-export const OPENER_HINT = 'left empty: the user who opens the change';
+export const OPENER_HINT = 'If left empty: the user who opens the change';
 
-const DEPARTMENT_HINT = 'left empty: the department of the product';
+const DEPARTMENT_HINT = 'If left empty: the department of the product';
 
 const find = (kind: LookupKind, more: Partial<Lookup> = {}) => ({ lookup: { kind, ...more } });
 
 const person = (key: string, label: string, span = 6) => line(key, label, '', span, find('users'));
 
 export const REQUEST_FIELDS: readonly Field[] = [
-  person('requestedFor', 'Requested For'),
-  person('requestedBy', 'Requested By'),
+  person('requestedFor', 'Requested for'),
+  person('requestedBy', 'Requested by'),
   line('department', 'Department', '', 6, find('departments')),
   line('assignmentGroup', 'Assignment group', '', 6, find('assignment-groups')),
   choice('category', 'Category', []),
   person('assignedTo', 'Assigned to'),
   choice('type', 'Type', []),
-  line('release', 'Release', '', 6, { ...find('releases'), hint: 'left empty: the FixVersion' }),
+  line('release', 'Release', '', 6, {
+    ...find('releases'),
+    hint: 'If left empty: the FixVersion, the Jira release of the change',
+  }),
   line('configurationItem', 'Affected CI', '', 6, {
     ...find('configuration-items', { detail: 'directBusinessService' }),
+    hint: 'The system the change touches, as ProTech names it',
   }),
   mono('incident', 'Incident', '', 6, { ...find('incidents'), placeholder: 'INC0012345' }),
   line('directBusinessService', 'Direct business service', '', 6, {
     readonly: true,
-    hint: 'from the Affected CI',
+    hint: 'Filled in from the Affected CI',
   }),
   mono('problem', 'Problem', '', 6, { ...find('problems'), placeholder: 'PRB0001234' }),
 ];
 
-export const RISK = { key: 'risk', label: 'Risk', hint: 'from the risk assessment' };
+export const RISK = { key: 'risk', label: 'Risk', hint: 'Worked out from the risk assessment' };
 
 export const CLOSING_FIELDS: readonly Field[] = [
   line('affectedClients', 'Affected clients', '', 6, find('clients', { append: true })),

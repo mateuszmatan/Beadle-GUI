@@ -59,7 +59,7 @@ describe('AdminPage', () => {
 
     expect(text(page().querySelector('h1'))).toBe('DevSecOps Admin');
     expect(text(page().querySelector('.page-header .page-description'))).toBe(
-      'Departments, products, services, the template of a new service and the DSOEnhanced library defaults',
+      'Set up the portal for everyone: departments, products and their services, what a new service gets, and the settings every pipeline shares.',
     );
     expect(page().querySelector('nav.tab-bar')?.getAttribute('aria-label')).toBe('DevSecOps Admin');
     expect(tabs().map(text)).toEqual([
@@ -117,7 +117,7 @@ describe('AdminPage', () => {
     expect(TestBed.inject(Router).url).toBe('/beadle/admin/products');
     expect(text(page().querySelector('h1'))).toBe('Beadle Admin');
     expect(text(page().querySelector('.page-description'))).toBe(
-      'Departments, products and the change template of each product',
+      "Departments, products and each product's change template: the answers every new change of the product starts with.",
     );
     expect(tabs().map(text)).toEqual(['Departments', 'Products']);
     expect(tabs().map((link) => link.getAttribute('href'))).toEqual([

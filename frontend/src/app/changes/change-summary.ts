@@ -1,8 +1,16 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { ChangePlanning, ChangeType, ProductionChange, RiskQuestion } from './change-api';
-import { TIME_ZONE_NOTE, momentText, windowText } from './change-model';
+import { momentText, windowText } from './change-model';
 import { ChangeOptionLists } from './change-options';
-import { Fact, RISK_FIELDS, changeFacts, templateLabel } from './change-sections';
+import {
+  Fact,
+  RISK_FIELDS,
+  SECTIONS,
+  SectionKey,
+  changeFacts,
+  templateLabel,
+} from './change-sections';
+import { TIME_ZONE_NOTE } from '../shared/formatting';
 
 interface Row {
   term: string;
@@ -15,6 +23,8 @@ interface Block {
   rows: Row[];
   note?: string;
 }
+
+type Rows = Omit<Block, 'title'>;
 
 const PLANS: (keyof ChangePlanning)[] = [
   'testSummary',
@@ -46,91 +56,105 @@ function downtimeText(change: ProductionChange): string {
   return downtimeStart && downtimeEnd ? windowText(downtimeStart, downtimeEnd) : 'Yes';
 }
 
+export type SummaryLayout = 'all' | 'key' | 'details';
+
+type BlockKey = Exclude<SectionKey, 'planning'>;
+
+const LAYOUTS: Record<SummaryLayout, BlockKey[][]> = {
+  all: [['request'], ['jira', 'schedule', 'approvals'], ['risk', 'privileged', 'secure']],
+  key: [['schedule'], ['jira'], ['approvals']],
+  details: [['request'], ['risk', 'privileged', 'secure']],
+};
+
+const KEY_TITLES: Partial<Record<BlockKey, string>> = {
+  schedule: 'When it installs',
+  jira: 'What it delivers',
+  approvals: 'Who approves',
+};
+
+const keys = (list: readonly string[]) => (list.length ? list.join(' ') : 'None');
+
 export function summaryColumns(
   change: ProductionChange,
   typeLabel: (type: ChangeType) => string,
+  layout: SummaryLayout = 'all',
 ): Block[][] {
   const t = change.template;
   const s = change.schedule;
   const access = t.privilegedAccess;
-  return [
-    [
-      {
-        title: 'Generic request data',
-        rows: [
-          ...changeFacts(change).map(factRow),
-          row('requestedFor', t.requestedFor),
-          row('requestedBy', t.requestedBy),
-          row('department', t.department),
-          row('assignmentGroup', t.assignmentGroup),
-          row('category', t.category),
-          row('assignedTo', t.assignedTo),
-          { term: 'Type', value: typeLabel(t.type) },
-          row('release', t.release),
-          row('configurationItem', t.configurationItem),
-          row('incident', t.incident, true),
-          row('directBusinessService', t.directBusinessService),
-          row('problem', t.problem, true),
-          row('risk', t.risk),
-          row('affectedClients', t.affectedClients),
-          row('usersAffected', t.usersAffected),
-        ],
-      },
-    ],
-    [
-      {
-        title: 'Jira',
-        rows: [
-          { term: 'Product', value: `${change.productName} (${change.productCode})` },
-          { term: 'Product department', value: change.departmentName },
-          { term: 'FixVersion', value: change.fixVersion, mono: true },
-          row('jiraProjectKey', t.jiraProjectKey, true),
-          { term: 'Jira', value: [...change.epicKeys, ...change.storyKeys].join(' '), mono: true },
-        ],
-      },
-      {
-        title: 'Schedule',
-        rows: [
-          { term: 'Installation', value: windowText(s.installationStart, s.installationEnd) },
-          { term: 'Validation', value: windowText(s.validationStart, s.validationEnd) },
-          { term: 'First use', value: momentText(s.firstUsage) },
-          { term: 'Downtime', value: downtimeText(change) },
-        ],
-        note: TIME_ZONE_NOTE,
-      },
-      {
-        title: 'Approval and Notification',
-        rows: [
-          row('approvers.businessApprover', t.approvers.businessApprover),
-          row('approvers.l1Manager', t.approvers.l1Manager),
-          row('approvers.l2Manager', t.approvers.l2Manager),
-        ],
-      },
-    ],
-    [
-      {
-        title: 'Risk assessment',
-        rows: RISKS.map((key) => row(`riskAssessment.${key}`, t.riskAssessment[key])),
-      },
-      {
-        title: 'Privileged access',
-        rows: access.required
-          ? access.users.map((user) => ({ term: user.user, value: user.account, mono: true }))
-          : [{ term: 'Needed', value: 'No' }],
-      },
-      {
-        title: 'Secure coding',
-        rows: [row('secureCodingTicket', t.secureCodingTicket, true)],
-      },
-    ],
-  ];
+  const blocks: Record<BlockKey, Rows> = {
+    request: {
+      rows: [
+        ...changeFacts(change).map(factRow),
+        row('requestedFor', t.requestedFor),
+        row('requestedBy', t.requestedBy),
+        row('department', t.department),
+        row('assignmentGroup', t.assignmentGroup),
+        row('category', t.category),
+        row('assignedTo', t.assignedTo),
+        { term: 'Type', value: typeLabel(t.type) },
+        row('release', t.release),
+        row('configurationItem', t.configurationItem),
+        row('incident', t.incident, true),
+        row('directBusinessService', t.directBusinessService),
+        row('problem', t.problem, true),
+        row('risk', t.risk),
+        row('affectedClients', t.affectedClients),
+        row('usersAffected', t.usersAffected),
+      ],
+    },
+    jira: {
+      rows: [
+        { term: 'Product', value: `${change.productName} (${change.productCode})` },
+        { term: 'Product department', value: change.departmentName },
+        { term: 'FixVersion', value: change.fixVersion, mono: true },
+        row('jiraProjectKey', t.jiraProjectKey, true),
+        { term: 'Epics', value: keys(change.epicKeys), mono: true },
+        { term: 'Stories', value: keys(change.storyKeys), mono: true },
+      ],
+      note: 'FixVersion is the Jira release the change delivers.',
+    },
+    schedule: {
+      rows: [
+        { term: 'Installation', value: windowText(s.installationStart, s.installationEnd) },
+        { term: 'Validation', value: windowText(s.validationStart, s.validationEnd) },
+        { term: 'First use', value: momentText(s.firstUsage) },
+        { term: 'Downtime', value: downtimeText(change) },
+      ],
+      note: TIME_ZONE_NOTE,
+    },
+    approvals: {
+      rows: [
+        row('approvers.businessApprover', t.approvers.businessApprover),
+        row('approvers.l1Manager', t.approvers.l1Manager),
+        row('approvers.l2Manager', t.approvers.l2Manager),
+      ],
+      note: 'They approve the change in ProTech in this order.',
+    },
+    risk: {
+      rows: RISKS.map((key) => row(`riskAssessment.${key}`, t.riskAssessment[key])),
+    },
+    privileged: {
+      rows: access.required
+        ? access.users.map((user) => ({ term: user.user, value: user.account, mono: true }))
+        : [{ term: 'Needed', value: 'No' }],
+    },
+    secure: {
+      rows: [row('secureCodingTicket', t.secureCodingTicket, true)],
+    },
+  };
+  const title = (key: BlockKey) =>
+    (layout === 'key' && KEY_TITLES[key]) || SECTIONS.find((section) => section.key === key)!.title;
+  return LAYOUTS[layout].map((column) =>
+    column.map((key) => ({ title: title(key), ...blocks[key] })),
+  );
 }
 
 @Component({
   selector: 'dso-change-summary',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="summary">
+    <div class="summary" [style.--columns]="columns().length">
       @for (column of columns(); track $index) {
         <div class="column">
           @for (block of column; track block.title) {
@@ -153,17 +177,19 @@ export function summaryColumns(
           }
         </div>
       }
-      <section class="wide">
-        <h3>Planning</h3>
-        <div class="plans">
-          @for (plan of plans(); track plan.term) {
-            <div>
-              <h4>{{ plan.term }}</h4>
-              <p class="text">{{ plan.value }}</p>
-            </div>
-          }
-        </div>
-      </section>
+      @if (layout() !== 'key') {
+        <section class="wide">
+          <h3>Planning</h3>
+          <div class="plans">
+            @for (plan of plans(); track plan.term) {
+              <div>
+                <h4>{{ plan.term }}</h4>
+                <p class="text">{{ plan.value }}</p>
+              </div>
+            }
+          </div>
+        </section>
+      }
     </div>
   `,
   styles: `
@@ -173,7 +199,7 @@ export function summaryColumns(
 
     .summary {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
       gap: 12px 24px;
     }
 
@@ -223,11 +249,12 @@ export function summaryColumns(
 })
 export class ChangeSummary {
   readonly change = input.required<ProductionChange>();
+  readonly layout = input<SummaryLayout>('all');
 
   private readonly lists = inject(ChangeOptionLists);
 
   protected readonly columns = computed(() =>
-    summaryColumns(this.change(), (type) => this.lists.typeLabel(type)),
+    summaryColumns(this.change(), (type) => this.lists.typeLabel(type), this.layout()),
   );
   protected readonly plans = computed(() =>
     PLANS.map((key) => row(`planning.${key}`, this.change().template.planning[key])),

@@ -147,7 +147,9 @@ describe('change template model', () => {
     account.setValue('ø'.repeat(101));
 
     expect(c.requestedFor.errors).toEqual({ bytes: { max: 200 } });
-    expect(errorText(c.requestedFor)).toBe('Too long: at most 200 bytes');
+    expect(errorText(c.requestedFor)).toBe(
+      'Too long: at most 200 characters, and accented letters and symbols count as two or three',
+    );
     expect(c.incident.valid).toBe(true);
     expect(c.planning.controls.backoutPlan.hasError('bytes')).toBe(true);
     expect(c.approvers.controls.l1Manager.valid).toBe(true);

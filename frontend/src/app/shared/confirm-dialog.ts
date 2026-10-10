@@ -34,6 +34,11 @@ export interface ConfirmDialogData {
     </div>
   `,
   styles: `
+    :host {
+      display: block;
+      width: min(520px, 86vw);
+    }
+
     .message {
       margin: 0;
       white-space: pre-line;

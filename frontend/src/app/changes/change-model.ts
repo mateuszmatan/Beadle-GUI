@@ -45,8 +45,6 @@ export function momentText(time: Date | string): string {
   return `${DAY.format(value)}, ${TIME.format(value)}`;
 }
 
-export const TIME_ZONE_NOTE = `Times are in your time zone, ${Intl.DateTimeFormat().resolvedOptions().timeZone}.`;
-
 export function windowText(start: Date | string, end: Date | string): string {
   const from = new Date(start);
   const to = new Date(end);
@@ -104,6 +102,9 @@ export function changeRequest(
 export const activeTasks = (tasks: readonly ChangeTask[]) =>
   tasks.filter((task) => task.state !== 'CANCELED');
 
+export const PENDING_HINT =
+  'The last update is still waiting for ProTech; change it again once ProTech has applied it';
+
 export function editHint(
   change: Pick<ProductionChange, 'number' | 'departmentId' | 'departmentName' | 'update'>,
   departmentId: number | null,
@@ -117,7 +118,5 @@ export function editHint(
   if (departmentId !== change.departmentId) {
     return `Only ${change.departmentName ?? 'its department'} can change it`;
   }
-  return change.update?.status === 'PENDING'
-    ? 'The last update is still waiting for ProTech; change it again once ProTech has applied it'
-    : null;
+  return change.update?.status === 'PENDING' ? PENDING_HINT : null;
 }

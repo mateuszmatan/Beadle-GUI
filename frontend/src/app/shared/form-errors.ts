@@ -18,7 +18,7 @@ export function errorText(
     maxLines: `At most ${errors['maxLines']?.max} lines`,
     maxItems: `At most ${errors['maxItems']?.max} entries`,
     columnLength: `Too long: at most ${errors['columnLength']?.max} characters in total`,
-    bytes: `Too long: at most ${errors['bytes']?.max} bytes`,
+    bytes: `Too long: at most ${errors['bytes']?.max} characters, and accented letters and symbols count as two or three`,
     item: `${errors['item']?.message}: ${errors['item']?.value}`,
     integer: 'Enter a whole number',
     min: `At least ${errors['min']?.min}`,

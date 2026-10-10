@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { errorMessage, fieldProblems } from './errors';
+import { RETRY, errorMessage, fieldProblems } from './errors';
 
 describe('errorMessage', () => {
   it('uses the detail of the problem the API returned', () => {
@@ -21,25 +21,25 @@ describe('errorMessage', () => {
 
   it('names the status when the body is no problem and the reason phrase is empty', () => {
     expect(errorMessage(new HttpErrorResponse({ status: 404, error: 'not json' }))).toBe(
-      'The request failed with status 404',
+      `The portal could not complete the request (error 404). ${RETRY}`,
     );
     expect(
       errorMessage(new HttpErrorResponse({ status: 500, statusText: ' ', error: '[1]' })),
-    ).toBe('The request failed with status 500');
+    ).toBe(`The portal could not complete the request (error 500). ${RETRY}`);
     expect(
       errorMessage(new HttpErrorResponse({ status: 500, error: JSON.stringify({ detail: ' ' }) })),
-    ).toBe('The request failed with status 500');
+    ).toBe(`The portal could not complete the request (error 500). ${RETRY}`);
   });
 
   it('explains a request that never reached the API', () => {
     expect(errorMessage(new HttpErrorResponse({ status: 0 }))).toBe(
-      'The portal API cannot be reached.',
+      'The portal cannot be reached. Check your network connection and try again.',
     );
   });
 
   it('falls back to the status without a problem detail', () => {
     expect(errorMessage(new HttpErrorResponse({ status: 502, statusText: 'Bad Gateway' }))).toBe(
-      '502 Bad Gateway',
+      `The portal could not complete the request (error 502 Bad Gateway). ${RETRY}`,
     );
   });
 

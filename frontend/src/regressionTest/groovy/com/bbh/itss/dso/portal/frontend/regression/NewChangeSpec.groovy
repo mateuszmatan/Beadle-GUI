@@ -28,16 +28,17 @@ class NewChangeSpec extends EditorSpecification {
         then:
         assertThat(page.locator('h1')).hasText('New ProTech Change')
         assertThat(page.locator('.page-header .page-description'))
-                .hasText('Raise a ProTech change (CHG) with its change tasks (CTASK), written from Jira')
-        assertThat(page.locator('dso-integration-note')).containsText('Jira is not connected yet')
-        assertThat(page.locator('dso-integration-note')).containsText('ProTech is not connected yet')
+                .hasText('Raise a ProTech change for a production release in guided steps. The product\'s change template fills in the answers and Jira provides the scope.')
+        assertThat(page.locator('dso-integration-note strong')).hasText('Demo mode.')
+        assertThat(page.locator('dso-integration-note')).containsText('Jira and ProTech are not connected yet')
+        assertThat(step().locator('.step-count')).hasText('Step 1 of 11')
 
         when:
-        button('Continue', true).click()
+        button('Next: Jira', true).click()
 
         then:
         assertThat(page.locator('.step-bar .step-label')).hasText(STEPS as String[])
-        assertThat(step().locator('h2')).hasText('Generic request data')
+        assertThat(step().locator('h2')).hasText('Request details')
         assertThat(choiceError()).hasText('Choose the product')
 
         when:
@@ -45,13 +46,13 @@ class NewChangeSpec extends EditorSpecification {
         choose(step(), 'Product', 'CertScanner (CERTSCANNER)')
 
         then:
-        hasValues(step(), ['Change number'   : '', 'Approval': 'Not Yet Requested', 'Opened By': SIGNED_IN_USER, 'State': 'Draft',
-                           'Requested For'   : SIGNED_IN_USER, 'Requested By': SIGNED_IN_USER, 'Assigned to': SIGNED_IN_USER,
+        hasValues(step(), ['Change number'   : '', 'Approval': 'Not Yet Requested', 'Opened by': SIGNED_IN_USER, 'State': 'Draft',
+                           'Requested for'   : SIGNED_IN_USER, 'Requested by': SIGNED_IN_USER, 'Assigned to': SIGNED_IN_USER,
                            'Department'      : 'Corporate Technology', 'Assignment group': 'Technology Architecture',
                            'Release'         : '', 'Affected CI': 'CertScanner', 'Direct business service': 'Certificate Management',
                            'Risk'            : 'Moderate', 'Affected clients': ''])
         assertThat(input(step(), 'Change number')).hasAttribute('placeholder', 'Given by ProTech when raised')
-        assertThat(input(step(), 'Opened By')).not().isEditable()
+        assertThat(input(step(), 'Opened by')).not().isEditable()
         assertThat(input(step(), 'Direct business service')).not().isEditable()
         assertThat(selected(step(), 'Category')).hasText('Application')
         assertThat(selected(step(), 'Type')).hasText('Standard')
@@ -97,8 +98,8 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(input(step(), 'Incident')).hasValue('INC0105126')
 
         when:
-        button('Continue', true).click()
-        button('Continue', true).click()
+        button('Next: Jira', true).click()
+        button('Next: Approval', true).click()
 
         then:
         assertThat(currentStep()).hasText('Jira')
@@ -130,7 +131,7 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(checkbox(step(), 'CERT-121')).isChecked()
         assertThat(checkbox(step(), 'CERT-122')).isChecked()
         awaitRequest('GET', '/api/products/1/jira/stories').params() == [fixVersion: 'CERT 4.2', epics: 'CERT-120']
-        assertThat(step().locator('h3:has-text("Short description and description")')).isVisible()
+        assertThat(step().locator('h3:text-is("Text sent to ProTech")')).isVisible()
         assertThat(input(texts(), 'Short description')).hasValue('CertScanner CERT 4.2: Expiry alerts for certificates')
         assertThat(input(texts(), 'Description')).hasValue(
                 ~/Stories:\nCERT-121 E-mail the certificate owner\nCERT-122 Teams alert on expiry$/)
@@ -142,23 +143,24 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(input(texts(), 'Description')).hasValue(~/Stories:\nCERT-121 E-mail the certificate owner$/)
 
         when:
-        button('Continue', true).click()
+        button('Next: Approval', true).click()
 
         then:
         assertThat(currentStep()).hasText('Approval')
-        assertThat(step().locator('h2')).hasText('Approval and Notification')
+        assertThat(step().locator('h2')).hasText('Approval and notification')
+        assertThat(step().locator('.step-count')).hasText('Step 3 of 11')
         hasValues(step(), ['Business approver': 'Grace Turner', 'L1 approver': 'Olivia Bennett', 'L2 approver': 'James Carter'])
 
         when:
         lookUp(step(), 'L2 approver', 'hay', 'William Hayes')
-        button('Continue', true).click()
+        button('Next: Schedule', true).click()
 
         then:
         assertThat(currentStep()).hasText('Schedule')
         hasValues(step(), ['Installation start'           : "${RELEASE_DATE}T18:00", 'Installation hours': '2',
                            'Post-install validation start': "${RELEASE_DATE}T20:00", 'Validation hours': '1',
                            'First use'                    : "${RELEASE_DATE}T21:00"])
-        assertThat(hintOf(step(), 'Installation hours')).hasText(~/^until .+, 20:00$/)
+        assertThat(hintOf(step(), 'Installation hours')).hasText(~/^Until .+, 20:00$/)
         assertThat(selected(step(), 'Downtime')).hasText('No')
         assertThat(input(step(), 'Downtime start')).hasCount(0)
         assertThat(step().locator('dso-change-schedule .note')).hasText('Times are in your time zone, UTC.')
@@ -173,10 +175,10 @@ class NewChangeSpec extends EditorSpecification {
         fillIn(step(), ['Downtime hours': '1.5', 'First use': "${nextDay()}T08:00"])
 
         then:
-        assertThat(hintOf(step(), 'Downtime hours')).hasText(~/^until .+, 19:30$/)
+        assertThat(hintOf(step(), 'Downtime hours')).hasText(~/^Until .+, 19:30$/)
 
         when:
-        button('Continue', true).click()
+        button('Next: Planning', true).click()
 
         then:
         assertThat(currentStep()).hasText('Planning')
@@ -184,7 +186,7 @@ class NewChangeSpec extends EditorSpecification {
 
         when:
         input(step(), 'Backout plan').fill('')
-        button('Continue', true).click()
+        button('Next: Privileged access', true).click()
 
         then:
         assertThat(currentStep()).hasText('Planning')
@@ -193,7 +195,7 @@ class NewChangeSpec extends EditorSpecification {
 
         when:
         input(step(), 'Backout plan').fill('Redeploy CERT 4.1 from Nexus.')
-        button('Continue', true).click()
+        button('Next: Privileged access', true).click()
 
         then:
         assertThat(currentStep()).hasText('Privileged access')
@@ -202,7 +204,7 @@ class NewChangeSpec extends EditorSpecification {
 
         when:
         choose(step(), 'How many privileged accounts', '1')
-        button('Continue', true).click()
+        button('Next: Risk assessment', true).click()
 
         then:
         assertThat(account(step(), 0).locator('legend')).hasText('Privileged account 1')
@@ -211,7 +213,7 @@ class NewChangeSpec extends EditorSpecification {
         when:
         lookUp(account(step(), 0), 'Person', 'jane', 'Jane Smith')
         input(account(step(), 0), 'Privileged account').fill('adm_jsmith')
-        button('Continue', true).click()
+        button('Next: Risk assessment', true).click()
 
         then:
         assertThat(currentStep()).hasText('Risk assessment')
@@ -226,14 +228,14 @@ class NewChangeSpec extends EditorSpecification {
 
         when:
         choose(step(), 'Business impact', 'High')
-        button('Continue', true).click()
+        button('Next: Secure coding', true).click()
 
         then:
         assertThat(currentStep()).hasText('Secure coding')
 
         when:
         input(step(), 'Secure coding ticket number').fill('SEC-4711')
-        button('Continue', true).click()
+        button('Next: Review', true).click()
 
         then:
         assertThat(currentStep()).hasText('Review')
@@ -241,14 +243,15 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(input(texts(), 'Description')).hasValue(
                 'Production release of CertScanner (CERTSCANNER), FixVersion CERT 4.2.\n\nEpics:\n'
                         + 'CERT-120 Expiry alerts for certificates (In Review)\n\nStories:\nCERT-121 E-mail the certificate owner')
-        assertThat(step().locator('.lead')).containsText('Its change tasks follow once ProTech has given the change its number.')
+        assertThat(step().locator('.lead')).containsText('You add its change tasks in the next step.')
+        assertThat(step().locator('h3:text-is("Text sent to ProTech")')).isVisible()
         assertThat(taskRows()).hasCount(0)
-        assertThat(step().locator('dso-change-summary h3')).hasText(['Generic request data', 'Jira', 'Schedule',
-                                                                    'Approval and Notification', 'Risk assessment',
+        assertThat(step().locator('dso-change-summary h3')).hasText(['Request details', 'Jira', 'Schedule',
+                                                                    'Approval and notification', 'Risk assessment',
                                                                     'Privileged access', 'Secure coding', 'Planning'] as String[])
         assertThat(review('Change number')).hasText('Given by ProTech when raised')
         assertThat(review('Approval')).hasText('Not Yet Requested')
-        assertThat(review('Opened By')).hasText(SIGNED_IN_USER)
+        assertThat(review('Opened by')).hasText(SIGNED_IN_USER)
         assertThat(review('Release')).hasText('CERT 4.2')
         assertThat(review('Incident')).hasText('INC0105126')
         assertThat(review('Affected clients')).hasText('Aurora Global Equity Fund, Kestrel Sovereign Wealth Fund')
@@ -292,6 +295,7 @@ class NewChangeSpec extends EditorSpecification {
         then:
         assertThat(currentStep()).hasText('Change tasks')
         assertThat(step().locator('h2')).hasText('Change tasks of CHG0031002')
+        assertThat(step().locator('.raised-note')).hasText('CHG0031002 is raised in ProTech. Now add its change tasks to it.')
         assertThat(stepButton('Review')).isDisabled()
         assertThat(button('Back', true)).hasCount(0)
         assertThat(taskRows().locator('.kind')).hasText(['Release Management', 'Change task'] as String[])
@@ -307,7 +311,7 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(input(taskRows().nth(0), 'Number')).isDisabled()
         assertThat(input(taskRows().nth(0), 'Installation start')).isDisabled()
         assertThat(selected(taskRows().nth(0), 'Platform')).hasText('None')
-        assertThat(hintOf(taskRows().nth(0), 'Application')).hasText('OCP on OpenShift')
+        assertThat(hintOf(taskRows().nth(0), 'Application')).hasText('OCP when the platform is OpenShift')
         hasValues(taskRows().nth(1), ['Assignment group': 'Technology Architecture', 'Affected CI': 'CertScanner',
                                       'Description'     : CERT_TASKS[1].description])
         assertThat(selected(taskRows().nth(1), 'Importance')).hasText('3 - Moderate')
@@ -341,7 +345,7 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(errorOf(taskRows().nth(0), 'Task start')).hasText('At least a minute after the installation start')
         assertThat(taskRows().nth(1).locator('dso-label')).hasText(OTHER_TASK_FIELDS as String[])
         hasValues(taskRows().nth(1), ['Number': '', 'Change number': 'CHG0031002', 'Approval': 'Not Yet Requested', 'Affected CI': ''])
-        assertThat(hintOf(taskRows().nth(1), 'Affected CI')).hasText('left empty: the Affected CI of the change')
+        assertThat(hintOf(taskRows().nth(1), 'Affected CI')).hasText('If left empty: the Affected CI of the change')
         assertThat(errorOf(taskRows().nth(1), 'Description')).hasText('Required')
         assertThat(choiceError()).hasText('Check the change tasks')
         api.requests('POST', '/api/changes/5/tasks').isEmpty()
@@ -389,13 +393,15 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(page.locator('h1')).hasText('CHG0031002')
         assertThat(page.locator('.tasks li strong')).hasText([CERT_TASKS[0].shortDescription, 'Run the database scripts'] as String[])
         assertThat(page.locator('.tasks li').first()).containsText('CTASK0310021')
-        assertThat(page.locator('.tasks li').first()).containsText('Not Yet Requested')
-        assertThat(page.locator('.tasks .facts').first()).hasText(~/^Release Management · CertScanner · OpenShift · OCP · starts .+, 18:30$/)
-        assertThat(page.locator('.tasks .facts').last()).hasText('Cloud Engineering · Jane Smith · CertScanner · 2 - High')
+        assertThat(page.locator('.tasks li').first()).containsText('Not done yet; approval not requested yet.')
+        assertThat(page.locator('.tasks .facts').first())
+                .hasText(~/^Release Management · starts .+, 18:30 · affected CI CertScanner · platform OpenShift · application OCP$/)
+        assertThat(page.locator('.tasks .facts').last())
+                .hasText('Cloud Engineering · assigned to Jane Smith · affected CI CertScanner · importance 2 - High')
         assertThat(page.locator('dso-workflow-progress li[aria-current=step]')).containsText('Draft')
         assertThat(page.locator('.note.sync')).hasText('Read from ProTech just now')
         assertThat(term(summary(), 'Change number')).hasText('CHG0031002')
-        assertThat(term(summary(), 'Opened By')).hasText(SIGNED_IN_USER)
+        assertThat(term(summary(), 'Opened by')).hasText(SIGNED_IN_USER)
         assertThat(term(summary(), 'Risk')).hasText('High')
         assertThat(term(summary(), 'Jane Smith')).hasText('adm_jsmith')
         assertThat(term(summary(), 'FixVersion')).hasText('CERT 4.2')
@@ -404,6 +410,9 @@ class NewChangeSpec extends EditorSpecification {
     }
 
     def "a product without a change template raises a change with the suggested values"() {
+        given:
+        api.failOnce('GET', '/api/products/2/jira/stories', problem(502, 'Bad Gateway', 'Jira timed out'))
+
         when:
         open('/beadle/changes/new')
         page.waitForURL('**/beadle/new-change')
@@ -415,23 +424,24 @@ class NewChangeSpec extends EditorSpecification {
                 'Payments Hub has no change template yet, so the suggested values are filled in. An admin can set it in Beadle Admin.')
         assertThat(link('Set the template', true)).isVisible()
         assertThat(step().locator('.defaults-note a')).hasAttribute('href', '/beadle/admin/products/2')
-        hasValues(step(), ['Requested For'          : SIGNED_IN_USER, 'Department': 'Fund Services',
+        hasValues(step(), ['Requested for'          : SIGNED_IN_USER, 'Department': 'Fund Services',
                            'Assignment group'       : 'Payments Engineering', 'Affected CI': 'Payments Hub',
                            'Direct business service': '', 'Risk': 'Low'])
 
         when:
-        button('Continue', true).click()
+        button('Next: Jira', true).click()
 
         then:
         assertThat(currentStep()).hasText('Jira')
         assertThat(input(step(), 'Jira project')).hasValue('PAYHUB')
 
         when:
-        select(step(), 'FixVersion').fill('PAYHUB 4.3')
+        select(step(), 'FixVersion').fill('payhub 4.3')
         select(step(), 'FixVersion').press('Escape')
         button('Find epics', true).click()
 
         then:
+        assertThat(select(step(), 'FixVersion')).hasValue('PAYHUB 4.3')
         assertThat(step().locator('.issues .key')).hasText(['PAYHUB-130'] as String[])
         awaitRequest('GET', '/api/products/2/jira/epics').params() == [fixVersion: 'PAYHUB 4.3']
 
@@ -439,10 +449,18 @@ class NewChangeSpec extends EditorSpecification {
         checkbox(step(), 'PAYHUB-130').check()
 
         then:
-        assertThat(checkbox(step(), 'PAYHUB-132')).isChecked()
+        assertThat(choiceError()).hasText('The stories could not be loaded: Jira timed out Try again')
 
         when:
-        button('Continue', true).click()
+        button('Find epics', true).click()
+
+        then:
+        assertThat(checkbox(step(), 'PAYHUB-132')).isChecked()
+        assertThat(choiceError()).hasCount(0)
+        api.requests('GET', '/api/products/2/jira/stories').size() == 2
+
+        when:
+        button('Next: Approval', true).click()
 
         then:
         assertThat(currentStep()).hasText('Approval')
@@ -450,7 +468,7 @@ class NewChangeSpec extends EditorSpecification {
 
         when:
         input(step(), 'L1 approver').fill('Emma Brooks')
-        button('Continue', true).click()
+        button('Next: Schedule', true).click()
 
         then:
         assertThat(currentStep()).hasText('Schedule')
@@ -462,7 +480,7 @@ class NewChangeSpec extends EditorSpecification {
 
         then:
         hasValues(step(), ['Post-install validation start': "${inDays(3)}T20:00", 'First use': "${inDays(3)}T21:00"])
-        assertThat(hintOf(step(), 'Installation hours')).hasText(~/^until .+, 20:00$/)
+        assertThat(hintOf(step(), 'Installation hours')).hasText(~/^Until .+, 20:00$/)
 
         when:
         continueTo('Review')
@@ -497,7 +515,7 @@ class NewChangeSpec extends EditorSpecification {
 
         then:
         assertThat(page.locator('h1')).hasText('Payments Hub')
-        ownErrors().isEmpty()
+        ownErrors() == ['Failed to load resource: the server responded with a status of 502 (Bad Gateway)']
     }
 
     def "a change ProTech refuses stays on the review with the reasons, marked on the fields of each step"() {
@@ -511,13 +529,14 @@ class NewChangeSpec extends EditorSpecification {
         reviewCertScanner()
 
         then:
-        assertThat(review('Jira')).hasText('CERT-130 CERT-131')
+        assertThat(review('Epics')).hasText('CERT-130')
+        assertThat(review('Stories')).hasText('CERT-131')
 
         when:
         button('Raise the change in ProTech', true).click()
 
         then:
-        assertThat(page.locator('.save-problem strong')).hasText('3 fields are invalid')
+        assertThat(page.locator('.save-problem strong')).hasText('The change could not be raised: 3 fields are invalid')
         assertThat(page.locator('.save-problem li'))
                 .hasText(['Installation end: must be after the start', 'Backout plan: must not mention Nexus',
                           'Secure coding ticket number: is not a Jira issue'] as String[])
@@ -548,7 +567,7 @@ class NewChangeSpec extends EditorSpecification {
         input(step(), 'Installation hours').fill('3')
 
         then:
-        assertThat(hintOf(step(), 'Installation hours')).hasText(~/^until .+, 21:00$/)
+        assertThat(hintOf(step(), 'Installation hours')).hasText(~/^Until .+, 21:00$/)
         assertThat(input(step(), 'Post-install validation start')).hasValue("${RELEASE_DATE}T21:00")
         ownErrors().findAll { !it.contains('400') }.isEmpty()
     }
@@ -585,27 +604,27 @@ class NewChangeSpec extends EditorSpecification {
         button('Create the change tasks in ProTech', true).click()
 
         then:
-        assertThat(choiceError()).hasText('Add at least one change task, or add them later')
+        assertThat(choiceError()).hasText('Add at least one change task, or choose Add change tasks later')
         assertThat(step().locator('.task-actions .muted')).hasText('0 change tasks')
         api.requests('POST', '/api/changes/5/tasks').size() == 1
 
         when:
-        button('Add them later', true).click()
+        button('Add change tasks later', true).click()
 
         then:
         assertThat(step().locator('h2')).hasText('CHG0031002 is raised')
         assertThat(page.locator('.save-problem')).hasCount(0)
-        assertThat(step().locator('.review-list li')).hasText(['None yet: add them on the change page.'] as String[])
+        assertThat(step().locator('.review-list li')).hasText(['None yet. Add them with Edit the change on its page.'] as String[])
 
         when:
         link('Open the change', true).click()
         page.waitForURL('**/beadle/changes/5')
 
         then:
-        assertThat(page.locator('.tasks li')).hasText(['None yet: add them with Edit.'] as String[])
+        assertThat(page.locator('.tasks li')).hasText(['No change tasks yet. Add them with Edit the change.'] as String[])
 
         when:
-        link('Edit', true).click()
+        link('Edit the change', true).click()
         page.waitForURL('**/beadle/changes/5/edit')
         button('Add a change task', true).click()
         input(taskRows().first(), 'Assignment group').fill('Release Management')
@@ -618,7 +637,7 @@ class NewChangeSpec extends EditorSpecification {
         when:
         fillIn(taskRows().first(), ['Short description': CERT_TASKS[0].shortDescription, 'Description': CERT_TASKS[0].description])
         def reads = api.requests('GET', '/api/changes/5').size()
-        button('Publish to ProTech', true).click()
+        button('Publish the update to ProTech', true).click()
         page.waitForURL('**/beadle/changes/5')
 
         then:
@@ -634,7 +653,7 @@ class NewChangeSpec extends EditorSpecification {
         open('/beadle/new-change')
         choose(step(), 'Your department', 'Corporate Technology')
         choose(step(), 'Product', 'CertScanner (CERTSCANNER)')
-        button('Continue', true).click()
+        button('Next: Jira', true).click()
         select(step(), 'FixVersion').fill('CERT 4.2')
         select(step(), 'FixVersion').press('Enter')
         checkbox(step(), 'CERT-130').check()
@@ -642,7 +661,7 @@ class NewChangeSpec extends EditorSpecification {
     }
 
     void continueTo(String label) {
-        (STEPS.indexOf(label) - STEPS.indexOf(currentStep().textContent().trim())).times { button('Continue', true).click() }
+        ((STEPS.indexOf(currentStep().textContent().trim()) + 1)..STEPS.indexOf(label)).each { button("Next: ${STEPS[it]}", true).click() }
         assertThat(currentStep()).hasText(label)
     }
 

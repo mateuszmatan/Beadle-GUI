@@ -85,7 +85,7 @@ describe('LookupDialog', () => {
     expect(close).toHaveBeenCalledWith(item('Payments Hub', 'Payments'));
   });
 
-  it('picks the first entry on Enter, says when nothing matches and why the search failed', async () => {
+  it('picks the first entry on Enter, says when nothing matches and why the search failed, and searches again', async () => {
     found(null).flush([]);
     await settle();
     expect(text(page().querySelector('.results .empty'))).toBe('Nothing to choose from.');
@@ -95,12 +95,22 @@ describe('LookupDialog', () => {
     await type('zz');
     found('zz').flush([]);
     await settle();
-    expect(text(page().querySelector('.results .empty'))).toBe('Nothing matches "zz".');
+    expect(text(page().querySelector('.results .empty'))).toBe(
+      'Nothing in ProTech matches "zz". Try other words, or close this and type the value into the field.',
+    );
 
     await type('cert');
     found('cert').flush({ detail: 'ProTech is down' }, { status: 502, statusText: 'Bad Gateway' });
     await settle();
-    expect(text(page().querySelector('.choice-error'))).toBe('ProTech is down');
+    expect(text(page().querySelector('.choice-error'))).toBe(
+      'ProTech could not be searched: ProTech is down',
+    );
+    buttonOf(page(), 'Try again').click();
+    await settle();
+    found('cert').flush([item('CertScanner')]);
+    await settle();
+    expect(page().querySelector('.choice-error')).toBeNull();
+    expect([...page().querySelectorAll('.results .value')].map(text)).toEqual(['CertScanner']);
 
     await type('certs');
     found('certs').flush([item('CertScanner'), item('CertVault')]);

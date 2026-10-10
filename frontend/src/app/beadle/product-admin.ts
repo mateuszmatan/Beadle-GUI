@@ -29,14 +29,19 @@ import { ProductDialog, ProductDialogData, ProductDialogResult } from './product
       <dso-loading />
     }
     @if (product.error(); as error) {
-      <div class="banner">{{ errorMessage(error) }}</div>
+      <div class="banner" role="alert">
+        <span>The product could not be loaded. {{ errorMessage(error) }}</span>
+        <button type="button" class="btn btn-link" (click)="product.reload()">Try again</button>
+      </div>
     } @else if (product.hasValue()) {
       @let p = product.value();
-      <section class="card facts">
+      <section class="card facts" aria-labelledby="facts-title">
         <header class="card-header">
-          <h2>Product</h2>
+          <h2 id="facts-title">Product details</h2>
           <div class="actions">
-            <button type="button" class="btn btn-outline-primary" (click)="change()">Change</button>
+            <button type="button" class="btn btn-outline-primary" (click)="change()">
+              Edit details
+            </button>
             <button type="button" class="btn btn-link danger" (click)="delete()">
               Delete product
             </button>
@@ -44,7 +49,7 @@ import { ProductDialog, ProductDialogData, ProductDialogResult } from './product
         </header>
         <dl class="pairs">
           <div>
-            <dt>Code</dt>
+            <dt>Product code</dt>
             <dd class="mono">{{ p.code }}</dd>
           </div>
           <div>
@@ -86,6 +91,10 @@ import { ProductDialog, ProductDialogData, ProductDialogResult } from './product
     .card-header .actions {
       display: flex;
       gap: 6px;
+    }
+
+    .pairs div {
+      align-items: baseline;
     }
   `,
 })
@@ -139,8 +148,10 @@ export class ProductAdmin {
     this.dialog
       .open<boolean, ConfirmDialogData, ConfirmDialog>(ConfirmDialog, {
         data: {
-          title: `Delete ${product.name}?`,
-          message: `${product.name} is deleted with its change template. This cannot be undone.`,
+          title: `Delete the product ${product.name}?`,
+          message:
+            `${product.name} and its change template are deleted. This cannot be undone.\n` +
+            `If ${product.name} still has services in DevSecOps Management, it is not deleted; remove them there first.`,
           confirmLabel: 'Delete product',
           danger: true,
         },
@@ -154,7 +165,8 @@ export class ProductAdmin {
           this.notifier.success(`${product.name} deleted`);
           this.deleted.emit(product);
         },
-        error: (error) => this.notifier.error(error),
+        error: (error) =>
+          this.notifier.error(`${product.name} could not be deleted. ${errorMessage(error)}`),
       });
   }
 
@@ -173,7 +185,7 @@ export class ProductAdmin {
           this.product.set(latest);
           this.notifier.error(
             latest.version === product.version
-              ? conflict
+              ? `The details of ${product.name} could not be saved. ${errorMessage(conflict)}`
               : `${product.name} was changed by someone else. Its latest version is shown now; make your change again.`,
           );
         },
