@@ -1,0 +1,55 @@
+.departments {
+  margin-bottom: 12px;
+}
+
+.list-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 8px 12px 2px;
+}
+
+.list-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+
+  h2 {
+    margin: 0;
+    font-size: 16px;
+  }
+}
+
+.summary {
+  color: var(--dso-muted);
+  font-size: 12px;
+}
+
+.section-help {
+  margin: 0;
+  padding: 0 12px 8px;
+  border-bottom: 1px solid var(--dso-border);
+}
+
+.banner {
+  margin: 8px 12px;
+}
+
+.banner-text {
+  flex: 1;
+}
+
+.name {
+  font-weight: 600;
+  color: var(--dso-navy);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  white-space: nowrap;
+}

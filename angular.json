@@ -1,0 +1,368 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "cli": {
+    "packageManager": "npm"
+  },
+  "newProjectRoot": ".",
+  "projects": {
+    "common-gui": {
+      "projectType": "library",
+      "root": "common-gui",
+      "sourceRoot": "common-gui/src",
+      "prefix": "dso",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "common-gui/src/test-providers.ts",
+            "tsConfig": "common-gui/tsconfig.spec.json",
+            "inlineStyleLanguage": "scss",
+            "allowedCommonJsDependencies": [
+              "highcharts/js/highcharts"
+            ],
+            "define": {
+              "AG_GRID_LICENSE_KEY": "''"
+            }
+          },
+          "configurations": {
+            "public": {
+              "fileReplacements": [
+                {
+                  "replace": "common-gui/src/ui/design-system.ts",
+                  "with": "common-gui/src/ui/design-system.public.ts"
+                }
+              ]
+            }
+          }
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "common-gui/tsconfig.spec.json",
+            "coverageReporters": [
+              "text-summary",
+              "html",
+              "lcov"
+            ],
+            "coverageExclude": [
+              "common-gui/src/**/*.spec.ts",
+              "common-gui/src/**/*.d.ts",
+              "common-gui/src/testing/**",
+              "common-gui/src/test-providers.ts"
+            ],
+            "coverageThresholds": {
+              "statements": 60,
+              "lines": 60
+            },
+            "coverageInclude": [
+              "common-gui/src/**/*.ts"
+            ],
+            "providersFile": "common-gui/src/test-providers.ts",
+            "buildTarget": "common-gui:build:public"
+          }
+        }
+      }
+    },
+    "beadle-gui": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "scss"
+        }
+      },
+      "root": "beadle-gui",
+      "sourceRoot": "beadle-gui/src",
+      "prefix": "dso",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": {
+              "base": "beadle-gui/dist",
+              "browser": ""
+            },
+            "browser": "beadle-gui/src/main.ts",
+            "index": "beadle-gui/src/index.html",
+            "tsConfig": "beadle-gui/tsconfig.app.json",
+            "inlineStyleLanguage": "scss",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "common-gui/public"
+              },
+              {
+                "glob": "**/*.svg",
+                "input": "node_modules/@v6/v6-icons/assets/icons",
+                "output": "./@v6/v6-icons/assets/icons"
+              },
+              {
+                "glob": "**/*.svg",
+                "input": "node_modules/@v6/v6-icons/assets/icons",
+                "output": "./~@v6/v6-icons/assets/icons"
+              }
+            ],
+            "styles": [
+              "node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "node_modules/highcharts/css/highcharts.css",
+              "node_modules/ag-grid-community/styles/ag-grid.css",
+              "node_modules/ag-grid-community/styles/ag-theme-balham.css",
+              "node_modules/@v6/v6-table/assets/v6-table-theme--bbh.min.css",
+              "node_modules/@v6/v6-themes/styled-elements/main.min.css",
+              "node_modules/@v6/v6-themes/jersey-theme.min.css",
+              "node_modules/@angular/cdk/overlay-prebuilt.css",
+              "node_modules/@angular/cdk/a11y-prebuilt.css",
+              "common-gui/src/styles.scss"
+            ],
+            "allowedCommonJsDependencies": [
+              "highcharts/js/highcharts"
+            ],
+            "define": {
+              "AG_GRID_LICENSE_KEY": "''"
+            }
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "1MB",
+                  "maximumError": "2MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "6kB",
+                  "maximumError": "12kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            },
+            "public": {
+              "styles": [
+                "node_modules/bootstrap/dist/css/bootstrap.min.css",
+                "node_modules/highcharts/css/highcharts.css",
+                "node_modules/ag-grid-community/styles/ag-grid.css",
+                "node_modules/ag-grid-community/styles/ag-theme-balham.css",
+                "node_modules/@angular/cdk/overlay-prebuilt.css",
+                "node_modules/@angular/cdk/a11y-prebuilt.css",
+                "common-gui/src/styles/public-theme.scss",
+                "common-gui/src/styles.scss"
+              ],
+              "assets": [
+                {
+                  "glob": "**/*",
+                  "input": "common-gui/public"
+                }
+              ],
+              "fileReplacements": [
+                {
+                  "replace": "common-gui/src/ui/design-system.ts",
+                  "with": "common-gui/src/ui/design-system.public.ts"
+                }
+              ]
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "beadle-gui:build:production"
+            },
+            "development": {
+              "buildTarget": "beadle-gui:build:development"
+            },
+            "public": {
+              "buildTarget": "beadle-gui:build:development,public"
+            }
+          },
+          "defaultConfiguration": "development",
+          "options": {
+            "proxyConfig": "beadle-gui/proxy.conf.json",
+            "port": 4201
+          }
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "beadle-gui/tsconfig.spec.json",
+            "coverageReporters": [
+              "text-summary",
+              "html",
+              "lcov"
+            ],
+            "coverageExclude": [
+              "beadle-gui/src/app/**/*.spec.ts",
+              "beadle-gui/src/app/testing/**"
+            ],
+            "coverageThresholds": {
+              "statements": 60,
+              "lines": 60
+            },
+            "coverageInclude": [
+              "beadle-gui/src/app/**"
+            ],
+            "buildTarget": "beadle-gui:build:development,public",
+            "providersFile": "common-gui/src/test-providers.ts"
+          }
+        }
+      }
+    },
+    "dso-gui": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "scss"
+        }
+      },
+      "root": "dso-gui",
+      "sourceRoot": "dso-gui/src",
+      "prefix": "dso",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": {
+              "base": "dso-gui/dist",
+              "browser": ""
+            },
+            "browser": "dso-gui/src/main.ts",
+            "index": "dso-gui/src/index.html",
+            "tsConfig": "dso-gui/tsconfig.app.json",
+            "inlineStyleLanguage": "scss",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "common-gui/public"
+              },
+              {
+                "glob": "**/*.svg",
+                "input": "node_modules/@v6/v6-icons/assets/icons",
+                "output": "./@v6/v6-icons/assets/icons"
+              },
+              {
+                "glob": "**/*.svg",
+                "input": "node_modules/@v6/v6-icons/assets/icons",
+                "output": "./~@v6/v6-icons/assets/icons"
+              }
+            ],
+            "styles": [
+              "node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "node_modules/highcharts/css/highcharts.css",
+              "node_modules/ag-grid-community/styles/ag-grid.css",
+              "node_modules/ag-grid-community/styles/ag-theme-balham.css",
+              "node_modules/@v6/v6-table/assets/v6-table-theme--bbh.min.css",
+              "node_modules/@v6/v6-themes/styled-elements/main.min.css",
+              "node_modules/@v6/v6-themes/jersey-theme.min.css",
+              "node_modules/@angular/cdk/overlay-prebuilt.css",
+              "node_modules/@angular/cdk/a11y-prebuilt.css",
+              "common-gui/src/styles.scss"
+            ],
+            "allowedCommonJsDependencies": [
+              "highcharts/js/highcharts"
+            ],
+            "define": {
+              "AG_GRID_LICENSE_KEY": "''"
+            }
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "1MB",
+                  "maximumError": "2MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "6kB",
+                  "maximumError": "12kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            },
+            "public": {
+              "styles": [
+                "node_modules/bootstrap/dist/css/bootstrap.min.css",
+                "node_modules/highcharts/css/highcharts.css",
+                "node_modules/ag-grid-community/styles/ag-grid.css",
+                "node_modules/ag-grid-community/styles/ag-theme-balham.css",
+                "node_modules/@angular/cdk/overlay-prebuilt.css",
+                "node_modules/@angular/cdk/a11y-prebuilt.css",
+                "common-gui/src/styles/public-theme.scss",
+                "common-gui/src/styles.scss"
+              ],
+              "assets": [
+                {
+                  "glob": "**/*",
+                  "input": "common-gui/public"
+                }
+              ],
+              "fileReplacements": [
+                {
+                  "replace": "common-gui/src/ui/design-system.ts",
+                  "with": "common-gui/src/ui/design-system.public.ts"
+                }
+              ]
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "dso-gui:build:production"
+            },
+            "development": {
+              "buildTarget": "dso-gui:build:development"
+            },
+            "public": {
+              "buildTarget": "dso-gui:build:development,public"
+            }
+          },
+          "defaultConfiguration": "development",
+          "options": {
+            "proxyConfig": "dso-gui/proxy.conf.json",
+            "port": 4200
+          }
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "dso-gui/tsconfig.spec.json",
+            "coverageReporters": [
+              "text-summary",
+              "html",
+              "lcov"
+            ],
+            "coverageExclude": [
+              "dso-gui/src/app/**/*.spec.ts",
+              "dso-gui/src/app/testing/**"
+            ],
+            "coverageThresholds": {
+              "statements": 60,
+              "lines": 60
+            },
+            "coverageInclude": [
+              "dso-gui/src/app/**"
+            ],
+            "buildTarget": "dso-gui:build:development,public",
+            "providersFile": "common-gui/src/test-providers.ts"
+          }
+        }
+      }
+    }
+  }
+}

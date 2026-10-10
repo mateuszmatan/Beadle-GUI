@@ -1,0 +1,79 @@
+<section class="card departments">
+  <header class="list-header">
+    <div class="list-title">
+      <h2>Departments</h2>
+      @if (departments.hasValue()) {
+        <span class="summary">{{ summary() }}</span>
+      }
+    </div>
+    @if (!empty()) {
+      <button type="button" class="btn btn-primary" (click)="add()">Add department</button>
+    }
+  </header>
+  <p class="section-help">{{ help() }}</p>
+
+  @if (departments.isLoading()) {
+    <dso-loading />
+  }
+
+  @if (departments.error(); as error) {
+    <div class="banner" role="alert">
+      <span class="banner-text"
+        >The departments could not be loaded: {{ errorMessage(error) }}</span
+      >
+      <button type="button" class="btn btn-outline-primary" (click)="departments.reload()">
+        Try again
+      </button>
+    </div>
+  } @else if (departments.hasValue()) {
+    @if (empty()) {
+      <div class="empty-state">
+        <h3>No departments yet</h3>
+        <p>Add the first department, then add its products on the Products tab.</p>
+        <button type="button" class="btn btn-primary" (click)="add()">Add department</button>
+      </div>
+    } @else {
+      <dso-grid
+        label="Departments"
+        [rows]="departments.value()"
+        [columns]="columns()"
+        [rowId]="departmentId"
+        [templates]="cells()"
+      >
+        <ng-template dsoCell="name" let-department>
+          <span class="name">{{ department.name }}</span>
+        </ng-template>
+        <ng-template dsoCell="actions" let-department>
+          @let reason = deleteHint(department);
+          <span class="actions">
+            <button
+              type="button"
+              class="btn btn-link"
+              [attr.aria-label]="'Rename ' + department.name"
+              (click)="rename(department)"
+            >
+              Rename
+            </button>
+            <span class="delete" [attr.title]="reason">
+              <button
+                type="button"
+                class="btn btn-link danger"
+                [attr.aria-label]="'Delete ' + department.name"
+                [attr.aria-describedby]="reason ? 'delete-reason-' + department.id : null"
+                [disabled]="reason !== null"
+                (click)="delete(department)"
+              >
+                Delete
+              </button>
+              @if (reason) {
+                <span class="visually-hidden" [id]="'delete-reason-' + department.id">{{
+                  reason
+                }}</span>
+              }
+            </span>
+          </span>
+        </ng-template>
+      </dso-grid>
+    }
+  }
+</section>

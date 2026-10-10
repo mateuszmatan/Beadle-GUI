@@ -1,0 +1,48 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "ES2022",
+    "module": "preserve",
+    "paths": {
+      "@common/*": [
+        "./common-gui/src/*"
+      ]
+    }
+  },
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true
+  },
+  "files": [],
+  "references": [
+    {
+      "path": "./common-gui/tsconfig.lib.json"
+    },
+    {
+      "path": "./common-gui/tsconfig.spec.json"
+    },
+    {
+      "path": "./beadle-gui/tsconfig.app.json"
+    },
+    {
+      "path": "./beadle-gui/tsconfig.spec.json"
+    },
+    {
+      "path": "./dso-gui/tsconfig.app.json"
+    },
+    {
+      "path": "./dso-gui/tsconfig.spec.json"
+    }
+  ]
+}
