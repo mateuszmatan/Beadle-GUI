@@ -35,6 +35,17 @@ final class ChangeStubs {
 
     static final String RELEASE_MANAGEMENT = 'Release Management'
 
+    static final List<String> SECURE_CODING = ['apoNumber', 'bitbucketUrl', 'artifactLink', 'qcApplicationLink']
+
+    static final String LINK_MESSAGE = 'must be a link starting with https:// or http://'
+
+    static final String DATE_MESSAGE = 'must be a date written MMDDYYYY, such as 10152026'
+
+    static final Map CERT_SECURE_CODING = [apoNumber        : 'APO-31337',
+                                           bitbucketUrl     : 'https://bitbucket.bbh.com/projects/CERT/repos/certscanner',
+                                           artifactLink     : 'https://jenkins.bbh.com/job/CERT/job/certscanner-release/',
+                                           qcApplicationLink: 'https://certscanner.qc.bbh.com']
+
     static final List<String> STATES = ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL', 'CTASK_APPROVAL',
                                         'ESCALATED_APPROVAL', 'IMPLEMENTATION', 'CLOSED']
 
@@ -63,7 +74,8 @@ final class ChangeStubs {
                                 validationComplexity: 'Simple', bbhApplications: 'Single',
                                 backoutTesting: 'Less than 30 minutes', clientsOutsideBbh: 'No clients',
                                 platformStatus: 'Existing', businessImpact: 'Low'],
-            secureCodingTicket: null])
+            secureCodingTicket: null,
+            secureCoding     : CERT_SECURE_CODING])
 
     static final List<Map> CERT_TASKS = [
             details(RELEASE_MANAGEMENT, 'Deploy CertScanner to production',
@@ -92,7 +104,7 @@ final class ChangeStubs {
             request.params().project ?: (profiles[id as int]?.template ?: suggested(id)).jiraProjectKey
         }
 
-        api.get('/api/changes/integrations') { [jiraConnected: false, serviceNowConnected: false] }
+        api.get('/api/changes/integrations') { [jiraConnected: false, serviceNowConnected: false, cyberTrackConnected: false] }
         api.get('/api/changes/options') { OPTIONS }
         api.get('/api/lookups/([^/]+)') { RecordedRequest request, List<String> kinds -> lookup(kinds[0], request.params().q) }
         api.get('/api/changes') { RecordedRequest request -> protech.list(request.params().departmentId) }
@@ -153,6 +165,11 @@ final class ChangeStubs {
             def found = protech.find(ids[0])
             found ? protech.createTasks(found, request.json() as Map) : problem(404, 'Not found', "Change ${ids[0]} does not exist")
         }
+        api.on('POST', '/api/changes/(\\d+)/secure-coding') { RecordedRequest request, List<String> ids ->
+            def found = protech.find(ids[0])
+            found ? protech.createSecureCodingTicket(found, request.json() as Map)
+                    : problem(404, 'Not found', "Change ${ids[0]} does not exist")
+        }
         protech
     }
 
@@ -171,7 +188,8 @@ final class ChangeStubs {
                   riskAssessment    : (OPTIONS.risk as Map<String, List>).collectEntries { question, answers ->
                       [question, answers.first()]
                   },
-                  secureCodingTicket: null])
+                  secureCodingTicket: null,
+                  secureCoding      : SECURE_CODING.collectEntries { [it, null] }])
     }
 
     static Map withRisk(Map template) {
@@ -248,7 +266,8 @@ final class ChangeStubs {
          description     : "Production release of $product.name ($product.code), FixVersion $asked.fixVersion.\n\nEpics:\n"
                  + epics.collect { "$it.key $it.summary ($it.status)" }.join('\n') + '\n\nStories:\n'
                  + stories.collect { "$it.key $it.summary" }.join('\n'),
-         template        : withRisk(template + [release     : template.release ?: asked.fixVersion,
+         template        : withRisk(template + [secureCodingTicket: null,
+                                                release     : template.release ?: asked.fixVersion,
                                                 requestedFor: template.requestedFor ?: SIGNED_IN_USER,
                                                 requestedBy : template.requestedBy ?: SIGNED_IN_USER,
                                                 assignedTo  : template.assignedTo ?: SIGNED_IN_USER,
@@ -324,6 +343,7 @@ final class ChangeStubs {
         final Map<Integer, List<Map>> canceling = new ConcurrentHashMap<>()
         final AtomicInteger changeNumbers = new AtomicInteger(31001)
         final AtomicInteger taskNumbers = new AtomicInteger(320000)
+        final AtomicInteger secureCodingTickets = new AtomicInteger(4200)
 
         ProTech() {
             def at = Instant.now().truncatedTo(MINUTES)
@@ -391,7 +411,7 @@ final class ChangeStubs {
             def requested = [shortDescription: asked.shortDescription, description: asked.description,
                              schedule        : asked.schedule,
                              template        : withRisk((asked.template as Map) +
-                                     (change.template as Map).subMap('jiraProjectKey', 'type', 'timing') +
+                                     (change.template as Map).subMap('jiraProjectKey', 'type', 'timing', 'secureCoding') +
                                      [release: (asked.template as Map).release ?: change.fixVersion]),
                              tasks           : tasks]
             def fields = unapplied(requested, change)
@@ -423,6 +443,42 @@ final class ChangeStubs {
             }
             def version = (change.version as int) + 1
             change.putAll([tasks: held + created, version: version, editedVersion: version, syncedAt: stamp()])
+            change
+        }
+
+        Object createSecureCodingTicket(Map change, Map asked) {
+            if (asked.version != null && (asked.version < change.editedVersion || asked.version > change.version)) {
+                return problem(409, 'Conflict', STALE)
+            }
+            if (asked.departmentId != change.departmentId) {
+                return problem(403, 'Forbidden', "Only $change.departmentName can change $change.number")
+            }
+            def errors = (SECURE_CODING + 'implementationDate').findResults { String field ->
+                String value = (asked[field] as String)?.trim()
+                String message = !value ? 'is required'
+                        : field == 'apoNumber' ? null
+                        : field == 'implementationDate' ? (value ==~ /\d{8}/ ? null : DATE_MESSAGE)
+                        : value ==~ /https?:\/\/\S+/ ? null : LINK_MESSAGE
+                message ? [field: field, message: message] : null
+            }
+            if (errors) {
+                return problem(400, 'Bad Request', errors.size() == 1 ? errors[0].message : "${errors.size()} fields are invalid",
+                        [errors: errors])
+            }
+            if (change.state == 'CLOSED') {
+                return problem(409, 'Conflict', "$change.number is closed in ProTech and can no longer be changed")
+            }
+            def template = change.template as Map
+            if (template.secureCodingTicket) {
+                return problem(409, 'Conflict', "$change.number already has the secure coding ticket $template.secureCodingTicket")
+            }
+            def ticket = "SCP-${secureCodingTickets.incrementAndGet()}".toString()
+            def version = (change.version as int) + 1
+            change.putAll([template: template + [secureCodingTicket: ticket,
+                                                 secureCoding      : SECURE_CODING.collectEntries { [it, (asked[it] as String).trim()] }],
+                           update  : [status : 'PENDING', requestedAt: stamp(), departmentName: change.departmentName,
+                                      fields : [], message: null, checkedAt: stamp()],
+                           version : version, syncedAt: stamp()])
             change
         }
 
@@ -464,6 +520,7 @@ final class ChangeStubs {
                  enteredAt: stamp(stage == 'CLOSED' ? start.plus(3, HOURS) : raisedAt.plus(2 * index, MINUTES))]
             }
             drafted + [id      : id, number: number, createdAt: stamp(raisedAt), state: stages.last(), workflow: entered,
+                       template: (drafted.template as Map) + [secureCodingTicket: id == 4 ? null : "SCP-${4100 + id}".toString()],
                        tasks   : texts.withIndex().collect { text, index ->
                            task(format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1), plannedIn(drafted, text),
                                    earliest(schedule), taskState, approvalOf(stages.last()))

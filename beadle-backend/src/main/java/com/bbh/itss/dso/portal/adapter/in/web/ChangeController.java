@@ -85,6 +85,12 @@ public class ChangeController {
         return changes.createTasks(id, request.toCommand());
     }
 
+    @PostMapping("/changes/{id}/secure-coding")
+    public ProductionChange createSecureCodingTicket(@PathVariable long id,
+                                                     @Valid @RequestBody SecureCodingRequest request) {
+        return changes.createSecureCodingTicket(id, request.toCommand());
+    }
+
     @GetMapping("/products/{id}/jira/versions")
     public List<JiraVersion> versions(@PathVariable long id, @RequestParam(required = false) String project) {
         return changes.versions(id, project);

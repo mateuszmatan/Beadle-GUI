@@ -22,8 +22,6 @@ import {
   ChangesApi,
   ChangeState,
   STATES,
-  TASK_STATES,
-  TaskState,
   UpdateStatus,
   isOpen,
   labelOf,
@@ -31,7 +29,8 @@ import {
 import { editHint, momentText } from './change-model';
 import { fieldLabels } from './change-problems';
 import { ChangeSummary } from './change-summary';
-import { taskFacts, taskStatus } from './change-tasks-model';
+import { ChangeTasksForm } from './change-tasks-form';
+import { taskWindow, tasksForm } from './change-tasks-model';
 import { PublishedChange } from './published-change';
 import { WorkflowProgress, stateNow } from './workflow-progress';
 
@@ -70,7 +69,15 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
 
 @Component({
   selector: 'dso-change-detail',
-  imports: [RouterLink, DsoLoading, PANEL, RelativeTimePipe, ChangeSummary, WorkflowProgress],
+  imports: [
+    RouterLink,
+    DsoLoading,
+    PANEL,
+    RelativeTimePipe,
+    ChangeSummary,
+    ChangeTasksForm,
+    WorkflowProgress,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
@@ -164,6 +171,18 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
             }
           </div>
         }
+        @if (open() && !hint() && !c.template.secureCodingTicket) {
+          <div class="banner info secure-coding-missing" role="note">
+            <span
+              >{{ c.number }} has no secure coding ticket yet. Create it in CyberTrack, the Jira
+              project SCP.</span
+            >
+            <span class="spacer"></span>
+            <a class="btn btn-link" [routerLink]="changeLink(c.id!, 'secure-coding')"
+              >Create the secure coding ticket</a
+            >
+          </div>
+        }
         <section class="card block">
           <h2>Where the change is</h2>
           <p class="now">
@@ -182,28 +201,13 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
             A change task (CTASK) is a piece of work inside the change, done by one team. ProTech
             asks for their approval in the CTask approval stage.
           </p>
-          <ol class="tasks">
-            @for (task of c.tasks; track $index) {
-              <li [class.canceled]="task.state === 'CANCELED'">
-                <strong>{{ task.details.shortDescription }}</strong>
-                <span class="task-head">
-                  @if (task.number) {
-                    <span class="mono">{{ task.number }}</span>
-                  } @else {
-                    <span class="muted">not in ProTech yet</span>
-                  }
-                  <span class="chip neutral">{{ taskState(task.state) }}</span>
-                  <span class="muted">{{ taskStatus(task) }}</span>
-                </span>
-                <span class="facts">{{ taskFacts(task) }}</span>
-                <span class="muted">{{ task.details.description }}</span>
-              </li>
-            } @empty {
-              <li class="none muted">
-                {{ open() ? 'No change tasks yet. Add them with Edit the change.' : 'None' }}
-              </li>
-            }
-          </ol>
+          @if (tasks(); as list) {
+            <dso-change-tasks-form [tasks]="list" [readonly]="true" />
+          } @else {
+            <p class="none muted">
+              {{ open() ? 'No change tasks yet. Add them with Edit the change.' : 'None' }}
+            </p>
+          }
         </section>
         <dso-panel class="more" #fields="dsoPanel">
           <dso-panel-header>
@@ -273,47 +277,9 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
       overflow-wrap: anywhere;
     }
 
-    .tasks {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+    .none {
       margin: 0;
-      padding-left: 20px;
       font-size: 12.5px;
-
-      li {
-        display: flex;
-        flex-direction: column;
-        gap: 1px;
-        min-width: 0;
-        overflow-wrap: anywhere;
-      }
-
-      .facts {
-        color: var(--dso-muted);
-        font-size: 12px;
-      }
-
-      .none {
-        list-style: none;
-        margin-left: -20px;
-      }
-
-      .canceled {
-        color: var(--dso-muted);
-
-        strong {
-          font-weight: 500;
-          text-decoration: line-through;
-        }
-      }
-    }
-
-    .task-head {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 6px;
     }
 
     @media (max-width: 760px) {
@@ -339,8 +305,6 @@ export class ChangeDetail {
   protected readonly productLink = beadleProduct;
   protected readonly changeLink = beadleChange;
   protected readonly updateText = updateText;
-  protected readonly taskFacts = taskFacts;
-  protected readonly taskStatus = taskStatus;
   protected readonly stateNow = stateNow;
   protected readonly retry = RETRY;
   protected readonly tones = TONES;
@@ -352,6 +316,15 @@ export class ChangeDetail {
     },
   });
   protected readonly open = computed(() => this.change.hasValue() && isOpen(this.change.value()));
+  protected readonly tasks = computed(() => {
+    const change = this.change.hasValue() ? this.change.value() : null;
+    if (!change?.tasks.length) {
+      return null;
+    }
+    const form = tasksForm(change.tasks, taskWindow(change.number, change.schedule));
+    form.disable();
+    return form;
+  });
   protected readonly hint = computed(() =>
     this.change.hasValue() ? editHint(this.change.value(), this.myDepartment.departmentId()) : null,
   );
@@ -387,10 +360,6 @@ export class ChangeDetail {
 
   protected checkAgain(): void {
     this.polls.set(0);
-  }
-
-  protected taskState(state: TaskState): string {
-    return labelOf(TASK_STATES, state);
   }
 
   protected stateLabel(state: ChangeState): string {

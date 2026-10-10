@@ -13,6 +13,7 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Timing;
 import com.bbh.itss.dso.portal.domain.change.Lookup;
 import com.bbh.itss.dso.portal.domain.change.RiskAssessment;
 import com.bbh.itss.dso.portal.domain.change.RiskAssessment.Question;
+import com.bbh.itss.dso.portal.domain.change.SecureCoding;
 import com.bbh.itss.dso.portal.domain.change.TaskDetails;
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,7 @@ import static com.bbh.itss.dso.portal.domain.change.RiskAssessment.Question.VALI
 import static com.bbh.itss.dso.portal.domain.change.TaskDetails.suggestedTasks;
 import static com.bbh.itss.dso.portal.domain.shared.Text.abbreviateBytes;
 import static java.util.Collections.shuffle;
+import static java.util.Locale.ROOT;
 import static java.util.stream.Collectors.joining;
 import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 import static org.apache.commons.lang3.StringUtils.trim;
@@ -135,7 +137,15 @@ public class DemoChangeProfiles {
                 .affectedClients(clients.stream().limit(named).collect(joining(", ")))
                 .usersAffected(USERS_AFFECTED.get(level).formatted(product.name())).approvers(approvers)
                 .downtime(level == 2).timing(timing).privilegedAccess(access).riskAssessment(risk)
-                .secureCodingTicket("APPSEC-" + (1000 + random.nextInt(9000))).build();
+                .secureCoding(secureCodingOf(product, random)).build();
+    }
+
+    private static SecureCoding secureCodingOf(ProductSummaryView product, Random random) {
+        String code = product.code().toLowerCase(ROOT);
+        return new SecureCoding("APO-" + (10_000 + random.nextInt(90_000)),
+                "https://bitbucket.bbh.com/projects/" + product.code() + "/repos/" + code,
+                "https://jenkins.bbh.com/job/" + product.code() + "/job/" + code + "-release/",
+                "https://" + code + ".qc.bbh.com");
     }
 
     private static String answer(Question question, int level, Random random) {

@@ -8,6 +8,7 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedUser;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Timing;
 import com.bbh.itss.dso.portal.domain.change.RiskAssessment;
+import com.bbh.itss.dso.portal.domain.change.SecureCoding;
 import com.bbh.itss.dso.portal.domain.change.TaskDetails;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -32,6 +33,7 @@ import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.TIME_OF_DAY;
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.TIME_OF_DAY_MESSAGE;
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.DESCRIPTION_MAX;
 import static com.bbh.itss.dso.portal.domain.change.ProductionChange.SHORT_DESCRIPTION_MAX;
+import static com.bbh.itss.dso.portal.domain.change.SecureCoding.LINK_MAX;
 import static com.bbh.itss.dso.portal.domain.change.TaskDetails.MAX_TASKS;
 import static jakarta.validation.constraints.Pattern.Flag.CASE_INSENSITIVE;
 
@@ -70,7 +72,13 @@ public record ChangeProfileRequest(Long version, @NotNull @Valid TemplateDto tem
             @NotNull @Valid PlanningDto planning,
             @NotNull @Valid PrivilegedAccessDto privilegedAccess,
             @NotNull RiskAssessmentDto riskAssessment,
-            @Size(max = NUMBER_MAX) String secureCodingTicket) implements Mirrors<ChangeTemplate> {
+            @Size(max = NUMBER_MAX) String secureCodingTicket,
+            @Valid SecureCodingDto secureCoding) implements Mirrors<ChangeTemplate> {
+    }
+
+    public record SecureCodingDto(@Size(max = NUMBER_MAX) String apoNumber, @Size(max = LINK_MAX) String bitbucketUrl,
+                                  @Size(max = LINK_MAX) String artifactLink,
+                                  @Size(max = LINK_MAX) String qcApplicationLink) implements Mirrors<SecureCoding> {
     }
 
     public record ApproversDto(@Size(max = GROUP_MAX) String l1Manager, @Size(max = GROUP_MAX) String l2Manager,

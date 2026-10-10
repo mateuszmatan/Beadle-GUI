@@ -62,6 +62,13 @@ export interface RiskAssessment {
 
 export type RiskQuestion = keyof RiskAssessment;
 
+export interface SecureCoding {
+  apoNumber: string | null;
+  bitbucketUrl: string | null;
+  artifactLink: string | null;
+  qcApplicationLink: string | null;
+}
+
 export interface ChangeTemplate {
   jiraProjectKey: string;
   requestedFor: string | null;
@@ -86,6 +93,7 @@ export interface ChangeTemplate {
   privilegedAccess: PrivilegedAccess;
   riskAssessment: RiskAssessment;
   secureCodingTicket: string | null;
+  secureCoding: SecureCoding;
 }
 
 export interface TypeOption {
@@ -235,9 +243,20 @@ export interface ChangeTasksRequest {
   tasks: TaskRequest[];
 }
 
+export interface SecureCodingRequest {
+  version: number;
+  departmentId: number;
+  apoNumber: string;
+  implementationDate: string;
+  bitbucketUrl: string;
+  artifactLink: string;
+  qcApplicationLink: string;
+}
+
 export interface ChangeIntegrations {
   jiraConnected: boolean;
   serviceNowConnected: boolean;
+  cyberTrackConnected: boolean;
 }
 
 export const STATES: { value: ChangeState; label: string }[] = [
@@ -303,6 +322,10 @@ export class ChangesApi {
 
   createTasks(id: number, request: ChangeTasksRequest): Observable<ProductionChange> {
     return this.http.post<ProductionChange>(`/api/changes/${id}/tasks`, request);
+  }
+
+  createSecureCodingTicket(id: number, request: SecureCodingRequest): Observable<ProductionChange> {
+    return this.http.post<ProductionChange>(`/api/changes/${id}/secure-coding`, request);
   }
 
   integrations(): Observable<ChangeIntegrations> {

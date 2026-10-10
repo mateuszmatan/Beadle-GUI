@@ -1,6 +1,6 @@
 import { FieldProblem } from '../core/models';
 import { SCHEDULE_LABELS } from './change-schedule-model';
-import { templateLabel } from './change-sections';
+import { SECURE_CODING_FIELDS, templateLabel } from './change-sections';
 import { TASK_LABELS } from './change-tasks-form';
 import { TEMPLATE_PREFIX } from './change-template-model';
 
@@ -14,6 +14,7 @@ const REQUEST_LABELS: Record<string, string> = {
   description: 'Description',
   schedule: 'Schedule',
   tasks: 'Change tasks',
+  ...Object.fromEntries(SECURE_CODING_FIELDS.map((field) => [field.key, field.label])),
 };
 
 export function requestLabel(field: string): string | null {

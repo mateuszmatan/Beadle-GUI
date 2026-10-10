@@ -10,7 +10,7 @@ import {
   text,
 } from '@common/shared/form-controls';
 import { ChangeSchedule, ChangeTask, TaskDetails, TaskRequest, TaskState } from './change-api';
-import { fits, momentText } from './change-model';
+import { fits } from './change-model';
 import { fromLocal, localInput } from './change-schedule-model';
 
 export const MAX_TASKS = 50;
@@ -127,6 +127,9 @@ export function taskForm(task: Partial<ChangeTask> = {}, window: TaskWindow | nu
   if (isRelease(group.value) && !form.controls.start.value) {
     form.controls.start.setValue(earliest());
   }
+  if (!window) {
+    form.controls.start.disable();
+  }
   if (form.controls.state.value === 'CLOSED') {
     form.disable();
   }
@@ -235,25 +238,6 @@ export const nestedTaskProblems = (problems: FieldProblem[]): FieldProblem[] =>
     ...problem,
     field: problem.field.replace(/^(tasks\[\d+])\.(\w+)$/, '$1.details.$2'),
   }));
-
-export function taskFacts(task: Pick<ChangeTask, 'details' | 'start'>): string {
-  const { details } = task;
-  const release = isRelease(details.assignmentGroup);
-  const labelled = (label: string, value: string | null) => (value ? `${label} ${value}` : null);
-  return [
-    details.assignmentGroup,
-    labelled('assigned to', details.assignedTo),
-    release && task.start ? `starts ${momentText(task.start)}` : null,
-    labelled('affected CI', details.configurationItem),
-    release && details.platform !== NO_PLATFORM ? labelled('platform', details.platform) : null,
-    labelled(
-      release ? 'application' : 'importance',
-      release ? details.application : details.importance,
-    ),
-  ]
-    .filter(Boolean)
-    .join(' · ');
-}
 
 const APPROVALS: Record<string, string> = {
   [NOT_YET_REQUESTED]: 'approval not requested yet',

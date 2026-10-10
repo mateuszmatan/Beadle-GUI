@@ -2,6 +2,7 @@ package com.bbh.itss.dso.portal.frontend.regression
 
 import com.microsoft.playwright.Locator
 
+import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.CERT_SECURE_CODING
 import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.CERT_TASKS
 import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.OPTIONS
 import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.PLANNING
@@ -13,13 +14,16 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 import static com.microsoft.playwright.options.AriaRole.OPTION
 import static java.time.LocalDate.now
 import static java.time.LocalDate.parse
+import static java.time.format.DateTimeFormatter.ofPattern
 
 class NewChangeSpec extends EditorSpecification {
 
     static final List<String> STEPS = ['Request data', 'Jira', 'Approval', 'Schedule', 'Planning', 'Privileged access',
-                                       'Risk assessment', 'Secure coding', 'Review', 'Change tasks', 'Raised']
+                                       'Risk assessment', 'Review', 'Add CTASKs', 'Secure coding', 'Summary']
 
-    def "a release manager raises a ProTech change section by section, with the lookups, the downtime window and the risk lists, then creates its change tasks"() {
+    static final String IMPLEMENTATION_DATE = parse(RELEASE_DATE).format(ofPattern('MMddyyyy'))
+
+    def "a release manager raises a ProTech change section by section, with the lookups, the downtime window and the risk lists, then creates its change tasks and its secure coding ticket"() {
         when:
         open('/beadle')
         menuLink('New Change').click()
@@ -31,13 +35,13 @@ class NewChangeSpec extends EditorSpecification {
                 .hasText('Raise a ProTech change for a production release in guided steps. The product\'s change template fills in the answers and Jira provides the scope.')
         assertThat(page.locator('dso-integration-note strong')).hasText('Demo mode.')
         assertThat(page.locator('dso-integration-note')).containsText('Jira and ProTech are not connected yet')
-        assertThat(step().locator('.step-count')).hasText('Step 1 of 11')
+        assertThat(step().locator('.step-count')).hasText('Step 1 of 8')
 
         when:
         button('Next: Jira', true).click()
 
         then:
-        assertThat(page.locator('.step-bar .step-label')).hasText(STEPS as String[])
+        assertThat(page.locator('.step-bar .step-label')).hasText(STEPS.take(8) as String[])
         assertThat(step().locator('h2')).hasText('Request details')
         assertThat(choiceError()).hasText('Choose the product')
 
@@ -148,7 +152,7 @@ class NewChangeSpec extends EditorSpecification {
         then:
         assertThat(currentStep()).hasText('Approval')
         assertThat(step().locator('h2')).hasText('Approval and notification')
-        assertThat(step().locator('.step-count')).hasText('Step 3 of 11')
+        assertThat(step().locator('.step-count')).hasText('Step 3 of 8')
         hasValues(step(), ['Business approver': 'Grace Turner', 'L1 approver': 'Olivia Bennett', 'L2 approver': 'James Carter'])
 
         when:
@@ -200,19 +204,19 @@ class NewChangeSpec extends EditorSpecification {
         then:
         assertThat(currentStep()).hasText('Privileged access')
         assertThat(selected(step(), 'How many privileged accounts')).hasText('None')
-        assertThat(step().locator('fieldset.account')).hasCount(0)
+        assertThat(step().locator('.accounts')).hasCount(0)
 
         when:
         choose(step(), 'How many privileged accounts', '1')
         button('Next: Risk assessment', true).click()
 
         then:
-        assertThat(account(step(), 0).locator('legend')).hasText('Privileged account 1')
-        hasErrors(account(step(), 0), ['Person': 'Required', 'Privileged account': 'Required'])
+        assertThat(step().locator('.accounts dso-label')).hasText(['Person 1', 'Privileged access 1'] as String[])
+        hasErrors(step(), ['Person 1': 'Required', 'Privileged access 1': 'Required'])
 
         when:
-        lookUp(account(step(), 0), 'Person', 'jane', 'Jane Smith')
-        input(account(step(), 0), 'Privileged account').fill('adm_jsmith')
+        lookUp(step(), 'Person 1', 'jane', 'Jane Smith')
+        input(step(), 'Privileged access 1').fill('adm_jsmith')
         button('Next: Risk assessment', true).click()
 
         then:
@@ -228,13 +232,6 @@ class NewChangeSpec extends EditorSpecification {
 
         when:
         choose(step(), 'Business impact', 'High')
-        button('Next: Secure coding', true).click()
-
-        then:
-        assertThat(currentStep()).hasText('Secure coding')
-
-        when:
-        input(step(), 'Secure coding ticket number').fill('SEC-4711')
         button('Next: Review', true).click()
 
         then:
@@ -243,12 +240,12 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(input(texts(), 'Description')).hasValue(
                 'Production release of CertScanner (CERTSCANNER), FixVersion CERT 4.2.\n\nEpics:\n'
                         + 'CERT-120 Expiry alerts for certificates (In Review)\n\nStories:\nCERT-121 E-mail the certificate owner')
-        assertThat(step().locator('.lead')).containsText('You add its change tasks in the next step.')
+        assertThat(step().locator('.lead')).containsText('Two more steps then follow: you add its change tasks (CTASKs)')
         assertThat(step().locator('h3:text-is("Text sent to ProTech")')).isVisible()
         assertThat(taskRows()).hasCount(0)
         assertThat(step().locator('dso-change-summary h3')).hasText(['Request details', 'Jira', 'Schedule',
                                                                     'Approval and notification', 'Risk assessment',
-                                                                    'Privileged access', 'Secure coding', 'Planning'] as String[])
+                                                                    'Privileged access', 'Planning'] as String[])
         assertThat(review('Change number')).hasText('Given by ProTech when raised')
         assertThat(review('Approval')).hasText('Not Yet Requested')
         assertThat(review('Opened by')).hasText(SIGNED_IN_USER)
@@ -260,7 +257,6 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(review('Business impact')).hasText('High')
         assertThat(review('Jane Smith')).hasText('adm_jsmith')
         assertThat(review('Downtime')).hasText(~/, 18:00 to 19:30$/)
-        assertThat(review('Secure coding ticket number')).hasText('SEC-4711')
         assertThat(step().locator('.scope')).hasText('1 epic and 1 story of FixVersion CERT 4.2')
         with(reviewed()) {
             fixVersion == 'CERT 4.2'
@@ -284,20 +280,24 @@ class NewChangeSpec extends EditorSpecification {
             template.planning.backoutPlan == 'Redeploy CERT 4.1 from Nexus.'
             template.privilegedAccess == [required: true, users: [[user: 'Jane Smith', account: 'adm_jsmith']]]
             template.riskAssessment.businessImpact == 'High'
-            template.secureCodingTicket == 'SEC-4711'
+            template.secureCodingTicket == null
+            template.secureCoding == CERT_SECURE_CODING
             !containsKey('tasks')
         }
 
         when:
         input(texts(), 'Short description').fill('CertScanner 4.2 release')
-        button('Raise the change in ProTech', true).click()
+        button('Create and add CTASKs and SecureCoding ticket', true).click()
 
         then:
-        assertThat(currentStep()).hasText('Change tasks')
+        assertThat(currentStep()).hasText('Add CTASKs')
+        assertThat(page.locator('.step-bar .step-label')).hasText(STEPS.take(10) as String[])
+        assertThat(step().locator('.step-count')).hasText('Step 9 of 10')
         assertThat(step().locator('h2')).hasText('Change tasks of CHG0031002')
-        assertThat(step().locator('.raised-note')).hasText('CHG0031002 is raised in ProTech. Now add its change tasks to it.')
+        assertThat(step().locator('.raised-note')).hasText('CHG0031002 is created in ProTech. Now add its change tasks to it.')
         assertThat(stepButton('Review')).isDisabled()
         assertThat(button('Back', true)).hasCount(0)
+        assertThat(button('Add CTASKs later', true)).isVisible()
         assertThat(taskRows().locator('.kind')).hasText(['Release Management', 'Change task'] as String[])
         assertThat(taskRows().locator('.chip')).hasText(['Open', 'Open'] as String[])
         assertThat(taskRows().nth(0).locator('dso-label')).hasText(RELEASE_TASK_FIELDS as String[])
@@ -324,7 +324,8 @@ class NewChangeSpec extends EditorSpecification {
             shortDescription == 'CertScanner 4.2 release'
             !description.contains('Change tasks')
             schedule.downtimeEnd == "${RELEASE_DATE}T19:30:00.000Z"
-            template.secureCodingTicket == 'SEC-4711'
+            template.secureCodingTicket == null
+            template.secureCoding == CERT_SECURE_CODING
         }
 
         when:
@@ -336,16 +337,16 @@ class NewChangeSpec extends EditorSpecification {
         choose(taskRows().nth(2), 'Importance', '2 - High')
         input(taskRows().nth(2), 'Short description').fill('Run the database scripts')
         button('Remove change task 2', true).click()
-        button('Create the change tasks in ProTech', true).click()
+        button('Create the CTASKs in ProTech', true).click()
 
         then:
-        assertThat(currentStep()).hasText('Change tasks')
+        assertThat(currentStep()).hasText('Add CTASKs')
         assertThat(input(taskRows().nth(0), 'Application')).hasValue('OCP')
         assertThat(input(taskRows().nth(0), 'Application')).isDisabled()
         assertThat(errorOf(taskRows().nth(0), 'Task start')).hasText('At least a minute after the installation start')
         assertThat(taskRows().nth(1).locator('dso-label')).hasText(OTHER_TASK_FIELDS as String[])
         hasValues(taskRows().nth(1), ['Number': '', 'Change number': 'CHG0031002', 'Approval': 'Not Yet Requested', 'Affected CI': ''])
-        assertThat(hintOf(taskRows().nth(1), 'Affected CI')).hasText('If left empty: the Affected CI of the change')
+        assertThat(hintOf(taskRows().nth(1), 'Affected CI')).hasText('The application; if left empty: the Affected CI of the change')
         assertThat(errorOf(taskRows().nth(1), 'Description')).hasText('Required')
         assertThat(choiceError()).hasText('Check the change tasks')
         api.requests('POST', '/api/changes/5/tasks').isEmpty()
@@ -365,16 +366,19 @@ class NewChangeSpec extends EditorSpecification {
         when:
         input(taskRows().nth(0), 'Task start').fill("${RELEASE_DATE}T18:30")
         input(taskRows().nth(1), 'Description').fill('Run the Liquibase changesets of CertScanner.')
-        button('Create the change tasks in ProTech', true).click()
+        button('Create the CTASKs in ProTech', true).click()
 
         then:
-        assertThat(step().locator('h2')).hasText('CHG0031002 is raised')
-        assertThat(currentStep()).hasText('Raised')
-        assertThat(step().locator('.review-list li')).hasText(['CTASK0310021 · Deploy CertScanner to production · Release Management',
-                                                               'CTASK0310022 · Run the database scripts · Cloud Engineering'] as String[])
-        assertThat(step().locator('.next-steps')).containsText('Grace Turner, Olivia Bennett, William Hayes approve the change in ProTech')
-        assertThat(step().locator('.next-steps a')).hasText(['CHG0031002', 'Changes'] as String[])
-        assertThat(step().locator('.next-steps a').first()).hasAttribute('href', '/beadle/changes/5')
+        assertThat(currentStep()).hasText('Secure coding')
+        assertThat(step().locator('h2')).hasText('Secure coding ticket of CHG0031002')
+        assertThat(step().locator('.step-count')).hasText('Step 10 of 10')
+        hasValues(step(), ['APO number'               : CERT_SECURE_CODING.apoNumber, 'Implementation date': IMPLEMENTATION_DATE,
+                           'Bitbucket URL'            : CERT_SECURE_CODING.bitbucketUrl,
+                           'Artifact link'            : CERT_SECURE_CODING.artifactLink,
+                           'QC application link'      : CERT_SECURE_CODING.qcApplicationLink,
+                           'Ticket name in CyberTrack': "APO-31337_CertScanner-$IMPLEMENTATION_DATE".toString()])
+        assertThat(input(step(), 'Implementation date')).not().isEditable()
+        assertThat(button('Create the ticket later', true)).isVisible()
         with(awaitRequest('POST', '/api/changes/5/tasks').json()) {
             version == 0
             departmentId == 3
@@ -386,26 +390,66 @@ class NewChangeSpec extends EditorSpecification {
         }
 
         when:
+        input(step(), 'APO number').fill(' ')
+        button('Create the secure coding ticket in CyberTrack', true).click()
+
+        then:
+        assertThat(errorOf(step(), 'APO number')).hasText('Required')
+        assertThat(choiceError()).hasText('Some fields need your attention.')
+        assertThat(input(step(), 'Ticket name in CyberTrack')).hasValue("APO-ID_CertScanner-$IMPLEMENTATION_DATE".toString())
+        api.requests('POST', '/api/changes/5/secure-coding').isEmpty()
+
+        when:
+        input(step(), 'APO number').fill('APO-24680')
+        input(step(), 'QC application link').fill('https://certscanner-qc.bbh.com')
+        button('Create the secure coding ticket in CyberTrack', true).click()
+
+        then:
+        assertThat(step().locator('h2')).hasText('CHG0031002 is created')
+        assertThat(currentStep()).hasText('Summary')
+        assertThat(step().locator('.step-count')).hasText('Step 11 of 11')
+        hasValues(step(), ['Change number': 'CHG0031002', 'Secure coding ticket number': 'SCP-4201'])
+        assertThat(step().locator('.review-list li')).hasText(['CTASK0310021 · Deploy CertScanner to production · Release Management',
+                                                               'CTASK0310022 · Run the database scripts · Cloud Engineering'] as String[])
+        assertThat(step().locator('.next-steps')).containsText('Grace Turner, Olivia Bennett, William Hayes approve the change in ProTech')
+        assertThat(step().locator('.next-steps a')).hasText(['CHG0031002', 'Changes'] as String[])
+        assertThat(step().locator('.next-steps a').first()).hasAttribute('href', '/beadle/changes/5')
+        awaitRequest('POST', '/api/changes/5/secure-coding').json() == [version          : 1, departmentId: 3, apoNumber: 'APO-24680',
+                                                                        implementationDate: IMPLEMENTATION_DATE,
+                                                                        bitbucketUrl     : CERT_SECURE_CODING.bitbucketUrl,
+                                                                        artifactLink     : CERT_SECURE_CODING.artifactLink,
+                                                                        qcApplicationLink: 'https://certscanner-qc.bbh.com']
+
+        when:
         link('Open the change', true).click()
 
         then:
         page.waitForURL('**/beadle/changes/5')
         assertThat(page.locator('h1')).hasText('CHG0031002')
-        assertThat(page.locator('.tasks li strong')).hasText([CERT_TASKS[0].shortDescription, 'Run the database scripts'] as String[])
-        assertThat(page.locator('.tasks li').first()).containsText('CTASK0310021')
-        assertThat(page.locator('.tasks li').first()).containsText('Not done yet; approval not requested yet.')
-        assertThat(page.locator('.tasks .facts').first())
-                .hasText(~/^Release Management · starts .+, 18:30 · affected CI CertScanner · platform OpenShift · application OCP$/)
-        assertThat(page.locator('.tasks .facts').last())
-                .hasText('Cloud Engineering · assigned to Jane Smith · affected CI CertScanner · importance 2 - High')
+        assertThat(taskRows().locator('.kind')).hasText(['Release Management', 'Change task'] as String[])
+        assertThat(taskRows().locator('.task-head .muted')).hasText(['Not done yet; approval not requested yet.',
+                                                                    'Not done yet; approval not requested yet.'] as String[])
+        assertThat(taskRows().nth(0).locator('dso-label')).hasText(RELEASE_TASK_FIELDS as String[])
+        hasValues(taskRows().nth(0), ['Number'           : 'CTASK0310021', 'Change number': 'CHG0031002',
+                                      'Task start'       : "${RELEASE_DATE}T18:30".toString(), 'Affected CI': 'CertScanner',
+                                      'Application'      : 'OCP',
+                                      'Short description': CERT_TASKS[0].shortDescription])
+        assertThat(selected(taskRows().nth(0), 'Platform')).hasText('OpenShift')
+        assertThat(input(taskRows().nth(0), 'Packages')).isDisabled()
+        hasValues(taskRows().nth(1), ['Number'     : 'CTASK0310022', 'Assignment group': 'Cloud Engineering', 'Assigned to': 'Jane Smith',
+                                      'Affected CI': 'CertScanner'])
+        assertThat(selected(taskRows().nth(1), 'Importance')).hasText('2 - High')
+        assertThat(taskRows().locator('button')).hasCount(0)
+        assertThat(page.locator('.secure-coding-missing')).hasCount(0)
         assertThat(page.locator('dso-workflow-progress li[aria-current=step]')).containsText('Draft')
-        assertThat(page.locator('.note.sync')).hasText('Read from ProTech just now')
         assertThat(term(summary(), 'Change number')).hasText('CHG0031002')
         assertThat(term(summary(), 'Opened by')).hasText(SIGNED_IN_USER)
         assertThat(term(summary(), 'Risk')).hasText('High')
         assertThat(term(summary(), 'Jane Smith')).hasText('adm_jsmith')
         assertThat(term(summary(), 'FixVersion')).hasText('CERT 4.2')
         assertThat(term(summary(), 'Downtime')).hasText(~/, 18:00 to 19:30$/)
+        assertThat(term(summary(), 'Secure coding ticket number')).hasText('SCP-4201')
+        assertThat(term(summary(), 'APO number')).hasText('APO-24680')
         ownErrors().isEmpty()
     }
 
@@ -523,7 +567,7 @@ class NewChangeSpec extends EditorSpecification {
         api.respond('POST', '/api/changes', problem(400, 'Bad Request', '3 fields are invalid',
                 [errors: [[field: 'schedule.installationEnd', message: 'must be after the start'],
                           [field: 'template.planning.backoutPlan', message: 'must not mention Nexus'],
-                          [field: 'template.secureCodingTicket', message: 'is not a Jira issue']]]))
+                          [field: 'template.riskAssessment.businessImpact', message: 'is not one of the answers']]]))
 
         when:
         reviewCertScanner()
@@ -533,21 +577,21 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(review('Stories')).hasText('CERT-131')
 
         when:
-        button('Raise the change in ProTech', true).click()
+        button('Create and add CTASKs and SecureCoding ticket', true).click()
 
         then:
         assertThat(page.locator('.save-problem strong')).hasText('The change could not be raised: 3 fields are invalid')
         assertThat(page.locator('.save-problem li'))
                 .hasText(['Installation end: must be after the start', 'Backout plan: must not mention Nexus',
-                          'Secure coding ticket number: is not a Jira issue'] as String[])
+                          'Business impact: is not one of the answers'] as String[])
         assertThat(currentStep()).hasText('Review')
         api.requests('POST', '/api/changes/\\d+/tasks').isEmpty()
 
         when:
-        stepButton('Secure coding').click()
+        stepButton('Risk assessment').click()
 
         then:
-        assertThat(errorOf(step(), 'Secure coding ticket number')).hasText('is not a Jira issue')
+        assertThat(errorOf(step(), 'Business impact')).hasText('is not one of the answers')
 
         when:
         stepButton('Planning').click()
@@ -572,7 +616,7 @@ class NewChangeSpec extends EditorSpecification {
         ownErrors().findAll { !it.contains('400') }.isEmpty()
     }
 
-    def "change tasks ProTech refuses are marked on their fields, and the change gets them later on its own page"() {
+    def "change tasks ProTech refuses are marked on their fields, and the change gets them and its secure coding ticket later on its own page"() {
         given:
         api.respond('POST', '/api/changes/5/tasks', problem(400, 'Bad Request', '2 fields are invalid',
                 [errors: [[field: 'tasks[0].start', message: 'must be inside the installation window'],
@@ -580,48 +624,92 @@ class NewChangeSpec extends EditorSpecification {
 
         when:
         reviewCertScanner()
-        button('Raise the change in ProTech', true).click()
+        button('Create and add CTASKs and SecureCoding ticket', true).click()
 
         then:
         assertThat(step().locator('h2')).hasText('Change tasks of CHG0031002')
         assertThat(taskRows()).hasCount(2)
 
         when:
-        button('Create the change tasks in ProTech', true).click()
+        button('Create the CTASKs in ProTech', true).click()
 
         then:
         assertThat(page.locator('.save-problem strong')).hasText('The change tasks could not be created: 2 fields are invalid')
         assertThat(page.locator('.save-problem li'))
                 .hasText(['Change task 1: task start: must be inside the installation window',
                           'Change task 2: short description: is used twice'] as String[])
-        assertThat(currentStep()).hasText('Change tasks')
+        assertThat(currentStep()).hasText('Add CTASKs')
         assertThat(errorOf(taskRows().nth(0), 'Task start')).hasText('must be inside the installation window')
         assertThat(errorOf(taskRows().nth(1), 'Short description')).hasText('is used twice')
 
         when:
         button('Remove change task 2', true).click()
         button('Remove change task 1', true).click()
-        button('Create the change tasks in ProTech', true).click()
+        button('Create the CTASKs in ProTech', true).click()
 
         then:
-        assertThat(choiceError()).hasText('Add at least one change task, or choose Add change tasks later')
+        assertThat(choiceError()).hasText('Add at least one change task, or choose Add CTASKs later')
         assertThat(step().locator('.task-actions .muted')).hasText('0 change tasks')
         api.requests('POST', '/api/changes/5/tasks').size() == 1
 
         when:
-        button('Add change tasks later', true).click()
+        button('Add CTASKs later', true).click()
 
         then:
-        assertThat(step().locator('h2')).hasText('CHG0031002 is raised')
+        assertThat(currentStep()).hasText('Secure coding')
         assertThat(page.locator('.save-problem')).hasCount(0)
+
+        when:
+        button('Create the ticket later', true).click()
+
+        then:
+        assertThat(step().locator('h2')).hasText('CHG0031002 is created')
+        assertThat(input(step(), 'Secure coding ticket number')).hasValue('')
+        assertThat(input(step(), 'Secure coding ticket number')).hasAttribute('placeholder', 'Not created yet: create it on the change page')
         assertThat(step().locator('.review-list li')).hasText(['None yet. Add them with Edit the change on its page.'] as String[])
+        api.requests('POST', '/api/changes/5/secure-coding').isEmpty()
 
         when:
         link('Open the change', true).click()
         page.waitForURL('**/beadle/changes/5')
 
         then:
-        assertThat(page.locator('.tasks li')).hasText(['No change tasks yet. Add them with Edit the change.'] as String[])
+        assertThat(page.locator('.none')).hasText('No change tasks yet. Add them with Edit the change.')
+        assertThat(page.locator('.secure-coding-missing span').first())
+                .hasText('CHG0031002 has no secure coding ticket yet. Create it in CyberTrack, the Jira project SCP.')
+
+        when:
+        link('Create the secure coding ticket', true).click()
+        page.waitForURL('**/beadle/changes/5/secure-coding')
+
+        then:
+        assertThat(page.locator('h1')).hasText('Secure coding ticket of CHG0031002')
+        hasValues(page.locator('dso-secure-coding-form'), ['APO number'               : CERT_SECURE_CODING.apoNumber,
+                                                           'Implementation date'      : IMPLEMENTATION_DATE,
+                                                           'Ticket name in CyberTrack': "APO-31337_CertScanner-$IMPLEMENTATION_DATE".toString()])
+
+        when:
+        input(page.locator('dso-secure-coding-form'), 'Artifact link').fill('nexus.bbh.com/cert-4.2.jar')
+        button('Create the secure coding ticket in CyberTrack', true).click()
+
+        then:
+        assertThat(errorOf(page.locator('dso-secure-coding-form'), 'Artifact link')).hasText(
+                'An http or https URL without spaces, double quotes, backslashes, $ or backticks')
+        api.requests('POST', '/api/changes/5/secure-coding').isEmpty()
+
+        when:
+        input(page.locator('dso-secure-coding-form'), 'Artifact link').fill('https://nexus.bbh.com/cert-4.2.jar')
+        button('Create the secure coding ticket in CyberTrack', true).click()
+        page.waitForURL('**/beadle/changes/5')
+
+        then:
+        assertThat(term(summary(), 'Secure coding ticket number')).hasText('SCP-4201')
+        assertThat(page.locator('.secure-coding-missing')).hasCount(0)
+        with(awaitRequest('POST', '/api/changes/5/secure-coding').json()) {
+            version == 0
+            apoNumber == CERT_SECURE_CODING.apoNumber
+            artifactLink == 'https://nexus.bbh.com/cert-4.2.jar'
+        }
 
         when:
         link('Edit the change', true).click()
@@ -641,11 +729,12 @@ class NewChangeSpec extends EditorSpecification {
         page.waitForURL('**/beadle/changes/5')
 
         then:
-        assertThat(page.locator('.tasks li').first()).containsText('not in ProTech yet')
+        assertThat(input(taskRows().first(), 'Number')).hasValue('')
+        assertThat(input(taskRows().first(), 'Number')).isDisabled()
         awaitRequest('PUT', '/api/changes/5').json().tasks == [[number : null, start: "${RELEASE_DATE}T18:01:00.000Z".toString(),
                                                                  details: CERT_TASKS[0] + [application: null]]]
         awaitRequest('GET', '/api/changes/5', reads + 1)
-        assertThat(page.locator('.tasks li').first()).containsText('CTASK0320001')
+        assertThat(input(taskRows().first(), 'Number')).hasValue('CTASK0320001')
         ownErrors().findAll { !it.contains('400') }.isEmpty()
     }
 

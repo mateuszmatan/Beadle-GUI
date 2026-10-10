@@ -23,10 +23,11 @@ describe('ChangeTasksForm', () => {
     [...row.querySelectorAll('dso-label')].map((label) => text(label));
   const window = () => taskWindow('CHG0012345', changeSchedule());
 
-  async function render(form: TasksForm) {
+  async function render(form: TasksForm, readonly = false) {
     tasks = form;
     fixture = TestBed.createComponent(ChangeTasksForm);
     fixture.componentRef.setInput('tasks', tasks);
+    fixture.componentRef.setInput('readonly', readonly);
     fixture.detectChanges();
     http.match('/api/changes/options').forEach((request) => request.flush(changeOptions()));
     fixture.detectChanges();
@@ -61,14 +62,35 @@ describe('ChangeTasksForm', () => {
       'Description',
       'Additional comments',
     ]);
-    expect(taskFields(false, false).map((field) => field.label)).toEqual([
+    expect(taskFields(false, true).map((field) => field.label)).toEqual([
+      'Number',
+      'Change number',
       'Assignment group',
       'Assigned to',
       'Importance',
       'Affected CI',
+      'Approval',
+      'Installation start',
+      'Installation end',
       'Short description',
       'Description',
       'Additional comments',
+    ]);
+    expect(
+      taskFields(true, true)
+        .filter((field) => field.kind === 'area')
+        .map((field) => field.span),
+    ).toEqual([12, 12, 12, 12, 12]);
+    expect(
+      taskFields(true, false)
+        .filter((field) => field.placeholder)
+        .map((field) => [field.label, field.type, field.placeholder]),
+    ).toEqual([
+      ['Number', undefined, 'Given by ProTech when created'],
+      ['Change number', 'text', 'The CHG number of the change'],
+      ['Installation start', 'text', 'From the change'],
+      ['Installation end', 'text', 'From the change'],
+      ['Task start', 'text', 'A minute after the installation start'],
     ]);
     expect(TASK_LABELS['assignmentGroup']).toBe('assignment group');
     expect(TASK_LABELS['start']).toBe('task start');
@@ -108,8 +130,10 @@ describe('ChangeTasksForm', () => {
     await render(tasksForm(drafts([taskDetails('Deploy it', 'Deploy the release.')])));
 
     expect(rows()).toHaveLength(1);
-    expect(labels(rows()[0])).not.toContain('Number');
+    expect(labels(rows()[0])).toContain('Number');
     expect(labels(rows()[0])).not.toContain('Task start');
+    expect(inputOf(rows()[0], 'Change number').placeholder).toBe('The CHG number of the change');
+    expect(inputOf(rows()[0], 'Installation start').disabled).toBe(true);
     expect(buttonOf(page(), 'Remove change task 1').disabled).toBe(true);
     expect(text(page().querySelector('.task-actions .muted'))).toBe('1 change task');
 
@@ -119,6 +143,8 @@ describe('ChangeTasksForm', () => {
     fixture.detectChanges();
     expect(text(rows()[0].querySelector('.kind'))).toBe('Release Management');
     expect(labels(rows()[0])).toContain('Packages');
+    expect(inputOf(rows()[0], 'Task start').placeholder).toBe('A minute after the installation start');
+    expect(inputOf(rows()[0], 'Task start').disabled).toBe(true);
 
     buttonOf(page(), 'Add a change task').click();
     fixture.detectChanges();
@@ -146,6 +172,38 @@ describe('ChangeTasksForm', () => {
     expect(rows()[0].classList).toContain('closed');
     expect(buttonOf(page(), 'Remove change task 1').disabled).toBe(true);
     expect(inputOf(rows()[0], 'Short description').disabled).toBe(true);
+  });
+
+  it('shows every field of every task read-only with where it stands and no way to change it', async () => {
+    const form = tasksForm(
+      [
+        changeTask({
+          details: releaseDetails('Deploy it'),
+          start: '2026-10-10T06:01:00Z',
+          approval: 'Requested',
+        }),
+        changeTask({ number: 'CTASK0020002', state: 'CANCELED' }),
+      ],
+      window(),
+    );
+    form.disable();
+    await render(form, true);
+
+    expect(rows().map((row) => text(row.querySelector('.task-head')))).toEqual([
+      '1Release ManagementOpenNot done yet; waiting for approval.',
+      '2Change taskCanceledCanceled; no longer part of the change.',
+    ]);
+    expect(rows()[1].classList).toContain('canceled');
+    expect(labels(rows()[0])).toEqual(taskFields(true, true).map((field) => field.label));
+    expect(labels(rows()[1])).toEqual(taskFields(false, true).map((field) => field.label));
+    expect(inputOf(rows()[0], 'Change number').value).toBe('CHG0012345');
+    expect(inputOf(rows()[0], 'Short description').value).toBe('Deploy it');
+    expect(inputOf(rows()[1], 'Number').value).toBe('CTASK0020002');
+    expect([...page().querySelectorAll('input, textarea, select')].every((field) =>
+      (field as HTMLInputElement).disabled,
+    )).toBe(true);
+    expect(page().querySelector('.lookup')).toBeNull();
+    expect(page().querySelector('button')).toBeNull();
   });
 
   it('asks for at least one template task', async () => {

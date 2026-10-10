@@ -157,7 +157,12 @@ class DemoChangeProfilesSpec extends Specification {
             assert CLIENTS.containsAll(named) && named.toSet().size() == named.size()
             assert template.directBusinessService() == 'Fund Accounting'
             assert template.usersAffected().contains(code)
-            assert template.secureCodingTicket() ==~ /APPSEC-\d{4}/
+            assert template.secureCodingTicket() == null
+            assert template.secureCoding().apoNumber() ==~ /APO-\d{5}/
+            assert template.secureCoding().bitbucketUrl() ==
+                    "https://bitbucket.bbh.com/projects/$code/repos/${code.toLowerCase()}"
+            assert template.secureCoding().artifactLink().startsWith("https://jenkins.bbh.com/job/$code/")
+            assert template.secureCoding().qcApplicationLink() == "https://${code.toLowerCase()}.qc.bbh.com"
             assert template.privilegedAccess().required() == (code == PRIVILEGED_PRODUCT)
             true
         }

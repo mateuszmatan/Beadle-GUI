@@ -36,7 +36,8 @@ public record ChangeTemplateEmbeddable(
         PlanningEmbeddable planning,
         PrivilegedAccessEmbeddable privilegedAccess,
         @EmbeddedColumnNaming("RISK_%s") RiskAssessmentEmbeddable riskAssessment,
-        String secureCodingTicket) {
+        String secureCodingTicket,
+        SecureCodingEmbeddable secureCoding) {
 
     static ChangeTemplateEmbeddable of(ChangeTemplate template) {
         return map(template, ChangeTemplateEmbeddable.class);
@@ -76,6 +77,11 @@ public record ChangeTemplateEmbeddable(
     @Embeddable
     public record PrivilegedUserEmbeddable(@Column(name = "USER_NAME") String user,
                                            @Column(name = "ACCOUNT_NAME") String account) {
+    }
+
+    @Embeddable
+    public record SecureCodingEmbeddable(String apoNumber, String bitbucketUrl, String artifactLink,
+                                         String qcApplicationLink) {
     }
 
     @Embeddable

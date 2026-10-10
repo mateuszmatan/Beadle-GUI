@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.regression
 
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.scheduleJson
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.secureCodingJson
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasksJson
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.templateJson
 
@@ -107,8 +108,9 @@ class BeadleWizardRegressionSpec extends ChangeRegressionSpecification {
         def created = createProduct(product(code: uniqueCode(), name: "Wizard ${uniqueCode()}"))
         def template = templateJson(requestedFor: ' Ann Lee ', requestedBy: 'Jane Smith', department: 'Custody',
                 assignedTo: 'Grace Turner', directBusinessService: 'Custody Platform', usersAffected: 'Custody users',
-                secureCodingTicket: ' APPSEC-1234 ', type: 'BUSINESS_CRITICAL', category: 'Database', risk: 'Low',
-                'riskAssessment.backoutTesting': 'Unable to test')
+                secureCodingTicket: ' SCP-1234 ', type: 'BUSINESS_CRITICAL', category: 'Database', risk: 'Low',
+                'riskAssessment.backoutTesting': 'Unable to test', 'secureCoding.apoNumber': ' APO-12345 ',
+                'secureCoding.bitbucketUrl': 'https://bitbucket.bbh.com/projects/WIZ/repos/wiz')
 
         when:
         def saved = api.put("/api/products/$created.id/change-profile", [template: template, tasks: tasksJson()])
@@ -117,7 +119,8 @@ class BeadleWizardRegressionSpec extends ChangeRegressionSpecification {
 
         then:
         saved.status == 200
-        saved.json.template == template + [requestedFor: 'Ann Lee', secureCodingTicket: 'APPSEC-1234', risk: 'High']
+        saved.json.template == template + [requestedFor: 'Ann Lee', secureCodingTicket: 'SCP-1234', risk: 'High',
+                                           secureCoding: template.secureCoding + [apoNumber: 'APO-12345']]
         unassessed.json.template.risk == 'Low'
         unassessed.json.template.riskAssessment == [bbhWorkgroups: 'Single', changeComplexity: 'Simple',
                 bbhUsers: 'Less than 5', validationComplexity: 'Simple', bbhApplications: 'Single',
@@ -133,8 +136,8 @@ class BeadleWizardRegressionSpec extends ChangeRegressionSpecification {
         def epic = api.get("/api/products/$created.id/jira/epics?fixVersion=${enc(fixVersion)}&project=$key")
                 .json[0].key
         def template = templateJson(jiraProjectKey: key, downtime: true, requestedBy: 'Olivia Bennett',
-                usersAffected: 'Custody operators during the window', secureCodingTicket: 'APPSEC-4321',
-                'riskAssessment.bbhUsers': 'All users')
+                usersAffected: 'Custody operators during the window', secureCodingTicket: 'SCP-4321',
+                secureCoding: secureCodingJson(), 'riskAssessment.bbhUsers': 'All users')
         def schedule = scheduleJson(START, true)
 
         when:
@@ -153,7 +156,9 @@ class BeadleWizardRegressionSpec extends ChangeRegressionSpecification {
         raised.json.description.contains('\n\nRisk: High\n')
         raised.json.description.contains('Number of BBH users impacted: All users')
         raised.json.description.contains('\n\nUsers affected:\nCustody operators during the window')
-        raised.json.description.contains('\n\nSecure coding ticket: APPSEC-4321')
+        raised.json.template.secureCodingTicket == null
+        raised.json.template.secureCoding == secureCodingJson()
+        !raised.json.description.contains('Secure coding ticket')
         raised.json.tasks == []
 
         when:
@@ -170,5 +175,49 @@ class BeadleWizardRegressionSpec extends ChangeRegressionSpecification {
         updated.json.tasks == []
         updated.json.openedBy == SIGNED_IN
         api.get("/api/changes/$raised.json.id").json.template.usersAffected == 'Nobody'
+    }
+
+    def "a secure coding ticket is created in CyberTrack for a raised change, sent to ProTech and shown on the change"() {
+        given:
+        def raised = raise(createProduct(product(code: uniqueCode(), name: "Secure ${uniqueCode()}")), [])
+        def inputs = secureCodingJson() + [apoNumber: ' APO-24680 ']
+
+        when:
+        def incomplete = api.post("/api/changes/$raised.id/secure-coding", ticketOf(raised, [apoNumber: ' ',
+                implementationDate: '2026-10-15', bitbucketUrl: null, qcApplicationLink: 'cert.qc.bbh.com']))
+        def foreign = api.post("/api/changes/$raised.id/secure-coding", ticketOf(raised, [departmentId: 4]))
+        def unversioned = api.post("/api/changes/$raised.id/secure-coding", ticketOf(raised, [version: null]))
+
+        then:
+        incomplete.status == 400
+        incomplete.json.errors.collect { [it.field, it.message] } == [['apoNumber', 'is required'],
+                ['bitbucketUrl', 'is required'], ['qcApplicationLink', 'must be a link starting with https:// or http://'],
+                ['implementationDate', 'must be a date written MMDDYYYY, such as 10152026']]
+        foreign.status == 403
+        unversioned.status == 400
+        api.post('/api/changes/99999/secure-coding', ticketOf(raised, [:])).status == 404
+
+        when:
+        def ticketed = api.post("/api/changes/$raised.id/secure-coding", ticketOf(raised, inputs))
+
+        then:
+        ticketed.status == 200
+        ticketed.json.template.secureCodingTicket ==~ /SCP-\d{4}/
+        ticketed.json.template.secureCoding == secureCodingJson(apoNumber: 'APO-24680')
+        ticketed.json.template.findAll { !(it.key in ['secureCodingTicket', 'secureCoding']) } ==
+                raised.template.findAll { !(it.key in ['secureCodingTicket', 'secureCoding']) }
+        ticketed.json.update.status in ['PENDING', 'APPLIED']
+        api.get("/api/changes/$raised.id").json.template.secureCodingTicket == ticketed.json.template.secureCodingTicket
+
+        when:
+        def again = api.post("/api/changes/$raised.id/secure-coding", ticketOf(ticketed.json as Map, inputs))
+
+        then:
+        again.status == 409
+    }
+
+    private static Map ticketOf(Map change, Map edits) {
+        [version: change.version, departmentId: change.departmentId, implementationDate: '10152026'] +
+                secureCodingJson() + edits
     }
 }

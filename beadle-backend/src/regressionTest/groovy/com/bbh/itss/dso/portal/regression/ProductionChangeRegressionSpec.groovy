@@ -28,7 +28,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
                                                'configurationItem', 'incident', 'directBusinessService', 'problem',
                                                'risk', 'affectedClients', 'usersAffected', 'approvers',
                                                'downtime', 'timing', 'planning', 'privilegedAccess', 'riskAssessment',
-                                               'secureCodingTicket']
+                                               'secureCodingTicket', 'secureCoding']
     static final List<String> SCHEDULE_PATHS = ['schedule.installationStart', 'schedule.installationEnd',
                                                 'schedule.validationStart', 'schedule.validationEnd',
                                                 'schedule.firstUsage']
@@ -57,7 +57,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         suggested.json.template.keySet() as List == TEMPLATE_KEYS
         suggested.json.template.subMap('requestedFor', 'department', 'configurationItem', 'assignmentGroup',
                 'category', 'type', 'release', 'risk', 'approvers', 'downtime', 'timing',
-                'privilegedAccess', 'riskAssessment', 'secureCodingTicket') ==
+                'privilegedAccess', 'riskAssessment', 'secureCodingTicket', 'secureCoding') ==
                 [requestedFor: null, department: null, configurationItem: created.name, assignmentGroup: 'Ledger Ops',
                  category: 'Application', type: 'STANDARD', release: null, risk: 'Low',
                  approvers: [l1Manager: null, l2Manager: null, businessApprover: null],
@@ -67,7 +67,8 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
                                   validationComplexity: 'Simple', bbhApplications: 'Single',
                                   backoutTesting: 'Less than 30 minutes', clientsOutsideBbh: 'No clients',
                                   platformStatus: 'Existing', businessImpact: 'None'],
-                 secureCodingTicket: null]
+                 secureCodingTicket: null,
+                 secureCoding: [apoNumber: null, bitbucketUrl: null, artifactLink: null, qcApplicationLink: null]]
         suggested.json.template.planning.keySet() as List ==
                 ['testSummary', 'implementationPlan', 'validationPlan', 'backoutPlan', 'firstUsePlan']
         suggested.json.tasks == suggestedTasks(created.name as String, 'Ledger Ops').collect { detailsJson(it) }
@@ -814,7 +815,8 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         api.get('/api/changes/99999').status == 404
         api.put('/api/changes/99999', editOf(raised, [:])).status == 404
         api.post('/api/changes/99999/tasks', tasksOf(raised, changeTasksJson(1))).status == 404
-        api.get('/api/changes/integrations').json == [jiraConnected: false, serviceNowConnected: false]
+        api.get('/api/changes/integrations').json == [jiraConnected: false, serviceNowConnected: false,
+                                                      cyberTrackConnected: false]
     }
 
     private String adopt(long id, Instant raisedAt, Instant installationStart, Instant validationEnd) {
