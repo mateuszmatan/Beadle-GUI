@@ -1,6 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.in.startup;
 
-import com.bbh.itss.dso.portal.application.catalog.port.in.ProductSummaryView;
+import com.bbh.itss.dso.portal.application.catalog.port.in.ProductView;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileView;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfilesUseCase;
@@ -77,7 +77,7 @@ public class DemoChangeProfiles {
     @Order(1)
     public void fillIn() {
         int filled = 0;
-        for (ProductSummaryView product : products.list(null)) {
+        for (ProductView product : products.list(null)) {
             ChangeProfileView profile = profiles.get(product.id());
             if (profile.version() == null) {
                 ChangeTemplate defaults = defaultsFor(product, profile.template());
@@ -92,7 +92,7 @@ public class DemoChangeProfiles {
         log.info("Filled in the demo ProTech change template of {} product(s)", filled);
     }
 
-    static List<TaskDetails> tasksFor(ProductSummaryView product, ChangeTemplate defaults) {
+    static List<TaskDetails> tasksFor(ProductView product, ChangeTemplate defaults) {
         List<TaskDetails> tasks = new ArrayList<>(suggestedTasks(product.name(), defaults.assignmentGroup()));
         if (LOW.equals(defaults.risk())) {
             return tasks;
@@ -106,7 +106,7 @@ public class DemoChangeProfiles {
         return tasks;
     }
 
-    ChangeTemplate defaultsFor(ProductSummaryView product, ChangeTemplate suggested) {
+    ChangeTemplate defaultsFor(ProductView product, ChangeTemplate suggested) {
         Random random = new Random(product.code().hashCode());
         int level = random.nextInt(IMPACTS.size());
         List<String> managers = random.ints(0, MANAGERS.size()).distinct().limit(2).mapToObj(MANAGERS::get).toList();

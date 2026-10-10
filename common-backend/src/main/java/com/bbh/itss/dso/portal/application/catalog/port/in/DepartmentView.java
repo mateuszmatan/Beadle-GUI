@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.application.catalog.port.in;
 
-public record DepartmentView(long id, String name, long version, long productCount, long serviceCount,
-                             long pipelineCount, long activePipelineCount, long changeCount) {
+import com.bbh.itss.dso.portal.domain.catalog.DepartmentUsage;
+
+public record DepartmentView(long id, String name, long version, DepartmentUsage usage) {
 }

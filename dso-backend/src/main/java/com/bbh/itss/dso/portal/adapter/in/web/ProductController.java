@@ -1,7 +1,5 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
-import com.bbh.itss.dso.portal.application.catalog.port.in.ProductDetailsCommand;
-import com.bbh.itss.dso.portal.application.catalog.port.in.ProductDetailsView;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductSummaryView;
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase;
 import com.bbh.itss.dso.portal.domain.pipeline.PipelineType;
@@ -21,7 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-import static com.bbh.itss.dso.portal.adapter.RecordMapper.map;
 import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.ResponseEntity.created;
 import static org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentRequestUri;
@@ -65,25 +62,5 @@ public class ProductController {
     @ResponseStatus(NO_CONTENT)
     public void delete(@PathVariable long id) {
         products.delete(id);
-    }
-
-    @GetMapping("/{id}/details")
-    public ProductDetailsView details(@PathVariable long id) {
-        return products.details(id);
-    }
-
-    @PutMapping("/{id}/details")
-    public ProductDetailsView updateDetails(@PathVariable long id,
-                                            @Valid @RequestBody ProductDetailsRequest request) {
-        return products.updateDetails(id, map(request, ProductDetailsCommand.class));
-    }
-
-    @DeleteMapping("/{id}/details")
-    @ResponseStatus(NO_CONTENT)
-    public void deleteWithoutServices(@PathVariable long id) {
-        products.deleteWithoutServices(id);
-    }
-
-    public record CodeSuggestion(String code) {
     }
 }

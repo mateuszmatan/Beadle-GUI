@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.adapter.in.web;
 
-import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentView;
 import com.bbh.itss.dso.portal.application.catalog.port.in.DepartmentsUseCase;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,19 +28,19 @@ public class DepartmentController {
     private final DepartmentsUseCase departments;
 
     @GetMapping
-    public List<DepartmentView> list() {
-        return departments.list();
+    public List<DepartmentResponse> list() {
+        return departments.list().stream().map(DepartmentResponse::of).toList();
     }
 
     @PostMapping
-    public ResponseEntity<DepartmentView> create(@Valid @RequestBody DepartmentRequest request) {
-        DepartmentView created = departments.create(request.name());
+    public ResponseEntity<DepartmentResponse> create(@Valid @RequestBody DepartmentRequest request) {
+        DepartmentResponse created = DepartmentResponse.of(departments.create(request.name()));
         return created(fromCurrentRequestUri().path("/{id}").buildAndExpand(created.id()).toUri()).body(created);
     }
 
     @PutMapping("/{id}")
-    public DepartmentView rename(@PathVariable long id, @Valid @RequestBody DepartmentRequest request) {
-        return departments.rename(id, request.version(), request.name());
+    public DepartmentResponse rename(@PathVariable long id, @Valid @RequestBody DepartmentRequest request) {
+        return DepartmentResponse.of(departments.rename(id, request.version(), request.name()));
     }
 
     @DeleteMapping("/{id}")

@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - include:
+      file: history.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: oracle/026-dso-tables-only.sql
+      relativeToChangelogFile: true

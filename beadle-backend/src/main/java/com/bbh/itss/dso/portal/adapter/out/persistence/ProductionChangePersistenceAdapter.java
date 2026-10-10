@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
-import com.bbh.itss.dso.portal.application.catalog.port.out.ChangeCountsPort;
 import com.bbh.itss.dso.portal.application.change.port.out.ProductionChangeRepositoryPort;
 import com.bbh.itss.dso.portal.domain.change.ProductionChange;
 import lombok.RequiredArgsConstructor;
@@ -12,18 +11,16 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static com.bbh.itss.dso.portal.adapter.out.persistence.AuditedEntity.current;
-import static com.bbh.itss.dso.portal.adapter.out.persistence.Counts.perId;
 import static com.bbh.itss.dso.portal.domain.shared.Failures.staleVersion;
 import static org.springframework.data.domain.Sort.Direction.DESC;
 
 @Component
 @Transactional
 @RequiredArgsConstructor
-class ProductionChangePersistenceAdapter implements ProductionChangeRepositoryPort, ChangeCountsPort {
+class ProductionChangePersistenceAdapter implements ProductionChangeRepositoryPort {
 
     private final ProductionChangeJpaRepository changes;
 
@@ -60,10 +57,5 @@ class ProductionChangePersistenceAdapter implements ProductionChangeRepositoryPo
     @Override
     public void synced(Collection<Long> ids, Instant syncedAt) {
         changes.recordSync(ids, syncedAt);
-    }
-
-    @Override
-    public Map<Long, Long> changesPerDepartment() {
-        return perId(changes.countByDepartment());
     }
 }

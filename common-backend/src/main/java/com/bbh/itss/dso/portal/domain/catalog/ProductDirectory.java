@@ -11,5 +11,9 @@ public interface ProductDirectory {
     boolean departmentExists(long id);
 
     record ProductIdentity(long id, String name) {
+
+        boolean isProduct(Long productId) {
+            return productId != null && productId == id;
+        }
     }
 }
