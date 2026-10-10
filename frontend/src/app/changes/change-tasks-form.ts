@@ -135,7 +135,7 @@ export const TASK_LABELS: Record<string, string> = Object.fromEntries(
             <span class="kind">{{
               isReleaseTask(task) ? 'Release Management' : 'Change task'
             }}</span>
-            @if (inChange()) {
+            @if (inChange() && task.controls.number.value) {
               <span class="chip neutral">{{ stateLabel(task.controls.state.value) }}</span>
             }
             @if (readonly()) {
@@ -246,7 +246,7 @@ export class ChangeTasksForm {
     const readonly = this.readonly();
     const of = (release: boolean) =>
       taskFields(release, inChange, options?.platforms, options?.importances).map((field) =>
-        readonly ? { ...field, lookup: undefined } : field,
+        readonly ? { ...field, lookup: undefined, hint: undefined } : field,
       );
     return { release: of(true), other: of(false) };
   });
@@ -262,7 +262,7 @@ export class ChangeTasksForm {
   }
 
   protected status(task: TaskForm): string {
-    return taskStatus(task.getRawValue());
+    return task.controls.number.value ? taskStatus(task.getRawValue()) : 'Not in ProTech yet.';
   }
 
   protected add(): void {
