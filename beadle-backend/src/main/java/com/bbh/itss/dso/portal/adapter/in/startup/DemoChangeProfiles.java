@@ -140,7 +140,7 @@ public class DemoChangeProfiles {
                 .secureCoding(secureCodingOf(product, random)).build();
     }
 
-    private static SecureCoding secureCodingOf(ProductSummaryView product, Random random) {
+    private static SecureCoding secureCodingOf(ProductView product, Random random) {
         String code = product.code().toLowerCase(ROOT);
         return new SecureCoding("APO-" + (10_000 + random.nextInt(90_000)),
                 "https://bitbucket.bbh.com/projects/" + product.code() + "/repos/" + code,
