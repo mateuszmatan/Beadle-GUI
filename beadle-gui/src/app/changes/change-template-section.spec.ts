@@ -62,7 +62,7 @@ describe('ChangeTemplateSection', () => {
       {
         facts: [
           { label: 'Change number', value: null, placeholder: 'Given by ProTech when raised' },
-          { label: 'Approval', value: 'Not Yet Requested' },
+          { label: 'Approval', value: 'Not Approved' },
         ],
       },
     );
@@ -88,7 +88,7 @@ describe('ChangeTemplateSection', () => {
     ]);
     expect(inputOf(page(), 'Change number').placeholder).toBe('Given by ProTech when raised');
     expect(inputOf(page(), 'Approval').readOnly).toBe(true);
-    expect(inputOf(page(), 'Approval').value).toBe('Not Yet Requested');
+    expect(inputOf(page(), 'Approval').value).toBe('Not Approved');
     expect(inputOf(page(), 'Requested for').value).toBe('Grace Turner');
     expect(inputOf(page(), 'Direct business service').readOnly).toBe(true);
     expect(selected('Category')).toBe('Application');
@@ -212,9 +212,15 @@ describe('ChangeTemplateSection', () => {
 
   it('stacks the approvers, the Jira project and the secure coding ticket', async () => {
     await render('approvals');
-    expect(labels()).toEqual(['Business approver', 'L1 approver', 'L2 approver']);
+    expect(labels()).toEqual([
+      'Business approver',
+      'L1 approver',
+      'L2 approver',
+      'Support approver',
+    ]);
     expect(page().querySelector('.form-fields')?.classList).toContain('stacked');
     expect(inputOf(page(), 'L1 approver').value).toBe('Olivia Bennett');
+    expect(inputOf(page(), 'Support approver').value).toBe('Jane Smith');
 
     fixture.componentRef.setInput('section', 'jira');
     await settle();

@@ -31,6 +31,7 @@ class ChangeTemplateAdminSpec extends BeadleSpecification {
                                'Affected CI'       : 'CertScanner', 'Direct business service': 'Certificate Management',
                                'Risk'              : 'Moderate', 'Jira project': 'CERT', 'Business approver': 'Grace Turner',
                                'L1 approver'       : 'Olivia Bennett', 'L2 approver': 'James Carter',
+                               'Support approver'  : 'Jane Smith',
                                'Installation start': '18:00', 'Installation hours': '2', 'Validation hours': '1'])
         assertThat(hintOf(defaults(), 'Requested for')).hasText('If left empty: the user who opens the change')
         assertThat(hintOf(defaults(), 'Assigned to')).hasText('If left empty: the user who opens the change')

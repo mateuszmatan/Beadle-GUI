@@ -837,9 +837,10 @@ class ProductionChangeServiceSpec extends Specification {
         updated.update().status() == APPLIED
     }
 
-    def "the tasks of a raised change are created in ProTech one by one against its number and stored with theirs"() {
+    def "the tasks of a raised change are created in ProTech one by one against its number, stored with theirs and read back with their approvers"() {
         given:
         def stored = raised(tasks: [])
+        ProductionChange recorded
 
         when:
         def change = service.createTasks(7L, created())
@@ -858,13 +859,41 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.save({ ProductionChange it -> it.tasks()*.number() == ['CTASK0050001', 'CTASK0050002'] }) >>
-                { ProductionChange saved -> saved.toBuilder().version(1L).build() }
+                { ProductionChange saved -> recorded = saved.toBuilder().version(1L).build() }
+
+        then:
+        1 * serviceNow.read({ it*.version() == [1L] }) >> { [CHG0031001: recorded.toBuilder().tasks(
+                recorded.tasks().collect { it.withApproval(NOT_APPROVED, ['Rebecca Lawson', 'Thomas Ashby']) })
+                .build()] }
+        1 * changes.save({ ProductionChange it -> it.tasks()*.approvers().every { it == ['Rebecca Lawson', 'Thomas Ashby'] } }) >>
+                { ProductionChange saved -> saved.toBuilder().version(2L).build() }
         0 * changes._
         0 * serviceNow._
         change.tasks()*.number() == ['CTASK0050001', 'CTASK0050002']
         change.tasks()[0].start() == Instant.parse('2026-10-10T06:01:00Z')
         change.tasks()*.approval() == [NOT_APPROVED] * 2
+        change.tasks()*.approvers() == [['Rebecca Lawson', 'Thomas Ashby']] * 2
+        change.version() == 2L
+    }
+
+    def "change tasks ProTech created are stored even when it cannot be read back just then"() {
+        given:
+        changes.load(7L) >> Optional.of(raised(tasks: []))
+
+        when:
+        def change = service.createTasks(7L, created())
+
+        then:
+        1 * serviceNow.read(_) >> [CHG0031001: raised(tasks: [])]
+        2 * serviceNow.createTask('CHG0031001', _) >>> ['CTASK0050001', 'CTASK0050002']
+        1 * changes.save(_) >> { ProductionChange saved -> saved.toBuilder().version(1L).build() }
+
+        then:
+        1 * serviceNow.read(_) >> { throw new UncheckedIOException('Read timed out', new IOException()) }
+        0 * changes.save(_)
+        change.tasks()*.number() == ['CTASK0050001', 'CTASK0050002']
         change.version() == 1L
+        change.syncProblem() == 'ProTech could not be reached: Read timed out.'
     }
 
     def "change tasks are not created when #problem"() {

@@ -59,7 +59,8 @@ describe('change tasks model', () => {
     expect(release.getRawValue()).toMatchObject({
       number: null,
       changeNumber: 'CHG0012345',
-      approval: 'Not Yet Requested',
+      approval: 'Not Approved',
+      approvers: '',
       installationStart: local('2026-10-10T06:00:00Z'),
       installationEnd: local('2026-10-10T08:00:00Z'),
       start: local('2026-10-10T06:01:00Z'),
@@ -271,18 +272,20 @@ describe('change tasks model', () => {
   });
 
   it('says in plain words where a task stands and its approval', () => {
-    expect(taskStatus(changeTask())).toBe('Not done yet; approval not requested yet.');
-    expect(taskStatus(changeTask({ approval: 'Requested' }))).toBe(
-      'Not done yet; waiting for approval.',
+    expect(taskStatus({ state: 'OPEN', approval: 'Not Approved' })).toBe(
+      'Not done yet; not approved yet.',
     );
-    expect(taskStatus(changeTask({ state: 'WORK_IN_PROGRESS', approval: 'Approved' }))).toBe(
+    expect(taskStatus({ state: 'OPEN', approval: 'Requested' })).toBe(
+      'Not done yet; approval requested.',
+    );
+    expect(taskStatus({ state: 'WORK_IN_PROGRESS', approval: 'Approved' })).toBe(
       'Being carried out; approved.',
     );
-    expect(taskStatus(changeTask({ approval: 'Escalated' }))).toBe(
+    expect(taskStatus({ state: 'OPEN', approval: 'Escalated' })).toBe(
       'Not done yet; approval Escalated.',
     );
-    expect(taskStatus(changeTask({ state: 'CLOSED', approval: 'Approved' }))).toBe('Done.');
-    expect(taskStatus(changeTask({ state: 'CANCELED' }))).toBe(
+    expect(taskStatus({ state: 'CLOSED', approval: 'Approved' })).toBe('Done.');
+    expect(taskStatus({ state: 'CANCELED', approval: 'Not Approved' })).toBe(
       'Canceled; no longer part of the change.',
     );
   });

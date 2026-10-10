@@ -170,7 +170,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
             }
             throw refused;
         }
-        return recorded(current.withTasks(created));
+        return listed(List.of(recorded(current.withTasks(created)))).get(0);
     }
 
     @Override

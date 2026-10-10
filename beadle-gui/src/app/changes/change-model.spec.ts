@@ -69,19 +69,33 @@ describe('change model', () => {
     expect(toggled(['A', 'B'], 'A', false)).toEqual(['B']);
   });
 
-  it('names the approvers that are set, the business approver first', () => {
-    expect(approverNames(changeTemplate())).toEqual(['Olivia Bennett', 'James Carter']);
+  it('names the approvers that are set, the business approver first and the support approver last', () => {
+    expect(approverNames(changeTemplate())).toEqual([
+      'Olivia Bennett',
+      'James Carter',
+      'Jane Smith',
+    ]);
     expect(
       approverNames(
         changeTemplate({
-          approvers: { businessApprover: 'Ann', l1Manager: 'Olivia Bennett', l2Manager: null },
+          approvers: {
+            businessApprover: 'Ann',
+            l1Manager: 'Olivia Bennett',
+            l2Manager: null,
+            supportApprover: null,
+          },
         }),
       ),
     ).toEqual(['Ann', 'Olivia Bennett']);
     expect(
       approverNames(
         changeTemplate({
-          approvers: { l1Manager: null, l2Manager: null, businessApprover: 'Ann' },
+          approvers: {
+            l1Manager: null,
+            l2Manager: null,
+            businessApprover: 'Ann',
+            supportApprover: null,
+          },
         }),
       ),
     ).toEqual(['Ann']);

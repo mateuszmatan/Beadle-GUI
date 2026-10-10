@@ -456,13 +456,17 @@ Beadle's menu has three sections:
   changes in a table you can sort and filter in the header: change number, product, FixVersion, the ProTech workflow
   state with what it means ("Waiting for the L1 approver"), the installation window, the short description, the
   number of change tasks and when it was raised; **Raise a change** opens New Change. Opening a change reads it from
-  ProTech first, so what was changed there (texts, schedule, fields, CTASKs and their states) shows at once. "Where
-  the change is" names its state, what it waits for (the approver by name, for example) and the workflow progress
-  through Draft, Business Approval, Primary Approval, Secondary Approval, CTask approval, Escalated approval,
-  Implementation and Closed; "The change at a glance" shows when it installs, what it delivers and who approves; then
-  come its change tasks, each with every field of the change task form, read-only, and its state in words, and two
-  collapsed panels: "All ProTech fields", with its change number, approval (Not Yet Requested in Draft, Requested in
-  the approval stages, Approved from Implementation on) and who opened it, and "Text sent to ProTech". An open change
+  ProTech first, so what was changed there (texts, schedule, fields, approvals, CTASKs and their states) shows at
+  once. "Where the change is" names its state, what it waits for (the approver by name, or how many change tasks are
+  approved) and the workflow progress through Draft, Business Approval, Primary Approval, Secondary Approval, Support
+  Approval, CTask approval, Escalated approval, In Progress and Closed; **Approvals** lists the business, L1, L2 and
+  support approvals and the approval of every change task, each with its approvers, its state (Not Approved,
+  Requested or Approved) and its last reminder, with a discreet **Remind** on each approval still awaited and
+  **Remind everyone who has not approved** for the whole change (see [Approvals and reminders](#approvals-and-reminders));
+  "The change at a glance" shows when it installs and what it delivers; then come its change tasks, each with every
+  field of the change task form, read-only, and its state in words, and two collapsed panels: "All ProTech fields",
+  with its change number, approval (Not Approved in Draft, Requested in the approval stages, Approved from In Progress
+  on) and who opened it, and "Text sent to ProTech". An open change
   can be edited by its department with **Edit the change** (**Edit change** in its row), in the same sections as New
   Change: the update is published to ProTech at once, and Beadle checks and shows whether ProTech applied it (the row
   says "Update pending" until then). While an open change of your department has no secure coding ticket, a note on
@@ -477,7 +481,7 @@ Beadle's menu has three sections:
   the field with the value picked (affected clients adds it to the list); every such field also takes free text. The
   steps:
   1. **Request details**, in two columns: the change number (given by ProTech when the change is raised), approval
-     (Not Yet Requested), Opened by (the signed-in user) and state (Draft), all read-only; then requested for,
+     (Not Approved), Opened by (the signed-in user) and state (Draft), all read-only; then requested for,
      requested by, department, assignment group, category, assigned to, type, release, affected CI, incident, direct
      business service, problem, risk, affected clients and users affected. Requested for, requested by and assigned to
      default to the signed-in user and the department to the product's department; the direct business service comes
@@ -486,7 +490,7 @@ Beadle's menu has three sections:
      first, and one typed in another case takes Jira's spelling); its epics are listed, and choosing epics loads their
      stories. The short description and the description are written from the choice under "Text sent to ProTech" and
      stay editable.
-  3. **Approval and notification**: business approver, L1 approver and L2 approver.
+  3. **Approval and notification**: business approver, L1 approver, L2 approver and support approver.
   4. **Schedule**: the installation start and its hours, the post-install validation start and its hours, the first
      use and, when the change has downtime, the downtime start and its hours, which default to the installation
      window. The template's start time and hours are the defaults, on the release date of the FixVersion while that
@@ -534,7 +538,7 @@ Every product has a **change template**, kept by the administrator in Beadle Adm
   department the department of the product, as the notes under those fields say ("If left empty: the user who opens
   the change", "If left empty: the department of the product").
 - **Jira**: the Jira project key the epics and stories of a release come from.
-- **Approval and notification**: business approver, L1 approver and L2 approver.
+- **Approval and notification**: business approver, L1 approver, L2 approver and support approver.
 - **Schedule defaults**: downtime yes or no, the installation start time, how many hours the installation takes and
   how many hours the post-install validation takes.
 - **Planning**: test summary, implementation plan, validation plan, backout plan and first use plan.
@@ -544,8 +548,8 @@ Every product has a **change template**, kept by the administrator in Beadle Adm
 - **Secure coding**: the defaults of the secure coding ticket: APO number, Bitbucket URL, artifact link and QC
   application link (see [Secure coding ticket](#secure-coding-ticket)).
 - **Change tasks**: the default CTASKs of a change, one to fifty, in the same form as
-  [Change tasks](#change-tasks); the fields the change gives a task (the number, the change number, the approval, the
-  installation window and the task start) stay empty and say where their value comes from.
+  [Change tasks](#change-tasks); the fields the change gives a task (the number, the change number, the approval and
+  its approvers, the installation window and the task start) stay empty and say where their value comes from.
 
 | Question | Answers |
 |----------|---------|
@@ -621,23 +625,47 @@ Management" (ignoring case) makes a release task:
 
 - number (given by ProTech) and change number;
 - assignment group and assigned to, each with a magnifier;
-- affected CI (the affected CI of the change when left empty) and approval (Not Yet Requested until ProTech asks
-  for it);
+- approval (Not Approved, Requested or Approved in ProTech) and approvers (named by ProTech from the assignment group
+  once it created the task);
+- affected CI (the affected CI of the change when left empty) and platform (None, Mainframe, Distributed, OpenShift
+  or Cognos/Motio; None by default);
 - installation start and end, from the change;
-- platform (None, Mainframe, Distributed, OpenShift or Cognos/Motio; None by default) and task start, at least a
-  minute after the installation start and not after its end (one minute after the installation start by default);
+- task start, at least a minute after the installation start and not after its end (one minute after the
+  installation start by default);
 - application (OCP on OpenShift, free text otherwise), packages and backout packages;
 - short description, description and additional comments.
 
 Any other group, for example Cloud Engineering, Data Movement - API or OIS Support, has the number, the change
-number, the assignment group, assigned to, importance (1 - Critical, 2 - High, 3 - Moderate, 4 - Low or 5 - Planning;
-3 - Moderate by default), the affected CI, the approval, the installation start and end, the short description, the
-description and additional comments. Changing the group changes the form, and the fields the other kind has are
+number, the assignment group, assigned to, the approval and its approvers, importance (1 - Critical, 2 - High,
+3 - Moderate, 4 - Low or 5 - Planning; 3 - Moderate by default), the affected CI, the installation start and end, the
+short description, the description and additional comments. Changing the group changes the form, and the fields the other kind has are
 neither sent nor stored. A short description takes up to 160 bytes, a description 4000, packages, backout packages
 and comments 2000, the group, the person and the CI 200, and the application 100. A change holds at most fifty tasks,
 and a schedule moved on the Edit page keeps the start of every release task inside the new installation window or
-is refused at that task. The demo ProTech asks for the approval of the tasks when the change reaches CTask approval
-and approves them once the change moves past it.
+is refused at that task. Every change task has its own approval; see [Approvals and reminders](#approvals-and-reminders).
+
+### Approvals and reminders
+
+A change has four approvals of its own, asked by ProTech in this order: the business approver, the L1 approver, the
+L2 approver and the support approver named on the change (from the template, changeable in New Change and on the
+Edit page). Then every change task has its own, separate approval, asked from the approvers ProTech names for the
+task's assignment group, so each change task has different approvers. Every approval is **Not Approved** (not asked
+yet), **Requested** (asked, waiting) or **Approved**. Beadle reads the approvals of the change and of its tasks from
+ProTech with the change and shows them in **Approvals** on the change page and in the Approval and Approvers fields
+of each task. The change goes **In Progress** (ProTech's Implementation state) only once every change task that is
+not canceled is approved: a change without change tasks waits in CTask approval, and a change task added later sends
+the change back to CTask approval.
+
+Each approval still awaited that names someone has a discreet **Remind** button, and **Remind everyone who has not
+approved** reminds them all at once: the business, L1, L2 and support approvals that are Not Approved or Requested and
+the change tasks not approved yet. Beadle reads the change from ProTech first, asks ProTech to send each reminder
+(`POST /api/changes/{id}/reminders`) and keeps the last reminder of every approval, when it went and to whom, shown
+under Last reminder ("James Carter, 2 minutes ago"); a message names everyone it reached. Only the department of the
+change can remind its approvers (403 otherwise, and the buttons say why while they are disabled); a closed change, an
+approval already approved or one without anybody named is refused with 409 and the reason, both an approval and a
+change task, or a change task the change does not have, with 400, and an unreachable ProTech with 503. When ProTech
+refuses a reminder after others went out, those sent are kept. A reminder changes no approval and does not make an
+editor's version stale.
 
 ### Secure coding ticket
 
@@ -671,16 +699,19 @@ allowed to create issues in that project and HTTPS access from the Beadle pods t
 Beadle reads a change from ProTech every time it is opened (also a closed one) and reads all open changes of the list
 in one call when the Changes tab is opened; a closed change in the list is not read again. Whatever ProTech holds wins:
 the texts, the schedule, the fields of the template (except the Jira project, the type and the schedule defaults,
-which stay as raised), the change tasks and their states (Open, Work in progress, Closed, Canceled), the workflow
-state and the time each stage was entered, and the link. A change that read differently is stored at a new version;
+which stay as raised), the change tasks and their states (Open, Work in progress, Closed, Canceled), the approvals of
+the change and of its tasks with their approvers, the workflow state and the time each stage was entered, and the
+link; the reminders Beadle sent stay with their approvals. Right after it created change tasks Beadle reads the change
+again, so the new tasks show their approvers at once. A change that read differently is stored at a new version;
 one that read the same only records the time it was read. The change also keeps the version at which a field Beadle
 edits last changed (`editedVersion`), so an editor's version only goes stale when someone updated the change in
-Beadle or ProTech changed its texts, fields or tasks, not when ProTech moved it through the workflow or a task changed
-state. When ProTech cannot be reached, Beadle shows what it read last with "ProTech could not be reached: ..." and
+Beadle or ProTech changed its texts, fields or tasks, not when ProTech moved it through the workflow, an approval or a
+task changed state, or someone sent a reminder. When ProTech cannot be reached, Beadle shows what it read last with "ProTech could not be reached: ..." and
 **Try again**; a change ProTech does not hold says "ProTech has no change CHG...".
 
-The workflow of a change is Draft, Business Approval, Primary Approval, Secondary Approval, CTask approval, Escalated
-approval (only for a change at short notice), Implementation and Closed.
+The workflow of a change is Draft, Business Approval, Primary Approval, Secondary Approval, Support Approval, CTask
+approval, Escalated approval (only for a change at short notice), In Progress (Implementation in ProTech) and Closed.
+A change reaches In Progress only once every change task is approved.
 
 ### Editing a change
 
@@ -714,10 +745,16 @@ Jira and ProTech sit behind three ports, `JiraPort`, `ServiceNowPort` and `ProTe
 say so ("Demo mode"): the Jira one makes up a steady set of epics and stories per project key, and the ProTech one
 (`DemoServiceNowAdapter`) keeps the changes in memory, hands out demo `CHG` and `CTASK` numbers and moves every change
 through the workflow by the clock: Business Approval 2 minutes after it was raised, Primary Approval after 4, Secondary
-Approval after 6, CTask approval after 8, then Implementation after 10 minutes, or, when the installation starts less
-than 24 hours after that, Escalated approval after 10 minutes and Implementation 2 hours before the installation (at
-the earliest 12 minutes after the raise); Closed when the post-install validation ends. Its tasks are Work in progress
-while an implemented change is being installed and Closed once the change is. It applies an update
+Approval after 6, Support Approval after 8 and CTask approval after 10 minutes; each approval of the change is
+Requested in its stage and Approved once the change moved past it. In CTask approval it asks the approvers of every
+change task (`DemoApprovers`: two people per assignment group, for example Rebecca Lawson and Thomas Ashby for Release
+Management) and approves the tasks one after another, two minutes apart (a task added later two minutes after it was
+added). Once the last task is approved, at the earliest 12 minutes after the raise, the change goes In Progress, or,
+when the installation starts less than 24 hours after that, Escalated approval at once and In Progress 2 hours before
+the installation; a change without change tasks stays in CTask approval, and a task added after it sends the change
+back there. Closed when the post-install validation ends. Its tasks are Work in progress while a change In Progress is
+being installed and Closed once the change is. It records every reminder and answers with the people it reminded, and
+sends nothing. It applies an update
 `dso.demo.protech-apply-delay` (default `PT3S`) after it was published, except a schedule change once the installation
 has started, and refuses to change a closed change. A new schedule keeps the stages a change has reached; the next ones
 follow the rule above for the new schedule, but never before the moment the schedule was applied. After a restart it
@@ -732,13 +769,17 @@ takes Beadle's copy of each change it is asked for. Connecting the real systems 
   by, department, assigned to, the direct business service, the risk and its answers, users affected, the secure
   coding ticket and the downtime window) mapped to ProTech's fields; reads `change_request` and `change_task` by
   number with the Table API (`GET /api/now/table/change_request?number=...`,
-  `change_task?change_request.number=...`), maps ProTech's state values to the eight stages and takes the stage
-  history from the audit of the state field (`sys_audit` or the change's history); updates the change and its tasks
+  `change_task?change_request.number=...`), maps ProTech's state values to the nine stages and takes the stage
+  history from the audit of the state field (`sys_audit` or the change's history); reads the approvals of the change
+  and of each change task with their approvers (`sysapproval_approver` by `sysapproval`) and maps their states to Not
+  Approved, Requested and Approved; sends a reminder to the approvers of one approval (an event that fires ProTech's
+  approval reminder notification) and answers whom it reached; updates the change and its tasks
   with `PATCH`, creates the new CTASKs and cancels the removed ones; and answers `UncheckedIOException` when ProTech
   cannot be reached and `IllegalStateException` with ProTech's message when it refuses. It needs the instance URL and
   an integration user allowed to read, create and change changes and change tasks (OAuth client or basic credentials
   in a secret), the lookup of the configuration item and the assignment group by name, and BBH's rule for approvals
-  (the approval policy of the change model, or the approvers sent as approval records).
+  (the approval policy of the change model, or the approvers sent as approval records, with the support approver and
+  the approvers of each assignment group).
 - **Lookups**: an adapter of `ProTechLookupPort` that searches ProTech with the Table API and `sysparm_limit=20`
   (`sys_user`, `cmn_department`, `sys_user_group`, `cmdb_ci` with its business service, `incident`, `problem`, and
   the tables BBH keeps its releases and clients in), with the same integration user.
@@ -753,7 +794,8 @@ DealFlow and LP Portal in Capital Partners, Access Hub and CertScanner in Corpor
 Corporate Actions in Custody, Payments Hub and NAV Calculator in Fund Services) and does nothing once the database
 holds any product. Every demo product without a saved change template gets a filled one
 (`adapter/in/startup/DemoChangeProfiles.java`), picked with a fixed seed per product code: the assignment group of
-its owner team, its direct business service from the configuration item search, approvers, schedule defaults,
+its owner team, its direct business service from the configuration item search, the business, L1, L2 and support
+approvers, schedule defaults,
 planning texts, a risk assessment from the fixed answers, affected clients and users affected that match the answers,
 downtime for the products whose risk is High, an APO number and the Bitbucket, Jenkins and QC links of the secure
 coding ticket, privileged access for Payments Hub, and two or three default change tasks ("Deploy <product> to
@@ -766,9 +808,10 @@ FixVersions per project, for example `PAYHUB 2.4`. At start-up twelve demo chang
 (`adapter/out/servicenow/DemoProTechChanges.java`), skipping those of a product that already has a change. They are
 spread over the departments and their products, with real demo epics and stories, the installation window as the
 downtime window of the products with downtime, and past raise times and schedules chosen so that on a new database
-three are Closed (installed last week), three are in Implementation (one of them installing right now), one is in
-Escalated approval (raised 30 minutes ago, installed in 20 hours) and five were raised one to nine minutes ago and
-move from Draft to CTask approval while Beadle runs. One of them carries an applied update and one an update ProTech
+three are Closed (installed last week), three are In Progress (one of them installing right now), one is in
+Escalated approval (raised 30 minutes ago, installed in 20 hours) and five were raised one to thirteen minutes ago
+(the oldest in CTask approval with one change task approved) and move on through the approvals to In Progress while
+Beadle runs. One of them carries an applied update and one an update ProTech
 did not apply (a schedule change while its installation ran). On `rd`, `qc` and `prod` nothing is seeded but the five
 departments.
 
@@ -781,17 +824,18 @@ departments.
 | `GET /api/products?search=` | the products with their department: `id`, `code`, `name`, `ownerTeam`, `contactEmail`, `departmentId`, `departmentName`, `version` and `updatedAt`; the search matches the code, the name, the owner team and the department name |
 | `POST /api/products`, `GET`/`PUT`/`DELETE /api/products/{id}` | a product: `code` (on `POST`; a `PUT` keeps it), `name`, `departmentId`, `ownerTeam`, `contactEmail` and the `version` it was read at on `PUT` (409 when stale, or when the name or code is taken); `DELETE` removes the product with its change template |
 | `GET /api/products/code-suggestion?name=` | the code Beadle suggests for a new product's name: its letters and digits in upper case, with a number added when another product has that code |
-| `GET`/`PUT /api/products/{id}/change-profile` | the change template of a product: `template` with the ProTech fields (among them `requestedFor`, `requestedBy`, `department`, `assignedTo`, `directBusinessService`, `usersAffected`, `secureCoding` with `apoNumber`, `bitbucketUrl`, `artifactLink` and `qcApplicationLink`, `riskAssessment` with the nine answers and `risk`, which is computed and ignored when sent) and `tasks`, its default change tasks (the `details` fields of `POST /api/changes/{id}/tasks`; one to fifty); `version` is `null` until it is saved (it then holds the suggestion), and `PUT` carries `version`, `template` and `tasks` |
+| `GET`/`PUT /api/products/{id}/change-profile` | the change template of a product: `template` with the ProTech fields (among them `approvers` with `businessApprover`, `l1Manager`, `l2Manager` and `supportApprover`, `requestedFor`, `requestedBy`, `department`, `assignedTo`, `directBusinessService`, `usersAffected`, `secureCoding` with `apoNumber`, `bitbucketUrl`, `artifactLink` and `qcApplicationLink`, `riskAssessment` with the nine answers and `risk`, which is computed and ignored when sent) and `tasks`, its default change tasks (the `details` fields of `POST /api/changes/{id}/tasks`; one to fifty); `version` is `null` until it is saved (it then holds the suggestion), and `PUT` carries `version`, `template` and `tasks` |
 | `GET /api/change-profiles` | the products with a saved change template: `productId`, `productName`, `version`, `updatedAt` |
 | `GET /api/products/{id}/jira/versions`, `/jira/epics?fixVersion=`, `/jira/stories?fixVersion=&epics=` | the FixVersions of the product's Jira project (unreleased first), the epics of a FixVersion and the stories of the chosen epics that carry it; `project=` names another Jira project key |
 | `GET /api/me` | the signed-in user, `{name}`; `dso.signed-in-user` until BBH single sign-on |
 | `GET /api/changes/options` | the lists of the wizard: `categories`, `types` (each `value` and `label`), `risk`, the answers of each of the nine risk questions, the `platforms` and `importances` of change tasks and `releaseManagement`, the group name that makes a release task |
 | `GET /api/lookups/{kind}?q=` | at most 20 ProTech entries (`value`, `detail`) that contain `q` in either, ignoring case, for `users`, `departments`, `assignment-groups`, `releases`, `configuration-items`, `incidents`, `problems` or `clients`; 404 for any other kind |
 | `POST /api/changes/preview`, `POST /api/changes` | draft a production change, or raise it in ProTech without change tasks (`productId`, `fixVersion`, `epicKeys`, `storyKeys`, `schedule` with `installationStart`, `installationEnd`, `validationStart`, `validationEnd`, `firstUsage` and, only with `template.downtime`, `downtimeStart` and `downtimeEnd`, the ProTech fields as `template`, and optionally the edited `shortDescription` and `description`) |
-| `POST /api/changes/{id}/tasks` | create change tasks under a raised, open change in ProTech, one by one: `version`, `departmentId` (which must own the change) and `tasks`, one to fifty, each with `details` (`assignmentGroup`, `assignedTo`, `configurationItem`, `platform`, `application`, `packages`, `backoutPackages`, `importance`, `shortDescription`, `description`, `additionalComments`) and, for a release task, `start`; answers the change with the numbered tasks; 403 for another department, 409 when stale, pending or closed |
-| `GET /api/changes?departmentId=`, `GET /api/changes/{id}` | the raised changes, newest first, all or of one department, and one change, each read from ProTech first (closed changes of the list are not read again): with `departmentId`, `openedBy`, `state`, `workflow` (each stage with `enteredAt`), the tasks with their `number`, `details`, `start`, `approval` and `state`, `syncedAt`, `syncProblem` when ProTech could not be read, `update` (the status of the last update from Beadle), `version` and `editedVersion` |
+| `POST /api/changes/{id}/tasks` | create change tasks under a raised, open change in ProTech, one by one: `version`, `departmentId` (which must own the change) and `tasks`, one to fifty, each with `details` (`assignmentGroup`, `assignedTo`, `configurationItem`, `platform`, `application`, `packages`, `backoutPackages`, `importance`, `shortDescription`, `description`, `additionalComments`) and, for a release task, `start`; answers the change read again from ProTech, with the numbered tasks and their approvers; 403 for another department, 409 when stale, pending or closed |
+| `GET /api/changes?departmentId=`, `GET /api/changes/{id}` | the raised changes, newest first, all or of one department, and one change, each read from ProTech first (closed changes of the list are not read again): with `departmentId`, `openedBy`, `state`, `workflow` (each stage with `enteredAt`), `approvals` (the `role` `BUSINESS`, `L1`, `L2` or `SUPPORT`, the `approver`, the `state` `NOT_APPROVED`, `REQUESTED` or `APPROVED` and the last `reminder` with `sentAt` and `sentTo`), the tasks with their `number`, `details`, `start`, `approval` (`NOT_APPROVED`, `REQUESTED` or `APPROVED`), `approvers`, `reminder` and `state`, `syncedAt`, `syncProblem` when ProTech could not be read, `update` (the status of the last update from Beadle), `version` and `editedVersion` |
 | `PUT /api/changes/{id}` | update an open change in ProTech: `version`, `departmentId` (the user's department, which must own the change), `shortDescription`, `description`, `schedule`, `template` and `tasks` (each with its `number`, or none for a new task, its `details` and its `start`; the list may be empty); answers the change with `update.status` `PENDING`, `APPLIED` or `NOT_APPLIED`; 403 for another department, 409 when stale or closed, 503 when ProTech cannot be reached |
 | `POST /api/changes/{id}/secure-coding` | create the secure coding ticket of an open change in CyberTrack and publish its number to ProTech: `version`, `departmentId` (which must own the change), `apoNumber`, `implementationDate` (MMDDYYYY), `bitbucketUrl`, `artifactLink` and `qcApplicationLink`, all required; answers the change with `template.secureCodingTicket`; 400 for a missing or wrong input, 403 for another department, 409 when it already has a ticket or is stale, pending or closed, 503 when CyberTrack cannot be reached or refuses the ticket, or ProTech cannot be reached |
+| `POST /api/changes/{id}/reminders` | remind the approvers of an open change who have not approved yet: `departmentId` (which must own the change) and either `approval` (`BUSINESS`, `L1`, `L2` or `SUPPORT`) or `task` (a CTASK number) for one approval, or neither for everyone who has not approved; answers the change with the `reminder` of each approval reminded; 400 for both or a task the change does not have, 403 for another department, 409 when closed, already approved or nobody is named, 503 when ProTech cannot be reached |
 | `GET /api/changes/integrations` | whether Jira, ProTech and CyberTrack are connected (`jiraConnected`, `serviceNowConnected`, `cyberTrackConnected`) |
 
 Errors are RFC 9457 problem details; validation errors name the failing fields, for example `tasks[1].details.start`.
@@ -982,11 +1026,15 @@ tasks (`DSO_CHANGE_PROFILE_PRIVILEGED_USER`, `DSO_CHANGE_PROFILE_TASK`), and eve
 `DSO_PRODUCTION_CHANGE`: its department (`DEPARTMENT_ID`, emptied when the department is deleted), the ProTech state
 (`STATE`), when it was last read from ProTech (`SYNCED_AT`) and the last update from Beadle (`UPDATE_STATUS`,
 `UPDATE_REQUESTED_AT`, `UPDATE_DEPARTMENT`, `UPDATE_FIELDS`, `UPDATE_MESSAGE`, `UPDATE_CHECKED_AT`), with its change
-tasks and their states (`DSO_PRODUCTION_CHANGE_TASK`, `TASK_NUMBER` empty until ProTech created the task), the stages
-it entered (`DSO_PRODUCTION_CHANGE_STAGE`) and its privileged users (`DSO_PRODUCTION_CHANGE_PRIVILEGED_USER`).
+tasks with their states, approvals, approvers and last reminders (`DSO_PRODUCTION_CHANGE_TASK`, `TASK_NUMBER` empty
+until ProTech created the task; `APPROVAL`, `APPROVERS`, `REMINDER_SENT_AT`, `REMINDER_SENT_TO`), its business, L1,
+L2 and support approvals with their states and last reminders (`DSO_PRODUCTION_CHANGE_APPROVAL`, from changeset
+`027-change-approvals.sql`), the stages it entered (`DSO_PRODUCTION_CHANGE_STAGE`) and its privileged users
+(`DSO_PRODUCTION_CHANGE_PRIVILEGED_USER`).
 Both tables hold the request fields of the wizard (`REQUESTED_FOR`, `REQUESTED_BY`, `REQUEST_DEPARTMENT`,
 `ASSIGNED_TO`, `DIRECT_BUSINESS_SERVICE`, `USERS_AFFECTED`, `SECURE_CODING_TICKET`), the secure coding inputs
-(`APO_NUMBER`, `BITBUCKET_URL`, `ARTIFACT_LINK`, `QC_APPLICATION_LINK`) and the nine risk answers as their list
+(`APO_NUMBER`, `BITBUCKET_URL`, `ARTIFACT_LINK`, `QC_APPLICATION_LINK`), the four approvers (`BUSINESS_APPROVER`,
+`L1_MANAGER`, `L2_MANAGER`, `SUPPORT_APPROVER`) and the nine risk answers as their list
 values (`RISK_*`); the computed risk is not stored. A change also keeps who opened it (`OPENED_BY`) and its downtime
 window (`DOWNTIME_START`, `DOWNTIME_END`).
 

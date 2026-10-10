@@ -97,8 +97,13 @@ class BeadleSmokeSpec extends Specification {
         changes.json.every { it.syncProblem == null }
         !started || changes.json.size() >= 12 && changes.json*.state.toSet().size() >= 6 &&
                 changes.json*.update.findAll()*.status.toSet() == ['APPLIED', 'NOT_APPLIED'] as Set
-        tasks.every { it.number ==~ /CTASK\d{7}/ && it.details.assignmentGroup && it.approval }
-        tasks*.approval.toSet().every { it in ['Not Yet Requested', 'Requested', 'Approved'] }
+        tasks.every { it.number ==~ /CTASK\d{7}/ && it.details.assignmentGroup && it.approval && it.approvers }
+        tasks*.approval.toSet().every { it in ['NOT_APPROVED', 'REQUESTED', 'APPROVED'] }
+        changes.json.every { it.approvals*.role == ['BUSINESS', 'L1', 'L2', 'SUPPORT'] }
+        changes.json.findAll { it.state == 'IMPLEMENTATION' }.every { change ->
+            def active = change.tasks.findAll { it.state != 'CANCELED' }
+            active && active.every { it.approval == 'APPROVED' }
+        }
         department == null || api.get("/api/changes?departmentId=$department").json.every {
             it.departmentId == department
         }

@@ -49,11 +49,12 @@ describe('ChangeTasksForm', () => {
       'Change number',
       'Assignment group',
       'Assigned to',
-      'Affected CI',
       'Approval',
+      'Approvers',
+      'Affected CI',
+      'Platform',
       'Installation start',
       'Installation end',
-      'Platform',
       'Task start',
       'Application',
       'Packages',
@@ -67,9 +68,10 @@ describe('ChangeTasksForm', () => {
       'Change number',
       'Assignment group',
       'Assigned to',
+      'Approval',
+      'Approvers',
       'Importance',
       'Affected CI',
-      'Approval',
       'Installation start',
       'Installation end',
       'Short description',
@@ -88,6 +90,7 @@ describe('ChangeTasksForm', () => {
     ).toEqual([
       ['Number', undefined, 'Given by ProTech when created'],
       ['Change number', 'text', 'The CHG number of the change'],
+      ['Approvers', undefined, 'Named by ProTech from the assignment group'],
       ['Installation start', 'text', 'From the change'],
       ['Installation end', 'text', 'From the change'],
       ['Task start', 'text', 'A minute after the installation start'],
@@ -119,7 +122,14 @@ describe('ChangeTasksForm', () => {
     expect(labels(rows()[1])).not.toContain('Packages');
     expect(inputOf(rows()[0], 'Change number').value).toBe('CHG0012345');
     expect(inputOf(rows()[0], 'Change number').disabled).toBe(true);
-    expect(inputOf(rows()[0], 'Approval').value).toBe('Not Yet Requested');
+    expect(inputOf(rows()[0], 'Approval').value).toBe('Not Approved');
+    expect(inputOf(rows()[0], 'Approvers').value).toBe('Rebecca Lawson, Thomas Ashby');
+    expect(inputOf(rows()[0], 'Approvers').disabled).toBe(true);
+    expect(inputOf(rows()[2], 'Approval').value).toBe('Not Approved');
+    expect(inputOf(rows()[2], 'Approvers').value).toBe('');
+    expect(inputOf(rows()[2], 'Approvers').placeholder).toBe(
+      'Named by ProTech from the assignment group',
+    );
     expect(inputOf(rows()[2], 'Number').placeholder).toBe('Given by ProTech when created');
     expect(fieldOf(rows()[0], 'Assignment group')!.querySelector('.lookup')).not.toBeNull();
     expect(fieldOf(rows()[0], 'Assigned to')!.querySelector('.lookup')).not.toBeNull();
@@ -143,7 +153,9 @@ describe('ChangeTasksForm', () => {
     fixture.detectChanges();
     expect(text(rows()[0].querySelector('.kind'))).toBe('Release Management');
     expect(labels(rows()[0])).toContain('Packages');
-    expect(inputOf(rows()[0], 'Task start').placeholder).toBe('A minute after the installation start');
+    expect(inputOf(rows()[0], 'Task start').placeholder).toBe(
+      'A minute after the installation start',
+    );
     expect(inputOf(rows()[0], 'Task start').disabled).toBe(true);
 
     buttonOf(page(), 'Add a change task').click();
@@ -180,7 +192,7 @@ describe('ChangeTasksForm', () => {
         changeTask({
           details: releaseDetails('Deploy it'),
           start: '2026-10-10T06:01:00Z',
-          approval: 'Requested',
+          approval: 'REQUESTED',
         }),
         changeTask({ number: 'CTASK0020002', state: 'CANCELED' }),
       ],
@@ -190,7 +202,7 @@ describe('ChangeTasksForm', () => {
     await render(form, true);
 
     expect(rows().map((row) => text(row.querySelector('.task-head')))).toEqual([
-      '1Release ManagementOpenNot done yet; waiting for approval.',
+      '1Release ManagementOpenNot done yet; approval requested.',
       '2Change taskCanceledCanceled; no longer part of the change.',
     ]);
     expect(rows()[1].classList).toContain('canceled');
@@ -199,9 +211,11 @@ describe('ChangeTasksForm', () => {
     expect(inputOf(rows()[0], 'Change number').value).toBe('CHG0012345');
     expect(inputOf(rows()[0], 'Short description').value).toBe('Deploy it');
     expect(inputOf(rows()[1], 'Number').value).toBe('CTASK0020002');
-    expect([...page().querySelectorAll('input, textarea, select')].every((field) =>
-      (field as HTMLInputElement).disabled,
-    )).toBe(true);
+    expect(
+      [...page().querySelectorAll('input, textarea, select')].every(
+        (field) => (field as HTMLInputElement).disabled,
+      ),
+    ).toBe(true);
     expect(page().querySelector('.lookup')).toBeNull();
     expect(page().querySelector('dso-hint')).toBeNull();
     expect(page().querySelector('button')).toBeNull();

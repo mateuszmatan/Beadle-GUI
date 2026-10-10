@@ -24,7 +24,7 @@ itself, as "Inside and outside the BBH network" in the main README describes.
 | Folder (`src/app`) | Holds |
 |--------------------|-------|
 | `core/`    | the API clients (products, lookups, the signed-in user), the models mirroring Beadle's DTOs and the three sections of the menu (`sections.ts`) with the tabs of Beadle Admin |
-| `changes/` | Changes and New Change: the ProTech changes of a department in a table filtered and sorted in its header, the change page with where the change is, its update status and its change tasks, the edit page that publishes to ProTech, the change wizard, the secure coding page, and the ProTech fields form and change tasks editor shared with Beadle Admin |
+| `changes/` | Changes and New Change: the ProTech changes of a department in a table filtered and sorted in its header, the change page with where the change is, its approvals with their reminders (`change-approvals.ts`), its update status and its change tasks, the edit page that publishes to ProTech, the change wizard, the secure coding page, and the ProTech fields form and change tasks editor shared with Beadle Admin |
 | `beadle/`  | Beadle Admin: the products list by department with the state of their change templates, the product dialog, the product page with its details and change template, and what the Departments tab counts (`department-usage.ts`) |
 | `testing/` | fixtures for the unit tests |
 
@@ -40,7 +40,8 @@ The smoke and regression suites are Spock specifications that drive Chromium wit
 build. `GuiServer` (in `common-gui/src/testFixtures`) serves `dist` and answers `/api` from `BeadleStubApi`
 (`src/testFixtures`), which serves the departments, the products, the signed-in user and the lookups from recorded
 answers (`src/testFixtures/resources/.../api`), keeps a demo ProTech in memory (`ChangeStubs`) that raises changes,
-creates change tasks and secure coding tickets and moves changes through the workflow as the tests ask, and records
+creates change tasks and secure coding tickets, names the approvers of each change task, records reminders and moves
+changes through the workflow with their approvals as the tests ask, and records
 every request, so a specification checks both what the page shows and the exact JSON the GUI sends. Every
 specification extends `BeadleSpecification`, which knows Beadle's menu, the fields of a release task and of any other
 task, and how to use a lookup. Screenshots of the last state of every feature land in
@@ -55,7 +56,8 @@ task, and how to use a lookup. Screenshots of the last state of every feature la
   adding one, editing its details with a version conflict and deleting it; the change template section by section,
   with a lookup, the downtime, the risk answers and the risk they give, privileged accounts, default change tasks
   and a version conflict; the ProTech changes of a department filtered and sorted in the table header, the change
-  page with where the change is, an update published to ProTech from PENDING to APPLIED with a lookup, a downtime
+  page with where the change is, its approvals reminded one at a time and all at once and the change going In
+  Progress once every change task is approved, an update published to ProTech from PENDING to APPLIED with a lookup, a downtime
   window and a risk answer, a NOT_APPLIED update, a stale update, a closed change and the change of another
   department; the new change walked step by step from the product through the lookups, the FixVersion, the
   approvers, the schedule with its downtime window, the planning, the privileged accounts and the risk lists to the
@@ -110,9 +112,18 @@ defaults (APO number and the three links), and notes under Requested for, Reques
 empty: the user who opens the change" and under Department "If left empty: the department of the product". The edit
 page of a change shows "ProTech fields" (the facts and the same sections without Jira, with the schedule of the
 change), "Change tasks" and "Text sent to ProTech", whose counters count bytes against 160 and 4000, and publishes with
-**Publish the update to ProTech**. The change page shows "Where the change is", "The change at a glance" (When it
-installs, What it delivers, Who approves) and the change tasks in the same task form, read-only and without
-magnifiers, with "All ProTech fields" (every field by section) and "Text sent to ProTech" in collapsed panels. While
+**Publish the update to ProTech**. The change page shows "Where the change is", "Approvals", "The change at a
+glance" (When it installs, What it delivers) and the change tasks in the same task form, read-only and without
+magnifiers, with "All ProTech fields" (every field by section) and "Text sent to ProTech" in collapsed panels.
+Approvals (`dso-change-approvals`) is one table: the business, L1, L2 and support approvals, then "CTASK approvals"
+with one row per change task ProTech holds, each with its approvers, a state chip (Not Approved grey, Requested
+amber, Approved green) and its last reminder ("James Carter, 2 minutes ago"). Every row still awaited that names
+someone has a small link-style **Remind** button ("Remind the approvers of CTASK0310011" to a screen reader), and
+**Remind everyone who has not approved** sits next to the heading; both send `POST /api/changes/{id}/reminders` with
+your department, show who got the reminder in a message and take the change it answers. They are disabled, with the
+reason under the heading and in their tooltip, for another department, without a department, while ProTech cannot be
+read, and once everyone named has approved; a closed change shows no buttons. The table scrolls sideways on its own
+on a narrow screen. While
 an open change of your department has no secure coding ticket, a note links to its secure coding page
 (`/changes/{id}/secure-coding`, `changes/change-secure-coding.ts`), which creates the ticket and returns to the
 change. One task form serves the template, the wizard, the edit page and the change page: two columns filled left

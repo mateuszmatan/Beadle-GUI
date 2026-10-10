@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { changeTemplate, productionChange } from '../testing/change-fixtures';
+import { changeTask, changeTemplate, productionChange } from '../testing/change-fixtures';
 import { text } from '@common/testing/dom';
 import { STATES, WorkflowStep } from './change-api';
 import { windowText } from './change-model';
@@ -10,8 +10,9 @@ const escalated: WorkflowStep[] = [
   { state: 'BUSINESS_APPROVAL', enteredAt: '2026-10-07T09:02:00Z' },
   { state: 'PRIMARY_APPROVAL', enteredAt: '2026-10-07T09:04:00Z' },
   { state: 'SECONDARY_APPROVAL', enteredAt: '2026-10-07T09:06:00Z' },
-  { state: 'CTASK_APPROVAL', enteredAt: '2026-10-07T09:08:00Z' },
-  { state: 'IMPLEMENTATION', enteredAt: '2026-10-07T09:10:00Z' },
+  { state: 'SUPPORT_APPROVAL', enteredAt: '2026-10-07T09:08:00Z' },
+  { state: 'CTASK_APPROVAL', enteredAt: '2026-10-07T09:10:00Z' },
+  { state: 'IMPLEMENTATION', enteredAt: '2026-10-07T09:14:00Z' },
 ];
 
 describe('workflow progress', () => {
@@ -22,20 +23,22 @@ describe('workflow progress', () => {
       'done',
       'done',
       'done',
+      'done',
       'skipped',
       'current',
       'later',
     ]);
-    expect(stages('IMPLEMENTATION', escalated)[6].enteredAt).toBe('2026-10-07T09:10:00Z');
-    expect(stages('IMPLEMENTATION', escalated)[5].enteredAt).toBeNull();
+    expect(stages('IMPLEMENTATION', escalated)[7].enteredAt).toBe('2026-10-07T09:14:00Z');
+    expect(stages('IMPLEMENTATION', escalated)[6].enteredAt).toBeNull();
     expect(stages('DRAFT', escalated.slice(0, 1)).map((stage) => stage.label)).toEqual([
       'Draft',
       'Business Approval',
       'Primary Approval',
       'Secondary Approval',
+      'Support Approval',
       'CTask approval',
       'Escalated approval',
-      'Implementation',
+      'In Progress',
       'Closed',
     ]);
   });
@@ -52,15 +55,16 @@ describe('workflow progress', () => {
     expect(business).toMatchObject({ status: 'later', enteredAt: null });
   });
 
-  it('shows the eight stages with the time each was entered', () => {
+  it('shows the nine stages with the time each was entered', () => {
     const fixture = TestBed.createComponent(WorkflowProgress);
     fixture.componentRef.setInput('state', 'IMPLEMENTATION');
     fixture.componentRef.setInput('workflow', escalated);
     fixture.detectChanges();
     const items = [...(fixture.nativeElement as HTMLElement).querySelectorAll('li')];
 
-    expect(items).toHaveLength(8);
+    expect(items).toHaveLength(9);
     expect(items.map((item) => item.className)).toEqual([
+      'done',
       'done',
       'done',
       'done',
@@ -71,9 +75,11 @@ describe('workflow progress', () => {
       'later',
     ]);
     expect(text(items[0])).toMatch(/^1Draft 7 Oct, \d\d:\d\d$/);
-    expect(text(items[5])).toBe('6Escalated approval Skipped');
-    expect(items[6].getAttribute('aria-current')).toBe('step');
-    expect(text(items[7])).toBe('8Closed');
+    expect(text(items[4])).toMatch(/^5Support Approval 7 Oct, \d\d:\d\d$/);
+    expect(text(items[6])).toBe('7Escalated approval Skipped');
+    expect(items[7].getAttribute('aria-current')).toBe('step');
+    expect(text(items[7])).toMatch(/^8In Progress 7 Oct, \d\d:\d\d$/);
+    expect(text(items[8])).toBe('9Closed');
   });
 
   it('says in plain words what each state means and what the change waits for', () => {
@@ -82,9 +88,10 @@ describe('workflow progress', () => {
       'Waiting for the business approver',
       'Waiting for the L1 approver',
       'Waiting for the L2 approver',
-      'Waiting for its change tasks to be approved',
+      'Waiting for the support approver',
+      'Waiting for every change task to be approved',
       'Short notice: waiting for an escalated approval',
-      'Approved, installs in its window',
+      'Every change task approved, installs in its window',
       'Done',
     ]);
     const change = productionChange();
@@ -105,16 +112,42 @@ describe('workflow progress', () => {
       now(
         'PRIMARY_APPROVAL',
         changeTemplate({
-          approvers: { businessApprover: null, l1Manager: null, l2Manager: null },
+          approvers: {
+            businessApprover: null,
+            l1Manager: null,
+            l2Manager: null,
+            supportApprover: null,
+          },
         }),
       ),
     ).toBe('Waiting for the L1 approver to approve the change in ProTech.');
-    expect(now('CTASK_APPROVAL')).toBe('Waiting for the change tasks to be approved in ProTech.');
+    expect(now('SUPPORT_APPROVAL')).toBe(
+      'Waiting for the support approver, Jane Smith, to approve the change in ProTech.',
+    );
+    expect(now('CTASK_APPROVAL')).toBe(
+      'Waiting for the approvers of each change task in ProTech: 0 of 1 approved. The change goes In Progress once every change task is approved.',
+    );
+    expect(
+      stateNow({
+        ...change,
+        state: 'CTASK_APPROVAL',
+        tasks: [
+          changeTask({ approval: 'APPROVED' }),
+          changeTask({ approval: 'REQUESTED' }),
+          changeTask({ state: 'CANCELED' }),
+        ],
+      }),
+    ).toBe(
+      'Waiting for the approvers of each change task in ProTech: 1 of 2 approved. The change goes In Progress once every change task is approved.',
+    );
+    expect(stateNow({ ...change, state: 'CTASK_APPROVAL', tasks: [] })).toBe(
+      'Waiting for the approvers of each change task in ProTech: none added yet, and the change needs at least one. The change goes In Progress once every change task is approved.',
+    );
     expect(now('ESCALATED_APPROVAL')).toBe(
       'The installation is at short notice, so the change waits for an escalated approval in ProTech.',
     );
     expect(now('IMPLEMENTATION')).toBe(
-      `Approved. The teams carry out the change tasks in the installation window, ${windowText(installationStart, installationEnd)}.`,
+      `Every change task is approved. The teams carry out the change tasks in the installation window, ${windowText(installationStart, installationEnd)}.`,
     );
     expect(now('CLOSED')).toBe(
       'Done. The change is closed in ProTech and can no longer be changed.',

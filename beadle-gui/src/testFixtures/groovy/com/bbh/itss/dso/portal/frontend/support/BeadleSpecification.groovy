@@ -8,14 +8,16 @@ abstract class BeadleSpecification extends GuiSpecification {
 
     static final List<String> MENU = ['Changes', 'New Change', 'Admin']
 
-    static final List<String> RELEASE_TASK_FIELDS = ['Number', 'Change number', 'Assignment group', 'Assigned to', 'Affected CI',
-                                                     'Approval', 'Installation start', 'Installation end', 'Platform', 'Task start',
-                                                     'Application', 'Packages', 'Backout packages', 'Short description',
-                                                     'Description', 'Additional comments']
+    static final List<String> RELEASE_TASK_FIELDS = ['Number', 'Change number', 'Assignment group', 'Assigned to', 'Approval',
+                                                     'Approvers', 'Affected CI', 'Platform', 'Installation start',
+                                                     'Installation end', 'Task start', 'Application', 'Packages',
+                                                     'Backout packages', 'Short description', 'Description',
+                                                     'Additional comments']
 
-    static final List<String> OTHER_TASK_FIELDS = ['Number', 'Change number', 'Assignment group', 'Assigned to', 'Importance',
-                                                   'Affected CI', 'Approval', 'Installation start', 'Installation end',
-                                                   'Short description', 'Description', 'Additional comments']
+    static final List<String> OTHER_TASK_FIELDS = ['Number', 'Change number', 'Assignment group', 'Assigned to', 'Approval',
+                                                   'Approvers', 'Importance', 'Affected CI', 'Installation start',
+                                                   'Installation end', 'Short description', 'Description',
+                                                   'Additional comments']
 
     @Override
     StubApi newApi() {

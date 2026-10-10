@@ -57,34 +57,30 @@ const TONES: Record<ApprovalState, string> = {
 };
 
 export function approvalRows(change: Pick<ProductionChange, 'approvals' | 'tasks'>): ApprovalRow[] {
-  const approvals = change.approvals.map(
-    ({ role, approver, state, reminder }): ApprovalRow => ({
-      key: role,
-      task: false,
-      label: labelOf(APPROVAL_ROLES, role),
-      detail: labelOf(STATES, STAGES[role]),
-      approvers: approver ? [approver] : [],
-      state,
-      reminder,
-      target: { approval: role },
-      remindable: state !== 'APPROVED' && !!approver,
-    }),
-  );
+  const approvals = change.approvals.map(({ role, approver, state, reminder }): ApprovalRow => ({
+    key: role,
+    task: false,
+    label: labelOf(APPROVAL_ROLES, role),
+    detail: labelOf(STATES, STAGES[role]),
+    approvers: approver ? [approver] : [],
+    state,
+    reminder,
+    target: { approval: role },
+    remindable: state !== 'APPROVED' && !!approver,
+  }));
   const tasks = activeTasks(change.tasks)
     .filter((task) => task.number)
-    .map(
-      ({ number, details, approvers, approval, reminder }): ApprovalRow => ({
-        key: number!,
-        task: true,
-        label: number!,
-        detail: details.assignmentGroup,
-        approvers,
-        state: approval,
-        reminder,
-        target: { task: number! },
-        remindable: approval !== 'APPROVED' && approvers.length > 0,
-      }),
-    );
+    .map(({ number, details, approvers, approval, reminder }): ApprovalRow => ({
+      key: number!,
+      task: true,
+      label: number!,
+      detail: details.assignmentGroup,
+      approvers,
+      state: approval,
+      reminder,
+      target: { task: number! },
+      remindable: approval !== 'APPROVED' && approvers.length > 0,
+    }));
   return [...approvals, ...tasks];
 }
 
@@ -105,11 +101,24 @@ export function reminderText(reminder: Reminder, now = Date.now()): string {
   return `${reminder.sentTo.join(', ')}, ${formatRelative(reminder.sentAt, now)}`;
 }
 
-export function remindedNames(change: Pick<ProductionChange, 'approvals' | 'tasks'>): string[] {
-  const reminders = [...change.approvals, ...change.tasks]
+export function remindedNames(
+  change: Pick<ProductionChange, 'approvals' | 'tasks'>,
+  target: ApprovalRow['target'] = {},
+): string[] {
+  const reminders = [
+    ...change.approvals.filter(
+      ({ role }) => !target.task && (!target.approval || role === target.approval),
+    ),
+    ...change.tasks.filter(
+      ({ number }) => !target.approval && (!target.task || number === target.task),
+    ),
+  ]
     .map((item) => item.reminder)
     .filter((reminder): reminder is Reminder => reminder !== null);
-  const latest = reminders.map((reminder) => reminder.sentAt).sort().at(-1);
+  const latest = reminders
+    .map((reminder) => reminder.sentAt)
+    .sort()
+    .at(-1);
   return [
     ...new Set(
       reminders
@@ -139,9 +148,9 @@ export function remindedNames(change: Pick<ProductionChange, 'approvals' | 'task
       }
     </div>
     <p class="section-help">
-      Every approval is Not Approved, Requested or Approved in ProTech. Each change task has its
-      own approvers, who depend on its assignment group, and the change goes In Progress only once
-      every change task is approved.
+      Every approval is Not Approved, Requested or Approved in ProTech. Each change task has its own
+      approvers, who depend on its assignment group, and the change goes In Progress only once every
+      change task is approved.
     </p>
     @if (open() && hint(); as message) {
       <p class="muted hint">{{ message }}</p>
@@ -199,10 +208,9 @@ export function remindedNames(change: Pick<ProductionChange, 'approvals' | 'task
         </tbody>
       </table>
     </div>
-    @if (!taskCount()) {
-      <p class="none muted">
-        No change tasks yet. The change needs at least one approved change task to go In
-        Progress.
+    @if (open() && !taskCount()) {
+      <p class="no-tasks muted">
+        No change tasks yet. The change needs at least one approved change task to go In Progress.
       </p>
     }
   `,
@@ -280,7 +288,7 @@ export function remindedNames(change: Pick<ProductionChange, 'approvals' | 'task
       --bs-btn-font-weight: 400;
     }
 
-    .none {
+    .no-tasks {
       margin: 6px 0 0;
       font-size: 12.5px;
     }
@@ -326,7 +334,7 @@ export class ChangeApprovals {
       next: (reminded) => {
         this.sending.set(false);
         this.changed.emit(reminded);
-        this.notifier.success(`Reminder sent to ${remindedNames(reminded).join(', ')}`);
+        this.notifier.success(`Reminder sent to ${remindedNames(reminded, target).join(', ')}`);
       },
       error: (error) => {
         this.sending.set(false);

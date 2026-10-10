@@ -36,8 +36,8 @@ class ProTechApplyRegressionSpec extends ChangeRegressionSpecification {
         opened.tasks[2].details.subMap('assignmentGroup', 'shortDescription', 'description', 'configurationItem',
                 'importance') == added.details + [configurationItem: raised.template.configurationItem,
                                                   importance: '3 - Moderate']
-        opened.tasks[2].subMap('start', 'approval', 'state') == [start: null, approval: 'Not Yet Requested',
-                                                                 state: 'OPEN']
+        opened.tasks[2].subMap('start', 'approval', 'approvers', 'state') ==
+                [start: null, approval: 'NOT_APPROVED', approvers: ['Jane Smith'], state: 'OPEN']
         opened.version > updated.version
         opened.editedVersion == updated.editedVersion
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PRODUCTION_CHANGE_TASK WHERE CHANGE_ID = ?', Integer,

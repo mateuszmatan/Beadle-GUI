@@ -28,6 +28,8 @@ describe('demoText', () => {
     ).toBe(demoCyberTrack);
     expect(
       demoText({ jiraConnected: true, serviceNowConnected: false, cyberTrackConnected: false }),
-    ).toBe(`ProTech is not connected yet, so no change reaches the real ProTech. ${demoProTech} ${demoCyberTrack}`);
+    ).toBe(
+      `ProTech is not connected yet, so no change reaches the real ProTech. ${demoProTech} ${demoCyberTrack}`,
+    );
   });
 });
