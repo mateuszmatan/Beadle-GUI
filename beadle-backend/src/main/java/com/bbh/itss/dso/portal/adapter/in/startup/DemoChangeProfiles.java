@@ -41,6 +41,7 @@ import static com.bbh.itss.dso.portal.domain.change.RiskAssessment.Question.PLAT
 import static com.bbh.itss.dso.portal.domain.change.RiskAssessment.Question.VALIDATION_COMPLEXITY;
 import static com.bbh.itss.dso.portal.domain.change.TaskDetails.suggestedTasks;
 import static com.bbh.itss.dso.portal.domain.shared.Text.abbreviateBytes;
+import static java.lang.Math.floorMod;
 import static java.util.Collections.shuffle;
 import static java.util.Locale.ROOT;
 import static java.util.stream.Collectors.joining;
@@ -65,6 +66,8 @@ public class DemoChangeProfiles {
             "Samuel Price");
     private static final List<String> BUSINESS_APPROVERS = List.of("Rebecca Lawson", "Michael Grant",
             "Hannah Whitfield", "Robert Ellison", "Laura Kingsley", "Thomas Ashby");
+    private static final List<String> SUPPORT_APPROVERS = List.of("Kenji Watanabe", "Aisha Rahman", "Marcus Webb",
+            "Priya Natarajan", "Jane Smith", "Ann Lee");
     private static final List<String> START_TIMES = List.of("18:00", "19:00", "20:00");
     private static final List<String> USERS_AFFECTED = List.of(
             "Internal users of %s only; no client sees the change.",
@@ -113,7 +116,8 @@ public class DemoChangeProfiles {
         int level = random.nextInt(IMPACTS.size());
         List<String> managers = random.ints(0, MANAGERS.size()).distinct().limit(2).mapToObj(MANAGERS::get).toList();
         Approvers approvers = new Approvers(managers.get(0), managers.get(1),
-                BUSINESS_APPROVERS.get(random.nextInt(BUSINESS_APPROVERS.size())));
+                BUSINESS_APPROVERS.get(random.nextInt(BUSINESS_APPROVERS.size())),
+                SUPPORT_APPROVERS.get(floorMod(product.code().hashCode(), SUPPORT_APPROVERS.size())));
         Timing timing = new Timing(START_TIMES.get(random.nextInt(START_TIMES.size())), 2 + level, 1);
         PrivilegedAccess access = PRIVILEGED_PRODUCT.equals(product.code())
                 ? new PrivilegedAccess(true, PRIVILEGED_USERS) : PrivilegedAccess.NONE;

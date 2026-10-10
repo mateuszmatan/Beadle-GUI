@@ -7,6 +7,7 @@ import com.bbh.itss.dso.portal.application.change.port.in.ChangeEditCommand;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeIntegrations;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeTasksCommand;
 import com.bbh.itss.dso.portal.application.change.port.in.ProductionChangesUseCase;
+import com.bbh.itss.dso.portal.application.change.port.in.ReminderCommand;
 import com.bbh.itss.dso.portal.application.change.port.in.SecureCodingCommand;
 import com.bbh.itss.dso.portal.application.change.port.out.ChangeProductsPort;
 import com.bbh.itss.dso.portal.application.change.port.out.CyberTrackPort;
@@ -15,6 +16,7 @@ import com.bbh.itss.dso.portal.application.change.port.out.ProductionChangeRepos
 import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort;
 import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort.RaisedChange;
 import com.bbh.itss.dso.portal.application.user.port.in.SignedInUserUseCase;
+import com.bbh.itss.dso.portal.domain.change.ApprovalRef;
 import com.bbh.itss.dso.portal.domain.change.ChangeProduct;
 import com.bbh.itss.dso.portal.domain.change.ChangeSchedule;
 import com.bbh.itss.dso.portal.domain.change.ChangeTask;
@@ -22,6 +24,7 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
 import com.bbh.itss.dso.portal.domain.change.JiraIssue;
 import com.bbh.itss.dso.portal.domain.change.JiraVersion;
 import com.bbh.itss.dso.portal.domain.change.ProductionChange;
+import com.bbh.itss.dso.portal.domain.change.Reminder;
 import com.bbh.itss.dso.portal.domain.change.SecureCodingTicket;
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
@@ -31,6 +34,7 @@ import java.io.UncheckedIOException;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -190,9 +194,42 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         }
     }
 
+    @Override
+    @WithoutTransaction
+    public ProductionChange remind(long id, ReminderCommand command) {
+        ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
+        requireDepartment(stored, command.departmentId(), "remind the approvers of");
+        ProductionChange current = synced(stored);
+        if (current.syncProblem() != null) {
+            throw new IllegalStateException(current.syncProblem());
+        }
+        List<ApprovalRef> awaited = current.toRemind(command.approval(), command.task());
+        Instant now = now(clock);
+        Map<ApprovalRef, Reminder> sent = new LinkedHashMap<>();
+        try {
+            awaited.forEach(approval -> sent.put(approval,
+                    new Reminder(now, serviceNow.remind(current.number(), approval))));
+        } catch (RuntimeException refused) {
+            if (!sent.isEmpty()) {
+                remembered(current, sent);
+            }
+            throw refused;
+        }
+        return remembered(current, sent);
+    }
+
+    private ProductionChange remembered(ProductionChange change, Map<ApprovalRef, Reminder> sent) {
+        try {
+            return changes.save(change.reminded(sent));
+        } catch (IllegalStateException stale) {
+            ProductionChange latest = changes.load(change.id()).orElseThrow(() -> stale);
+            return changes.save(latest.reminded(sent));
+        }
+    }
+
     private ProductionChange editable(long id, Long version, Long departmentId) {
         ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
-        requireDepartment(stored, departmentId);
+        requireDepartment(stored, departmentId, "change");
         requireUnchangedSince(version, stored.editedVersion(), stored.version());
         return stored;
     }
@@ -344,16 +381,16 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         }
     }
 
-    private static void requireDepartment(ProductionChange stored, Long departmentId) {
+    private static void requireDepartment(ProductionChange stored, Long departmentId, String action) {
         if (departmentId == null) {
             throw InvalidRequestException.of("departmentId", "choose your department");
         }
         if (stored.departmentId() == null) {
             throw new SecurityException("No department owns " + stored.number()
-                    + ", so it cannot be changed in Beadle");
+                    + ", so nobody can " + action + " it in Beadle");
         }
         if (!stored.departmentId().equals(departmentId)) {
-            throw new SecurityException("Only " + stored.departmentName() + " can change " + stored.number());
+            throw new SecurityException("Only " + stored.departmentName() + " can " + action + " " + stored.number());
         }
     }
 

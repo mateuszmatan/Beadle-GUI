@@ -58,7 +58,8 @@ public record ChangeTemplateEmbeddable(
 
     @Embeddable
     public record ApproversEmbeddable(@Column(name = "L1_MANAGER") String l1Manager,
-                                      @Column(name = "L2_MANAGER") String l2Manager, String businessApprover) {
+                                      @Column(name = "L2_MANAGER") String l2Manager, String businessApprover,
+                                      String supportApprover) {
     }
 
     @Embeddable

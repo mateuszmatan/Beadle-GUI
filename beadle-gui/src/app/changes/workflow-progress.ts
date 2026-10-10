@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { ChangeApprovers, ChangeState, ProductionChange, STATES, WorkflowStep } from './change-api';
-import { windowText } from './change-model';
+import { activeTasks, windowText } from './change-model';
 
 export type StageStatus = 'done' | 'current' | 'skipped' | 'later';
 
@@ -16,9 +16,10 @@ export const STATE_MEANINGS: Record<ChangeState, string> = {
   BUSINESS_APPROVAL: 'Waiting for the business approver',
   PRIMARY_APPROVAL: 'Waiting for the L1 approver',
   SECONDARY_APPROVAL: 'Waiting for the L2 approver',
-  CTASK_APPROVAL: 'Waiting for its change tasks to be approved',
+  SUPPORT_APPROVAL: 'Waiting for the support approver',
+  CTASK_APPROVAL: 'Waiting for every change task to be approved',
   ESCALATED_APPROVAL: 'Short notice: waiting for an escalated approval',
-  IMPLEMENTATION: 'Approved, installs in its window',
+  IMPLEMENTATION: 'Every change task approved, installs in its window',
   CLOSED: 'Done',
 };
 
@@ -26,10 +27,19 @@ const APPROVERS: Partial<Record<ChangeState, [string, keyof ChangeApprovers]>> =
   BUSINESS_APPROVAL: ['business approver', 'businessApprover'],
   PRIMARY_APPROVAL: ['L1 approver', 'l1Manager'],
   SECONDARY_APPROVAL: ['L2 approver', 'l2Manager'],
+  SUPPORT_APPROVAL: ['support approver', 'supportApprover'],
 };
 
+function tasksText(change: Pick<ProductionChange, 'tasks'>): string {
+  const tasks = activeTasks(change.tasks);
+  const approved = tasks.filter((task) => task.approval === 'APPROVED').length;
+  return tasks.length
+    ? `${approved} of ${tasks.length} approved`
+    : 'none added yet, and the change needs at least one';
+}
+
 export function stateNow(
-  change: Pick<ProductionChange, 'state' | 'template' | 'schedule'>,
+  change: Pick<ProductionChange, 'state' | 'template' | 'schedule' | 'tasks'>,
 ): string {
   const approver = APPROVERS[change.state];
   if (approver) {
@@ -42,11 +52,11 @@ export function stateNow(
     case 'DRAFT':
       return 'The change is written but not sent for approval yet. The business approver is asked first.';
     case 'CTASK_APPROVAL':
-      return 'Waiting for the change tasks to be approved in ProTech.';
+      return `Waiting for the approvers of each change task in ProTech: ${tasksText(change)}. The change goes In Progress once every change task is approved.`;
     case 'ESCALATED_APPROVAL':
       return 'The installation is at short notice, so the change waits for an escalated approval in ProTech.';
     case 'IMPLEMENTATION':
-      return `Approved. The teams carry out the change tasks in the installation window, ${windowText(installationStart, installationEnd)}.`;
+      return `Every change task is approved. The teams carry out the change tasks in the installation window, ${windowText(installationStart, installationEnd)}.`;
     default:
       return 'Done. The change is closed in ProTech and can no longer be changed.';
   }
@@ -103,7 +113,7 @@ export function stages(state: ChangeState, workflow: readonly WorkflowStep[]): S
 
     .workflow {
       display: grid;
-      grid-template-columns: repeat(8, minmax(0, 1fr));
+      grid-template-columns: repeat(9, minmax(0, 1fr));
       gap: 6px;
       margin: 0;
       padding: 0;
@@ -186,7 +196,7 @@ export function stages(state: ChangeState, workflow: readonly WorkflowStep[]): S
 
     @media (max-width: 1000px) {
       .workflow {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(5, minmax(0, 1fr));
       }
     }
 

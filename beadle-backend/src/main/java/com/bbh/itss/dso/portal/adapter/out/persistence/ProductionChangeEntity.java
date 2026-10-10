@@ -1,6 +1,8 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
 import com.bbh.itss.dso.portal.adapter.out.persistence.ChangeTemplateEmbeddable.PrivilegedUserEmbeddable;
+import com.bbh.itss.dso.portal.domain.change.ApprovalRole;
+import com.bbh.itss.dso.portal.domain.change.ApprovalState;
 import com.bbh.itss.dso.portal.domain.change.ChangeState;
 import com.bbh.itss.dso.portal.domain.change.ChangeTask;
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
@@ -81,6 +83,11 @@ public class ProductionChangeEntity extends AuditedEntity {
     @OrderColumn(name = "POSITION")
     private List<StageEmbeddable> workflow = new ArrayList<>();
 
+    @ElementCollection
+    @CollectionTable(name = "DSO_PRODUCTION_CHANGE_APPROVAL", joinColumns = @JoinColumn(name = "CHANGE_ID"))
+    @OrderColumn(name = "POSITION")
+    private List<ApprovalEmbeddable> approvals = new ArrayList<>();
+
     private Instant syncedAt;
 
     @EmbeddedColumnNaming("UPDATE_%s")
@@ -120,6 +127,8 @@ public class ProductionChangeEntity extends AuditedEntity {
         url = change.url();
         state = change.state();
         replace(workflow, change.workflow().stream().map(step -> map(step, StageEmbeddable.class)).toList());
+        replace(approvals, change.approvals().stream().map(approval -> map(approval, ApprovalEmbeddable.class))
+                .toList());
         syncedAt = change.syncedAt();
         update = map(change.update(), UpdateEmbeddable.class);
         replaceTasks(change.tasks());
@@ -159,6 +168,17 @@ public class ProductionChangeEntity extends AuditedEntity {
 
     @Embeddable
     public record StageEmbeddable(@Enumerated(STRING) @Column(name = "STAGE") ChangeState state, Instant enteredAt) {
+    }
+
+    @Embeddable
+    public record ApprovalEmbeddable(@Enumerated(STRING) @Column(name = "APPROVAL_ROLE") ApprovalRole role,
+                                     String approver,
+                                     @Enumerated(STRING) @Column(name = "APPROVAL_STATE") ApprovalState state,
+                                     @EmbeddedColumnNaming("REMINDER_%s") ReminderEmbeddable reminder) {
+    }
+
+    @Embeddable
+    public record ReminderEmbeddable(Instant sentAt, List<String> sentTo) {
     }
 
     @Embeddable

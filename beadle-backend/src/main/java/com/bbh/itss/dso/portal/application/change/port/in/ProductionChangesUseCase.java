@@ -29,4 +29,6 @@ public interface ProductionChangesUseCase {
     ProductionChange createTasks(long id, ChangeTasksCommand command);
 
     ProductionChange createSecureCodingTicket(long id, SecureCodingCommand command);
+
+    ProductionChange remind(long id, ReminderCommand command);
 }

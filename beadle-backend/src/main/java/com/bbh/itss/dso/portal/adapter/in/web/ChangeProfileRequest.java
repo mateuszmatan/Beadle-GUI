@@ -82,7 +82,8 @@ public record ChangeProfileRequest(Long version, @NotNull @Valid TemplateDto tem
     }
 
     public record ApproversDto(@Size(max = GROUP_MAX) String l1Manager, @Size(max = GROUP_MAX) String l2Manager,
-                               @Size(max = GROUP_MAX) String businessApprover) implements Mirrors<Approvers> {
+                               @Size(max = GROUP_MAX) String businessApprover,
+                               @Size(max = GROUP_MAX) String supportApprover) implements Mirrors<Approvers> {
     }
 
     public record TimingDto(

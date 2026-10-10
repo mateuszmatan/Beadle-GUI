@@ -62,14 +62,13 @@ type BlockKey = Exclude<SectionKey, 'planning'>;
 
 const LAYOUTS: Record<SummaryLayout, BlockKey[][]> = {
   all: [['request'], ['jira', 'schedule', 'approvals'], ['risk', 'privileged']],
-  key: [['schedule'], ['jira'], ['approvals']],
+  key: [['schedule'], ['jira']],
   details: [['request'], ['risk', 'privileged', 'secure']],
 };
 
 const KEY_TITLES: Partial<Record<BlockKey, string>> = {
   schedule: 'When it installs',
   jira: 'What it delivers',
-  approvals: 'Who approves',
 };
 
 const keys = (list: readonly string[]) => (list.length ? list.join(' ') : 'None');
@@ -128,6 +127,7 @@ export function summaryColumns(
         row('approvers.businessApprover', t.approvers.businessApprover),
         row('approvers.l1Manager', t.approvers.l1Manager),
         row('approvers.l2Manager', t.approvers.l2Manager),
+        row('approvers.supportApprover', t.approvers.supportApprover),
       ],
       note: 'They approve the change in ProTech in this order.',
     },

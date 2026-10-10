@@ -74,6 +74,7 @@ export function templateForm(template: ChangeTemplate) {
       businessApprover: text(approvers.businessApprover, fits(200)),
       l1Manager: text(approvers.l1Manager, fits(200)),
       l2Manager: text(approvers.l2Manager, fits(200)),
+      supportApprover: text(approvers.supportApprover, fits(200)),
     }),
     downtime: flag(template.downtime),
     timing: new FormGroup({

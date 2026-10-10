@@ -22,7 +22,7 @@ import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORT
 @AutoConfigureTestDatabase(replace = NONE)
 @Transactional(propagation = NOT_SUPPORTED)
 @Import([ChangeProfilePersistenceAdapter, ProductionChangePersistenceAdapter])
-class ProductDescriptionMigrationSpec extends MigrationSpecification {
+class ProductDescriptionMigrationSpec extends BeadleMigrationSpecification {
 
     @Autowired
     ChangeProfilePersistenceAdapter profiles

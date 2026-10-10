@@ -29,7 +29,7 @@ import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORT
 @AutoConfigureTestDatabase(replace = NONE)
 @Transactional(propagation = NOT_SUPPORTED)
 @Import([ChangeProfilePersistenceAdapter, ProductionChangePersistenceAdapter])
-class ServiceNowFieldsMigrationSpec extends MigrationSpecification {
+class ServiceNowFieldsMigrationSpec extends BeadleMigrationSpecification {
 
     static final List<String> DROPPED = ['RISK', 'IMPACT', 'RISK_ASSESSMENT', 'APPROVERS', 'TEST_PLAN']
     static final String MIGRATED_VALIDATION_PLAN = 'Run the smoke tests of the DevSecOps pipeline against production' +
@@ -64,7 +64,7 @@ class ServiceNowFieldsMigrationSpec extends MigrationSpecification {
         profile.template() == ChangeTemplate.builder().jiraProjectKey('CERT')
                 .assignmentGroup('Technology Architecture').category('Application').type(STANDARD)
                 .configurationItem('CertScanner')
-                .approvers(new Approvers('Olivia Bennett', 'James Carter', 'Emma Brooks')).downtime(false)
+                .approvers(new Approvers('Olivia Bennett', 'James Carter', 'Emma Brooks', null)).downtime(false)
                 .timing(Timing.SUGGESTED)
                 .planning(new Planning('Pipeline tests passed on QC.', 'Deploy the services.',
                         MIGRATED_VALIDATION_PLAN, 'Redeploy the previous release.', FIRST_USE_PLAN))
@@ -74,7 +74,7 @@ class ServiceNowFieldsMigrationSpec extends MigrationSpecification {
         change.fixVersion() == 'Not recorded'
         change.schedule() == new ChangeSchedule(at('2026-03-02T06:00:00Z'), at('2026-03-02T08:00:00Z'),
                 at('2026-03-02T08:00:00Z'), at('2026-03-02T08:00:00Z'), at('2026-03-02T08:00:00Z'), null, null)
-        change.template().approvers() == new Approvers('Ann Lee', null, null)
+        change.template().approvers() == new Approvers('Ann Lee', null, null, null)
         change.template().riskAssessment() == impact('Medium')
         change.template().planning() == new Planning('Tested.', 'Deploy.', 'Not recorded', 'Back out.',
                 'Not recorded')

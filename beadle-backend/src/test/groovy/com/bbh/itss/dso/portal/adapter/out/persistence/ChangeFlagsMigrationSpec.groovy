@@ -26,7 +26,7 @@ import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORT
 @AutoConfigureTestDatabase(replace = NONE)
 @Transactional(propagation = NOT_SUPPORTED)
 @Import([ChangeProfilePersistenceAdapter, ProductionChangePersistenceAdapter])
-class ChangeFlagsMigrationSpec extends MigrationSpecification {
+class ChangeFlagsMigrationSpec extends BeadleMigrationSpecification {
 
     static final Instant SYNCED = parse('2026-10-09T07:00:00Z')
     static final List<String> FLAGS = ['CK_DSO_CHANGE_PROFILE_FLAGS', 'CK_DSO_PRODUCTION_CHANGE_FLAGS']
@@ -56,7 +56,7 @@ class ChangeFlagsMigrationSpec extends MigrationSpecification {
 
         then:
         jdbc.queryForList('SELECT ID FROM DATABASECHANGELOG WHERE ID LIKE ?', String, '%-change-flags-h2').sort() ==
-                ['020-change-flags-h2', '021-change-flags-h2', '025-change-flags-h2']
+                ['020-change-flags-h2', '021-change-flags-h2', '025-change-flags-h2', '027-change-flags-h2']
         change.syncedAt() == SYNCED
         change.template().downtime()
         edited.shortDescription() == 'Synced from ProTech'

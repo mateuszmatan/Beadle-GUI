@@ -1,4 +1,7 @@
 import {
+  ApprovalRole,
+  ApprovalState,
+  ChangeApproval,
   ChangeOptions,
   ChangeProfile,
   ChangeSchedule,
@@ -8,6 +11,7 @@ import {
   JiraIssue,
   JiraVersion,
   ProductionChange,
+  Reminder,
   TaskDetails,
 } from '../changes/change-api';
 
@@ -73,7 +77,12 @@ export function changeTemplate(overrides: Partial<ChangeTemplate> = {}): ChangeT
     risk: null,
     affectedClients: null,
     usersAffected: null,
-    approvers: { businessApprover: null, l1Manager: 'Olivia Bennett', l2Manager: 'James Carter' },
+    approvers: {
+      businessApprover: null,
+      l1Manager: 'Olivia Bennett',
+      l2Manager: 'James Carter',
+      supportApprover: 'Jane Smith',
+    },
     downtime: false,
     timing: { installationStart: '18:00', installationHours: 2, validationHours: 1 },
     planning: {
@@ -145,10 +154,21 @@ export function changeTask(overrides: Partial<ChangeTask> = {}): ChangeTask {
     number: 'CTASK0020001',
     details: taskDetails('Deploy CertScanner to production', 'Deploy the release of CertScanner.'),
     start: null,
-    approval: 'Not Yet Requested',
+    approval: 'NOT_APPROVED',
+    approvers: ['Rebecca Lawson', 'Thomas Ashby'],
+    reminder: null,
     state: 'OPEN',
     ...overrides,
   };
+}
+
+export function changeApproval(
+  role: ApprovalRole,
+  approver: string | null,
+  state: ApprovalState = 'NOT_APPROVED',
+  reminder: Reminder | null = null,
+): ChangeApproval {
+  return { role, approver, state, reminder };
 }
 
 export function changeUpdate(overrides: Partial<ChangeUpdate> = {}): ChangeUpdate {
@@ -230,6 +250,12 @@ export function productionChange(overrides: Partial<ProductionChange> = {}): Pro
       { state: 'DRAFT', enteredAt: '2026-10-07T09:00:00Z' },
       { state: 'BUSINESS_APPROVAL', enteredAt: '2026-10-07T09:02:00Z' },
       { state: 'PRIMARY_APPROVAL', enteredAt: '2026-10-07T09:04:00Z' },
+    ],
+    approvals: [
+      changeApproval('BUSINESS', null, 'APPROVED'),
+      changeApproval('L1', 'Olivia Bennett', 'REQUESTED'),
+      changeApproval('L2', 'James Carter'),
+      changeApproval('SUPPORT', 'Jane Smith'),
     ],
     syncedAt: '2026-10-08T09:00:00Z',
     syncProblem: null,

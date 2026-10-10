@@ -26,6 +26,7 @@ import {
   isOpen,
   labelOf,
 } from './change-api';
+import { ChangeApprovals } from './change-approvals';
 import { editHint, momentText } from './change-model';
 import { fieldLabels } from './change-problems';
 import { ChangeSummary } from './change-summary';
@@ -74,6 +75,7 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
     DsoLoading,
     PANEL,
     RelativeTimePipe,
+    ChangeApprovals,
     ChangeSummary,
     ChangeTasksForm,
     WorkflowProgress,
@@ -192,6 +194,9 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
           <dso-workflow-progress [state]="c.state" [workflow]="c.workflow" />
         </section>
         <section class="card block">
+          <dso-change-approvals [change]="c" (changed)="change.set($event)" />
+        </section>
+        <section class="card block">
           <h2>The change at a glance</h2>
           <dso-change-summary [change]="c" layout="key" />
         </section>
@@ -199,7 +204,8 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
           <h2>Change tasks</h2>
           <p class="section-help">
             A change task (CTASK) is a piece of work inside the change, done by one team. ProTech
-            asks for their approval in the CTask approval stage.
+            asks the approvers of its assignment group for their approval in the CTask approval
+            stage.
           </p>
           @if (tasks(); as list) {
             <dso-change-tasks-form [tasks]="list" [readonly]="true" />
