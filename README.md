@@ -124,8 +124,9 @@ the first start with the five BBH departments (AI Lab, Capital Partners, Corpora
 Services) and the BBH library defaults, and nothing else: no product, service, pipeline or key is made up, so the
 portal can be used for real from the first start. Every later start finds the data where it was left; the schema is
 updated in place when a new version adds to it. The database file is the portal's data: back up the folder, and move
-it with `DSO_DATA_DIR` when the portal moves. The portal has no Oracle profile in use; `DB_USERNAME` and `DB_PASSWORD`
-protect the H2 file (`sa` without a password by default, set them before the first start). Pipeline Monitoring reads
+it with `DSO_DATA_DIR` when the portal moves. The portal has no Oracle profile: whichever profile is switched on, it
+stays on its H2 file (`rd` only turns the logging up to DEBUG). `DB_USERNAME` and `DB_PASSWORD` protect the H2 file
+(`sa` without a password by default, set them before the first start). Pipeline Monitoring reads
 InfluxDB, so without `INFLUX_URL` it says that the administrator has to set it and shows no runs:
 
 ```bash
