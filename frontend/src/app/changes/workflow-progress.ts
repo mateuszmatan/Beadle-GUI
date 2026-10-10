@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { ChangeState, STATES, WorkflowStep } from './change-api';
+import { ChangeApprovers, ChangeState, ProductionChange, STATES, WorkflowStep } from './change-api';
+import { windowText } from './change-model';
 
 export type StageStatus = 'done' | 'current' | 'skipped' | 'later';
 
@@ -8,6 +9,47 @@ export interface Stage {
   label: string;
   status: StageStatus;
   enteredAt: string | null;
+}
+
+export const STATE_MEANINGS: Record<ChangeState, string> = {
+  DRAFT: 'Not sent for approval yet',
+  BUSINESS_APPROVAL: 'Waiting for the business approver',
+  PRIMARY_APPROVAL: 'Waiting for the L1 approver',
+  SECONDARY_APPROVAL: 'Waiting for the L2 approver',
+  CTASK_APPROVAL: 'Waiting for its change tasks to be approved',
+  ESCALATED_APPROVAL: 'Short notice: waiting for an escalated approval',
+  IMPLEMENTATION: 'Approved, installs in its window',
+  CLOSED: 'Done',
+};
+
+const APPROVERS: Partial<Record<ChangeState, [string, keyof ChangeApprovers]>> = {
+  BUSINESS_APPROVAL: ['business approver', 'businessApprover'],
+  PRIMARY_APPROVAL: ['L1 approver', 'l1Manager'],
+  SECONDARY_APPROVAL: ['L2 approver', 'l2Manager'],
+};
+
+export function stateNow(
+  change: Pick<ProductionChange, 'state' | 'template' | 'schedule'>,
+): string {
+  const approver = APPROVERS[change.state];
+  if (approver) {
+    const [role, key] = approver;
+    const name = change.template.approvers[key];
+    return `Waiting for the ${role}${name ? `, ${name},` : ''} to approve the change in ProTech.`;
+  }
+  const { installationStart, installationEnd } = change.schedule;
+  switch (change.state) {
+    case 'DRAFT':
+      return 'The change is written but not sent for approval yet. The business approver is asked first.';
+    case 'CTASK_APPROVAL':
+      return 'Waiting for the change tasks to be approved in ProTech.';
+    case 'ESCALATED_APPROVAL':
+      return 'The installation is at short notice, so the change waits for an escalated approval in ProTech.';
+    case 'IMPLEMENTATION':
+      return `Approved. The teams carry out the change tasks in the installation window, ${windowText(installationStart, installationEnd)}.`;
+    default:
+      return 'Done. The change is closed in ProTech and can no longer be changed.';
+  }
 }
 
 const ENTERED = new Intl.DateTimeFormat('en-GB', {

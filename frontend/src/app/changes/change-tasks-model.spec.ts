@@ -4,6 +4,7 @@ import {
   releaseDetails,
   taskDetails,
 } from '../testing/change-fixtures';
+import { momentText } from './change-model';
 import { localInput } from './change-schedule-model';
 import {
   MAX_TASKS,
@@ -18,6 +19,7 @@ import {
   setTaskWindow,
   taskFacts,
   taskForm,
+  taskStatus,
   taskWindow,
   tasksForm,
   toTaskDetails,
@@ -50,7 +52,10 @@ describe('change tasks model', () => {
   });
 
   it('shows the change on every task and defaults a release task to a minute after the start', () => {
-    const tasks = tasksForm(drafts([releaseDetails('Deploy it'), taskDetails('Tell them')]), window());
+    const tasks = tasksForm(
+      drafts([releaseDetails('Deploy it'), taskDetails('Tell them')]),
+      window(),
+    );
     const [release, other] = tasks.controls;
 
     expect(release.getRawValue()).toMatchObject({
@@ -100,7 +105,9 @@ describe('change tasks model', () => {
   });
 
   it('sets the application to OCP on OpenShift and frees it again on another platform', () => {
-    const task = taskForm({ details: releaseDetails('Deploy it', 'Deploy.', { application: 'cert' }) });
+    const task = taskForm({
+      details: releaseDetails('Deploy it', 'Deploy.', { application: 'cert' }),
+    });
     const { platform, application } = task.controls.details.controls;
 
     expect(platform.value).toBe('None');
@@ -139,7 +146,12 @@ describe('change tasks model', () => {
           }),
           start: '2026-10-10T06:30:00Z',
         }),
-        { details: taskDetails('Tell them', 'Send the e-mail.', { platform: 'Mainframe', packages: 'x' }) },
+        {
+          details: taskDetails('Tell them', 'Send the e-mail.', {
+            platform: 'Mainframe',
+            packages: 'x',
+          }),
+        },
       ],
       window(),
     );
@@ -189,7 +201,10 @@ describe('change tasks model', () => {
   });
 
   it('keeps a closed task as it is and at least one template task', () => {
-    const tasks = tasksForm([changeTask({ state: 'CLOSED' }), changeTask({ number: null })], window());
+    const tasks = tasksForm(
+      [changeTask({ state: 'CLOSED' }), changeTask({ number: null })],
+      window(),
+    );
 
     expect(tasks.at(0).disabled).toBe(true);
     expect(canRemove(tasks, 0)).toBe(false);
@@ -222,7 +237,10 @@ describe('change tasks model', () => {
   });
 
   it('marks the problems of the server on their task and its fields', () => {
-    const tasks = tasksForm(drafts([taskDetails('Deploy it'), releaseDetails('Validate it')]), window());
+    const tasks = tasksForm(
+      drafts([taskDetails('Deploy it'), releaseDetails('Validate it')]),
+      window(),
+    );
 
     expect(
       applyTaskProblems(tasks, [
@@ -252,7 +270,7 @@ describe('change tasks model', () => {
     ]);
   });
 
-  it('sums a task up in one line', () => {
+  it('sums a task up in one line, who does it and when first', () => {
     expect(
       taskFacts(
         changeTask({
@@ -265,8 +283,30 @@ describe('change tasks model', () => {
           start: '2026-10-10T06:01:00Z',
         }),
       ),
-    ).toMatch(/^Release Management · Mateusz Matan · CertScanner · OpenShift · OCP · starts /);
-    expect(taskFacts(changeTask())).toBe('Technology Architecture · 3 - Moderate');
-    expect(taskFacts(changeTask({ details: releaseDetails('Deploy it') }))).toBe('Release Management');
+    ).toBe(
+      `Release Management · assigned to Mateusz Matan · starts ${momentText('2026-10-10T06:01:00Z')} · ` +
+        'affected CI CertScanner · platform OpenShift · application OCP',
+    );
+    expect(taskFacts(changeTask())).toBe('Technology Architecture · importance 3 - Moderate');
+    expect(taskFacts(changeTask({ details: releaseDetails('Deploy it') }))).toBe(
+      'Release Management',
+    );
+  });
+
+  it('says in plain words where a task stands and its approval', () => {
+    expect(taskStatus(changeTask())).toBe('Not done yet; approval not requested yet.');
+    expect(taskStatus(changeTask({ approval: 'Requested' }))).toBe(
+      'Not done yet; waiting for approval.',
+    );
+    expect(taskStatus(changeTask({ state: 'WORK_IN_PROGRESS', approval: 'Approved' }))).toBe(
+      'Being carried out; approved.',
+    );
+    expect(taskStatus(changeTask({ approval: 'Escalated' }))).toBe(
+      'Not done yet; approval Escalated.',
+    );
+    expect(taskStatus(changeTask({ state: 'CLOSED', approval: 'Approved' }))).toBe('Done.');
+    expect(taskStatus(changeTask({ state: 'CANCELED' }))).toBe(
+      'Canceled; no longer part of the change.',
+    );
   });
 });

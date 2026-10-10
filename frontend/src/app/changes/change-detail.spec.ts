@@ -106,7 +106,7 @@ describe('ChangeDetail', () => {
     localStorage.removeItem(MY_DEPARTMENT_KEY);
   });
 
-  it('shows a change with its workflow, FixVersion, schedule, ProTech fields, tasks and description', async () => {
+  it('shows where a change is, when it installs, what it delivers, who approves, its tasks and the rest folded away', async () => {
     await show(
       productionChange({
         url: 'https://bbh.service-now.com/CHG0012345',
@@ -142,7 +142,9 @@ describe('ChangeDetail', () => {
           }),
           changeTask({
             number: null,
-            details: taskDetails('Tell the users', 'Send the e-mail.', { assignedTo: 'Mateusz Matan' }),
+            details: taskDetails('Tell the users', 'Send the e-mail.', {
+              assignedTo: 'Mateusz Matan',
+            }),
           }),
         ],
       }),
@@ -158,32 +160,45 @@ describe('ChangeDetail', () => {
 
     expect(text(page().querySelector('h1'))).toBe('CHG0012345');
     expect(text(page().querySelector('.breadcrumb'))).toBe('Changes/CHG0012345');
-    expect([...page().querySelectorAll('h1, h2, h3')].map((heading) => heading.tagName)).toEqual([
-      'H1',
-      'H2',
-      'H2',
-      'H3',
-      'H3',
-      'H3',
-      'H3',
-      'H3',
-      'H3',
-      'H3',
-      'H3',
-      'H2',
-      'H2',
+    expect([...page().querySelectorAll('h1, h2')].map(text)).toEqual([
+      'CHG0012345',
+      'Where the change is',
+      'The change at a glance',
+      'Change tasks',
     ]);
+    expect([...page().querySelectorAll('dso-change-summary h3')].map(text)).toEqual([
+      'When it installs',
+      'What it delivers',
+      'Who approves',
+      'Request details',
+      'Risk assessment',
+      'Privileged access',
+      'Secure coding',
+      'Planning',
+    ]);
+    expect([...page().querySelectorAll('dso-panel .panel-title')].map(text)).toEqual([
+      'All ProTech fields',
+      'Text sent to ProTech',
+    ]);
+    expect(
+      [...page().querySelectorAll('dso-panel .accordion-button')].map((button) =>
+        button.getAttribute('aria-expanded'),
+      ),
+    ).toEqual(['false', 'false']);
     expect(page().querySelectorAll('dso-workflow-progress li')).toHaveLength(8);
     expect(text(page().querySelector('dso-workflow-progress li[aria-current="step"]'))).toContain(
       'Primary Approval',
     );
-    expect(rows('Generic request data')).toEqual([
+    expect(text(page().querySelector('.now'))).toBe(
+      'Primary Approval. Waiting for the L1 approver, Olivia Bennett, to approve the change in ProTech.',
+    );
+    expect(rows('Request details')).toEqual([
       'Change number: CHG0012345',
       'Approval: Requested',
-      'Opened By: Mateusz Matan',
+      'Opened by: Mateusz Matan',
       'State: Primary Approval',
-      'Requested For: not set',
-      'Requested By: not set',
+      'Requested for: not set',
+      'Requested by: not set',
       'Department: not set',
       'Assignment group: Technology Architecture',
       'Category: Application',
@@ -198,21 +213,25 @@ describe('ChangeDetail', () => {
       'Affected clients: not set',
       'Users affected: not set',
     ]);
-    expect(rows('Jira')).toEqual([
+    expect(rows('What it delivers')).toEqual([
       'Product: CertScanner (CERT)',
       'Product department: Corporate Technology',
       'FixVersion: CERT 4.2',
       'Jira project: CERT',
-      'Jira: CERT-1 CERT-2',
+      'Epics: CERT-1',
+      'Stories: CERT-2',
     ]);
-    expect(rows('Schedule')).toEqual([
+    expect(text(block('What it delivers')!.querySelector('.note'))).toBe(
+      'FixVersion is the Jira release the change delivers.',
+    );
+    expect(rows('When it installs')).toEqual([
       expect.stringMatching(/^Installation: Sat, 10 Oct 2026, \d\d:00 to \d\d:00$/),
       expect.stringMatching(/^Validation: Sat, 10 Oct 2026, /),
       expect.stringMatching(/^First use: Mon, 12 Oct 2026, /),
       expect.stringMatching(/^Downtime: Sat, 10 Oct 2026, \d\d:00 to \d\d:00$/),
     ]);
-    expect(text(block('Schedule')!.querySelector('.note'))).toBe(zoneNote);
-    expect(rows('Approval and Notification')).toEqual([
+    expect(text(block('When it installs')!.querySelector('.note'))).toBe(zoneNote);
+    expect(rows('Who approves')).toEqual([
       'Business approver: not set',
       'L1 approver: Olivia Bennett',
       'L2 approver: James Carter',
@@ -226,26 +245,35 @@ describe('ChangeDetail', () => {
       ),
     ).toContain('Validation plan: Run the smoke tests.');
     expect([...page().querySelectorAll('.tasks li')].map(text)).toEqual([
-      'CTASK0020001OpenRequestedDeploy CertScanner to production' +
-        `Release Management · OpenShift · OCP · starts ${momentText('2026-10-10T06:01:00Z')}` +
+      'Deploy CertScanner to productionCTASK0020001OpenNot done yet; waiting for approval.' +
+        `Release Management · starts ${momentText('2026-10-10T06:01:00Z')} · platform OpenShift · application OCP` +
         'Deploy the release of CertScanner.',
-      'CTASK0020002CanceledNot Yet RequestedOld one' +
-        'Technology Architecture · 3 - ModerateDeploy the release of CertScanner.',
-      'not in ProTech yetOpenNot Yet RequestedTell the users' +
-        'Technology Architecture · Mateusz Matan · 3 - ModerateSend the e-mail.',
+      'Old oneCTASK0020002CanceledCanceled; no longer part of the change.' +
+        'Technology Architecture · importance 3 - ModerateDeploy the release of CertScanner.',
+      'Tell the usersnot in ProTech yetOpenNot done yet; approval not requested yet.' +
+        'Technology Architecture · assigned to Mateusz Matan · importance 3 - ModerateSend the e-mail.',
     ]);
+    expect(text(page().querySelector('.tasks')?.previousElementSibling)).toBe(
+      'A change task (CTASK) is a piece of work inside the change, done by one team. ProTech asks for their approval in the CTask approval stage.',
+    );
     expect(page().querySelector('.tasks li.canceled')).not.toBeNull();
     expect(text(page().querySelector('pre'))).toBe('Production release of CertScanner (CERT).');
-    expect(page().querySelector('a[href="https://bbh.service-now.com/CHG0012345"]')).not.toBeNull();
-    expect(page().querySelector('a[href="/beadle/admin/products/1"]')).not.toBeNull();
-    expect(page().querySelector('a[href="/beadle/changes/7/edit"]')).not.toBeNull();
+    expect(text(page().querySelector('a[href="https://bbh.service-now.com/CHG0012345"]'))).toBe(
+      'Open in ProTech',
+    );
+    expect(text(page().querySelector('a[href="/beadle/admin/products/1"]'))).toBe(
+      'Open the product',
+    );
+    expect(text(page().querySelector('a[href="/beadle/changes/7/edit"]'))).toBe('Edit the change');
     expect(page().querySelector('.banner.update')).toBeNull();
   });
 
   it('says how to add the change tasks of a change without any', async () => {
     await show(productionChange({ tasks: [] }));
 
-    expect(text(page().querySelector('.tasks'))).toBe('None yet: add them with Edit.');
+    expect(text(page().querySelector('.tasks'))).toBe(
+      'No change tasks yet. Add them with Edit the change.',
+    );
     fixture.destroy();
 
     await show(productionChange({ tasks: [], state: 'CLOSED' }));
@@ -265,26 +293,35 @@ describe('ChangeDetail', () => {
         syncProblem: 'ProTech could not be reached: timed out.',
       }),
     );
-    expect(text(page().querySelector('.sync-problem'))).toBe(
-      'ProTech could not be reached: timed out. Beadle shows what it last read from ProTech 1 hour ago.',
+    expect(text(page().querySelector('.sync-problem > span'))).toBe(
+      'ProTech could not be reached: timed out. Beadle shows what it last read from ProTech 1 hour ago. ' +
+        'Try again in a moment; if it keeps failing, tell the portal administrator.',
     );
     expect(page().querySelector('.note.sync')).toBeNull();
+    buttonOf(page(), 'Try again').click();
+    await settle();
+    http.expectOne('/api/changes/7').flush(productionChange({ syncedAt: '2026-10-08T09:31:00Z' }));
+    await settle();
+    expect(page().querySelector('.sync-problem')).toBeNull();
+    expect(text(page().querySelector('.note.sync'))).toBe('Read from ProTech just now');
     fixture.destroy();
 
     await show(
       productionChange({ syncedAt: null, syncProblem: 'ProTech has no change CHG0012345.' }),
     );
-    expect(text(page().querySelector('.sync-problem'))).toBe(
-      'ProTech has no change CHG0012345. Beadle shows what it last read from ProTech.',
+    expect(text(page().querySelector('.sync-problem > span'))).toBe(
+      'ProTech has no change CHG0012345. Beadle shows what it last read from ProTech. ' +
+        'Try again in a moment; if it keeps failing, tell the portal administrator.',
     );
   });
 
   it('lets only the department of an open change edit it', async () => {
     await show(productionChange(), null);
-    expect(buttonOf(page(), 'Edit').disabled).toBe(true);
+    expect(buttonOf(page(), 'Edit the change').disabled).toBe(true);
     expect(text(page().querySelector('.edit-hint'))).toBe(
       'Choose your department in Changes to change it',
     );
+    expect(buttonOf(page(), 'Edit the change').getAttribute('aria-describedby')).toBe('edit-hint');
     fixture.destroy();
 
     await show(productionChange(), 5);
@@ -294,7 +331,7 @@ describe('ChangeDetail', () => {
     fixture.destroy();
 
     await show(productionChange({ state: 'CLOSED' }), 3);
-    expect(buttonOf(page(), 'Edit')).toBeUndefined();
+    expect(buttonOf(page(), 'Edit the change')).toBeUndefined();
     expect(page().querySelector('a[href="/beadle/changes/7/edit"]')).toBeNull();
   });
 
@@ -312,6 +349,7 @@ describe('ChangeDetail', () => {
     const banner = () => page().querySelector('.banner.update');
     expect(banner()?.classList).toContain('info');
     expect(text(banner())).toContain('is waiting for ProTech: Installation start, Change tasks.');
+    expect(text(banner())).toContain('This page checks again every few seconds.');
 
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL);
     TestBed.tick();
@@ -358,13 +396,19 @@ describe('ChangeDetail', () => {
     expect(banner()?.classList).toContain('success');
   });
 
-  it('stops reading the change again after a while', async () => {
+  it('stops reading the change again after a while, says so and checks again on request', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const pending = productionChange({ update: changeUpdate() });
     TestBed.inject(PublishedChange).hand(pending);
     fixture = TestBed.createComponent(ChangeDetail);
     fixture.componentRef.setInput('id', 7);
     TestBed.tick();
+    await vi.advanceTimersByTimeAsync(0);
+    TestBed.tick();
+    fixture.detectChanges();
+    const banner = () => page().querySelector('.banner.update');
+    expect(text(banner())).toContain('This page checks again every few seconds.');
+    expect(buttonOf(page(), 'Check again')).toBeUndefined();
 
     for (let poll = 0; poll < MAX_POLLS; poll++) {
       await vi.advanceTimersByTimeAsync(POLL_INTERVAL);
@@ -375,6 +419,19 @@ describe('ChangeDetail', () => {
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL * 2);
     TestBed.tick();
     http.expectNone('/api/changes/7');
+    fixture.detectChanges();
+    expect(text(banner())).toContain(
+      'ProTech is taking longer than usual, so this page stopped checking.',
+    );
+
+    buttonOf(page(), 'Check again').click();
+    TestBed.tick();
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL);
+    TestBed.tick();
+    http.expectOne('/api/changes/7').flush(pending);
+    TestBed.tick();
+    fixture.detectChanges();
+    expect(text(banner())).toContain('This page checks again every few seconds.');
   });
 
   it('shows what ProTech did not apply', async () => {
@@ -392,7 +449,19 @@ describe('ChangeDetail', () => {
     expect(banner?.classList).toContain('danger');
     expect(text(banner)).toBe(
       `ProTech did not apply the update of ${requested}: Installation start. ` +
-        'A minute later ProTech still held its own values, so Beadle shows those.',
+        'A minute later ProTech still held its own values, so Beadle shows those. ' +
+        'Edit the change to send these values again.',
+    );
+    fixture.destroy();
+
+    await show(
+      productionChange({
+        state: 'CLOSED',
+        update: changeUpdate({ status: 'NOT_APPLIED', fields: ['schedule.installationStart'] }),
+      }),
+    );
+    expect(text(page().querySelector('.banner.update'))).toBe(
+      `ProTech did not apply the update of ${requested}: Installation start.`,
     );
   });
 
@@ -405,8 +474,17 @@ describe('ChangeDetail', () => {
       .flush({ detail: 'Change 99 does not exist' }, { status: 404, statusText: 'Not Found' });
     await settle();
 
-    expect(text(page().querySelector('.banner'))).toBe('Change 99 does not exist');
+    expect(text(page().querySelector('.banner span'))).toBe(
+      'The change could not be loaded: Change 99 does not exist',
+    );
     expect(text(page().querySelector('.breadcrumb'))).toBe('Changes/Change');
+
+    buttonOf(page(), 'Try again').click();
+    await settle();
+    http.expectOne('/api/changes/99').flush(productionChange({ id: 99 }));
+    await settle();
+    expect(page().querySelector('.banner')).toBeNull();
+    expect(text(page().querySelector('h1'))).toBe('CHG0012345');
   });
 });
 
@@ -427,6 +505,28 @@ describe('ChangeSummary', () => {
       ].map((term) => `${text(term)}: ${text(term.nextElementSibling)}`);
   };
 
+  it('shows only when, what and who in its key layout and the rest in its details layout', () => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    const fixture = TestBed.createComponent(ChangeSummary);
+    const titles = (layout: 'key' | 'details') => {
+      fixture.componentRef.setInput('layout', layout);
+      fixture.detectChanges();
+      return [...(fixture.nativeElement as HTMLElement).querySelectorAll('h3')].map(text);
+    };
+    fixture.componentRef.setInput('change', productionChange());
+
+    expect(titles('key')).toEqual(['When it installs', 'What it delivers', 'Who approves']);
+    expect(titles('details')).toEqual([
+      'Request details',
+      'Risk assessment',
+      'Privileged access',
+      'Secure coding',
+      'Planning',
+    ]);
+  });
+
   it('says when no privileged access or downtime is needed', () => {
     const rows = render(productionChange());
 
@@ -436,7 +536,7 @@ describe('ChangeSummary', () => {
 
   it('shows the approval of each state and a downtime without its window', () => {
     const approval = (state: ProductionChange['state']) =>
-      render(productionChange({ state, number: null }))('Generic request data').slice(0, 2);
+      render(productionChange({ state, number: null }))('Request details').slice(0, 2);
 
     expect(approval('DRAFT')).toEqual([
       'Change number: Given by ProTech when raised',

@@ -66,19 +66,19 @@ describe('BeadleProduct', () => {
     expect(text(page().querySelector('.default-tasks h3'))).toBe('Default change tasks');
     expect(page().querySelectorAll('dso-change-tasks-form .task-row')).toHaveLength(2);
     expect([...page().querySelectorAll('.template-card h3')].map(text)).toEqual([
-      'Generic request data',
+      'Request details',
       'Jira',
-      'Approval and Notification',
+      'Approval and notification',
       'Schedule',
       'Planning',
       'Privileged access',
       'Risk assessment',
       'Secure coding',
     ]);
-    expect(text(fieldOf(page(), 'Requested For')?.querySelector('dso-hint'))).toBe(
-      'left empty: the user who opens the change',
+    expect(text(fieldOf(page(), 'Requested for')?.querySelector('dso-hint'))).toBe(
+      'If left empty: the user who opens the change',
     );
-    expect(fieldOf(page(), 'Opened By')).toBeNull();
+    expect(fieldOf(page(), 'Opened by')).toBeNull();
     const access = template().controls.privilegedAccess.controls;
     access.count.setValue(1);
     access.users.at(0).setValue({ user: ' Jane Smith ', account: 'adm_jsmith' });

@@ -54,15 +54,17 @@ describe('ChangeEdit', () => {
     await settle();
   }
 
-  async function type(label: string, value: string) {
-    const input = inputOf(page(), label);
+  const texts = () => page().querySelector<HTMLElement>('section.texts')!;
+
+  async function type(label: string, value: string, root: ParentNode = page()) {
+    const input = inputOf(root, label);
     input.value = value;
     input.dispatchEvent(new Event('input'));
     await settle();
   }
 
   async function publish() {
-    buttonOf(page(), 'Publish to ProTech').click();
+    buttonOf(page(), 'Publish the update to ProTech').click();
     await settle();
   }
 
@@ -85,11 +87,25 @@ describe('ChangeEdit', () => {
 
     expect(text(page().querySelector('h1'))).toBe('Edit CHG0012345');
     expect(text(page().querySelector('.breadcrumb'))).toBe('Changes/CHG0012345/Edit');
-    expect(inputOf(page(), 'Short description').value).toBe('CertScanner CERT 4.2: Expiry alerts');
+    expect(text(page().querySelector('.page-header p'))).toBe(
+      'Change any value and publish it: the update goes to ProTech at once, and the change page ' +
+        'then shows whether ProTech applied it. Fields marked * are required.',
+    );
+    expect([...page().querySelectorAll('h2')].map(text)).toEqual([
+      'ProTech fields',
+      'Change tasks',
+      'Text sent to ProTech',
+    ]);
+    expect(inputOf(texts(), 'Short description').value).toBe('CertScanner CERT 4.2: Expiry alerts');
+    expect(
+      ['Short description', 'Description'].map(
+        (label) => !!fieldOf(texts(), label)?.querySelector('.required-marker'),
+      ),
+    ).toEqual([true, true]);
     expect(fieldOf(page(), 'Jira project')).toBeNull();
     expect(inputOf(page(), 'Change number').value).toBe('CHG0012345');
     expect(inputOf(page(), 'Approval').value).toBe('Requested');
-    expect(inputOf(page(), 'Opened By').value).toBe('Mateusz Matan');
+    expect(inputOf(page(), 'Opened by').value).toBe('Mateusz Matan');
     expect(inputOf(page(), 'State').value).toBe('Primary Approval');
     expect(selectOf(page(), 'Type').disabled).toBe(true);
     expect(inputOf(page(), 'Installation hours').value).toBe('2');
@@ -100,7 +116,7 @@ describe('ChangeEdit', () => {
     ]);
     expect(edit().hasUnsavedChanges()).toBe(false);
 
-    await type('Short description', ' CertScanner 4.2 ');
+    await type('Short description', ' CertScanner 4.2 ', texts());
     await type('Assignment group', 'Platform Team');
     form().controls.template.controls.downtime.setValue(true);
     await settle();
@@ -156,21 +172,25 @@ describe('ChangeEdit', () => {
     await settle();
 
     expect(TestBed.inject(PublishedChange).take(7)).toEqual(saved);
-    expect(success).toHaveBeenCalledWith('Your update of CHG0012345 is published to ProTech');
+    expect(success).toHaveBeenCalledWith(
+      'Your update of CHG0012345 is published to ProTech. This page shows when ProTech has applied it.',
+    );
     expect(navigate).toHaveBeenCalledWith(['/beadle/changes', 7]);
     expect(edit().hasUnsavedChanges()).toBe(false);
   });
 
   it('refuses to publish while a field needs attention', async () => {
     await show();
-    await type('Short description', ' ');
+    await type('Short description', ' ', texts());
     form().controls.tasks.at(0).controls.details.controls.description.setValue('');
     form().controls.schedule.controls.installationStart.setValue('2020-01-01T10:00');
     await publish();
 
     http.expectNone({ method: 'PUT', url: '/api/changes/7' });
     expect(text(page().querySelector('.save-error'))).toBe('Some fields need your attention.');
-    expect(text(fieldOf(page(), 'Short description')?.querySelector('dso-error'))).toBe('Required');
+    expect(text(fieldOf(texts(), 'Short description')?.querySelector('dso-error'))).toBe(
+      'Required',
+    );
     expect(text(page().querySelector('dso-change-schedule .choice-error'))).toBe(
       'The installation must start in the future',
     );
@@ -226,7 +246,9 @@ describe('ChangeEdit', () => {
     );
     await settle();
 
-    expect(text(page().querySelector('.save-error'))).toBe('2 fields are invalid');
+    expect(text(page().querySelector('.save-error'))).toBe(
+      'The update could not be published: 2 fields are invalid',
+    );
     expect([...page().querySelectorAll('.problems li')].map(text)).toEqual([
       'Validation end: must be after the start',
       'Change task 1: short description: is used twice',
@@ -269,7 +291,7 @@ describe('ChangeEdit', () => {
     );
     await settle();
     expect(text(page().querySelector('.save-error'))).toBe(
-      'ProTech does not change a closed change',
+      'The update could not be published: ProTech does not change a closed change',
     );
     expect(buttonOf(page(), 'Reload')).toBeDefined();
   });
@@ -286,7 +308,7 @@ describe('ChangeEdit', () => {
     await settle();
 
     expect(text(page().querySelector('.save-error'))).toBe(
-      'Only Corporate Technology can change CHG0012345',
+      'The update could not be published: Only Corporate Technology can change CHG0012345',
     );
     expect(buttonOf(page(), 'Reload')).toBeUndefined();
     expect(navigate).not.toHaveBeenCalled();
@@ -311,6 +333,7 @@ describe('ChangeEdit', () => {
   });
 
   it('says when the change cannot be loaded', async () => {
+    TestBed.inject(MyDepartment).choose(3);
     fixture = TestBed.createComponent(ChangeEdit);
     fixture.componentRef.setInput('id', 7);
     await settle();
@@ -319,7 +342,18 @@ describe('ChangeEdit', () => {
       .flush({ detail: 'Change 7 does not exist' }, { status: 404, statusText: 'Not Found' });
     await settle();
 
-    expect(text(page().querySelector('.banner'))).toBe('Change 7 does not exist');
+    expect(text(page().querySelector('.banner span'))).toBe(
+      'The change could not be loaded: Change 7 does not exist',
+    );
     expect(text(page().querySelector('.breadcrumb'))).toBe('Changes/Edit');
+
+    buttonOf(page(), 'Try again').click();
+    await settle();
+    http.expectOne('/api/changes/7').flush(stored);
+    await settle();
+    http.match('/api/changes/options').forEach((request) => request.flush(changeOptions()));
+    await settle();
+    expect(page().querySelector('.banner')).toBeNull();
+    expect(text(page().querySelector('h1'))).toBe('Edit CHG0012345');
   });
 });

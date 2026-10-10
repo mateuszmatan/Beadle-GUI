@@ -5,7 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { MyDepartment } from '../beadle/my-department';
 import { DepartmentsApi } from '../core/api';
-import { errorMessage } from '../core/errors';
+import { RETRY, errorMessage } from '../core/errors';
 import { CHANGES, NEW_CHANGE, beadleChange } from '../core/sections';
 import { text } from '../shared/form-controls';
 import { counted, formatRelative } from '../shared/formatting';
@@ -13,8 +13,9 @@ import { FORM_FIELD } from '../ui/form-field';
 import { GRID, GridColumn } from '../ui/grid';
 import { DsoLoading } from '../ui/loading';
 import { ChangeState, ChangesApi, ProductionChange, STATES, isOpen, labelOf } from './change-api';
-import { TIME_ZONE_NOTE, activeTasks, editHint, windowText } from './change-model';
+import { PENDING_HINT, TIME_ZONE_NOTE, activeTasks, editHint, windowText } from './change-model';
 import { IntegrationNote } from './integration-note';
+import { STATE_MEANINGS } from './workflow-progress';
 
 export type StateFilter = 'ALL' | 'OPEN' | ChangeState;
 
@@ -31,7 +32,9 @@ export interface ChangeRow {
   change: ProductionChange;
   open: boolean;
   editable: boolean;
+  pending: boolean;
   state: string;
+  meaning: string;
   installation: string;
   tasks: number;
 }
@@ -50,7 +53,9 @@ export function changeRow(change: ProductionChange, departmentId: number | null)
     change,
     open: isOpen(change),
     editable: isOpen(change) && !editHint(change, departmentId),
+    pending: change.update?.status === 'PENDING',
     state: labelOf(STATES, change.state),
+    meaning: STATE_MEANINGS[change.state],
     installation: windowText(change.schedule.installationStart, change.schedule.installationEnd),
     tasks: activeTasks(change.tasks).length,
   };
@@ -83,7 +88,7 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
           <p class="page-description">{{ section.description }}</p>
         </div>
         <div class="actions">
-          <a class="btn btn-primary" [routerLink]="newChange.path">New change</a>
+          <a class="btn btn-primary" [routerLink]="newChange.path">Raise a change</a>
         </div>
       </header>
       <dso-integration-note />
@@ -96,13 +101,15 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
             }
           </select>
         </dso-form-field>
-        <span class="spacer"></span>
-        @if (all().length) {
-          <span class="muted shown">{{ shown() }}</span>
-        }
       </section>
       @if (departments.error(); as error) {
-        <div class="banner">The departments could not be loaded: {{ errorMessage(error) }}</div>
+        <div class="banner" role="alert">
+          <span>The departments could not be loaded: {{ errorMessage(error) }}</span>
+          <span class="spacer"></span>
+          <button type="button" class="btn btn-link" (click)="departments.reload()">
+            Try again
+          </button>
+        </div>
       }
       @if (departmentId() === null) {
         <section class="card empty-state">
@@ -114,14 +121,30 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
           <dso-loading />
         }
         @if (changes.error(); as error) {
-          <div class="banner">{{ errorMessage(error) }}</div>
+          <div class="banner" role="alert">
+            <span>The changes could not be loaded: {{ errorMessage(error) }}</span>
+            <span class="spacer"></span>
+            <button type="button" class="btn btn-link" (click)="changes.reload()">Try again</button>
+          </div>
         }
         @if (syncProblem(); as problem) {
           <div class="banner" role="status">
-            {{ problem }} The table shows what Beadle last read from ProTech.
+            <span>
+              {{ problem }} The table shows what Beadle last read from ProTech. {{ retry }}
+            </span>
+            <span class="spacer"></span>
+            <button type="button" class="btn btn-link" (click)="changes.reload()">Try again</button>
           </div>
         }
-        <section class="card" [hidden]="!all().length">
+        <section class="card list" [hidden]="!all().length">
+          <div class="list-head">
+            <h2>Changes of {{ departmentName() }}</h2>
+            <span class="muted shown">{{ shown() }}</span>
+          </div>
+          <p class="section-help zone">
+            Select a change to see where it is in its workflow and what it needs next. FixVersion is
+            the Jira release the change delivers. {{ timeZoneNote }}
+          </p>
           <dso-grid
             label="ProTech changes"
             empty="No change matches the filters."
@@ -137,9 +160,12 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
               }}</a>
             </ng-template>
             <ng-template dsoCell="state" let-row>
-              <span class="chip" [class.neutral]="!row.open" [class.stage]="row.open">{{
-                row.state
-              }}</span>
+              <span class="state">
+                <span class="chip" [class.neutral]="!row.open" [class.stage]="row.open">{{
+                  row.state
+                }}</span>
+                <span class="meaning">{{ row.meaning }}</span>
+              </span>
             </ng-template>
             <ng-template dsoCell="actions" let-row>
               @if (row.editable) {
@@ -147,25 +173,23 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
                   class="btn btn-link"
                   [routerLink]="changeLink(row.change.id, 'edit')"
                   [attr.aria-label]="'Edit ' + row.change.number"
-                  >Edit</a
+                  >Edit change</a
                 >
+              } @else if (row.pending) {
+                <span class="muted pending" [attr.title]="pendingHint">Update pending</span>
               }
             </ng-template>
           </dso-grid>
         </section>
-        @if (changes.hasValue()) {
-          @if (all().length) {
-            <p class="note zone">{{ timeZoneNote }}</p>
-          } @else {
-            <div class="card empty-state">
-              <h3>No ProTech change of {{ departmentName() }} yet</h3>
-              <p>
-                Choose a product, the FixVersion with its Jira epics and stories and the
-                installation date. Beadle writes the change and its change tasks.
-              </p>
-              <a class="btn btn-primary" [routerLink]="newChange.path">New change</a>
-            </div>
-          }
+        @if (changes.hasValue() && !all().length) {
+          <div class="card empty-state">
+            <h3>No ProTech change of {{ departmentName() }} yet</h3>
+            <p>
+              Raise one for a production release: choose the product and its Jira release, and
+              Beadle writes the change and its change tasks for ProTech.
+            </p>
+            <a class="btn btn-primary" [routerLink]="newChange.path">Raise a change</a>
+          </div>
         }
       }
     </div>
@@ -189,13 +213,44 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
       font-size: 12px;
     }
 
+    .list {
+      padding: 10px 12px 0;
+
+      h2 {
+        margin: 0 0 4px;
+        font-size: 15px;
+      }
+    }
+
+    .list-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 4px 16px;
+    }
+
+    .state {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      line-height: 1.3;
+    }
+
+    .meaning {
+      color: var(--dso-muted);
+      font-size: 11.5px;
+      white-space: normal;
+    }
+
     .chip.stage {
       background: var(--dso-info-bg);
       color: var(--dso-navy);
     }
 
-    .zone {
-      margin-top: 6px;
+    .pending {
+      font-size: 12px;
     }
   `,
 })
@@ -210,6 +265,8 @@ export class ChangesList {
   protected readonly changeLink = beadleChange;
   protected readonly errorMessage = errorMessage;
   protected readonly timeZoneNote = TIME_ZONE_NOTE;
+  protected readonly retry = RETRY;
+  protected readonly pendingHint = PENDING_HINT;
 
   protected readonly departmentId = this.myDepartment.departmentId;
   protected readonly department = new FormControl(this.departmentId());
@@ -246,16 +303,17 @@ export class ChangesList {
   protected readonly columns: GridColumn<ChangeRow>[] = [
     {
       key: 'number',
-      header: 'Change',
+      header: 'Change number',
       value: (row) => row.change.number ?? '',
       filter: { control: this.filters.controls.number, label: 'change' },
-      width: 130,
+      width: 140,
     },
     {
       key: 'product',
       header: 'Product',
       value: (row) => row.change.productName,
       filter: { control: this.filters.controls.product, label: 'product' },
+      minWidth: 140,
     },
     {
       key: 'fixVersion',
@@ -263,6 +321,7 @@ export class ChangesList {
       value: (row) => row.change.fixVersion,
       filter: { control: this.filters.controls.fixVersion, label: 'FixVersion' },
       cellClass: 'mono',
+      minWidth: 120,
     },
     {
       key: 'state',
@@ -270,7 +329,8 @@ export class ChangesList {
       value: (row) => row.state,
       sortValue: (row) => STATES.findIndex((state) => state.value === row.change.state),
       filter: { control: this.filters.controls.state, label: 'state', options: STATE_FILTERS },
-      minWidth: 150,
+      wrap: true,
+      minWidth: 170,
     },
     {
       key: 'installation',
@@ -298,7 +358,7 @@ export class ChangesList {
       sortValue: (row) => Date.parse(row.change.createdAt ?? '') || 0,
       width: 110,
     },
-    { key: 'actions', header: '', width: 70 },
+    { key: 'actions', header: '', width: 120 },
   ];
 
   protected readonly all = computed(() =>

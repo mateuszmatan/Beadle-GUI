@@ -239,14 +239,40 @@ export const nestedTaskProblems = (problems: FieldProblem[]): FieldProblem[] =>
 export function taskFacts(task: Pick<ChangeTask, 'details' | 'start'>): string {
   const { details } = task;
   const release = isRelease(details.assignmentGroup);
+  const labelled = (label: string, value: string | null) => (value ? `${label} ${value}` : null);
   return [
     details.assignmentGroup,
-    details.assignedTo,
-    details.configurationItem,
-    release && details.platform !== NO_PLATFORM ? details.platform : null,
-    release ? details.application : details.importance,
+    labelled('assigned to', details.assignedTo),
     release && task.start ? `starts ${momentText(task.start)}` : null,
+    labelled('affected CI', details.configurationItem),
+    release && details.platform !== NO_PLATFORM ? labelled('platform', details.platform) : null,
+    labelled(
+      release ? 'application' : 'importance',
+      release ? details.application : details.importance,
+    ),
   ]
     .filter(Boolean)
     .join(' · ');
+}
+
+const APPROVALS: Record<string, string> = {
+  [NOT_YET_REQUESTED]: 'approval not requested yet',
+  Requested: 'waiting for approval',
+  Approved: 'approved',
+  Rejected: 'approval rejected',
+  'Not Required': 'no approval needed',
+};
+
+export function taskStatus(task: Pick<ChangeTask, 'state' | 'approval'>): string {
+  const approval = APPROVALS[task.approval] ?? `approval ${task.approval}`;
+  switch (task.state) {
+    case 'OPEN':
+      return `Not done yet; ${approval}.`;
+    case 'WORK_IN_PROGRESS':
+      return `Being carried out; ${approval}.`;
+    case 'CLOSED':
+      return 'Done.';
+    case 'CANCELED':
+      return 'Canceled; no longer part of the change.';
+  }
 }

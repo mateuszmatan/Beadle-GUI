@@ -12,13 +12,16 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { Subscription, of } from 'rxjs';
 import { MyDepartment } from '../beadle/my-department';
-import { errorMessage } from '../core/errors';
+import { RETRY, errorMessage } from '../core/errors';
 import { CHANGES, beadleChange, beadleProduct } from '../core/sections';
 import { RelativeTimePipe, formatRelative } from '../shared/formatting';
 import { DsoLoading } from '../ui/loading';
+import { PANEL } from '../ui/panel';
 import {
   ChangeUpdate,
   ChangesApi,
+  ChangeState,
+  STATES,
   TASK_STATES,
   TaskState,
   UpdateStatus,
@@ -28,9 +31,9 @@ import {
 import { editHint, momentText } from './change-model';
 import { fieldLabels } from './change-problems';
 import { ChangeSummary } from './change-summary';
-import { taskFacts } from './change-tasks-model';
+import { taskFacts, taskStatus } from './change-tasks-model';
 import { PublishedChange } from './published-change';
-import { WorkflowProgress } from './workflow-progress';
+import { WorkflowProgress, stateNow } from './workflow-progress';
 
 export const POLL_INTERVAL = 3000;
 export const MAX_POLLS = 25;
@@ -67,7 +70,7 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
 
 @Component({
   selector: 'dso-change-detail',
-  imports: [RouterLink, DsoLoading, RelativeTimePipe, ChangeSummary, WorkflowProgress],
+  imports: [RouterLink, DsoLoading, PANEL, RelativeTimePipe, ChangeSummary, WorkflowProgress],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
@@ -80,7 +83,11 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
         <dso-loading />
       }
       @if (change.error(); as error) {
-        <div class="banner">{{ errorMessage(error) }}</div>
+        <div class="banner" role="alert">
+          <span>The change could not be loaded: {{ errorMessage(error) }}</span>
+          <span class="spacer"></span>
+          <button type="button" class="btn btn-link" (click)="change.reload()">Try again</button>
+        </div>
       }
       @if (change.hasValue()) {
         @let c = change.value();
@@ -92,21 +99,31 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
           <div class="actions">
             @if (open()) {
               @if (hint(); as message) {
-                <span class="muted edit-hint">{{ message }}</span>
-                <button type="button" class="btn btn-primary" disabled [attr.title]="message">
-                  Edit
+                <span class="muted edit-hint" id="edit-hint">{{ message }}</span>
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  disabled
+                  aria-describedby="edit-hint"
+                  [attr.title]="message"
+                >
+                  Edit the change
                 </button>
               } @else {
-                <a class="btn btn-primary" [routerLink]="changeLink(c.id!, 'edit')">Edit</a>
+                <a class="btn btn-primary" [routerLink]="changeLink(c.id!, 'edit')"
+                  >Edit the change</a
+                >
               }
             }
             @if (c.url) {
               <a class="btn btn-outline-primary" [href]="c.url" target="_blank" rel="noopener"
-                >ProTech</a
+                >Open in ProTech</a
               >
             }
             @if (c.productId) {
-              <a class="btn btn-outline-primary" [routerLink]="productLink(c.productId)">Product</a>
+              <a class="btn btn-outline-primary" [routerLink]="productLink(c.productId)"
+                >Open the product</a
+              >
             }
           </div>
         </header>
@@ -119,65 +136,105 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
               } @else {
                 Beadle shows what it last read from ProTech.
               }
+              {{ retry }}
             </span>
+            <span class="spacer"></span>
+            <button type="button" class="btn btn-link" (click)="change.reload()">Try again</button>
           </div>
         } @else if (c.syncedAt) {
           <p class="note sync">Read from ProTech {{ c.syncedAt | relative }}</p>
         }
         @if (c.update; as update) {
           <div class="banner update" [class]="tones[update.status]" role="status">
-            {{ updateText(update) }}
+            <span>
+              {{ updateText(update) }}
+              @if (update.status === 'PENDING') {
+                {{
+                  polling()
+                    ? 'This page checks again every few seconds.'
+                    : 'ProTech is taking longer than usual, so this page stopped checking.'
+                }}
+              } @else if (update.status === 'NOT_APPLIED' && open() && !hint()) {
+                Edit the change to send these values again.
+              }
+            </span>
+            @if (update.status === 'PENDING' && !polling()) {
+              <span class="spacer"></span>
+              <button type="button" class="btn btn-link" (click)="checkAgain()">Check again</button>
+            }
           </div>
         }
         <section class="card block">
-          <h2>Workflow progress</h2>
+          <h2>Where the change is</h2>
+          <p class="now">
+            <strong>{{ stateLabel(c.state) }}.</strong>
+            {{ stateNow(c) }}
+          </p>
           <dso-workflow-progress [state]="c.state" [workflow]="c.workflow" />
         </section>
         <section class="card block">
-          <h2>Summary</h2>
-          <dso-change-summary [change]="c" />
+          <h2>The change at a glance</h2>
+          <dso-change-summary [change]="c" layout="key" />
         </section>
-        <div class="columns">
-          <section class="card block">
-            <h2>Change tasks</h2>
-            <ol class="tasks">
-              @for (task of c.tasks; track $index) {
-                <li [class.canceled]="task.state === 'CANCELED'">
-                  <span class="task-head">
-                    @if (task.number) {
-                      <span class="mono">{{ task.number }}</span>
-                    } @else {
-                      <span class="muted">not in ProTech yet</span>
-                    }
-                    <span class="chip neutral">{{ taskState(task.state) }}</span>
-                    <span class="muted">{{ task.approval }}</span>
-                  </span>
-                  <strong>{{ task.details.shortDescription }}</strong>
-                  <span class="facts">{{ taskFacts(task) }}</span>
-                  <span class="muted">{{ task.details.description }}</span>
-                </li>
-              } @empty {
-                <li class="none muted">{{ open() ? 'None yet: add them with Edit.' : 'None' }}</li>
-              }
-            </ol>
-          </section>
-          <section class="card block">
-            <h2>Description</h2>
-            <pre class="text">{{ c.description }}</pre>
-          </section>
-        </div>
+        <section class="card block">
+          <h2>Change tasks</h2>
+          <p class="section-help">
+            A change task (CTASK) is a piece of work inside the change, done by one team. ProTech
+            asks for their approval in the CTask approval stage.
+          </p>
+          <ol class="tasks">
+            @for (task of c.tasks; track $index) {
+              <li [class.canceled]="task.state === 'CANCELED'">
+                <strong>{{ task.details.shortDescription }}</strong>
+                <span class="task-head">
+                  @if (task.number) {
+                    <span class="mono">{{ task.number }}</span>
+                  } @else {
+                    <span class="muted">not in ProTech yet</span>
+                  }
+                  <span class="chip neutral">{{ taskState(task.state) }}</span>
+                  <span class="muted">{{ taskStatus(task) }}</span>
+                </span>
+                <span class="facts">{{ taskFacts(task) }}</span>
+                <span class="muted">{{ task.details.description }}</span>
+              </li>
+            } @empty {
+              <li class="none muted">
+                {{ open() ? 'No change tasks yet. Add them with Edit the change.' : 'None' }}
+              </li>
+            }
+          </ol>
+        </section>
+        <dso-panel class="more" #fields="dsoPanel">
+          <dso-panel-header>
+            <span class="panel-title">All ProTech fields</span>
+            <span class="panel-description"
+              >Request data, risk assessment, privileged access, secure coding and planning</span
+            >
+            <span class="panel-toggle" aria-hidden="true">{{
+              fields.expanded() ? 'Hide' : 'Show'
+            }}</span>
+          </dso-panel-header>
+          <dso-change-summary [change]="c" layout="details" />
+        </dso-panel>
+        <dso-panel class="more" #description="dsoPanel">
+          <dso-panel-header>
+            <span class="panel-title">Text sent to ProTech</span>
+            <span class="panel-description"
+              >The description ProTech holds, written from the fields of the change</span
+            >
+            <span class="panel-toggle" aria-hidden="true">{{
+              description.expanded() ? 'Hide' : 'Show'
+            }}</span>
+          </dso-panel-header>
+          <pre class="text">{{ c.description }}</pre>
+        </dso-panel>
       }
     </div>
   `,
   styles: `
-    .columns {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 12px;
-      margin-top: 12px;
-    }
-
     .block {
+      margin-bottom: 12px;
       padding: 12px 16px;
 
       h2 {
@@ -186,8 +243,8 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
       }
     }
 
-    .page > .block + .block {
-      margin-top: 12px;
+    .now {
+      margin: -2px 0 10px;
     }
 
     .edit-hint {
@@ -196,6 +253,16 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
 
     .sync {
       margin: -6px 0 10px;
+    }
+
+    .banner .btn-link {
+      flex-shrink: 0;
+    }
+
+    .more .panel-title {
+      font-family: var(--dso-serif);
+      font-size: 14px;
+      color: var(--dso-navy);
     }
 
     .text {
@@ -209,7 +276,7 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
     .tasks {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 10px;
       margin: 0;
       padding-left: 20px;
       font-size: 12.5px;
@@ -217,6 +284,7 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
       li {
         display: flex;
         flex-direction: column;
+        gap: 1px;
         min-width: 0;
         overflow-wrap: anywhere;
       }
@@ -248,9 +316,13 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
       gap: 6px;
     }
 
-    @media (max-width: 900px) {
-      .columns {
-        grid-template-columns: minmax(0, 1fr);
+    @media (max-width: 760px) {
+      .more .panel-title {
+        min-width: 0;
+      }
+
+      .more .panel-description {
+        display: none;
       }
     }
   `,
@@ -268,6 +340,9 @@ export class ChangeDetail {
   protected readonly changeLink = beadleChange;
   protected readonly updateText = updateText;
   protected readonly taskFacts = taskFacts;
+  protected readonly taskStatus = taskStatus;
+  protected readonly stateNow = stateNow;
+  protected readonly retry = RETRY;
   protected readonly tones = TONES;
   protected readonly change = rxResource({
     params: () => this.id(),
@@ -281,6 +356,7 @@ export class ChangeDetail {
     this.change.hasValue() ? editHint(this.change.value(), this.myDepartment.departmentId()) : null,
   );
   private readonly polls = linkedSignal({ source: this.id, computation: () => 0 });
+  protected readonly polling = computed(() => this.polls() < MAX_POLLS);
 
   constructor() {
     effect((onCleanup) => {
@@ -309,7 +385,15 @@ export class ChangeDetail {
     });
   }
 
+  protected checkAgain(): void {
+    this.polls.set(0);
+  }
+
   protected taskState(state: TaskState): string {
     return labelOf(TASK_STATES, state);
+  }
+
+  protected stateLabel(state: ChangeState): string {
+    return labelOf(STATES, state);
   }
 }

@@ -182,9 +182,20 @@ describe('ChangeWizard', () => {
   const details = () => wizard()['details']()!;
 
   it('says that Jira and ProTech are demo ones and lists the products of the chosen department', async () => {
-    expect(text(page().querySelector('dso-integration-note'))).toContain(
-      'Jira is not connected yet',
+    expect(text(page().querySelector('dso-integration-note'))).toBe(
+      'Demo mode. Jira and ProTech are not connected yet, so the epics and stories are examples ' +
+        'and no change reaches the real ProTech. A demo ProTech gives each change its number, ' +
+        'moves it through the workflow on its own and applies an update a few seconds after it is published.',
     );
+    expect(text(page().querySelector('.step-count'))).toBe('Step 1 of 11');
+    expect(text(page().querySelector('.step-bar .current .step-label'))).toBe('Request data');
+    expect(
+      [...page().querySelectorAll('.step-bar button')].map((button) =>
+        button.getAttribute('title'),
+      ),
+    ).toContain('3. Approval');
+    expect(text(page().querySelector('.step-actions .btn-primary'))).toBe('Next: Jira');
+    expect(buttonOf(page(), 'Back')).toBeUndefined();
     expect([...page().querySelectorAll('.step-label')].map(text)).toEqual([
       'Request data',
       'Jira',
@@ -235,7 +246,19 @@ describe('ChangeWizard', () => {
       .flush({ detail: 'Product 1 is gone' }, { status: 404, statusText: 'Not Found' });
     await settle();
     expect(wizard()['stepProblem']()).toBe('Choose a product that can be loaded');
-    expect(text(page().querySelector('.choice-error'))).toBe('The product could not be loaded.');
+    expect(text(page().querySelector('.product-error span'))).toBe(
+      'The product could not be loaded: Product 1 is gone',
+    );
+
+    buttonOf(page(), 'Try again').click();
+    await settle();
+    http.expectOne('/api/products/1/change-profile').flush(changeProfile());
+    await settle();
+    http.expectOne('/api/changes/options').flush(changeOptions());
+    jira('versions').flush([]);
+    await settle();
+    expect(page().querySelector('.product-error')).toBeNull();
+    expect(wizard()['stepProblem']()).toBeNull();
   });
 
   it('fills in the suggested values of a product without defaults and points to Beadle Admin', async () => {
@@ -257,14 +280,14 @@ describe('ChangeWizard', () => {
       changeProfile({ template: changeTemplate({ requestedBy: 'Grace Turner' }) }),
     );
 
-    expect(text(page().querySelector('h2'))).toBe('Generic request data');
+    expect(text(page().querySelector('h2'))).toBe('Request details');
     expect(inputOf(page(), 'Change number').value).toBe('');
     expect(inputOf(page(), 'Change number').placeholder).toBe('Given by ProTech when raised');
     expect(inputOf(page(), 'Approval').value).toBe('Not Yet Requested');
-    expect(inputOf(page(), 'Opened By').value).toBe('Mateusz Matan');
+    expect(inputOf(page(), 'Opened by').value).toBe('Mateusz Matan');
     expect(inputOf(page(), 'State').value).toBe('Draft');
-    expect(inputOf(page(), 'Requested For').value).toBe('Mateusz Matan');
-    expect(inputOf(page(), 'Requested By').value).toBe('Grace Turner');
+    expect(inputOf(page(), 'Requested for').value).toBe('Mateusz Matan');
+    expect(inputOf(page(), 'Requested by').value).toBe('Grace Turner');
     expect(inputOf(page(), 'Assigned to').value).toBe('Mateusz Matan');
     expect(inputOf(page(), 'Department').value).toBe('Corporate Technology');
     expect(inputOf(page(), 'Risk').value).toBe('Moderate');
@@ -321,7 +344,7 @@ describe('ChangeWizard', () => {
     wizard()['toggleStory']('CERT-3', false);
     await next();
     expect(wizard()['step']()).toBe(2);
-    expect(text(page().querySelector('h2'))).toBe('Approval and Notification');
+    expect(text(page().querySelector('h2'))).toBe('Approval and notification');
     expect(details().controls.release.value).toBe('CERT 4.2');
     expect(inputOf(page(), 'L1 approver').value).toBe('Olivia Bennett');
     await type('Business approver', 'Grace Turner');
@@ -419,6 +442,13 @@ describe('ChangeWizard', () => {
     expect(page().querySelector('dso-change-tasks-form')).toBeNull();
 
     expect(wizard()['nextLabel']()).toBe('Raise the change in ProTech');
+    expect(text(page().querySelector('.lead'))).toBe(
+      'Check every value, then raise the change: ProTech creates it and gives it its change number (CHG). ' +
+        'You add its change tasks in the next step.',
+    );
+    expect([...page().querySelectorAll('h3')].map(text)).toEqual(
+      expect.arrayContaining(['Every value of the change', 'Text sent to ProTech']),
+    );
     await next();
     const raised = http.expectOne({ method: 'POST', url: '/api/changes' });
     expect(raised.request.body).toMatchObject({
@@ -438,6 +468,13 @@ describe('ChangeWizard', () => {
 
     expect(wizard()['step']()).toBe(9);
     expect(text(page().querySelector('h2'))).toBe('Change tasks of CHG0012345');
+    expect(text(page().querySelector('.raised-note'))).toBe(
+      'CHG0012345 is raised in ProTech. Now add its change tasks to it.',
+    );
+    expect(text(page().querySelector('.step-count'))).toBe('Step 10 of 11');
+    expect(text(page().querySelector('.step-actions .btn-outline-primary'))).toBe(
+      'Add change tasks later',
+    );
     expect(wizard().hasUnsavedChanges()).toBe(true);
     expect(buttonOf(page(), 'Back')).toBeUndefined();
     expect(wizard()['nextLabel']()).toBe('Create the change tasks in ProTech');
@@ -520,11 +557,11 @@ describe('ChangeWizard', () => {
     expect(
       [...page().querySelectorAll('.next-steps a')].map((link) => link.getAttribute('href')),
     ).toEqual(['/beadle/changes/7', '/beadle/changes']);
-    expect(
-      [...page().querySelectorAll<HTMLAnchorElement>('.step-actions a')]
-        .find((link) => text(link) === 'Open the change')
-        ?.getAttribute('href'),
-    ).toBe('/beadle/changes/7');
+    expect(page().querySelector('.step-actions a.btn-primary')?.getAttribute('href')).toBe(
+      '/beadle/changes/7',
+    );
+    expect(text(page().querySelector('.step-actions a.btn-primary'))).toBe('Open the change');
+    expect(buttonOf(page(), 'Raise another change').classList).toContain('btn-outline-primary');
     expect(wizard().hasUnsavedChanges()).toBe(false);
 
     wizard()['restart']();
@@ -538,7 +575,14 @@ describe('ChangeWizard', () => {
     await chooseCertScanner();
     await next();
     const headings = () => [...page().querySelectorAll('h3')].map(text);
-    expect(headings()).not.toContain('Short description and description');
+    expect(headings()).not.toContain('Text sent to ProTech');
+    expect(text(page().querySelector('.step-count'))).toBe('Step 2 of 11');
+    expect(text(page().querySelector('.step-actions .btn-primary'))).toBe('Next: Approval');
+    expect(buttonOf(page(), 'Back').classList).toContain('btn-outline-primary');
+    expect(text(page().querySelector('.lead'))).toBe(
+      'Type the FixVersion, the Jira release this change delivers, and find its epics. ' +
+        'Then pick the epics and stories the change delivers: they write the text of the change for ProTech.',
+    );
     await findEpics();
     jira('epics').flush([epic('CERT-1', 'Expiry alerts'), epic('CERT-5', 'Audit trail')]);
     await settle();
@@ -560,7 +604,7 @@ describe('ChangeWizard', () => {
     });
     preview.flush(productionChange({ id: null, number: null }));
     await settle();
-    expect(headings()).toContain('Short description and description');
+    expect(headings()).toContain('Text sent to ProTech');
     expect(inputOf(page(), 'Short description').value).toBe('CertScanner CERT 4.2: Expiry alerts');
     expect(inputOf(page(), 'Description').value).toBe('Production release of CertScanner (CERT).');
 
@@ -583,7 +627,7 @@ describe('ChangeWizard', () => {
 
     await next();
     expect(wizard()['step']()).toBe(2);
-    expect(headings()).not.toContain('Short description and description');
+    expect(headings()).not.toContain('Text sent to ProTech');
   });
 
   it('keeps the texts the user changed when the same change is previewed again and shows why ProTech refused it', async () => {
@@ -678,15 +722,17 @@ describe('ChangeWizard', () => {
     buttonOf(page(), 'Remove change task 2').click();
     buttonOf(page(), 'Remove change task 1').click();
     await next();
-    expect(wizard()['stepProblem']()).toBe('Add at least one change task, or add them later');
+    expect(wizard()['stepProblem']()).toBe(
+      'Add at least one change task, or choose Add change tasks later',
+    );
     http.expectNone({ method: 'POST', url: '/api/changes/7/tasks' });
 
-    buttonOf(page(), 'Add them later').click();
+    buttonOf(page(), 'Add change tasks later').click();
     await settle();
     expect(wizard()['step']()).toBe(10);
     expect(page().querySelector('.save-problem')).toBeNull();
     expect(text(page().querySelector('.review-list'))).toBe(
-      'None yet: add them on the change page.',
+      'None yet. Add them with Edit the change on its page.',
     );
     expect(wizard().hasUnsavedChanges()).toBe(false);
   });
@@ -705,7 +751,7 @@ describe('ChangeWizard', () => {
     await next();
 
     expect(text(page().querySelector('.choice-error'))).toBe(
-      'The FixVersions could not be loaded: Jira is down. Type the FixVersion.',
+      'The FixVersions could not be listed, so type the FixVersion yourself. Jira is down',
     );
     await findEpics('CERT 4.2');
     expect(wizard()['stepProblem']()).toBe('Wait until the epics and stories are loaded');
@@ -1048,7 +1094,7 @@ describe('ChangeWizard of a chosen department', () => {
 });
 
 describe('ChangeWizard without the signed-in user', () => {
-  it('leaves Opened By and the people of the request empty', async () => {
+  it('leaves Opened by and the people of the request empty', async () => {
     localStorage.removeItem(MY_DEPARTMENT_KEY);
     const http = configure();
     const fixture = TestBed.createComponent(ChangeWizard);
@@ -1069,8 +1115,8 @@ describe('ChangeWizard without the signed-in user', () => {
     await settle();
 
     const page = fixture.nativeElement as HTMLElement;
-    expect(inputOf(page, 'Opened By').value).toBe('');
-    expect(inputOf(page, 'Requested For').value).toBe('');
+    expect(inputOf(page, 'Opened by').value).toBe('');
+    expect(inputOf(page, 'Requested for').value).toBe('');
     expect(inputOf(page, 'Department').value).toBe('Corporate Technology');
     http.verify();
   });

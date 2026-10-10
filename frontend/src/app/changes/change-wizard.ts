@@ -281,7 +281,9 @@ export class ChangeWizard implements HasUnsavedChanges {
   private filledRelease: string | null = null;
   private filledStart: string | null = null;
 
-  protected readonly nextLabel = computed(() => NEXT_LABELS[this.stepKey()] ?? 'Continue');
+  protected readonly nextLabel = computed(
+    () => NEXT_LABELS[this.stepKey()] ?? `Next: ${STEPS[this.step() + 1]}`,
+  );
 
   constructor() {
     toObservable(this.jiraScope)
@@ -407,7 +409,7 @@ export class ChangeWizard implements HasUnsavedChanges {
           : null;
       case 'tasks':
         if (!this.tasks()!.length) {
-          return 'Add at least one change task, or add them later';
+          return 'Add at least one change task, or choose Add change tasks later';
         }
         return this.tasks()!.invalid ? 'Check the change tasks' : null;
       case 'raised':
@@ -667,7 +669,7 @@ export class ChangeWizard implements HasUnsavedChanges {
           this.checked.set(false);
           this.step.set(TASKS);
         },
-        error: (error) => this.fail(error),
+        error: (error) => this.fail(error, 'The change could not be raised: '),
       });
   }
 
