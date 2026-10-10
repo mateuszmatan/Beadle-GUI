@@ -43,6 +43,7 @@ import static com.bbh.itss.dso.portal.support.ChangeFixtures.privileged
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.releaseTask
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.risk
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.schedule
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.secureCoding
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.story
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.task
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasks
@@ -67,7 +68,9 @@ class ChangePersistenceAdaptersSpec extends Specification {
             timing: new Timing('20:30', 3, 2), privilegedAccess: new PrivilegedAccess(true, [
             new PrivilegedUser('Jane Smith', 'adm_jsmith'), new PrivilegedUser('Ann Lee', 'adm_alee')]),
             riskAssessment: risk(bbhUsers: 'All users', backoutTesting: 'Unable to test'),
-            secureCodingTicket: 'APPSEC-1234')
+            secureCodingTicket: 'SCP-1234', secureCoding: secureCoding())
+    static final ChangeTemplate RAISED_TEMPLATE = FULL.releasedAs(FIX_VERSION).toBuilder()
+            .secureCodingTicket('SCP-2001').build()
     static final ChangeSchedule DOWNTIME = schedule(downtimeStart: '2026-10-10T06:00:00Z',
             downtimeEnd: '2026-10-10T08:30:00Z')
 
@@ -222,7 +225,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         loaded.workflow() == [new WorkflowStep(DRAFT, RAISED)]
         loaded.syncedAt() == RAISED
         loaded.update() == null
-        loaded.template() == FULL.releasedAs(FIX_VERSION)
+        loaded.template() == RAISED_TEMPLATE
         loaded.template().privilegedAccess().users()*.user() == ['Jane Smith', 'Ann Lee']
         [loaded.epicKeys(), loaded.storyKeys()] == [['CERT-1'], ['CERT-2']]
         loaded.tasks() == [ctask('CTASK0002001', 'Task 1 of the CertScanner release',
@@ -230,18 +233,22 @@ class ChangePersistenceAdaptersSpec extends Specification {
                 'Task 2 of the CertScanner release', 'Step 2 of the CertScanner release.', OPEN)]
         loaded.url() == 'https://snow/CHG0001001'
         changes.findAll()*.number() == ['CHG0001002', 'CHG0001001']
-        changes.findAll()*.template().every { it == FULL.releasedAs(FIX_VERSION) }
+        changes.findAll()*.template().every { it == RAISED_TEMPLATE }
         changes.load(later.id()).get().tasks()*.number() == ['CTASK0002003', 'CTASK0002004']
         changes.load(9999L) == Optional.empty()
         jdbc.queryForObject('SELECT COUNT(*) FROM DSO_PRODUCTION_CHANGE_PRIVILEGED_USER WHERE CHANGE_ID = ?', Integer,
                 saved.id()) == 2
         jdbc.queryForMap('''SELECT OPENED_BY, REQUESTED_FOR, REQUESTED_BY, REQUEST_DEPARTMENT, ASSIGNED_TO,
-                DIRECT_BUSINESS_SERVICE, USERS_AFFECTED, SECURE_CODING_TICKET, CHANGE_TYPE, CATEGORY, RISK_BBH_USERS,
-                RISK_BACKOUT_TESTING FROM DSO_PRODUCTION_CHANGE WHERE ID = ?''', saved.id()) ==
+                DIRECT_BUSINESS_SERVICE, USERS_AFFECTED, SECURE_CODING_TICKET, APO_NUMBER, BITBUCKET_URL, ARTIFACT_LINK,
+                QC_APPLICATION_LINK, CHANGE_TYPE, CATEGORY, RISK_BBH_USERS, RISK_BACKOUT_TESTING
+                FROM DSO_PRODUCTION_CHANGE WHERE ID = ?''', saved.id()) ==
                 [OPENED_BY: 'Mateusz Matan', REQUESTED_FOR: 'Ann Lee', REQUESTED_BY: 'Jane Smith',
                  REQUEST_DEPARTMENT: 'Corporate Technology', ASSIGNED_TO: 'Grace Turner',
                  DIRECT_BUSINESS_SERVICE: 'Certificate management', USERS_AFFECTED: 'Fund accountants',
-                 SECURE_CODING_TICKET: 'APPSEC-1234', CHANGE_TYPE: 'STANDARD', CATEGORY: 'Application',
+                 SECURE_CODING_TICKET: 'SCP-2001', APO_NUMBER: 'APO-12345',
+                 BITBUCKET_URL: 'https://bitbucket.bbh.com/projects/CERT/repos/cert',
+                 ARTIFACT_LINK: 'https://jenkins.bbh.com/job/CERT/job/cert-release/',
+                 QC_APPLICATION_LINK: 'https://cert.qc.bbh.com', CHANGE_TYPE: 'STANDARD', CATEGORY: 'Application',
                  RISK_BBH_USERS: 'All users', RISK_BACKOUT_TESTING: 'Unable to test']
     }
 
@@ -462,6 +469,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
     private ProductionChange raise(String number, List<String> taskNumbers, Product owner) {
         ProductionChange.draft(changeProducts.get(owner.id()), 'Mateusz Matan', FIX_VERSION, DOWNTIME, FULL,
                 [epic('CERT-1', 'Expiry alerts')], [story('CERT-2', 'E-mail', 'CERT-1')], null, null)
+                .withSecureCoding(FULL.secureCoding(), 'SCP-2001')
                 .raisedAt(RAISED).numbered(number, "https://snow/$number".toString())
                 .withTasks(taskNumbers.withIndex().collect { String taskNumber, int index ->
                     task(index + 1).numbered(taskNumber)

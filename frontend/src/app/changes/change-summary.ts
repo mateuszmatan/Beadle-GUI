@@ -61,7 +61,7 @@ export type SummaryLayout = 'all' | 'key' | 'details';
 type BlockKey = Exclude<SectionKey, 'planning'>;
 
 const LAYOUTS: Record<SummaryLayout, BlockKey[][]> = {
-  all: [['request'], ['jira', 'schedule', 'approvals'], ['risk', 'privileged', 'secure']],
+  all: [['request'], ['jira', 'schedule', 'approvals'], ['risk', 'privileged']],
   key: [['schedule'], ['jira'], ['approvals']],
   details: [['request'], ['risk', 'privileged', 'secure']],
 };
@@ -140,7 +140,14 @@ export function summaryColumns(
         : [{ term: 'Needed', value: 'No' }],
     },
     secure: {
-      rows: [row('secureCodingTicket', t.secureCodingTicket, true)],
+      rows: [
+        row('secureCodingTicket', t.secureCodingTicket, true),
+        row('secureCoding.apoNumber', t.secureCoding.apoNumber, true),
+        row('secureCoding.bitbucketUrl', t.secureCoding.bitbucketUrl),
+        row('secureCoding.artifactLink', t.secureCoding.artifactLink),
+        row('secureCoding.qcApplicationLink', t.secureCoding.qcApplicationLink),
+      ],
+      note: 'The ticket lives in CyberTrack, the Jira project SCP.',
     },
   };
   const title = (key: BlockKey) =>

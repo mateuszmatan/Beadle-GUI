@@ -4,7 +4,6 @@ import {
   releaseDetails,
   taskDetails,
 } from '../testing/change-fixtures';
-import { momentText } from './change-model';
 import { localInput } from './change-schedule-model';
 import {
   MAX_TASKS,
@@ -17,7 +16,6 @@ import {
   nestedTaskProblems,
   removeTask,
   setTaskWindow,
-  taskFacts,
   taskForm,
   taskStatus,
   taskWindow,
@@ -90,7 +88,9 @@ describe('change tasks model', () => {
     task.controls.details.controls.assignmentGroup.setValue('Cloud Engineering');
     start.setValue('');
     expect(start.valid).toBe(true);
-    expect(taskForm({ details: releaseDetails('Deploy it') }).controls.start.valid).toBe(true);
+    const template = taskForm({ details: releaseDetails('Deploy it') }).controls.start;
+    expect(template.disabled).toBe(true);
+    expect(template.errors).toBeNull();
   });
 
   it('switches the form with the group and fills the start when it becomes a release task', () => {
@@ -268,29 +268,6 @@ describe('change tasks model', () => {
       { field: 'tasks[2].details.assignmentGroup', message: 'must not be blank' },
       { field: 'tasks', message: 'add at least one change task' },
     ]);
-  });
-
-  it('sums a task up in one line, who does it and when first', () => {
-    expect(
-      taskFacts(
-        changeTask({
-          details: releaseDetails('Deploy it', 'Deploy.', {
-            assignedTo: 'Mateusz Matan',
-            configurationItem: 'CertScanner',
-            platform: 'OpenShift',
-            application: 'OCP',
-          }),
-          start: '2026-10-10T06:01:00Z',
-        }),
-      ),
-    ).toBe(
-      `Release Management · assigned to Mateusz Matan · starts ${momentText('2026-10-10T06:01:00Z')} · ` +
-        'affected CI CertScanner · platform OpenShift · application OCP',
-    );
-    expect(taskFacts(changeTask())).toBe('Technology Architecture · importance 3 - Moderate');
-    expect(taskFacts(changeTask({ details: releaseDetails('Deploy it') }))).toBe(
-      'Release Management',
-    );
   });
 
   it('says in plain words where a task stands and its approval', () => {

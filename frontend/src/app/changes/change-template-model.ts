@@ -10,6 +10,7 @@ import {
   removeItem,
   sent,
   text,
+  url,
 } from '../shared/form-controls';
 import {
   ChangeOptions,
@@ -27,6 +28,7 @@ export const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 export const TIME_ERROR = 'A time like 18:00';
 export const MAX_PRIVILEGED_USERS = 7;
 export const TEMPLATE_PREFIX = 'template.';
+export const LINK_MAX = 500;
 
 const required = (value: string | null | undefined, length: number) =>
   text(value, filled, fits(length));
@@ -43,7 +45,8 @@ export function privilegedUserForm(user?: PrivilegedUser) {
 export type PrivilegedUserForm = ReturnType<typeof privilegedUserForm>;
 
 export function templateForm(template: ChangeTemplate) {
-  const { approvers, timing, planning, privilegedAccess, riskAssessment: risk } = template;
+  const { approvers, timing, planning, privilegedAccess, riskAssessment: risk, secureCoding } =
+    template;
   const users = privilegedAccess.required ? privilegedAccess.users : [];
   const form = new FormGroup({
     jiraProjectKey: text(template.jiraProjectKey, filled, Validators.pattern(JIRA_KEY)),
@@ -95,6 +98,12 @@ export function templateForm(template: ChangeTemplate) {
       businessImpact: answer(risk.businessImpact),
     }),
     secureCodingTicket: text(template.secureCodingTicket, fits(40)),
+    secureCoding: new FormGroup({
+      apoNumber: text(secureCoding.apoNumber, fits(40)),
+      bitbucketUrl: url(secureCoding.bitbucketUrl, LINK_MAX),
+      artifactLink: url(secureCoding.artifactLink, LINK_MAX),
+      qcApplicationLink: url(secureCoding.qcApplicationLink, LINK_MAX),
+    }),
   });
   const access = form.controls.privilegedAccess.controls;
   access.count.valueChanges.subscribe((count) => resizeUsers(access.users, count));
@@ -118,7 +127,7 @@ function resizeUsers(users: FormArray<PrivilegedUserForm>, count: number): void 
 }
 
 export function toTemplate(form: TemplateForm): ChangeTemplate {
-  const { approvers, timing, planning, privilegedAccess, riskAssessment, ...fields } =
+  const { approvers, timing, planning, privilegedAccess, riskAssessment, secureCoding, ...fields } =
     form.getRawValue();
   const users = privilegedAccess.users.map((user) => ({
     user: user.user.trim(),
@@ -137,6 +146,7 @@ export function toTemplate(form: TemplateForm): ChangeTemplate {
     planning: sent(planning),
     privilegedAccess: { required: users.length > 0, users },
     riskAssessment,
+    secureCoding: sent(secureCoding),
   };
 }
 

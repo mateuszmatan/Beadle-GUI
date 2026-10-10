@@ -9,7 +9,7 @@
   <dso-integration-note />
 
   <ol class="step-bar" aria-label="Steps">
-    @for (label of steps; track label; let index = $index) {
+    @for (label of steps(); track label; let index = $index) {
       <li [class.done]="index < step()" [class.current]="index === step()">
         <button
           type="button"
@@ -26,7 +26,7 @@
   </ol>
 
   <section class="card step">
-    <p class="step-count">Step {{ step() + 1 }} of {{ steps.length }}</p>
+    <p class="step-count">Step {{ step() + 1 }} of {{ steps().length }}</p>
     @switch (stepKey()) {
       @case ('request') {
         <h2>{{ current()!.title }}</h2>
@@ -261,10 +261,11 @@
         <dso-change-schedule [schedule]="schedule()!" [downtime]="details()!.controls.downtime" />
       }
       @case ('review') {
-        <h2>Check and raise the change</h2>
+        <h2>Check the change and create it in ProTech</h2>
         <p class="lead">
-          Check every value, then raise the change: ProTech creates it and gives it its change
-          number (CHG). You add its change tasks in the next step.
+          Check every value, then create the change: ProTech creates it and gives it its change
+          number (CHG). Two more steps then follow: you add its change tasks (CTASKs), which carry
+          that number, and create its secure coding ticket in CyberTrack.
         </p>
         @if (previewing()) {
           <dso-loading />
@@ -280,7 +281,7 @@
           <div>
             <h3>Text sent to ProTech</h3>
             <p class="hint">
-              Written from the values above. Change it if you like before you raise the change.
+              Written from the values above. Change it if you like before you create the change.
             </p>
           </div>
           <ng-container
@@ -293,27 +294,54 @@
         @if (raised(); as change) {
           <div class="banner success raised-note" role="status">
             <span
-              ><strong>{{ change.number }} is raised in ProTech.</strong> Now add its change tasks
+              ><strong>{{ change.number }} is created in ProTech.</strong> Now add its change tasks
               to it.</span
             >
           </div>
           <h2>Change tasks of {{ change.number }}</h2>
           <p class="lead">
-            A change task (CTASK) is a piece of work inside the change, done by one team. The
-            product's default change tasks are filled in; the button below adds them to
-            {{ change.number }} in ProTech. A Release Management task also needs the platform, its
-            start in the installation window, the application and the packages.
+            A change task (CTASK) is a piece of work inside the change, done by one team, and it
+            carries the change number {{ change.number }}. The product's default change tasks are
+            filled in; the button below creates them in ProTech. A Release Management task also
+            needs the platform, its start in the installation window, the application and the
+            packages.
           </p>
           <dso-change-tasks-form [tasks]="tasks()!" />
         }
       }
+      @case ('ticket') {
+        @if (raised(); as change) {
+          <h2>Secure coding ticket of {{ change.number }}</h2>
+          <p class="lead">
+            CyberTrack, the Jira project SCP, holds the secure coding tickets. Fill in the values
+            below: the ticket is named after the APO number, the application and the implementation
+            date, lists every value in its description, and its number becomes the secure coding
+            ticket of {{ change.number }}.
+          </p>
+          <dso-secure-coding-form [form]="secureCoding()!" [applicationName]="change.productName" />
+        }
+      }
       @case ('raised') {
         @if (raised(); as change) {
-          <h2>{{ change.number }} is raised</h2>
+          <h2>{{ change.number }} is created</h2>
           <p class="lead">{{ change.shortDescription }}</p>
+          <div class="form-fields summary-numbers">
+            <dso-form-field class="span-6 read-only">
+              <dso-label>Change number</dso-label>
+              <input dsoInput readonly class="mono" [value]="change.number" />
+            </dso-form-field>
+            <dso-form-field class="span-6 read-only">
+              <dso-label>Secure coding ticket number</dso-label>
+              <input
+                dsoInput
+                readonly
+                class="mono"
+                placeholder="Not created yet: create it on the change page"
+                [value]="change.template.secureCodingTicket ?? ''"
+              />
+            </dso-form-field>
+          </div>
           <dl class="rows">
-            <dt>Change number</dt>
-            <dd class="mono">{{ change.number }}</dd>
             <dt>FixVersion</dt>
             <dd class="mono">{{ change.fixVersion }}</dd>
             <dt>Installation</dt>
@@ -402,19 +430,19 @@
     <div class="step-actions">
       @if (stepKey() === 'raised') {
         <button type="button" class="btn btn-outline-primary" (click)="restart()">
-          Raise another change
+          Create another change
         </button>
         <span class="spacer"></span>
         <a class="btn btn-primary" [routerLink]="changeLink(raised()?.id ?? '')">Open the change</a>
       } @else {
-        @if (stepKey() === 'tasks') {
+        @if (laterLabels[stepKey()]; as label) {
           <button
             type="button"
             class="btn btn-outline-primary"
             [disabled]="raising()"
             (click)="later()"
           >
-            Add change tasks later
+            {{ label }}
           </button>
         } @else if (step() > 0) {
           <button

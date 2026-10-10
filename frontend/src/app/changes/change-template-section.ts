@@ -16,12 +16,13 @@ import {
   REQUEST_FIELDS,
   RISK,
   RISK_FIELDS,
+  SECURE_DEFAULT_FIELDS,
   SECURE_FIELDS,
   SectionKey,
   TIMING_FIELDS,
   USER_FIELDS,
 } from './change-sections';
-import { TemplateForm, riskOf } from './change-template-model';
+import { MAX_PRIVILEGED_USERS, TemplateForm, riskOf } from './change-template-model';
 
 const LISTED: readonly SectionKey[] = ['request', 'risk'];
 
@@ -96,12 +97,7 @@ function listed(field: Field, options: ChangeOptions | null): Field {
         @if (accounts().length) {
           <div class="form-fields accounts">
             @for (user of accounts(); track user; let i = $index) {
-              <fieldset class="account span-6">
-                <legend>Privileged account {{ i + 1 }}</legend>
-                <div class="form-fields">
-                  <dso-fields [group]="user" [fields]="userFields" />
-                </div>
-              </fieldset>
+              <dso-fields [group]="user" [fields]="userRows[i]" />
             }
           </div>
         }
@@ -112,8 +108,11 @@ function listed(field: Field, options: ChangeOptions | null): Field {
         </div>
       }
       @case ('secure') {
-        <div class="form-fields stacked">
-          <dso-fields [group]="f" [fields]="secureFields" />
+        <div class="form-fields">
+          @if (!admin()) {
+            <dso-fields [group]="f" [fields]="secureFields" />
+          }
+          <dso-fields [group]="f.controls.secureCoding" [fields]="secureCodingFields()" />
         </div>
       }
     }
@@ -141,24 +140,6 @@ function listed(field: Field, options: ChangeOptions | null): Field {
       align-items: center;
       gap: 0 8px;
     }
-
-    .account {
-      min-width: 0;
-      margin: 0;
-      padding: 0 10px 6px;
-      border: 1px solid var(--dso-border);
-
-      legend {
-        padding: 0 4px;
-        font-size: 11.5px;
-        font-weight: 600;
-        color: var(--dso-navy);
-      }
-
-      .form-fields {
-        padding-top: 2px;
-      }
-    }
   `,
 })
 export class ChangeTemplateSection {
@@ -177,8 +158,15 @@ export class ChangeTemplateSection {
   protected readonly downtimeFields = DOWNTIME_FIELDS;
   protected readonly planningFields = PLANNING_FIELDS;
   protected readonly countFields = COUNT_FIELDS;
-  protected readonly userFields = USER_FIELDS;
+  protected readonly userRows = Array.from({ length: MAX_PRIVILEGED_USERS }, (_, index) =>
+    USER_FIELDS.map((field) => ({ ...field, label: `${field.label} ${index + 1}` })),
+  );
   protected readonly secureFields = SECURE_FIELDS;
+  protected readonly secureCodingFields = computed(() =>
+    this.admin()
+      ? SECURE_DEFAULT_FIELDS
+      : SECURE_DEFAULT_FIELDS.map((field) => ({ ...field, readonly: true })),
+  );
   protected readonly riskField = RISK;
 
   protected readonly requestFields = computed(() => {

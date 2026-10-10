@@ -7,7 +7,9 @@ import com.bbh.itss.dso.portal.application.change.port.in.ChangeEditCommand;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeIntegrations;
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeTasksCommand;
 import com.bbh.itss.dso.portal.application.change.port.in.ProductionChangesUseCase;
+import com.bbh.itss.dso.portal.application.change.port.in.SecureCodingCommand;
 import com.bbh.itss.dso.portal.application.change.port.out.ChangeProductsPort;
+import com.bbh.itss.dso.portal.application.change.port.out.CyberTrackPort;
 import com.bbh.itss.dso.portal.application.change.port.out.JiraPort;
 import com.bbh.itss.dso.portal.application.change.port.out.ProductionChangeRepositoryPort;
 import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort;
@@ -20,6 +22,7 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate;
 import com.bbh.itss.dso.portal.domain.change.JiraIssue;
 import com.bbh.itss.dso.portal.domain.change.JiraVersion;
 import com.bbh.itss.dso.portal.domain.change.ProductionChange;
+import com.bbh.itss.dso.portal.domain.change.SecureCodingTicket;
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException;
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 import lombok.RequiredArgsConstructor;
@@ -65,6 +68,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     private final ProductionChangeRepositoryPort changes;
     private final JiraPort jira;
     private final ServiceNowPort serviceNow;
+    private final CyberTrackPort cyberTrack;
     private final SignedInUserUseCase users;
     private final Clock clock;
 
@@ -96,25 +100,18 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @Override
     @WithoutTransaction
     public ProductionChange update(long id, ChangeEditCommand command) {
-        ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
-        requireDepartment(stored, command.departmentId());
-        requireUnchangedSince(command.version(), stored.editedVersion(), stored.version());
+        ProductionChange stored = editable(id, command.version(), command.departmentId());
         Instant now = now(clock);
         ProductionChange edit = stored.edited(command.shortDescription(), command.description(), command.schedule(),
                 command.template(), command.tasks(), now);
-        ProductionChange current = synced(stored);
-        requireChangeable(current, stored);
-        ProductionChange claimed = changes.save(edit.rebasedOn(current).toBuilder()
-                .update(requested(now, current.departmentName())).build());
-        publish(claimed, current);
-        ProductionChange verified = verified(claimed, current, now);
-        return recorded(verified).withSyncProblem(verified.syncProblem());
+        ProductionChange current = changeable(stored);
+        return published(edit.rebasedOn(current), current, now);
     }
 
     @Override
     @WithoutTransaction
     public ChangeIntegrations integrations() {
-        return new ChangeIntegrations(jira.connected(), serviceNow.connected());
+        return new ChangeIntegrations(jira.connected(), serviceNow.connected(), cyberTrack.connected());
     }
 
     @Override
@@ -157,12 +154,9 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @Override
     @WithoutTransaction
     public ProductionChange createTasks(long id, ChangeTasksCommand command) {
-        ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
-        requireDepartment(stored, command.departmentId());
-        requireUnchangedSince(command.version(), stored.editedVersion(), stored.version());
+        ProductionChange stored = editable(id, command.version(), command.departmentId());
         List<ChangeTask> planned = stored.plannedTasks(command.tasks());
-        ProductionChange current = synced(stored);
-        requireChangeable(current, stored);
+        ProductionChange current = changeable(stored);
         List<ChangeTask> created = new ArrayList<>();
         try {
             planned.forEach(task -> created.add(task.numbered(serviceNow.createTask(current.number(), task))));
@@ -173,6 +167,48 @@ public class ProductionChangeService implements ProductionChangesUseCase {
             throw refused;
         }
         return recorded(current.withTasks(created));
+    }
+
+    @Override
+    @WithoutTransaction
+    public ProductionChange createSecureCodingTicket(long id, SecureCodingCommand command) {
+        ProductionChange stored = editable(id, command.version(), command.departmentId());
+        SecureCodingTicket ticket = SecureCodingTicket.of(stored, command.secureCoding(),
+                command.implementationDate());
+        ProductionChange current = changeable(stored);
+        String existing = current.template().secureCodingTicket();
+        if (existing != null) {
+            throw new IllegalStateException(current.number() + " already has the secure coding ticket " + existing);
+        }
+        String key = cyberTrack.create(ticket);
+        try {
+            return published(current.withSecureCoding(command.secureCoding(), key), current, now(clock));
+        } catch (RuntimeException refused) {
+            throw new IllegalStateException(key + " was created in CyberTrack, but " + current.number()
+                    + " could not take it: " + refused.getMessage() + " Enter " + key
+                    + " as the secure coding ticket with Edit the change.", refused);
+        }
+    }
+
+    private ProductionChange editable(long id, Long version, Long departmentId) {
+        ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
+        requireDepartment(stored, departmentId);
+        requireUnchangedSince(version, stored.editedVersion(), stored.version());
+        return stored;
+    }
+
+    private ProductionChange changeable(ProductionChange stored) {
+        ProductionChange current = synced(stored);
+        requireChangeable(current, stored);
+        return current;
+    }
+
+    private ProductionChange published(ProductionChange edit, ProductionChange current, Instant now) {
+        ProductionChange claimed = changes.save(edit.toBuilder().update(requested(now, current.departmentName()))
+                .build());
+        publish(claimed, current);
+        ProductionChange verified = verified(claimed, current, now);
+        return recorded(verified).withSyncProblem(verified.syncProblem());
     }
 
     private ProductionChange draft(ChangeCommand command, Instant raisedAt) {

@@ -1,5 +1,6 @@
 import { AbstractControl } from '@angular/forms';
 import { LookupKind } from '../core/models';
+import { HTTP_URL_ERROR } from '../shared/form-controls';
 import { Field, FieldOption, area, choice, count, line, mono } from '../shared/fields';
 import { Lookup } from '../shared/lookup-dialog';
 import { ProductionChange, STATES, approvalOf, labelOf } from './change-api';
@@ -66,7 +67,7 @@ export const SECTIONS: readonly Section[] = [
     key: 'privileged',
     step: 'Privileged access',
     title: 'Privileged access',
-    lead: `Accounts with extra rights, such as admin accounts, that people need for this change, up to ${MAX_PRIVILEGED_USERS}: the person, then the account.`,
+    lead: `Accounts with extra rights, such as admin accounts, that people need for this change, up to ${MAX_PRIVILEGED_USERS}: the person on the left, the privileged access on the right.`,
   },
   {
     key: 'risk',
@@ -78,9 +79,13 @@ export const SECTIONS: readonly Section[] = [
     key: 'secure',
     step: 'Secure coding',
     title: 'Secure coding',
-    lead: 'The secure coding ticket of the release.',
+    lead: 'The secure coding ticket of the release in CyberTrack, the Jira project SCP, and what it was created with.',
+    adminLead:
+      'What a new secure coding ticket in CyberTrack starts with. The ticket itself is created for each change, after the change exists in ProTech.',
   },
 ];
+
+export const WIZARD_SECTIONS = SECTIONS.filter((section) => section.key !== 'secure');
 
 export const NUMBER_PENDING = 'Given by ProTech when raised';
 
@@ -182,8 +187,8 @@ export const COUNT_FIELDS: readonly Field[] = [
 ];
 
 export const USER_FIELDS: readonly Field[] = [
-  person('user', 'Person', 12),
-  mono('account', 'Privileged account', '', 12),
+  person('user', 'Person'),
+  mono('account', 'Privileged access'),
 ];
 
 export const RISK_FIELDS: readonly Field[] = [
@@ -199,8 +204,34 @@ export const RISK_FIELDS: readonly Field[] = [
 ];
 
 export const SECURE_FIELDS: readonly Field[] = [
-  mono('secureCodingTicket', 'Secure coding ticket number', '', 6),
+  mono('secureCodingTicket', 'Secure coding ticket number', '', 6, {
+    hint: 'The CyberTrack ticket, such as SCP-1234',
+  }),
 ];
+
+export const SECURE_CODING_FIELDS: readonly Field[] = [
+  mono('apoNumber', 'APO number', '', 6, { hint: 'The ID of the application in Apollo' }),
+  mono('implementationDate', 'Implementation date', '', 6, {
+    readonly: true,
+    hint: 'The day the installation starts, as MMDDYYYY',
+  }),
+  line('bitbucketUrl', 'Bitbucket URL', '', 6, {
+    hint: 'The repository, for the SAST scan',
+    error: HTTP_URL_ERROR,
+  }),
+  line('artifactLink', 'Artifact link', '', 6, {
+    hint: 'The build in Jenkins or the artifact in Nexus, for the OSA (Nexus IQ) scan',
+    error: HTTP_URL_ERROR,
+  }),
+  line('qcApplicationLink', 'QC application link', '', 6, {
+    hint: 'The application on QC, for the DAST scan',
+    error: HTTP_URL_ERROR,
+  }),
+];
+
+export const SECURE_DEFAULT_FIELDS = SECURE_CODING_FIELDS.filter(
+  (field) => field.key !== 'implementationDate',
+);
 
 const GROUPS = [
   { key: 'approvers', label: 'Approvers' },
@@ -208,6 +239,7 @@ const GROUPS = [
   { key: 'planning', label: 'Planning' },
   { key: 'privilegedAccess', label: 'Privileged access' },
   { key: 'riskAssessment', label: 'Risk assessment' },
+  { key: 'secureCoding', label: 'Secure coding' },
 ];
 
 const LABELS: [string, readonly Pick<Field, 'key' | 'label'>[]][] = [
@@ -229,6 +261,7 @@ const LABELS: [string, readonly Pick<Field, 'key' | 'label'>[]][] = [
   ['privilegedAccess.', [...COUNT_FIELDS, { key: 'users', label: 'Privileged accounts' }]],
   ['privilegedAccess.users.', USER_FIELDS],
   ['riskAssessment.', RISK_FIELDS],
+  ['secureCoding.', SECURE_DEFAULT_FIELDS],
 ];
 
 export function templateLabel(path: string): string | null {
@@ -250,7 +283,7 @@ const CONTROLS: Record<SectionKey, readonly string[]> = {
   planning: ['planning'],
   privileged: ['privilegedAccess'],
   risk: ['riskAssessment'],
-  secure: ['secureCodingTicket'],
+  secure: ['secureCodingTicket', 'secureCoding'],
 };
 
 export function sectionControls(form: TemplateForm, section: SectionKey): AbstractControl[] {

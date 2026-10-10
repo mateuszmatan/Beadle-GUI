@@ -23,18 +23,17 @@ import {
   isClosed,
   isReleaseTask,
   removeTask,
+  taskStatus,
 } from './change-tasks-model';
 
 const find = (kind: LookupKind) => ({ lookup: { kind } });
 
-const CHANGE_ONLY = [
-  'number',
-  'changeNumber',
-  'approval',
-  'installationStart',
-  'installationEnd',
-  'start',
-];
+const FROM_THE_CHANGE: Record<string, string> = {
+  changeNumber: 'The CHG number of the change',
+  installationStart: 'From the change',
+  installationEnd: 'From the change',
+  start: 'A minute after the installation start',
+};
 
 const NUMBER = mono('number', 'Number', '', 6, { placeholder: 'Given by ProTech when created' });
 const CHANGE = mono('changeNumber', 'Change number', '', 6);
@@ -42,20 +41,23 @@ const GROUP = line('details.assignmentGroup', 'Assignment group', '', 6, find('a
 const ASSIGNED = line('details.assignedTo', 'Assigned to', '', 6, find('users'));
 const CI = line('details.configurationItem', 'Affected CI', '', 6, {
   ...find('configuration-items'),
-  hint: 'If left empty: the Affected CI of the change',
+  hint: 'The application; if left empty: the Affected CI of the change',
 });
 const APPROVAL = line('approval', 'Approval');
 const FROM = line('installationStart', 'Installation start', '', 6, { type: 'datetime-local' });
 const UNTIL = line('installationEnd', 'Installation end', '', 6, { type: 'datetime-local' });
-const START = line('start', 'Task start', '', 6, { type: 'datetime-local' });
+const START = line('start', 'Task start', '', 6, {
+  type: 'datetime-local',
+  hint: 'At least a minute after the installation start, before its end',
+});
 const APPLICATION = line('details.application', 'Application', '', 6, {
   hint: 'OCP when the platform is OpenShift',
 });
-const PACKAGES = area('details.packages', 'Packages');
-const BACKOUT = area('details.backoutPackages', 'Backout packages');
-const SHORT = area('details.shortDescription', 'Short description');
-const DESCRIPTION = area('details.description', 'Description');
-const COMMENTS = area('details.additionalComments', 'Additional comments');
+const PACKAGES = area('details.packages', 'Packages', '', 12);
+const BACKOUT = area('details.backoutPackages', 'Backout packages', '', 12);
+const SHORT = area('details.shortDescription', 'Short description', '', 12);
+const DESCRIPTION = area('details.description', 'Description', '', 12);
+const COMMENTS = area('details.additionalComments', 'Additional comments', '', 12);
 
 const choices = (values: readonly string[] = []): FieldOption[] =>
   values.map((value) => ({ value, label: value }));
@@ -99,7 +101,13 @@ export function taskFields(
         DESCRIPTION,
         COMMENTS,
       ];
-  return inChange ? fields : fields.filter((field) => !CHANGE_ONLY.includes(field.key));
+  return inChange
+    ? fields
+    : fields.map((field) =>
+        FROM_THE_CHANGE[field.key]
+          ? { ...field, type: 'text', hint: undefined, placeholder: FROM_THE_CHANGE[field.key] }
+          : field,
+      );
 }
 
 export const TASK_LABELS: Record<string, string> = Object.fromEntries(
@@ -117,7 +125,11 @@ export const TASK_LABELS: Record<string, string> = Object.fromEntries(
     @let list = tasks();
     <ol class="task-list">
       @for (task of list.controls; track task; let i = $index) {
-        <li class="task-row" [class.closed]="isClosed(task)">
+        <li
+          class="task-row"
+          [class.closed]="isClosed(task)"
+          [class.canceled]="task.controls.state.value === 'CANCELED'"
+        >
           <div class="task-head">
             <span class="index">{{ i + 1 }}</span>
             <span class="kind">{{
@@ -126,19 +138,23 @@ export const TASK_LABELS: Record<string, string> = Object.fromEntries(
             @if (inChange()) {
               <span class="chip neutral">{{ stateLabel(task.controls.state.value) }}</span>
             }
-            @if (isClosed(task)) {
+            @if (readonly()) {
+              <span class="muted small">{{ status(task) }}</span>
+            } @else if (isClosed(task)) {
               <span class="muted small">Closed in ProTech, so it stays as it is</span>
             }
             <span class="spacer"></span>
-            <button
-              type="button"
-              class="btn btn-link danger"
-              [attr.aria-label]="'Remove change task ' + (i + 1)"
-              [disabled]="!canRemove(list, i)"
-              (click)="remove(i)"
-            >
-              Remove
-            </button>
+            @if (!readonly()) {
+              <button
+                type="button"
+                class="btn btn-link danger"
+                [attr.aria-label]="'Remove change task ' + (i + 1)"
+                [disabled]="!canRemove(list, i)"
+                (click)="remove(i)"
+              >
+                Remove
+              </button>
+            }
           </div>
           <div class="form-fields">
             <dso-fields [group]="task" [fields]="fieldsOf(task)" />
@@ -149,17 +165,19 @@ export const TASK_LABELS: Record<string, string> = Object.fromEntries(
     @if (list.errors && (list.touched || list.dirty)) {
       <p class="choice-error" role="alert">{{ errorText(list) }}</p>
     }
-    <div class="task-actions">
-      <button
-        type="button"
-        class="btn btn-outline-primary"
-        [disabled]="list.length >= maxTasks"
-        (click)="add()"
-      >
-        Add a change task
-      </button>
-      <span class="muted">{{ counted(list.length, 'change task') }}</span>
-    </div>
+    @if (!readonly()) {
+      <div class="task-actions">
+        <button
+          type="button"
+          class="btn btn-outline-primary"
+          [disabled]="list.length >= maxTasks"
+          (click)="add()"
+        >
+          Add a change task
+        </button>
+        <span class="muted">{{ counted(list.length, 'change task') }}</span>
+      </div>
+    }
   `,
   styles: `
     :host {
@@ -180,7 +198,8 @@ export const TASK_LABELS: Record<string, string> = Object.fromEntries(
       border: 1px solid var(--dso-border);
       background: var(--dso-card);
 
-      &.closed {
+      &.closed,
+      &.canceled {
         background: var(--dso-surface);
       }
     }
@@ -209,6 +228,7 @@ export const TASK_LABELS: Record<string, string> = Object.fromEntries(
 })
 export class ChangeTasksForm {
   readonly tasks = input.required<TasksForm>();
+  readonly readonly = input(false);
 
   private readonly lists = inject(ChangeOptionLists);
   private readonly revision = formRevision(() => this.tasks());
@@ -223,8 +243,11 @@ export class ChangeTasksForm {
   private readonly fieldSets = computed(() => {
     const options = this.lists.options();
     const inChange = this.inChange();
+    const readonly = this.readonly();
     const of = (release: boolean) =>
-      taskFields(release, inChange, options?.platforms, options?.importances);
+      taskFields(release, inChange, options?.platforms, options?.importances).map((field) =>
+        readonly ? { ...field, lookup: undefined } : field,
+      );
     return { release: of(true), other: of(false) };
   });
 
@@ -236,6 +259,10 @@ export class ChangeTasksForm {
 
   protected stateLabel(state: TaskState): string {
     return labelOf(TASK_STATES, state);
+  }
+
+  protected status(task: TaskForm): string {
+    return taskStatus(task.getRawValue());
   }
 
   protected add(): void {

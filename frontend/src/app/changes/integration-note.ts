@@ -6,10 +6,10 @@ import { ChangeIntegrations, ChangesApi } from './change-api';
 const DEMO_PROTECH =
   'A demo ProTech gives each change its number, moves it through the workflow on its own and applies an update a few seconds after it is published.';
 
-export function demoText({
-  jiraConnected,
-  serviceNowConnected,
-}: ChangeIntegrations): string | null {
+const DEMO_CYBERTRACK =
+  'CyberTrack is not connected yet, so a secure coding ticket gets an example number and does not reach the real Jira project SCP.';
+
+function changeText(jiraConnected: boolean, serviceNowConnected: boolean): string | null {
   if (!jiraConnected && !serviceNowConnected) {
     return `Jira and ProTech are not connected yet, so the epics and stories are examples and no change reaches the real ProTech. ${DEMO_PROTECH}`;
   }
@@ -19,6 +19,18 @@ export function demoText({
   return serviceNowConnected
     ? null
     : `ProTech is not connected yet, so no change reaches the real ProTech. ${DEMO_PROTECH}`;
+}
+
+export function demoText({
+  jiraConnected,
+  serviceNowConnected,
+  cyberTrackConnected,
+}: ChangeIntegrations): string | null {
+  const texts = [
+    changeText(jiraConnected, serviceNowConnected),
+    cyberTrackConnected ? null : DEMO_CYBERTRACK,
+  ].filter(Boolean);
+  return texts.length ? texts.join(' ') : null;
 }
 
 @Component({
