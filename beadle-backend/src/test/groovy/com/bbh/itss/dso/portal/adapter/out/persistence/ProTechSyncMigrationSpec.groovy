@@ -1,7 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence
 
 import com.bbh.itss.dso.portal.domain.catalog.Product
-import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile
 import com.bbh.itss.dso.portal.domain.change.ChangeTask
 import com.bbh.itss.dso.portal.domain.change.ChangeUpdate
@@ -30,9 +29,7 @@ import static com.bbh.itss.dso.portal.support.ChangeFixtures.migratedTasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.task
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
-import static com.bbh.itss.dso.portal.support.Fixtures.account
-import static com.bbh.itss.dso.portal.support.Fixtures.details
-import static com.bbh.itss.dso.portal.support.Fixtures.settings
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
 import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED
 
@@ -62,12 +59,14 @@ class ProTechSyncMigrationSpec extends MigrationSpecification {
         given:
         liquibase.update('')
         Product product = inTransaction {
-            products.save(Product.create(details(code: 'CERTSCANNER', name: 'CertScanner', departmentId: 3L),
-                    account(), [new ServiceDraft(null, 'gui', null, settings()),
-                                new ServiceDraft(null, 'api', null, settings())], products))
+            products.save(Product.create(details(code: 'CERTSCANNER', name: 'CertScanner', departmentId: 3L), products))
         }
-        jdbc.update("UPDATE DSO_SERVICE SET DISPLAY_ORDER = CASE NAME WHEN 'api' THEN 0 ELSE 1 END WHERE PRODUCT_ID = ?",
-                product.id())
+        ['api', 'gui'].eachWithIndex { String service, int order ->
+            jdbc.update("""INSERT INTO DSO_SERVICE (PRODUCT_ID, NAME, DISPLAY_ORDER, BUILD_TOOL, SOURCE_DIR, DEPLOY_TARGET,
+                    APPSCAN_APP_ID, INFLUX_PROJECT, CREATED_AT, UPDATED_AT)
+                    VALUES (?, ?, ?, 'MAVEN', '.', 'VM', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)""", product.id(), service,
+                    order, UUID.randomUUID().toString(), "CERTSCANNER-$service".toString())
+        }
         jdbc.update('''INSERT INTO DSO_PRODUCT (CODE, NAME, ASOC_KEY_ID, CREATED_AT, UPDATED_AT)
                 VALUES ('LEDGER', 'Ledger', 'bbh_key', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)''')
         long ledger = jdbc.queryForObject("SELECT ID FROM DSO_PRODUCT WHERE CODE = 'LEDGER'", Long)
@@ -132,8 +131,8 @@ class ProTechSyncMigrationSpec extends MigrationSpecification {
 
     private static ProductionChange changeOf(Product product, String number = 'CHG0031001',
                                              String taskNumber = 'CTASK0041001', String department = 'Corporate Technology') {
-        ProductionChange draft = ProductionChange.draft(changeProduct(id: product.id(), code: product.code(),
-                name: product.name(), departmentName: department), 'Mateusz Matan', FIX_VERSION, schedule(),
+        ProductionChange draft = ProductionChange.draft(changeProduct(id: product.id(), code: product.details().code(),
+                name: product.details().name(), departmentName: department), 'Mateusz Matan', FIX_VERSION, schedule(),
                 template(), [epic('CERT-1', 'Expiry alerts')], [], null, null).raisedAt(RAISED)
                 .numbered(number, null)
                 .withTasks([task(1).numbered(taskNumber), task(2).numbered(taskNumber + '2')])

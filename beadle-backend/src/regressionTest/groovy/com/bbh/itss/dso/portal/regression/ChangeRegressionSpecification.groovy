@@ -1,6 +1,6 @@
 package com.bbh.itss.dso.portal.regression
 
-import com.bbh.itss.dso.portal.support.PortalSpecification
+import com.bbh.itss.dso.portal.support.BeadleSpecification
 
 import java.time.Instant
 
@@ -12,7 +12,7 @@ import static java.nio.charset.StandardCharsets.UTF_8
 import static java.time.temporal.ChronoUnit.DAYS
 import static java.time.temporal.ChronoUnit.HOURS
 
-abstract class ChangeRegressionSpecification extends PortalSpecification {
+abstract class ChangeRegressionSpecification extends BeadleSpecification {
 
     static final Instant START = Instant.now().plus(3, DAYS).truncatedTo(HOURS)
     static final String SIGNED_IN = 'Mateusz Matan'

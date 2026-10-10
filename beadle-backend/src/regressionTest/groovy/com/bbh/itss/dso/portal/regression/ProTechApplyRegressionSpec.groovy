@@ -3,7 +3,6 @@ package com.bbh.itss.dso.portal.regression
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 
-import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.changeTaskJson
 
 class ProTechApplyRegressionSpec extends ChangeRegressionSpecification {

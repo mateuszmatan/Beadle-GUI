@@ -1,6 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.in.startup
 
-import com.bbh.itss.dso.portal.application.catalog.port.in.ProductSummaryView
+import com.bbh.itss.dso.portal.application.catalog.port.in.ProductView
 import com.bbh.itss.dso.portal.application.catalog.port.in.ProductsUseCase
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfileView
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeProfilesUseCase
@@ -107,7 +107,7 @@ class DemoChangeProfilesSpec extends Specification {
         def problems = new ValidationProblems()
 
         when:
-        def chosen = tasksFor(new ProductSummaryView(2, 'PAYHUB', name, null, null, 3L, 'Custody', 1, 1, 1, null),
+        def chosen = tasksFor(new ProductView(2, 'PAYHUB', name, null, null, 3L, 'Custody', 0, null),
                 template(riskAssessment: risk(businessImpact: 'High')))
         validateTasks(chosen, problems)
         suggestedFor('PAYHUB', name, null).validate(problems.at('template'))
@@ -165,7 +165,7 @@ class DemoChangeProfilesSpec extends Specification {
         PRIVILEGED_USERS.size() == 2
     }
 
-    static ProductSummaryView summary(long id, String code) {
-        new ProductSummaryView(id, code, code, null, "Team of $code", 3L, 'Corporate Technology', 1, 1, 1, null)
+    static ProductView summary(long id, String code) {
+        new ProductView(id, code, code, "Team of $code", null, 3L, 'Corporate Technology', 0, null)
     }
 }

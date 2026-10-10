@@ -1,6 +1,5 @@
 package com.bbh.itss.dso.portal.regression
 
-import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.scheduleJson
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasksJson
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.templateJson

@@ -4,7 +4,6 @@ import java.time.Instant
 import java.time.LocalDateTime
 
 import static com.bbh.itss.dso.portal.domain.change.TaskDetails.suggestedTasks
-import static com.bbh.itss.dso.portal.support.ApiJson.product
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.changeTaskJson
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.changeTasksJson
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.detailsJson

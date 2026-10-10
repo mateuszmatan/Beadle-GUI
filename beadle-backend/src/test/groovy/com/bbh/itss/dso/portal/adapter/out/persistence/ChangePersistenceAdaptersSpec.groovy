@@ -1,7 +1,6 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence
 
 import com.bbh.itss.dso.portal.domain.catalog.Product
-import com.bbh.itss.dso.portal.domain.catalog.ServiceDraft
 import com.bbh.itss.dso.portal.domain.change.ChangeProduct
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile
 import com.bbh.itss.dso.portal.domain.change.ChangeProfileSummary
@@ -13,6 +12,7 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedUser
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Timing
 import com.bbh.itss.dso.portal.domain.change.ChangeUpdate
+import com.bbh.itss.dso.portal.domain.change.ChangeUsage
 import com.bbh.itss.dso.portal.domain.change.ProductionChange
 import com.bbh.itss.dso.portal.domain.change.RiskAssessment
 import com.bbh.itss.dso.portal.domain.change.TaskDetails
@@ -47,9 +47,7 @@ import static com.bbh.itss.dso.portal.support.ChangeFixtures.story
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.task
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.tasks
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
-import static com.bbh.itss.dso.portal.support.Fixtures.account
-import static com.bbh.itss.dso.portal.support.Fixtures.details
-import static com.bbh.itss.dso.portal.support.Fixtures.settings
+import static com.bbh.itss.dso.portal.support.CatalogFixtures.details
 import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 
 @DataJpaTest(properties = [
@@ -57,7 +55,7 @@ import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTest
         'spring.datasource.username=sa'])
 @AutoConfigureTestDatabase(replace = NONE)
 @Import([ChangeProfilePersistenceAdapter, ChangeProductPersistenceAdapter, ProductionChangePersistenceAdapter,
-        ProductPersistenceAdapter])
+        ProductPersistenceAdapter, ChangeUsageAdapter])
 class ChangePersistenceAdaptersSpec extends Specification {
 
     static final ChangeTemplate FULL = template(requestedFor: 'Ann Lee', requestedBy: 'Jane Smith',
@@ -82,6 +80,9 @@ class ChangePersistenceAdaptersSpec extends Specification {
 
     @Autowired
     ProductPersistenceAdapter products
+
+    @Autowired
+    ChangeUsageAdapter usage
 
     @Autowired
     TestEntityManager entities
@@ -412,7 +413,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         changes.load(untouched.id()).get() == untouched
     }
 
-    def "the changes of a department are listed newest first and counted per department"() {
+    def "the changes of a department are listed newest first and counted per department with its products"() {
         given:
         def custody = save('CUST', 'Custody Ledger', 4L)
         def first = changes.save(raise('CHG0001001', 'CTASK0002001'))
@@ -425,7 +426,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         changes.findByDepartment(4L)*.number() == ['CHG0001002']
         changes.findByDepartment(5L) == []
         changes.findAll()*.number() == ['CHG0001003', 'CHG0001002', 'CHG0001001']
-        changes.changesPerDepartment() == [3L: 2L, 4L: 1L]
+        usage.perDepartment() == [3L: new ChangeUsage(1, 2), 4L: new ChangeUsage(1, 1)]
     }
 
     def "deleting a product deletes its template and keeps its raised changes"() {
@@ -474,8 +475,6 @@ class ChangePersistenceAdaptersSpec extends Specification {
     }
 
     private Product save(String code, String name, long departmentId) {
-        products.save(Product.create(details(code: code, name: name, departmentId: departmentId), account(),
-                [new ServiceDraft(null, 'gui', 'Angular', settings()), new ServiceDraft(null, 'api', null, settings())],
-                products))
+        products.save(Product.create(details(code: code, name: name, departmentId: departmentId), products))
     }
 }
