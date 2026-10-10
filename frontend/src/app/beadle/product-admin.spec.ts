@@ -74,8 +74,15 @@ describe('ProductAdmin', () => {
     expect(page().querySelector('.facts a')?.getAttribute('href')).toBe('mailto:arch@bbh.com');
     expect(page().querySelector('table')).toBeNull();
     http.expectNone('/api/products/1');
+    expect(text(page().querySelector('.facts h2'))).toBe('Product details');
+    expect([...page().querySelectorAll('.facts dt')].map((dt) => text(dt))).toEqual([
+      'Product code',
+      'Department',
+      'Owner team',
+      'Contact e-mail',
+    ]);
     expect([...page().querySelectorAll('button')].map((button) => text(button))).toEqual([
-      'Change',
+      'Edit details',
       'Delete product',
     ]);
   });
@@ -95,7 +102,16 @@ describe('ProductAdmin', () => {
     http.expectOne('/api/departments').flush([]);
     await settle();
 
-    expect(text(page().querySelector('.banner'))).toBe('Product 1 was not found');
+    expect(text(page().querySelector('.banner span'))).toBe(
+      'The product could not be loaded. Product 1 was not found',
+    );
+
+    buttonOf(page().querySelector('.banner')!, 'Try again').click();
+    await settle();
+    http.expectOne('/api/products/1/details').flush(stored);
+    await settle();
+    expect(page().querySelector('.banner')).toBeNull();
+    expect(facts()[0]).toBe('CERT');
   });
 
   it('changes the facts in the product dialog and tells the page', async () => {
@@ -103,7 +119,7 @@ describe('ProductAdmin', () => {
     const renamed = { ...stored, name: 'Cert Scanner', departmentId: 5, version: 4 };
     const open = dialogClosing(renamed, undefined);
 
-    buttonOf(page(), 'Change').click();
+    buttonOf(page(), 'Edit details').click();
     fixture.detectChanges();
 
     expect(open.mock.calls[0][0]).toBe(ProductDialog);
@@ -116,7 +132,7 @@ describe('ProductAdmin', () => {
     expect(snack()).toContain('Cert Scanner saved');
     expect(emitted).toEqual([renamed]);
 
-    buttonOf(page(), 'Change').click();
+    buttonOf(page(), 'Edit details').click();
     expect(open.mock.calls[1][1]?.data).toMatchObject({ product: renamed });
     expect(emitted.length).toBe(1);
   });
@@ -130,7 +146,7 @@ describe('ProductAdmin', () => {
     });
     dialogClosing(conflict, conflict);
 
-    buttonOf(page(), 'Change').click();
+    buttonOf(page(), 'Edit details').click();
     http
       .expectOne('/api/products/1/details')
       .flush({ ...stored, ownerTeam: 'Security', version: 5 });
@@ -141,11 +157,13 @@ describe('ProductAdmin', () => {
     );
     expect(facts()[2]).toBe('Security');
 
-    buttonOf(page(), 'Change').click();
+    buttonOf(page(), 'Edit details').click();
     http.expectOne('/api/products/1/details').flush({ ...stored, version: 5 });
     fixture.detectChanges();
 
-    expect(snack()).toContain('A product named Payments Hub already exists');
+    expect(snack()).toContain(
+      'The details of CertScanner could not be saved. A product named Payments Hub already exists',
+    );
     expect(emitted).toEqual([]);
   });
 
@@ -155,8 +173,10 @@ describe('ProductAdmin', () => {
 
     buttonOf(page(), 'Delete product').click();
     expect(open.mock.calls[0][1]?.data).toEqual({
-      title: 'Delete CertScanner?',
-      message: 'CertScanner is deleted with its change template. This cannot be undone.',
+      title: 'Delete the product CertScanner?',
+      message:
+        'CertScanner and its change template are deleted. This cannot be undone.\n' +
+        'If CertScanner still has services in DevSecOps Management, it is not deleted; remove them there first.',
       confirmLabel: 'Delete product',
       danger: true,
     });
@@ -164,7 +184,7 @@ describe('ProductAdmin', () => {
       .expectOne({ method: 'DELETE', url: '/api/products/1/details' })
       .flush({ detail: 'The portal cannot be reached.' }, { status: 503, statusText: 'Down' });
     await fixture.whenStable();
-    expect(snack()).toContain('The portal cannot be reached.');
+    expect(snack()).toContain('CertScanner could not be deleted. The portal cannot be reached.');
     expect(deleted).toEqual([]);
 
     buttonOf(page(), 'Delete product').click();
@@ -190,7 +210,7 @@ describe('ProductAdmin', () => {
     await fixture.whenStable();
 
     expect(snack()).toContain(
-      'CertScanner still has 2 service(s) in DevSecOps Management. Remove them there first.',
+      'CertScanner could not be deleted. CertScanner still has 2 service(s) in DevSecOps Management. Remove them there first.',
     );
     expect(deleted).toEqual([]);
   });

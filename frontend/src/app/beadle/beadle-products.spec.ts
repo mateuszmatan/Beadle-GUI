@@ -105,9 +105,12 @@ describe('BeadleProducts', () => {
     expect(cells('CertScanner')).toEqual([
       'CertScannerCERT',
       'Technology Architecture',
-      'Saved · 2 days ago',
+      'Filled in · saved 2 days ago',
     ]);
-    expect(cells('Payments Hub')).toEqual(['Payments HubPAYHUB', '–', 'Suggested values']);
+    expect(cells('Payments Hub')).toEqual(['Payments HubPAYHUB', '–', 'Not filled in yet']);
+    expect(text(page().querySelector('.tab-help'))).toBe(
+      'Open a product to see its details and fill in its change template. Until then, its new changes start with values suggested from its name, code and owner team.',
+    );
     expect(text(page())).not.toContain('service');
     expect(rowOf('CertScanner').querySelector('a')?.getAttribute('href')).toBe(
       '/beadle/admin/products/1',
@@ -127,10 +130,18 @@ describe('BeadleProducts', () => {
   it('still lists the products when their change templates cannot be loaded', async () => {
     await load(undefined, undefined, null);
 
+    expect(text(page().querySelector('.banner span'))).toBe(
+      'The products are listed, but the state of their change templates could not be loaded. The change templates are not available',
+    );
+    expect(text(gridCell(rowOf('CertScanner'), 'template'))).toBe('Not known');
+    expect(cells('Payments Hub')).toEqual(['Payments HubPAYHUB', '–', 'Not known']);
+
+    buttonOf(page().querySelector('.banner')!, 'Try again').click();
+    fixture.detectChanges();
+    http.expectOne('/api/change-profiles').flush([saved]);
+    await fixture.whenStable();
     expect(page().querySelector('.banner')).toBeNull();
-    const state = gridCell(rowOf('CertScanner'), 'template').querySelector('dso-grid-cell span')!;
-    expect(text(state)).toBe('Unknown');
-    expect(state.getAttribute('title')).toBe('The change templates are not available');
+    expect(text(gridCell(rowOf('CertScanner'), 'template'))).toBe('Filled in · saved 2 days ago');
   });
 
   it('gathers the products without a department in a last card', async () => {
@@ -143,7 +154,7 @@ describe('BeadleProducts', () => {
     expect(text(unassigned.querySelector('h2'))).toBe('Not in a department');
     expect(text(unassigned.querySelector('.tally'))).toBe('1 product');
     expect(text(unassigned.querySelector('.hint'))).toBe(
-      'Change these products to choose their department.',
+      'Open each product and choose its department with Edit details.',
     );
     expect(text(card('Fund Services').querySelector('.no-products'))).toBe(
       'No products in Fund Services yet.',
@@ -173,7 +184,7 @@ describe('BeadleProducts', () => {
     await load([]);
     expect(text(page().querySelector('.empty-state h3'))).toBe('No products yet');
     expect(text(page().querySelector('.empty-state p'))).toBe(
-      'Add the first product, then its change template.',
+      'Add the first product, then fill in its change template on its page.',
     );
     expect(text(page().querySelector('.empty-state button'))).toBe('Add product');
 
@@ -181,7 +192,20 @@ describe('BeadleProducts', () => {
     fixture.detectChanges();
     http.expectOne('/api/products').flush(null, { status: 0, statusText: 'Unknown Error' });
     await fixture.whenStable();
-    expect(text(page().querySelector('.banner'))).toContain('cannot be reached');
+    expect(text(page().querySelector('.banner span'))).toBe(
+      'The products could not be loaded. The portal cannot be reached. Check your network connection and try again.',
+    );
+
+    buttonOf(page().querySelector('.banner')!, 'Try again').click();
+    fixture.detectChanges();
+    http.expectOne('/api/products').flush([payments]);
+    http.expectNone('/api/departments');
+    await fixture.whenStable();
+    expect(page().querySelector('.banner')).toBeNull();
+    expect(cards().map((section) => text(section.querySelector('h2')))).toEqual([
+      'Corporate Technology',
+      'Fund Services',
+    ]);
   });
 
   it('adds a product from the toolbar or a department card and opens it', async () => {
@@ -201,10 +225,12 @@ describe('BeadleProducts', () => {
     });
     expect(navigate).not.toHaveBeenCalled();
 
-    buttonOf(card('Fund Services'), 'Add product').click();
+    const addToFund = buttonOf(card('Fund Services'), 'Add product');
+    expect(addToFund.getAttribute('aria-label')).toBe('Add product to Fund Services');
+    addToFund.click();
     expect(open.mock.calls[1][1]?.data).toMatchObject({ departmentId: 5 });
     await fixture.whenStable();
-    expect(snack()).toContain('Trade Archive added');
+    expect(snack()).toContain('Trade Archive added. Now fill in its change template.');
     expect(navigate).toHaveBeenCalledWith(['/beadle/admin/products', 7]);
   });
 });

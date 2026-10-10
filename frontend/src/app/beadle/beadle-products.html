@@ -1,9 +1,14 @@
+<p class="tab-help">
+  Open a product to see its details and fill in its change template. Until then, its new changes
+  start with values suggested from its name, code and owner team.
+</p>
+
 <section class="card toolbar">
   <input
     dsoInput
     class="search"
     [formControl]="search"
-    placeholder="Search by name, code, team, department or description"
+    placeholder="Search by product, code, team or department"
     aria-label="Search products"
   />
   @if (groups()) {
@@ -18,8 +23,20 @@
 }
 
 @if (products.error() ?? departments.error(); as error) {
-  <div class="banner">{{ errorMessage(error) }}</div>
+  <div class="banner" role="alert">
+    <span>The products could not be loaded. {{ errorMessage(error) }}</span>
+    <button type="button" class="btn btn-link" (click)="reload()">Try again</button>
+  </div>
 } @else if (groups(); as shown) {
+  @if (templates.error(); as error) {
+    <div class="banner" role="status">
+      <span
+        >The products are listed, but the state of their change templates could not be loaded.
+        {{ errorMessage(error) }}</span
+      >
+      <button type="button" class="btn btn-link" (click)="templates.reload()">Try again</button>
+    </div>
+  }
   @if (empty()) {
     <section class="card empty-state">
       @if (query()) {
@@ -27,7 +44,7 @@
         <p>Try another name, code, team or department.</p>
       } @else {
         <h3>No products yet</h3>
-        <p>Add the first product, then its change template.</p>
+        <p>Add the first product, then fill in its change template on its page.</p>
         <button type="button" class="btn btn-primary" (click)="add()">Add product</button>
       }
     </section>
@@ -42,11 +59,16 @@
           }
         </div>
         @if (group.department; as department) {
-          <button type="button" class="btn btn-link" (click)="add(department.id)">
+          <button
+            type="button"
+            class="btn btn-link"
+            [attr.aria-label]="'Add product to ' + department.name"
+            (click)="add(department.id)"
+          >
             Add product
           </button>
         } @else {
-          <p class="muted hint">Change these products to choose their department.</p>
+          <p class="muted hint">Open each product and choose its department with Edit details.</p>
         }
       </header>
 
@@ -66,18 +88,18 @@
               <a class="name quiet-link" [routerLink]="beadleProduct(product.id)">{{
                 product.name
               }}</a>
-              <span class="code mono">{{ product.code }}</span>
+              <span class="code mono" title="Product code">{{ product.code }}</span>
             </div>
           </ng-template>
           <ng-template dsoCell="template" let-product>
-            @if (templates.error(); as error) {
-              <span class="muted" [title]="errorMessage(error)">Unknown</span>
+            @if (templates.error()) {
+              <span class="muted">Not known</span>
             } @else if (templates.hasValue()) {
               @if (stored().get(product.id); as saved) {
-                <span class="saved">Saved</span>
-                <span class="muted"> · {{ saved.updatedAt | relative }}</span>
+                <span class="chip success">Filled in</span
+                ><span class="muted saved-at"> · saved {{ saved.updatedAt | relative }}</span>
               } @else {
-                <span class="muted">Suggested values</span>
+                <span class="chip neutral">Not filled in yet</span>
               }
             }
           </ng-template>

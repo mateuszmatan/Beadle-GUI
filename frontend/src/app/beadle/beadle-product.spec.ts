@@ -4,7 +4,12 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { changeOptions, changeProfile, changeTemplate, releaseDetails } from '../testing/change-fixtures';
+import {
+  changeOptions,
+  changeProfile,
+  changeTemplate,
+  releaseDetails,
+} from '../testing/change-fixtures';
 import { buttonOf, fieldOf, text, toast } from '../testing/dom';
 import { productDetails } from '../testing/fixtures';
 import { BeadleProduct } from './beadle-product';
@@ -60,8 +65,18 @@ describe('BeadleProduct', () => {
       [...page().querySelectorAll('.breadcrumb a, .breadcrumb span:not(.sep)')].map(text),
     ).toEqual(['Beadle Admin', 'Products', 'CertScanner']);
     expect(text(page().querySelector('h1'))).toBe('CertScanner');
-    expect(text(page().querySelector('.banner.info'))).toContain('Not saved yet');
+    expect(text(page().querySelector('.page-header p'))).toBe(
+      "The product's details and the change template its ProTech (ServiceNow) changes start with.",
+    );
+    expect(text(page().querySelector('.banner.info'))).toBe(
+      'Not saved yet. Until you save it, new changes of CertScanner start with these values, suggested from its name, code and owner team.',
+    );
     expect(text(page().querySelector('#defaults-title'))).toBe('Change template');
+    expect(text(page().querySelector('.defaults-header .chip'))).toBe('Not filled in yet');
+    expect(page().querySelector('.defaults-header .saved-at')).toBeNull();
+    expect(text(page().querySelector('.defaults .section-help'))).toBe(
+      'Every new change of CertScanner starts with these answers; whoever raises a change can still change each of them for that change. A field left empty is filled in when the change is raised, as the note under the field says.',
+    );
     expect(page().querySelector('dso-change-template-form')).not.toBeNull();
     expect(text(page().querySelector('.default-tasks h3'))).toBe('Default change tasks');
     expect(page().querySelectorAll('dso-change-tasks-form .task-row')).toHaveLength(2);
@@ -103,6 +118,35 @@ describe('BeadleProduct', () => {
     expect(editor().hasUnsavedChanges()).toBe(false);
     expect(editor()['version']()).toBe(0);
     expect(page().querySelector('.banner.info')).toBeNull();
+    expect(text(page().querySelector('.defaults-header .chip'))).toBe('Filled in');
+    expect(text(page().querySelector('.defaults-header .saved-at'))).toMatch(
+      /^last saved \d{1,2} Oct 2026, \d\d:\d\d$/,
+    );
+  });
+
+  it('says why the change template could not be loaded and loads it again', async () => {
+    fixture.componentRef.setInput('id', 1);
+    await settle();
+    http
+      .expectOne('/api/products/1/change-profile')
+      .flush({ detail: 'The database is busy' }, { status: 503, statusText: 'Unavailable' });
+    http.expectOne('/api/products/1/details').flush(productDetails());
+    http.expectOne('/api/departments').flush([]);
+    await settle();
+
+    expect(text(page().querySelector('.banner span'))).toBe(
+      'The change template could not be loaded. The database is busy',
+    );
+    expect(page().querySelector('dso-change-template-form')).toBeNull();
+
+    buttonOf(page().querySelector('.banner')!, 'Try again').click();
+    await settle();
+    http.expectOne('/api/products/1/change-profile').flush(changeProfile());
+    await settle();
+    http.expectOne('/api/changes/options').flush(changeOptions());
+    await settle();
+    expect(page().querySelector('.banner')).toBeNull();
+    expect(page().querySelector('dso-change-template-form')).not.toBeNull();
   });
 
   it('shows the new name of a renamed product and keeps the unsaved template', async () => {
@@ -117,6 +161,26 @@ describe('BeadleProduct', () => {
     expect(text(page().querySelector('.breadcrumb span:last-child'))).toBe('CertWatch');
     expect(template().controls.category.value).toBe('Hardware');
     expect(editor().hasUnsavedChanges()).toBe(true);
+  });
+
+  it('suggests the template again from the new name while it is not saved yet', async () => {
+    await open(changeProfile({ version: null, updatedAt: null }));
+
+    editor().renamed({ name: 'CertWatch' });
+    await settle();
+    http.expectOne('/api/products/1/change-profile').flush(
+      changeProfile({
+        productName: 'CertWatch',
+        version: null,
+        updatedAt: null,
+        template: changeTemplate({ configurationItem: 'CertWatch' }),
+      }),
+    );
+    await settle();
+
+    expect(text(page().querySelector('h1'))).toBe('CertWatch');
+    expect(template().controls.configurationItem.value).toBe('CertWatch');
+    expect(editor().hasUnsavedChanges()).toBe(false);
   });
 
   it('leaves a deleted product without asking about its unsaved template', async () => {
