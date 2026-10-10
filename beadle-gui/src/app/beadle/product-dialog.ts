@@ -14,22 +14,22 @@ import {
   of,
   switchMap,
 } from 'rxjs';
-import { ProductsApi } from '../core/api';
 import { errorMessage, fieldProblems } from '@common/core/errors';
-import { Department, PRODUCT_CODE } from '../core/models';
 import { applyFieldProblems, filled, max, optional, text } from '@common/shared/form-controls';
 import { errorText } from '@common/shared/form-errors';
 import { DIALOG } from '@common/ui/dialog';
 import { FORM_FIELD } from '@common/ui/form-field';
-import { ProductDetails, ProductDetailsApi } from './product-details-api';
+import { ProductsApi } from '../core/api';
+import { Product } from '../core/models';
+import { Department, PRODUCT_CODE } from '@common/core/models';
 
 export interface ProductDialogData {
   departments: readonly Department[];
   departmentId: number | null;
-  product: ProductDetails | null;
+  product: Product | null;
 }
 
-export type ProductDialogResult = ProductDetails | HttpErrorResponse;
+export type ProductDialogResult = Product | HttpErrorResponse;
 
 const CODE_HELP = "2 to 50 characters: a letter first, then A-Z, 0-9, '-' or '_'";
 
@@ -135,7 +135,6 @@ export class ProductDialog {
   protected readonly data = inject<ProductDialogData>(DIALOG_DATA);
   private readonly dialogRef = inject<DialogRef<ProductDialogResult, ProductDialog>>(DialogRef);
   private readonly api = inject(ProductsApi);
-  private readonly detailsApi = inject(ProductDetailsApi);
 
   protected readonly product = this.data.product;
   protected readonly codeHelp = CODE_HELP;
@@ -201,16 +200,9 @@ export class ProductDialog {
     const product = this.product;
     this.saving.set(true);
     this.error.set(null);
-    const request: Observable<ProductDetails> = product
-      ? this.detailsApi.update(product.id, { ...details, version: product.version })
-      : this.api.create({
-          ...details,
-          code: value.code,
-          description: null,
-          appScan: null,
-          version: null,
-          services: [],
-        });
+    const request: Observable<Product> = product
+      ? this.api.update(product.id, { ...details, code: null, version: product.version })
+      : this.api.create({ ...details, code: value.code, version: null });
     request.pipe(finalize(() => this.saving.set(false))).subscribe({
       next: (saved) => this.dialogRef.close(saved),
       error: (error) => this.failed(error),
@@ -220,7 +212,7 @@ export class ProductDialog {
   private failed(error: unknown): void {
     const product = this.product;
     if (product && error instanceof HttpErrorResponse && error.status === 409) {
-      this.detailsApi.get(product.id).subscribe({
+      this.api.get(product.id).subscribe({
         next: (latest) =>
           latest.version === product.version ? this.refused(error) : this.dialogRef.close(error),
         error: () => this.dialogRef.close(error),

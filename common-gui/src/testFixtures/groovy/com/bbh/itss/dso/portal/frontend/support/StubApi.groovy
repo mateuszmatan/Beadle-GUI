@@ -7,20 +7,17 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 
-import static com.bbh.itss.dso.portal.frontend.support.ApiData.productDetails
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.json
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.yaml
 
-class StubApi {
+abstract class StubApi {
 
     static final String FIXTURES = '/com/bbh/itss/dso/portal/frontend/api/'
 
-    static final String SIGNED_IN_USER = 'Mateusz Matan'
-
     private final List<Route> routes = new CopyOnWriteArrayList<>()
     private final List<RecordedRequest> recorded = new CopyOnWriteArrayList<>()
-    ChangeStubs.ProTech protech
+    List<Map> departments
 
     static Object fixture(String name) {
         new JsonSlurper().parseText(fixtureText(name))
@@ -34,20 +31,17 @@ class StubApi {
         resource.getText('UTF-8')
     }
 
-    private void loadDemoData() {
-        get('/api/me') { [name: SIGNED_IN_USER] }
-        get('/api/products') { RecordedRequest request ->
-            def search = request.params().search?.toLowerCase()
-            def products = fixture('products.json') as List<Map>
-            json(search ? products.findAll {
-                [it.code, it.name, it.ownerTeam, it.departmentName].any { value -> value?.toString()?.toLowerCase()?.contains(search) }
-            } : products)
-        }
-        def departments = new CopyOnWriteArrayList<Map>(fixture('departments.json') as List<Map>)
+    static boolean hasFixture(String name) {
+        StubApi.getResource(FIXTURES + name) != null
+    }
+
+    abstract void install()
+
+    void installDepartments(Map blank) {
+        departments = new CopyOnWriteArrayList<Map>(fixture('departments.json') as List<Map>)
         get('/api/departments') { departments.sort(false) { (it.name as String).toLowerCase() } }
         on('POST', '/api/departments') { RecordedRequest request ->
-            def added = [id: (departments*.id.max() as int) + 1, name: request.json().name, version: 0, productCount: 0,
-                         serviceCount: 0, pipelineCount: 0, activePipelineCount: 0, changeCount: 0]
+            def added = [id: (departments*.id.max() as int) + 1, name: request.json().name, version: 0, productCount: 0] + blank
             departments << added
             json(added, 201)
         }
@@ -60,47 +54,10 @@ class StubApi {
             departments.removeIf { it.id == ids[0] as int }
             StubResponse.empty()
         }
-        get('/api/products/code-suggestion') { RecordedRequest request ->
-            json([code: request.params().name.toUpperCase().replaceAll(/[^A-Z0-9]/, '')])
-        }
-        get('/api/products/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("product-${ids[0]}.json", "Product ${ids[0]} does not exist") }
-        get('/api/products/(\\d+)/details') { RecordedRequest request, List<String> ids -> detailsOr404(ids[0]) }
-        get('/api/products/(\\d+)/pipelines') { RecordedRequest request, List<String> ids -> fixtureOr404("product-${ids[0]}-pipelines.json", "Product ${ids[0]} does not exist") }
-        get('/api/products/(\\d+)/config') { RecordedRequest request, List<String> ids -> fixtureOr404("product-${ids[0]}-config.yaml", "Product ${ids[0]} does not exist") }
-        get('/api/pipelines/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("pipeline-${ids[0]}.json", "Pipeline ${ids[0]} does not exist") }
-        get('/api/pipelines/(\\d+)/config') { RecordedRequest request, List<String> ids -> fixtureOr404("pipeline-${ids[0]}-config.yaml", "Pipeline ${ids[0]} does not exist") }
-        get('/api/pipelines') { RecordedRequest request ->
-            def departmentId = request.params().departmentId as Integer
-            if (!departments.any { it.id == departmentId }) {
-                return problem(404, 'Not found', "Department $departmentId does not exist")
-            }
-            def products = (fixture('products.json') as List<Map>).findAll { it.departmentId == departmentId }
-            def pipelines = products.collectMany { product ->
-                StubApi.getResource("${FIXTURES}monitoring-product-${product.id}.json")
-                        ? fixture("monitoring-product-${product.id}.json").pipelines as List : []
-            }
-            json([pipelines: pipelines, metricsError: null])
-        }
-        def template = fixture('service-template.json') as Map
-        get('/api/service-template') { json(template) }
-        on('PUT', '/api/service-template') { RecordedRequest request ->
-            def sent = request.json() as Map
-            if (sent.version != template.version) {
-                return problem(409, 'Conflict', 'The service template was changed by someone else')
-            }
-            template.putAll(sent)
-            template.putAll(version: (template.version as int) + 1, updatedAt: '2026-10-08T13:00:00Z')
-            json(template)
-        }
-        get('/api/settings') { json(fixture('settings.json')) }
-        get('/api/settings/config') { yaml(fixtureText('settings-config.yaml')) }
-        get('/api/monitoring/status') { json(fixture('monitoring-status.json')) }
-        get('/api/monitoring/products') { json(fixture('monitoring-products.json')) }
-        get('/api/monitoring/activity') { json(fixture('monitoring-activity.json')) }
-        get('/api/monitoring/products/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("monitoring-product-${ids[0]}.json", "Product ${ids[0]} does not exist") }
-        get('/api/monitoring/pipelines/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("monitoring-pipeline-${ids[0]}.json", "Pipeline ${ids[0]} does not exist") }
-        get('/api/evidence/products/(\\d+)') { RecordedRequest request, List<String> ids -> fixtureOr404("evidence-product-${ids[0]}.json", "Product ${ids[0]} does not exist") }
-        protech = ChangeStubs.install(this)
+    }
+
+    String departmentName(Object id) {
+        departments.find { it.id == id }?.name
     }
 
     StubApi get(String path, Closure handler) {
@@ -163,17 +120,11 @@ class StubApi {
     void reset() {
         routes.clear()
         recorded.clear()
-        loadDemoData()
+        install()
     }
 
-    private static StubResponse detailsOr404(String id) {
-        def name = "product-${id}.json"
-        StubApi.getResource(FIXTURES + name) ? json(productDetails(fixture(name) as Map))
-                : problem(404, 'Not found', "Product $id does not exist")
-    }
-
-    private static StubResponse fixtureOr404(String name, String detail) {
-        if (!StubApi.getResource(FIXTURES + name)) {
+    static StubResponse fixtureOr404(String name, String detail) {
+        if (!hasFixture(name)) {
             return problem(404, 'Not found', detail)
         }
         name.endsWith('.yaml') ? yaml(fixtureText(name)) : json(fixture(name))

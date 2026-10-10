@@ -5,7 +5,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
-import static com.bbh.itss.dso.portal.frontend.support.StubApi.SIGNED_IN_USER
+import static com.bbh.itss.dso.portal.frontend.support.BeadleStubApi.SIGNED_IN_USER
 import static com.bbh.itss.dso.portal.frontend.support.StubApi.fixture
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.json
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
@@ -296,7 +296,7 @@ final class ChangeStubs {
     }
 
     private static Map product(Object id) {
-        fixture("product-${id}.json") as Map
+        (fixture('products.json') as List<Map>).find { it.id == id as int }
     }
 
     private static String departmentName(Object id) {

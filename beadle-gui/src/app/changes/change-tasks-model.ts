@@ -1,5 +1,4 @@
 import { AbstractControl, FormArray, FormControl, FormGroup, ValidatorFn } from '@angular/forms';
-import { FieldProblem } from '../core/models';
 import {
   addItem,
   applyProblemsAt,
@@ -12,6 +11,7 @@ import {
 import { ChangeSchedule, ChangeTask, TaskDetails, TaskRequest, TaskState } from './change-api';
 import { fits } from './change-model';
 import { fromLocal, localInput } from './change-schedule-model';
+import { FieldProblem } from '@common/core/models';
 
 export const MAX_TASKS = 50;
 export const RELEASE_MANAGEMENT = 'Release Management';

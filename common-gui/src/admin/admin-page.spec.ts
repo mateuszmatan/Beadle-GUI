@@ -2,9 +2,39 @@ import { Component, input } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Route, Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { AdminArea, BEADLE_ADMINISTRATION, DEVSECOPS_ADMIN } from '../core/sections';
+import { AdminArea } from '../core/sections';
 import { text } from '../testing/dom';
 import { AdminPage } from './admin-page';
+
+const DEVSECOPS_ADMIN: AdminArea = {
+  section: {
+    path: '/admin',
+    label: 'Admin',
+    heading: 'DevSecOps Admin',
+    description:
+      'Set up the portal for everyone: departments, products and their services, what a new service gets, and the settings every pipeline shares.',
+  },
+  tabs: [
+    { path: '/admin/departments', label: 'Departments' },
+    { path: '/admin/products', label: 'Products' },
+    { path: '/admin/template', label: 'Service template' },
+    { path: '/admin/settings', label: 'Library defaults' },
+  ],
+};
+
+const BEADLE_ADMINISTRATION: AdminArea = {
+  section: {
+    path: '/beadle/admin',
+    label: 'Admin',
+    heading: 'Beadle Admin',
+    description:
+      "Departments, products and each product's change template: the answers every new change of the product starts with.",
+  },
+  tabs: [
+    { path: '/beadle/admin/departments', label: 'Departments' },
+    { path: '/beadle/admin/products', label: 'Products' },
+  ],
+};
 
 @Component({ template: '<p class="tab-content">{{ tab() }}</p>' })
 class TabContent {
@@ -111,7 +141,7 @@ describe('AdminPage', () => {
     expect(text(page().querySelector('.tab-content'))).toBe('Library defaults');
   });
 
-  it('shows Beadle Admin with its departments and products tabs', async () => {
+  it('shows another admin area under its own path', async () => {
     await harness.navigateByUrl('/beadle/admin');
 
     expect(TestBed.inject(Router).url).toBe('/beadle/admin/products');

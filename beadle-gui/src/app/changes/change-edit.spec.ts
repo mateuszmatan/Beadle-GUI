@@ -175,7 +175,7 @@ describe('ChangeEdit', () => {
     expect(success).toHaveBeenCalledWith(
       'Your update of CHG0012345 is published to ProTech. This page shows when ProTech has applied it.',
     );
-    expect(navigate).toHaveBeenCalledWith(['/beadle/changes', 7]);
+    expect(navigate).toHaveBeenCalledWith(['/changes', 7]);
     expect(edit().hasUnsavedChanges()).toBe(false);
   });
 
@@ -341,9 +341,7 @@ describe('ChangeEdit', () => {
     expect(text(page().querySelector('.banner.refused span'))).toBe(
       'Only Corporate Technology can change it',
     );
-    expect(page().querySelector('.banner.refused a')?.getAttribute('href')).toBe(
-      '/beadle/changes/7',
-    );
+    expect(page().querySelector('.banner.refused a')?.getAttribute('href')).toBe('/changes/7');
     expect(page().querySelector('form')).toBeNull();
   });
 

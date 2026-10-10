@@ -258,15 +258,17 @@ describe('ChangeDetail', () => {
       '3Change taskOpenNot done yet; approval not requested yet.',
     ]);
     expect(inputOf(tasks[0], 'Change number').value).toBe('CHG0012345');
-    expect(inputOf(tasks[0], 'Task start').value).toBe(localInput(new Date('2026-10-10T06:01:00Z')));
+    expect(inputOf(tasks[0], 'Task start').value).toBe(
+      localInput(new Date('2026-10-10T06:01:00Z')),
+    );
     expect(inputOf(tasks[0], 'Application').value).toBe('OCP');
     expect(inputOf(tasks[0], 'Description').value).toBe('Deploy the release of CertScanner.');
     expect(inputOf(tasks[2], 'Assigned to').value).toBe('Mateusz Matan');
     expect(inputOf(tasks[2], 'Number').placeholder).toBe('Given by ProTech when created');
     expect(
-      [...page().querySelectorAll('dso-change-tasks-form input, dso-change-tasks-form textarea')].every(
-        (field) => (field as HTMLInputElement).disabled,
-      ),
+      [
+        ...page().querySelectorAll('dso-change-tasks-form input, dso-change-tasks-form textarea'),
+      ].every((field) => (field as HTMLInputElement).disabled),
     ).toBe(true);
     expect(page().querySelector('dso-change-tasks-form button')).toBeNull();
     expect(tasks[1].classList).toContain('canceled');
@@ -278,10 +280,8 @@ describe('ChangeDetail', () => {
     expect(text(page().querySelector('a[href="https://bbh.service-now.com/CHG0012345"]'))).toBe(
       'Open in ProTech',
     );
-    expect(text(page().querySelector('a[href="/beadle/admin/products/1"]'))).toBe(
-      'Open the product',
-    );
-    expect(text(page().querySelector('a[href="/beadle/changes/7/edit"]'))).toBe('Edit the change');
+    expect(text(page().querySelector('a[href="/admin/products/1"]'))).toBe('Open the product');
+    expect(text(page().querySelector('a[href="/changes/7/edit"]'))).toBe('Edit the change');
     expect(page().querySelector('.banner.update')).toBeNull();
   });
 
@@ -307,16 +307,18 @@ describe('ChangeDetail', () => {
     expect(text(page().querySelector('.secure-coding-missing span'))).toBe(
       'CHG0012345 has no secure coding ticket yet. Create it in CyberTrack, the Jira project SCP.',
     );
-    expect(
-      page().querySelector('.secure-coding-missing a')?.getAttribute('href'),
-    ).toBe('/beadle/changes/7/secure-coding');
+    expect(page().querySelector('.secure-coding-missing a')?.getAttribute('href')).toBe(
+      '/changes/7/secure-coding',
+    );
     fixture.destroy();
 
     await show(unticketed, 4);
     expect(page().querySelector('.secure-coding-missing')).toBeNull();
     fixture.destroy();
 
-    await show(productionChange({ template: changeTemplate({ secureCodingTicket: null }), state: 'CLOSED' }));
+    await show(
+      productionChange({ template: changeTemplate({ secureCodingTicket: null }), state: 'CLOSED' }),
+    );
     expect(page().querySelector('.secure-coding-missing')).toBeNull();
   });
 
@@ -372,7 +374,7 @@ describe('ChangeDetail', () => {
 
     await show(productionChange({ state: 'CLOSED' }), 3);
     expect(buttonOf(page(), 'Edit the change')).toBeUndefined();
-    expect(page().querySelector('a[href="/beadle/changes/7/edit"]')).toBeNull();
+    expect(page().querySelector('a[href="/changes/7/edit"]')).toBeNull();
   });
 
   it('reads the change again while ProTech has not applied the update', async () => {

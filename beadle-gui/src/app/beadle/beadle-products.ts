@@ -5,9 +5,9 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, filter, map } from 'rxjs';
 import { ChangesApi } from '../changes/change-api';
-import { DepartmentsApi, ProductsApi } from '../core/api';
+import { ProductsApi } from '../core/api';
 import { errorMessage } from '@common/core/errors';
-import { Product, ProductSummary } from '../core/models';
+import { Product } from '../core/models';
 import { Notifier } from '@common/core/notifier';
 import { beadleProduct } from '../core/sections';
 import { DepartmentGroup, byDepartment } from '@common/departments/departments';
@@ -16,8 +16,9 @@ import { DsoInput } from '@common/ui/form-field';
 import { GRID, GridColumn } from '@common/ui/grid';
 import { DsoLoading } from '@common/ui/loading';
 import { ProductDialog, ProductDialogData } from './product-dialog';
+import { DepartmentsApi } from '@common/core/api';
 
-function tally(group: DepartmentGroup): string {
+function tally(group: DepartmentGroup<Product>): string {
   return counted(group.department?.productCount ?? group.products.length, 'product');
 }
 
@@ -37,9 +38,9 @@ export class BeadleProducts {
   private readonly router = inject(Router);
 
   protected readonly beadleProduct = beadleProduct;
-  protected readonly productId = (product: ProductSummary) => product.id;
+  protected readonly productId = (product: Product) => product.id;
   protected readonly clickable = () => 'clickable';
-  protected readonly columns: GridColumn<ProductSummary>[] = [
+  protected readonly columns: GridColumn<Product>[] = [
     { key: 'product', header: 'Product', value: (product) => product.name, minWidth: 240, flex: 2 },
     {
       key: 'ownerTeam',
@@ -105,7 +106,7 @@ export class BeadleProducts {
       .forEach((resource) => resource.reload());
   }
 
-  protected open(product: ProductSummary): void {
+  protected open(product: Product): void {
     this.router.navigate(beadleProduct(product.id));
   }
 

@@ -9,7 +9,6 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { MY_DEPARTMENT_KEY, MyDepartment } from '@common/departments/my-department';
-import { LookupItem } from '../core/models';
 import {
   changeOptions,
   changeProfile,
@@ -24,11 +23,12 @@ import {
   taskDetails,
 } from '../testing/change-fixtures';
 import { buttonOf, choose, fieldOf, inputOf, optionsOf, selectOf, text } from '@common/testing/dom';
-import { department, productSummary } from '../testing/fixtures';
+import { department, product } from '../testing/fixtures';
 import { isoDate } from './change-model';
 import { localInput } from './change-schedule-model';
 import { ChangeWizard } from './change-wizard';
 import { implementationDateOf } from './secure-coding-model';
+import { LookupItem } from '@common/core/models';
 
 const ME = { name: 'Mateusz Matan' };
 
@@ -71,8 +71,8 @@ describe('ChangeWizard', () => {
       .expectOne('/api/departments')
       .flush([department(), department({ id: 5, name: 'Fund Services' })]);
     http.expectOne('/api/products').flush([
-      productSummary(),
-      productSummary({
+      product(),
+      product({
         id: 2,
         name: 'Payments Hub',
         code: 'PAY',
@@ -268,7 +268,7 @@ describe('ChangeWizard', () => {
       'CertScanner has no change template yet, so the suggested values are filled in',
     );
     expect(page().querySelector('.defaults-note a')?.getAttribute('href')).toBe(
-      '/beadle/admin/products/1',
+      '/admin/products/1',
     );
     await next();
     expect(wizard()['step']()).toBe(1);
@@ -611,9 +611,9 @@ describe('ChangeWizard', () => {
     );
     expect(
       [...page().querySelectorAll('.next-steps a')].map((link) => link.getAttribute('href')),
-    ).toEqual(['/beadle/changes/7', '/beadle/changes']);
+    ).toEqual(['/changes/7', '/changes']);
     expect(page().querySelector('.step-actions a.btn-primary')?.getAttribute('href')).toBe(
-      '/beadle/changes/7',
+      '/changes/7',
     );
     expect(text(page().querySelector('.step-actions a.btn-primary'))).toBe('Open the change');
     expect(buttonOf(page(), 'Create another change').classList).toContain('btn-outline-primary');
@@ -1202,7 +1202,7 @@ describe('ChangeWizard of a chosen department', () => {
     const fixture = TestBed.createComponent(ChangeWizard);
     fixture.detectChanges();
     http.expectOne('/api/departments').flush([department()]);
-    http.expectOne('/api/products').flush([productSummary()]);
+    http.expectOne('/api/products').flush([product()]);
     flushIntegrations(http);
     await settled(fixture);
     http.expectOne('/api/me').flush(ME);
@@ -1223,7 +1223,7 @@ describe('ChangeWizard of a chosen department', () => {
     const fixture = TestBed.createComponent(ChangeWizard);
     fixture.detectChanges();
     http.expectOne('/api/departments').flush([department()]);
-    http.expectOne('/api/products').flush([productSummary()]);
+    http.expectOne('/api/products').flush([product()]);
     flushIntegrations(http);
     await settled(fixture);
     http.expectOne('/api/me').flush(ME);
@@ -1245,7 +1245,7 @@ describe('ChangeWizard without the signed-in user', () => {
     const settle = () => settled(fixture);
     fixture.detectChanges();
     http.expectOne('/api/departments').flush([department()]);
-    http.expectOne('/api/products').flush([productSummary()]);
+    http.expectOne('/api/products').flush([product()]);
     flushIntegrations(http);
     await settle();
     http.expectOne('/api/me').flush({ detail: 'Sign in' }, { status: 401, statusText: 'No' });

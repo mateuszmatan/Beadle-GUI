@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { Fields, formRevision } from '../shared/fields';
-import { FORM_FIELD } from '../ui/form-field';
+import { Fields, formRevision } from '@common/shared/fields';
+import { FORM_FIELD } from '@common/ui/form-field';
 import { SECURE_CODING_FIELDS } from './change-sections';
 import { SecureCodingForm, ticketName } from './secure-coding-model';
 

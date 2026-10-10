@@ -1,5 +1,5 @@
 import { FormGroup } from '@angular/forms';
-import { filled, text, url } from '../shared/form-controls';
+import { filled, text, url } from '@common/shared/form-controls';
 import { ProductionChange, SecureCoding, SecureCodingRequest } from './change-api';
 import { fits } from './change-model';
 import { LINK_MAX } from './change-template-model';

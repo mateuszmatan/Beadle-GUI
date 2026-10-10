@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.frontend.regression
 
+import com.bbh.itss.dso.portal.frontend.support.BeadleSpecification
 import com.microsoft.playwright.Locator
 
 import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.CERT_SECURE_CODING
@@ -8,7 +9,7 @@ import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.OPTIONS
 import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.PLANNING
 import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.RELEASE_DATE
 import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.details
-import static com.bbh.itss.dso.portal.frontend.support.StubApi.SIGNED_IN_USER
+import static com.bbh.itss.dso.portal.frontend.support.BeadleStubApi.SIGNED_IN_USER
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.OPTION
@@ -16,7 +17,7 @@ import static java.time.LocalDate.now
 import static java.time.LocalDate.parse
 import static java.time.format.DateTimeFormatter.ofPattern
 
-class NewChangeSpec extends EditorSpecification {
+class NewChangeSpec extends BeadleSpecification {
 
     static final List<String> STEPS = ['Request data', 'Jira', 'Approval', 'Schedule', 'Planning', 'Privileged access',
                                        'Risk assessment', 'Review', 'Add CTASKs', 'Secure coding', 'Summary']
@@ -25,9 +26,9 @@ class NewChangeSpec extends EditorSpecification {
 
     def "a release manager raises a ProTech change section by section, with the lookups, the downtime window and the risk lists, then creates its change tasks and its secure coding ticket"() {
         when:
-        open('/beadle')
+        open('/')
         menuLink('New Change').click()
-        page.waitForURL('**/beadle/new-change')
+        page.waitForURL('**/new-change')
 
         then:
         assertThat(page.locator('h1')).hasText('New ProTech Change')
@@ -413,7 +414,7 @@ class NewChangeSpec extends EditorSpecification {
                                                                'CTASK0310022 · Run the database scripts · Cloud Engineering'] as String[])
         assertThat(step().locator('.next-steps')).containsText('Grace Turner, Olivia Bennett, William Hayes approve the change in ProTech')
         assertThat(step().locator('.next-steps a')).hasText(['CHG0031002', 'Changes'] as String[])
-        assertThat(step().locator('.next-steps a').first()).hasAttribute('href', '/beadle/changes/5')
+        assertThat(step().locator('.next-steps a').first()).hasAttribute('href', '/changes/5')
         awaitRequest('POST', '/api/changes/5/secure-coding').json() == [version          : 1, departmentId: 3, apoNumber: 'APO-24680',
                                                                         implementationDate: IMPLEMENTATION_DATE,
                                                                         bitbucketUrl     : CERT_SECURE_CODING.bitbucketUrl,
@@ -424,7 +425,7 @@ class NewChangeSpec extends EditorSpecification {
         link('Open the change', true).click()
 
         then:
-        page.waitForURL('**/beadle/changes/5')
+        page.waitForURL('**/changes/5')
         assertThat(page.locator('h1')).hasText('CHG0031002')
         assertThat(taskRows().locator('.kind')).hasText(['Release Management', 'Change task'] as String[])
         assertThat(taskRows().locator('.task-head .muted')).hasText(['Not done yet; approval not requested yet.',
@@ -458,8 +459,8 @@ class NewChangeSpec extends EditorSpecification {
         api.failOnce('GET', '/api/products/2/jira/stories', problem(502, 'Bad Gateway', 'Jira timed out'))
 
         when:
-        open('/beadle/changes/new')
-        page.waitForURL('**/beadle/new-change')
+        open('/changes/new')
+        page.waitForURL('**/new-change')
         choose(step(), 'Your department', 'Fund Services')
         choose(step(), 'Product', 'Payments Hub (PAYHUB)')
 
@@ -467,7 +468,7 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(step().locator('.defaults-note')).containsText(
                 'Payments Hub has no change template yet, so the suggested values are filled in. An admin can set it in Beadle Admin.')
         assertThat(link('Set the template', true)).isVisible()
-        assertThat(step().locator('.defaults-note a')).hasAttribute('href', '/beadle/admin/products/2')
+        assertThat(step().locator('.defaults-note a')).hasAttribute('href', '/admin/products/2')
         hasValues(step(), ['Requested for'          : SIGNED_IN_USER, 'Department': 'Fund Services',
                            'Assignment group'       : 'Payments Engineering', 'Affected CI': 'Payments Hub',
                            'Direct business service': '', 'Risk': 'Low'])
@@ -555,7 +556,7 @@ class NewChangeSpec extends EditorSpecification {
 
         when:
         dialogButton('Discard').click()
-        page.waitForURL('**/beadle/admin/products/2')
+        page.waitForURL('**/admin/products/2')
 
         then:
         assertThat(page.locator('h1')).hasText('Payments Hub')
@@ -671,7 +672,7 @@ class NewChangeSpec extends EditorSpecification {
 
         when:
         link('Open the change', true).click()
-        page.waitForURL('**/beadle/changes/5')
+        page.waitForURL('**/changes/5')
 
         then:
         assertThat(page.locator('.none')).hasText('No change tasks yet. Add them with Edit the change.')
@@ -680,7 +681,7 @@ class NewChangeSpec extends EditorSpecification {
 
         when:
         link('Create the secure coding ticket', true).click()
-        page.waitForURL('**/beadle/changes/5/secure-coding')
+        page.waitForURL('**/changes/5/secure-coding')
 
         then:
         assertThat(page.locator('h1')).hasText('Secure coding ticket of CHG0031002')
@@ -700,7 +701,7 @@ class NewChangeSpec extends EditorSpecification {
         when:
         input(page.locator('dso-secure-coding-form'), 'Artifact link').fill('https://nexus.bbh.com/cert-4.2.jar')
         button('Create the secure coding ticket in CyberTrack', true).click()
-        page.waitForURL('**/beadle/changes/5')
+        page.waitForURL('**/changes/5')
 
         then:
         assertThat(term(summary(), 'Secure coding ticket number')).hasText('SCP-4201')
@@ -713,7 +714,7 @@ class NewChangeSpec extends EditorSpecification {
 
         when:
         link('Edit the change', true).click()
-        page.waitForURL('**/beadle/changes/5/edit')
+        page.waitForURL('**/changes/5/edit')
         button('Add a change task', true).click()
         input(taskRows().first(), 'Assignment group').fill('Release Management')
 
@@ -726,7 +727,7 @@ class NewChangeSpec extends EditorSpecification {
         fillIn(taskRows().first(), ['Short description': CERT_TASKS[0].shortDescription, 'Description': CERT_TASKS[0].description])
         def reads = api.requests('GET', '/api/changes/5').size()
         button('Publish the update to ProTech', true).click()
-        page.waitForURL('**/beadle/changes/5')
+        page.waitForURL('**/changes/5')
 
         then:
         assertThat(input(taskRows().first(), 'Number')).hasValue('')
@@ -739,7 +740,7 @@ class NewChangeSpec extends EditorSpecification {
     }
 
     void reviewCertScanner() {
-        open('/beadle/new-change')
+        open('/new-change')
         choose(step(), 'Your department', 'Corporate Technology')
         choose(step(), 'Product', 'CertScanner (CERTSCANNER)')
         button('Next: Jira', true).click()

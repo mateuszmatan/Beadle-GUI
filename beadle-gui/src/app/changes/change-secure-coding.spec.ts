@@ -2,10 +2,10 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { MyDepartment } from '../beadle/my-department';
-import { Notifier } from '../core/notifier';
+import { MyDepartment } from '@common/departments/my-department';
+import { Notifier } from '@common/core/notifier';
 import { changeTemplate, changeUpdate, productionChange } from '../testing/change-fixtures';
-import { buttonOf, inputOf, text } from '../testing/dom';
+import { buttonOf, inputOf, text } from '@common/testing/dom';
 import { ProductionChange } from './change-api';
 import { ChangeSecureCoding, refusalOf } from './change-secure-coding';
 import { PublishedChange } from './published-change';
@@ -115,7 +115,7 @@ describe('ChangeSecureCoding', () => {
     expect(success).toHaveBeenCalledWith(
       'SCP-1234 is created in CyberTrack and sent to ProTech as the secure coding ticket of CHG0012345.',
     );
-    expect(navigate).toHaveBeenCalledWith(['/beadle/changes', 7]);
+    expect(navigate).toHaveBeenCalledWith(['/changes', 7]);
     expect(fixture.componentInstance.hasUnsavedChanges()).toBe(false);
   });
 
@@ -135,7 +135,10 @@ describe('ChangeSecureCoding', () => {
       {
         detail: 'must be a date written MMDDYYYY, such as 10152026',
         errors: [
-          { field: 'implementationDate', message: 'must be a date written MMDDYYYY, such as 10152026' },
+          {
+            field: 'implementationDate',
+            message: 'must be a date written MMDDYYYY, such as 10152026',
+          },
         ],
       },
       { status: 400, statusText: 'Bad Request' },
@@ -161,7 +164,7 @@ describe('ChangeSecureCoding', () => {
       'CHG0012345 already has the secure coding ticket SCP-7',
     );
     expect(page().querySelector('dso-secure-coding-form')).toBeNull();
-    expect(page().querySelector('.refused a')?.getAttribute('href')).toBe('/beadle/changes/7');
+    expect(page().querySelector('.refused a')?.getAttribute('href')).toBe('/changes/7');
   });
 
   it('says why the change could not be loaded', async () => {

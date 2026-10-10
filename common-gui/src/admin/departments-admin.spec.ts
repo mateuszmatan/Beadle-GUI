@@ -7,31 +7,52 @@ import { Department } from '../core/models';
 import { DepartmentDialog } from '../departments/department-dialog';
 import { ConfirmDialog } from '../shared/confirm-dialog';
 import { buttonOf, gridCell, gridHeaders, gridRows, text, toast } from '../testing/dom';
-import { chartOptions } from '../testing/highcharts';
 import { department } from '../testing/fixtures';
-import { DepartmentsAdmin } from './departments-admin';
+import { DepartmentUsage, DepartmentsAdmin } from './departments-admin';
+
+interface Busy extends Department {
+  taskCount: number;
+}
 
 describe('DepartmentsAdmin', () => {
-  let fixture: ComponentFixture<DepartmentsAdmin>;
+  let fixture: ComponentFixture<DepartmentsAdmin<Busy>>;
   let http: HttpTestingController;
+  let shown: readonly Busy[][];
 
-  const fundServices = department({
-    id: 5,
-    name: 'Fund Services',
-    productCount: 0,
-    serviceCount: 0,
-    pipelineCount: 0,
-    activePipelineCount: 0,
+  const busy = (overrides: Partial<Busy> = {}): Busy => ({
+    ...department(),
+    taskCount: 2,
+    ...overrides,
   });
+  const fundServices = busy({ id: 5, name: 'Fund Services', productCount: 0, taskCount: 0 });
+  const plain: DepartmentUsage<Busy> = { subject: 'its changes' };
+  const tasks: DepartmentUsage<Busy> = {
+    subject: 'its products and tasks',
+    counts: [{ noun: 'task', count: (department) => department.taskCount }],
+    columns: [
+      {
+        key: 'tasks',
+        header: 'Tasks',
+        value: (department) => department.taskCount,
+        numeric: true,
+      },
+    ],
+    blocker: (department) =>
+      department.taskCount ? `${department.name} still has open tasks.` : null,
+  };
 
-  function create(pipelines: boolean) {
+  function create(usage: DepartmentUsage<Busy>) {
     TestBed.configureTestingModule({
       imports: [DepartmentsAdmin],
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
     http = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent(DepartmentsAdmin);
-    fixture.componentRef.setInput('pipelines', pipelines);
+    fixture = TestBed.createComponent<DepartmentsAdmin<Busy>>(DepartmentsAdmin);
+    fixture.componentRef.setInput('usage', usage);
+    shown = [];
+    fixture.componentInstance.loaded.subscribe(
+      (departments) => (shown = [...shown, [...departments]]),
+    );
   }
 
   afterEach(() => http.verify());
@@ -42,7 +63,7 @@ describe('DepartmentsAdmin', () => {
   const headers = () => gridHeaders(page());
   const snack = () => text(toast());
 
-  async function load(departments: Department[] = [department(), fundServices]) {
+  async function load(departments: Busy[] = [busy(), fundServices]) {
     fixture.detectChanges();
     http.expectOne('/api/departments').flush(departments);
     await fixture.whenStable();
@@ -56,37 +77,26 @@ describe('DepartmentsAdmin', () => {
     return open;
   };
 
-  it('lists the departments with their pipelines and charts them for DevSecOps', async () => {
-    create(true);
+  it('lists the departments with the columns and counts the app adds', async () => {
+    create(tasks);
     await load();
-    const chart = page().querySelector('section.chart')!;
 
     expect(text(page().querySelector('.list-header h2'))).toBe('Departments');
-    expect(text(page().querySelector('.summary'))).toBe(
-      '2 departments with 1 product and 2 services',
-    );
+    expect(text(page().querySelector('.summary'))).toBe('2 departments with 1 product and 2 tasks');
     expect(text(page().querySelector('.departments .section-help'))).toBe(
-      'Every product belongs to one department, and people choose their department to see its products and pipelines. Only an empty department can be deleted.',
+      'Every product belongs to one department, and people choose their department to see its products and tasks. Only an empty department can be deleted.',
     );
-    expect(headers()).toEqual(['Department', 'Products', 'Services', 'Pipelines', '']);
-    expect(text(gridCell(row('Corporate Technology'), 'pipelines'))).toBe('3, 1 key invalidated');
-    expect(text(gridCell(row('Fund Services'), 'pipelines'))).toBe('None yet');
-    expect(text(chart.querySelector('h2'))).toBe('Pipelines per department');
-    expect([...chart.querySelectorAll('.legend span')].map(text)).toEqual([
-      'Active',
-      'Key invalidated',
-    ]);
-    expect(chart.querySelector('dso-chart')?.getAttribute('aria-label')).toBe(
-      'Corporate Technology: 2 active, 1 key invalidated; Fund Services: none',
-    );
-    expect(chartOptions(chart.querySelector('dso-chart')).xAxis[1].categories).toEqual([
-      '3 pipelines, 1 key invalidated',
-      '0 pipelines',
+    expect(headers()).toEqual(['Department', 'Products', 'Tasks', '']);
+    expect(text(gridCell(row('Corporate Technology'), 'tasks'))).toBe('2');
+    expect(shown.at(-1)?.map((department) => department.name)).toEqual([
+      'Corporate Technology',
+      'Fund Services',
     ]);
   });
 
-  it('leaves the pipelines out for Beadle', async () => {
-    create(false);
+  it('shows only the products when the app adds nothing, as a routed page without cells', async () => {
+    create(plain);
+    fixture.componentRef.setInput('cells', undefined);
     await load();
 
     expect(headers()).toEqual(['Department', 'Products', '']);
@@ -94,11 +104,10 @@ describe('DepartmentsAdmin', () => {
     expect(text(page().querySelector('.departments .section-help'))).toBe(
       'Every product belongs to one department, and people choose their department to see its changes. Only an empty department can be deleted.',
     );
-    expect(page().querySelector('section.chart')).toBeNull();
   });
 
   it('invites to add the first department', async () => {
-    create(false);
+    create(plain);
     await load([]);
 
     expect(text(page().querySelector('.empty-state h3'))).toBe('No departments yet');
@@ -109,7 +118,7 @@ describe('DepartmentsAdmin', () => {
   });
 
   it('shows why the departments could not be loaded', async () => {
-    create(true);
+    create(tasks);
     fixture.detectChanges();
     http.expectOne('/api/departments').flush(null, { status: 0, statusText: 'Unknown Error' });
     await fixture.whenStable();
@@ -120,19 +129,19 @@ describe('DepartmentsAdmin', () => {
 
     buttonOf(page().querySelector('.banner')!, 'Try again').click();
     fixture.detectChanges();
-    http.expectOne('/api/departments').flush([department()]);
+    http.expectOne('/api/departments').flush([busy()]);
     await fixture.whenStable();
 
     expect(page().querySelector('.banner')).toBeNull();
     expect(rows().length).toBe(1);
   });
 
-  it('deletes only a department without products or changes', async () => {
-    create(true);
+  it('deletes only a department without products or anything the app counts', async () => {
+    create(tasks);
     await load([
-      department(),
+      busy(),
       fundServices,
-      department({ id: 4, name: 'Custody', productCount: 0, changeCount: 2 }),
+      busy({ id: 4, name: 'Custody', productCount: 0, taskCount: 2 }),
     ]);
 
     expect(buttonOf(row('Corporate Technology'), 'Delete').disabled).toBe(true);
@@ -156,20 +165,20 @@ describe('DepartmentsAdmin', () => {
     expect(reason('Fund Services')).toBeNull();
     expect(buttonOf(row('Custody'), 'Delete').disabled).toBe(true);
     expect(row('Custody').querySelector('.delete')?.getAttribute('title')).toBe(
-      'Custody cannot be deleted: it has 2 changes raised in Beadle.',
+      'Custody still has open tasks.',
     );
-    expect(reason('Custody')).toBe('Custody cannot be deleted: it has 2 changes raised in Beadle.');
+    expect(reason('Custody')).toBe('Custody still has open tasks.');
   });
 
   it('adds and renames a department and lists the departments again', async () => {
-    create(true);
+    create(tasks);
     await load();
-    const added = department({ id: 6, name: 'Treasury', productCount: 0 });
+    const added = busy({ id: 6, name: 'Treasury', productCount: 0 });
     const open = dialogClosing(added, { ...fundServices, name: 'Fund Administration' }, undefined);
 
     buttonOf(page(), 'Add department').click();
     fixture.detectChanges();
-    http.expectOne('/api/departments').flush([department(), fundServices, added]);
+    http.expectOne('/api/departments').flush([busy(), fundServices, added]);
     await fixture.whenStable();
 
     expect(open.mock.calls[0][0]).toBe(DepartmentDialog);
@@ -179,7 +188,7 @@ describe('DepartmentsAdmin', () => {
 
     buttonOf(row('Fund Services'), 'Rename').click();
     fixture.detectChanges();
-    http.expectOne('/api/departments').flush([department(), fundServices, added]);
+    http.expectOne('/api/departments').flush([busy(), fundServices, added]);
     await fixture.whenStable();
 
     expect(open.mock.calls[1][1]?.data).toEqual(fundServices);
@@ -191,7 +200,7 @@ describe('DepartmentsAdmin', () => {
   });
 
   it('deletes a department once confirmed and says why one could not be deleted', async () => {
-    create(true);
+    create(tasks);
     await load();
     const open = dialogClosing(true, false, true);
 
@@ -206,16 +215,16 @@ describe('DepartmentsAdmin', () => {
     });
     http.expectOne({ method: 'DELETE', url: '/api/departments/5' }).flush(null);
     fixture.detectChanges();
-    http.expectOne('/api/departments').flush([department()]);
+    http.expectOne('/api/departments').flush([busy()]);
     await fixture.whenStable();
 
     expect(snack()).toContain('Fund Services deleted');
     expect(rows().length).toBe(1);
 
-    fixture.componentInstance['delete'](department());
+    fixture.componentInstance['delete'](busy());
     http.expectNone('/api/departments/3');
 
-    fixture.componentInstance['delete'](department());
+    fixture.componentInstance['delete'](busy());
     http
       .expectOne({ method: 'DELETE', url: '/api/departments/3' })
       .flush(

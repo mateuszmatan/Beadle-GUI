@@ -4,12 +4,21 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { Department, ProductSummary } from '../core/models';
-import { buttonOf, gridCell, gridHeaders, gridRows, settleGrid, text, toast } from '@common/testing/dom';
-import { department, product, productSummary } from '../testing/fixtures';
+import { Product } from '../core/models';
+import {
+  buttonOf,
+  gridCell,
+  gridHeaders,
+  gridRows,
+  settleGrid,
+  text,
+  toast,
+} from '@common/testing/dom';
+import { department, product } from '../testing/fixtures';
 import { ChangeProfileSummary } from '../changes/change-api';
 import { BeadleProducts } from './beadle-products';
 import { ProductDialog } from './product-dialog';
+import { Department } from '@common/core/models';
 
 describe('BeadleProducts', () => {
   let fixture: ComponentFixture<BeadleProducts>;
@@ -20,16 +29,14 @@ describe('BeadleProducts', () => {
     id: 5,
     name: 'Fund Services',
     productCount: 0,
-    serviceCount: 0,
   });
-  const payments = productSummary({
+  const payments = product({
     id: 2,
     code: 'PAYHUB',
     name: 'Payments Hub',
     ownerTeam: null,
     departmentId: 5,
     departmentName: 'Fund Services',
-    serviceCount: 4,
   });
   const saved: ChangeProfileSummary = {
     productId: 1,
@@ -60,7 +67,7 @@ describe('BeadleProducts', () => {
   const snack = () => text(toast());
 
   async function load(
-    products: ProductSummary[] = [productSummary(), payments],
+    products: Product[] = [product(), payments],
     departments: Department[] = [department(), fundServices],
     defaults: ChangeProfileSummary[] | null = [saved],
   ) {
@@ -112,19 +119,17 @@ describe('BeadleProducts', () => {
       'Open a product to see its details and fill in its change template. Until then, its new changes start with values suggested from its name, code and owner team.',
     );
     expect(text(page())).not.toContain('service');
-    expect(rowOf('CertScanner').querySelector('a')?.getAttribute('href')).toBe(
-      '/beadle/admin/products/1',
-    );
+    expect(rowOf('CertScanner').querySelector('a')?.getAttribute('href')).toBe('/admin/products/1');
 
     const follow = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
     rowOf('CertScanner').querySelector<HTMLAnchorElement>('a.name')!.click();
     await settleGrid();
-    expect(String(follow.mock.calls[0][0])).toBe('/beadle/admin/products/1');
+    expect(String(follow.mock.calls[0][0])).toBe('/admin/products/1');
     expect(navigate).not.toHaveBeenCalled();
 
     gridCell(rowOf('Payments Hub'), 'ownerTeam').click();
     await settleGrid();
-    expect(navigate).toHaveBeenCalledWith(['/beadle/admin/products', 2]);
+    expect(navigate).toHaveBeenCalledWith(['/admin/products', 2]);
   });
 
   it('still lists the products when their change templates cannot be loaded', async () => {
@@ -146,8 +151,8 @@ describe('BeadleProducts', () => {
 
   it('gathers the products without a department in a last card', async () => {
     await load([
-      productSummary(),
-      productSummary({ id: 7, name: 'Ledger', departmentId: null, serviceCount: 1 }),
+      product(),
+      product({ id: 7, name: 'Ledger', departmentId: null, departmentName: null }),
     ]);
     const unassigned = cards().at(-1)!;
 
@@ -231,6 +236,6 @@ describe('BeadleProducts', () => {
     expect(open.mock.calls[1][1]?.data).toMatchObject({ departmentId: 5 });
     await fixture.whenStable();
     expect(snack()).toContain('Trade Archive added. Now fill in its change template.');
-    expect(navigate).toHaveBeenCalledWith(['/beadle/admin/products', 7]);
+    expect(navigate).toHaveBeenCalledWith(['/admin/products', 7]);
   });
 });

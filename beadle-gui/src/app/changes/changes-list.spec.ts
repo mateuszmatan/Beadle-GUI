@@ -190,7 +190,7 @@ describe('ChangesList', () => {
     expect(text(page().querySelector('.empty-state h3'))).toBe(
       'No ProTech change of Fund Services yet',
     );
-    expect(page().querySelector('.empty-state a')?.getAttribute('href')).toBe('/beadle/new-change');
+    expect(page().querySelector('.empty-state a')?.getAttribute('href')).toBe('/new-change');
     expect(text(page().querySelector('.empty-state a'))).toBe('Raise a change');
     expect(text(page().querySelector('.page-header .btn-primary'))).toBe('Raise a change');
     expect(page().querySelector('dso-grid')?.closest('section')?.hidden).toBe(true);
@@ -237,15 +237,13 @@ describe('ChangesList', () => {
     expect(text(gridCell(first, 'actions'))).toBe('Edit change');
     expect(text(gridCell(second, 'state'))).toBe('ClosedDone');
     expect(text(gridCell(second, 'actions'))).toBe('');
-    expect(gridCell(first, 'number').querySelector('a')?.getAttribute('href')).toBe(
-      '/beadle/changes/7',
-    );
+    expect(gridCell(first, 'number').querySelector('a')?.getAttribute('href')).toBe('/changes/7');
     expect(text(page().querySelector('.shown'))).toBe('3 of 3 changes');
     expect(
       [...page().querySelectorAll<HTMLAnchorElement>('a[aria-label^="Edit "]')].map((link) =>
         link.getAttribute('href'),
       ),
-    ).toEqual(['/beadle/changes/7/edit', '/beadle/changes/9/edit']);
+    ).toEqual(['/changes/7/edit', '/changes/9/edit']);
     expect(page().querySelector('a[aria-label="Edit CHG0012346"]')).toBeNull();
     expect(text(page().querySelector('.list h2'))).toBe('Changes of Corporate Technology');
     expect(text(page().querySelector('.zone'))).toBe(
@@ -259,7 +257,7 @@ describe('ChangesList', () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     gridCell(second, 'product').click();
     await settle();
-    expect(navigate).toHaveBeenCalledWith(['/beadle/changes', 8]);
+    expect(navigate).toHaveBeenCalledWith(['/changes', 8]);
   });
 
   it('filters the table in its header by the text of a column or the state', async () => {

@@ -3,7 +3,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
-  computed,
   inject,
   input,
   output,
@@ -11,13 +10,14 @@ import {
 import { Dialog } from '@angular/cdk/dialog';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter, switchMap } from 'rxjs';
-import { DepartmentsApi } from '../core/api';
 import { errorMessage } from '@common/core/errors';
 import { Notifier } from '@common/core/notifier';
 import { NOT_IN_A_DEPARTMENT } from '@common/departments/departments';
 import { ConfirmDialog, ConfirmDialogData } from '@common/shared/confirm-dialog';
 import { DsoLoading } from '@common/ui/loading';
-import { ProductDetails, ProductDetailsApi } from './product-details-api';
+import { DepartmentsApi } from '@common/core/api';
+import { ProductsApi } from '../core/api';
+import { Product } from '../core/models';
 import { ProductDialog, ProductDialogData, ProductDialogResult } from './product-dialog';
 
 @Component({
@@ -54,7 +54,7 @@ import { ProductDialog, ProductDialogData, ProductDialogResult } from './product
           </div>
           <div>
             <dt>Department</dt>
-            <dd>{{ departmentName() }}</dd>
+            <dd>{{ p.departmentName ?? notInADepartment }}</dd>
           </div>
           <div>
             <dt>Owner team</dt>
@@ -100,29 +100,23 @@ import { ProductDialog, ProductDialogData, ProductDialogResult } from './product
 })
 export class ProductAdmin {
   readonly id = input.required<number>();
-  readonly saved = output<ProductDetails>();
-  readonly deleted = output<ProductDetails>();
+  readonly saved = output<Product>();
+  readonly deleted = output<Product>();
 
-  private readonly api = inject(ProductDetailsApi);
+  private readonly api = inject(ProductsApi);
   private readonly departmentsApi = inject(DepartmentsApi);
   private readonly dialog = inject(Dialog);
   private readonly notifier = inject(Notifier);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly errorMessage = errorMessage;
+  protected readonly notInADepartment = NOT_IN_A_DEPARTMENT;
 
   protected readonly product = rxResource({
     params: () => this.id(),
     stream: ({ params }) => this.api.get(params),
   });
   protected readonly departments = rxResource({ stream: () => this.departmentsApi.list() });
-  protected readonly departmentName = computed(() => {
-    const id = this.product.hasValue() ? this.product.value().departmentId : null;
-    const departments = this.departments.hasValue() ? this.departments.value() : [];
-    return id === null
-      ? NOT_IN_A_DEPARTMENT
-      : (departments.find((department) => department.id === id)?.name ?? '–');
-  });
 
   protected change(): void {
     const product = this.product.value()!;
@@ -149,9 +143,7 @@ export class ProductAdmin {
       .open<boolean, ConfirmDialogData, ConfirmDialog>(ConfirmDialog, {
         data: {
           title: `Delete the product ${product.name}?`,
-          message:
-            `${product.name} and its change template are deleted. This cannot be undone.\n` +
-            `If ${product.name} still has services in DevSecOps Management, it is not deleted; remove them there first.`,
+          message: `${product.name} and its change template are deleted. This cannot be undone.`,
           confirmLabel: 'Delete product',
           danger: true,
         },
@@ -170,13 +162,13 @@ export class ProductAdmin {
       });
   }
 
-  private done(saved: ProductDetails, message: string): void {
+  private done(saved: Product, message: string): void {
     this.product.set(saved);
     this.notifier.success(message);
     this.saved.emit(saved);
   }
 
-  private reload(conflict: HttpErrorResponse, product: ProductDetails): void {
+  private reload(conflict: HttpErrorResponse, product: Product): void {
     this.api
       .get(product.id)
       .pipe(takeUntilDestroyed(this.destroyRef))

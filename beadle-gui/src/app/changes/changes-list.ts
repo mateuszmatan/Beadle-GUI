@@ -4,7 +4,6 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { MyDepartment } from '@common/departments/my-department';
-import { DepartmentsApi } from '../core/api';
 import { RETRY, errorMessage } from '@common/core/errors';
 import { CHANGES, NEW_CHANGE, beadleChange } from '../core/sections';
 import { text } from '@common/shared/form-controls';
@@ -16,6 +15,7 @@ import { ChangeState, ChangesApi, ProductionChange, STATES, isOpen, labelOf } fr
 import { PENDING_HINT, activeTasks, editHint, windowText } from './change-model';
 import { IntegrationNote } from './integration-note';
 import { STATE_MEANINGS } from './workflow-progress';
+import { DepartmentsApi } from '@common/core/api';
 
 export type StateFilter = 'ALL' | 'OPEN' | ChangeState;
 

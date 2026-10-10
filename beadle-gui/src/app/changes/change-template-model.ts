@@ -1,6 +1,5 @@
 import { FormArray, FormControl, FormGroup, Validators } from '@angular/forms';
 import { distinctUntilChanged, skip, startWith } from 'rxjs';
-import { FieldProblem } from '../core/models';
 import {
   addItem,
   applyProblemsAt,
@@ -21,6 +20,7 @@ import {
   RiskQuestion,
 } from './change-api';
 import { fits } from './change-model';
+import { FieldProblem } from '@common/core/models';
 
 export const JIRA_KEY = /^\s*[A-Za-z][A-Za-z0-9_]{0,9}\s*$/;
 export const JIRA_KEY_ERROR = '1 to 10 letters, digits or _, starting with a letter';
@@ -45,8 +45,14 @@ export function privilegedUserForm(user?: PrivilegedUser) {
 export type PrivilegedUserForm = ReturnType<typeof privilegedUserForm>;
 
 export function templateForm(template: ChangeTemplate) {
-  const { approvers, timing, planning, privilegedAccess, riskAssessment: risk, secureCoding } =
-    template;
+  const {
+    approvers,
+    timing,
+    planning,
+    privilegedAccess,
+    riskAssessment: risk,
+    secureCoding,
+  } = template;
   const users = privilegedAccess.required ? privilegedAccess.users : [];
   const form = new FormGroup({
     jiraProjectKey: text(template.jiraProjectKey, filled, Validators.pattern(JIRA_KEY)),

@@ -12,7 +12,7 @@ import { AbstractControl, FormControl, ReactiveFormsModule } from '@angular/form
 import { Observable, debounceTime, distinctUntilChanged, map } from 'rxjs';
 import { LookupsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
-import { LookupItem, LookupKind } from '../core/models';
+import { LookupItem } from '../core/models';
 import { DIALOG } from '../ui/dialog';
 import { FORM_FIELD } from '../ui/form-field';
 import { DsoLoading } from '../ui/loading';
@@ -21,13 +21,13 @@ import { commaItems } from './form-controls';
 export const LOOKUP_DELAY = 250;
 
 export interface Lookup {
-  kind: LookupKind;
+  kind: string;
   append?: boolean;
   detail?: string;
 }
 
 export interface LookupDialogData {
-  kind: LookupKind;
+  kind: string;
   label: string;
 }
 

@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.frontend.regression
 
+import com.bbh.itss.dso.portal.frontend.support.BeadleSpecification
 import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 
@@ -11,11 +12,11 @@ import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.BUTTON
 
-class ChangeTemplateAdminSpec extends EditorSpecification {
+class ChangeTemplateAdminSpec extends BeadleSpecification {
 
     def "an admin keeps the change template of a product section by section, privileged accounts and default change tasks included"() {
         when:
-        open('/beadle/admin/products/1')
+        open('/admin/products/1')
 
         then:
         assertThat(page.locator('.breadcrumb a, .breadcrumb span:not(.sep)'))
@@ -139,7 +140,7 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         }
 
         when:
-        open('/beadle/admin/products/1')
+        open('/admin/products/1')
 
         then:
         hasValues(defaults(), ['Assignment group'   : 'Certificate Services', 'Person 1': 'Jane Smith',
@@ -163,7 +164,7 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
 
     def "a suggested change template is checked, a value the portal refuses is marked on its field and a conflict is reloaded"() {
         when:
-        open('/beadle/admin/products/2')
+        open('/admin/products/2')
 
         then:
         assertThat(page.locator('h1')).hasText('Payments Hub')
@@ -193,7 +194,7 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
         lookUp(defaults(), 'Person 1', 'ann', 'Ann Lee')
         input(defaults(), 'Privileged access 1').fill('alee')
         input(taskRows().nth(1), 'Short description').fill('Validate the gateway')
-        saveFromAnotherTab('/beadle/admin/products/2')
+        saveFromAnotherTab('/admin/products/2')
         button('Save the template', true).click()
 
         then:

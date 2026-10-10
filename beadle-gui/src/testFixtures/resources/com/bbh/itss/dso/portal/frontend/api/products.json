@@ -1,0 +1,24 @@
+[
+  {
+    "id": 1,
+    "code": "CERTSCANNER",
+    "name": "CertScanner",
+    "ownerTeam": "Technology Architecture",
+    "contactEmail": "ta-team@bbh.com",
+    "departmentId": 3,
+    "departmentName": "Corporate Technology",
+    "version": 0,
+    "updatedAt": "2026-10-04T17:29:55.796690Z"
+  },
+  {
+    "id": 2,
+    "code": "PAYHUB",
+    "name": "Payments Hub",
+    "ownerTeam": "Payments Engineering",
+    "contactEmail": "payments-eng@bbh.com",
+    "departmentId": 5,
+    "departmentName": "Fund Services",
+    "version": 0,
+    "updatedAt": "2026-10-04T17:29:55.869850Z"
+  }
+]

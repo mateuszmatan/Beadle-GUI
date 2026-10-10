@@ -15,7 +15,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { EMPTY, Observable, Subject, catchError, finalize, of, switchMap } from 'rxjs';
 import { MyDepartment } from '@common/departments/my-department';
-import { DepartmentsApi, ProductsApi, UserApi } from '../core/api';
+import { ProductsApi, UserApi } from '../core/api';
 import { errorMessage, fieldProblems } from '@common/core/errors';
 import { CHANGES, NEW_CHANGE, beadleChange, beadleProduct } from '../core/sections';
 import { HasUnsavedChanges } from '@common/core/unsaved-changes';
@@ -74,6 +74,7 @@ import {
 import { IntegrationNote } from './integration-note';
 import { SecureCodingFields } from './secure-coding-form';
 import { SecureCodingForm, secureCodingForm, secureCodingRequest } from './secure-coding-model';
+import { DepartmentsApi } from '@common/core/api';
 
 type StepKey = SectionKey | 'review' | 'tasks' | 'ticket' | 'raised';
 

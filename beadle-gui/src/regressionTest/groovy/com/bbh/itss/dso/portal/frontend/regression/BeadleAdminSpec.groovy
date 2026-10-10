@@ -1,21 +1,19 @@
 package com.bbh.itss.dso.portal.frontend.regression
 
-import com.bbh.itss.dso.portal.frontend.support.ProductStore
+import com.bbh.itss.dso.portal.frontend.support.BeadleSpecification
 import com.microsoft.playwright.Locator
 
 import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.CERT_TASKS
 import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.CERT_TEMPLATE
-import static com.bbh.itss.dso.portal.frontend.support.StubApi.fixture
-import static com.bbh.itss.dso.portal.frontend.support.StubResponse.empty
 import static com.bbh.itss.dso.portal.frontend.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static java.time.Instant.now
 import static java.time.temporal.ChronoUnit.DAYS
 
-class BeadleAdminSpec extends EditorSpecification {
+class BeadleAdminSpec extends BeadleSpecification {
 
     static final List<String> DEPARTMENTS = ['AI Lab', 'Capital Partners', 'Corporate Technology', 'Custody', 'Fund Services']
-    static final String HAS_SERVICES = 'CertScanner still has 2 service(s) in DevSecOps Management. Remove them there first.'
+    static final String NOT_REACHED = 'The database is not reachable at the moment.'
 
     def setup() {
         api.get('/api/change-profiles') {
@@ -23,12 +21,12 @@ class BeadleAdminSpec extends EditorSpecification {
         }
     }
 
-    def "Beadle Admin has a Departments and a Products tab, and its departments have no pipeline or service columns"() {
+    def "Beadle Admin has a Departments and a Products tab, and its departments count their changes"() {
         when:
-        open('/beadle')
-        page.waitForURL('**/beadle/changes')
-        menuLink('Beadle', 'Admin').click()
-        page.waitForURL('**/beadle/admin/products')
+        open('/')
+        page.waitForURL('**/changes')
+        menuLink('Admin').click()
+        page.waitForURL('**/admin/products')
 
         then:
         assertThat(page.locator('h1')).hasText('Beadle Admin')
@@ -37,12 +35,16 @@ class BeadleAdminSpec extends EditorSpecification {
 
         when:
         link('Departments', true).click()
-        page.waitForURL('**/beadle/admin/departments')
+        page.waitForURL('**/admin/departments')
 
         then:
         assertThat(gridHeaders()).hasText(['Department', 'Products', ''] as String[])
         assertThat(page.locator('section.chart')).hasCount(0)
         assertThat(page.locator('.list-header .summary')).hasText('5 departments with 2 products')
+        assertThat(page.locator('.departments .section-help')).hasText('Every product belongs to one department, and people ' +
+                'choose their department to see its changes. Only an empty department can be deleted.')
+        assertThat(buttonIn(gridRow(page.locator('body'), 'Custody'), 'Delete Custody')).isEnabled()
+        assertThat(buttonIn(gridRow(page.locator('body'), 'AI Lab'), 'Delete AI Lab')).isEnabled()
 
         when:
         button('Add department', true).click()
@@ -58,7 +60,7 @@ class BeadleAdminSpec extends EditorSpecification {
 
     def "the Products tab lists the products by department with the state of their change template"() {
         when:
-        open('/beadle/admin/products')
+        open('/admin/products')
 
         then:
         assertThat(cardNames()).hasText(DEPARTMENTS as String[])
@@ -83,7 +85,7 @@ class BeadleAdminSpec extends EditorSpecification {
 
         when:
         api.respond('GET', '/api/change-profiles', problem(503, 'Unavailable', 'The change templates are not available'))
-        open('/beadle/admin/products')
+        open('/admin/products')
 
         then:
         assertThat(gridCell(productRow('CertScanner'), 'template')).hasText('Not known')
@@ -94,12 +96,11 @@ class BeadleAdminSpec extends EditorSpecification {
         gridCell(productRow('Payments Hub'), 'ownerTeam').click()
 
         then:
-        page.waitForURL('**/beadle/admin/products/2')
+        page.waitForURL('**/admin/products/2')
         assertThat(facts()).hasText(['PAYHUB', 'Fund Services', 'Payments Engineering', 'payments-eng@bbh.com'] as String[])
         assertThat(page.locator('section.defaults h2')).hasText('Change template')
         assertThat(page.locator('dso-product-admin table')).hasCount(0)
         assertThat(page.getByText('mobile-app')).hasCount(0)
-        api.requests('GET', '/api/products/2').isEmpty()
         ownErrors().findAll { !it.contains('503') }.isEmpty()
     }
 
@@ -112,7 +113,7 @@ class BeadleAdminSpec extends EditorSpecification {
         }
 
         when:
-        open('/beadle/admin/products')
+        open('/admin/products')
         buttonIn(card('Custody'), 'Add product to Custody').click()
 
         then:
@@ -144,19 +145,18 @@ class BeadleAdminSpec extends EditorSpecification {
         assertThat(dialog().locator('[role=alert]')).hasCount(0)
 
         when:
-        def store = ProductStore.created(api, 3)
+        beadle.installProducts()
         input(dialog(), 'Owner team').fill('Custody Technology')
         dialogButton('Add product').click()
 
         then:
-        page.waitForURL('**/beadle/admin/products/3')
+        page.waitForURL('**/admin/products/3')
         assertThat(snackBar()).containsText('Trade Archive added. Now fill in its change template.')
         def request = awaitRequest('POST', '/api/products', 2)
         request.params() == [:]
-        request.json() == [code        : 'TRADEARCHIVE', name: 'Trade Archive', description: null,
-                           ownerTeam   : 'Custody Technology', contactEmail: null, departmentId: 4,
-                           appScan     : null, version: null, services: []]
-        store.product.name == 'Trade Archive'
+        request.json() == [code        : 'TRADEARCHIVE', name: 'Trade Archive', ownerTeam: 'Custody Technology',
+                           contactEmail: null, departmentId: 4, version: null]
+        beadle.product(3).name == 'Trade Archive'
         assertThat(facts()).hasText(['TRADEARCHIVE', 'Custody', 'Custody Technology', '–'] as String[])
         assertThat(page.locator('section.defaults .banner.info')).containsText('Not saved yet')
         assertThat(page.locator('.defaults-header .chip')).hasText('Not filled in yet')
@@ -165,12 +165,8 @@ class BeadleAdminSpec extends EditorSpecification {
     }
 
     def "an administrator changes the name and department of a product and is told when someone else changed it"() {
-        given:
-        def store = ProductStore.recorded(api, 1)
-        def stored = fixture('product-1.json')
-
         when:
-        open('/beadle/admin/products/1')
+        open('/admin/products/1')
         buttonIn(factsCard(), 'Edit details').click()
 
         then:
@@ -186,17 +182,14 @@ class BeadleAdminSpec extends EditorSpecification {
         then:
         assertThat(snackBar()).containsText('CertScanner Pro saved')
         assertThat(facts()).hasText(['CERTSCANNER', 'Fund Services', 'Technology Architecture', 'ta-team@bbh.com'] as String[])
-        def request = awaitRequest('PUT', '/api/products/1/details')
+        def request = awaitRequest('PUT', '/api/products/1')
         request.params() == [:]
-        request.json() == [name        : 'CertScanner Pro', departmentId: 5, ownerTeam: 'Technology Architecture',
+        request.json() == [code        : null, name: 'CertScanner Pro', departmentId: 5, ownerTeam: 'Technology Architecture',
                            contactEmail: 'ta-team@bbh.com', version: 0]
-        store.product.version == 1
-        store.product.appScan == stored.appScan
-        store.product.services == stored.services
+        beadle.product(1).subMap('code', 'version', 'departmentName') == [code: 'CERTSCANNER', version: 1, departmentName: 'Fund Services']
 
         when:
-        store.product.version = 4
-        store.product.ownerTeam = 'Security Engineering'
+        beadle.product(1).putAll(version: 4, ownerTeam: 'Security Engineering')
         buttonIn(factsCard(), 'Edit details').click()
         assertThat(input(dialog(), 'Product name')).isFocused()
         input(dialog(), 'Contact e-mail').fill('certs@bbh.com')
@@ -206,7 +199,7 @@ class BeadleAdminSpec extends EditorSpecification {
         assertThat(dialog()).hasCount(0)
         assertThat(snackBar()).containsText('CertScanner Pro was changed by someone else. Its latest version is shown now; make your change again.')
         assertThat(facts()).hasText(['CERTSCANNER', 'Fund Services', 'Security Engineering', 'ta-team@bbh.com'] as String[])
-        awaitRequest('PUT', '/api/products/1/details', 2).json().version == 1
+        awaitRequest('PUT', '/api/products/1', 2).json().version == 1
 
         when:
         buttonIn(factsCard(), 'Edit details').click()
@@ -216,56 +209,53 @@ class BeadleAdminSpec extends EditorSpecification {
 
         then:
         assertThat(snackBar()).containsText('CertScanner Pro saved')
-        awaitRequest('PUT', '/api/products/1/details', 3).json().subMap('version', 'ownerTeam', 'contactEmail') ==
+        awaitRequest('PUT', '/api/products/1', 3).json().subMap('version', 'ownerTeam', 'contactEmail') ==
                 [version: 4, ownerTeam: 'Security Engineering', contactEmail: 'certs@bbh.com']
         assertThat(facts().last()).hasText('certs@bbh.com')
-        api.requests('GET', '/api/products/1').isEmpty()
-        api.requests('PUT', '/api/products/1').isEmpty()
+        api.requests('GET', '/api/products/1').size() == 3
         ownErrors().findAll { !it.contains('409') }.isEmpty()
     }
 
-    def "an administrator deletes a product with its change template once it has no services in DevSecOps Management"() {
+    def "an administrator deletes a product together with its change template"() {
         given:
-        ProductStore.recorded(api, 1)
-        api.respond('DELETE', '/api/products/1/details', problem(409, 'Conflict', HAS_SERVICES))
+        api.respond('DELETE', '/api/products/1', problem(503, 'Service Unavailable', NOT_REACHED))
 
         when:
-        open('/beadle/admin/products/1')
+        open('/admin/products/1')
         button('Delete product', true).click()
 
         then:
         assertThat(dialog().locator('h2')).hasText('Delete the product CertScanner?')
-        assertThat(dialog().locator('.message')).hasText('CertScanner and its change template are deleted. This cannot be undone.\n' +
-                'If CertScanner still has services in DevSecOps Management, it is not deleted; remove them there first.')
+        assertThat(dialog().locator('.message')).hasText('CertScanner and its change template are deleted. This cannot be undone.')
 
         when:
         dialogButton('Cancel').click()
 
         then:
         assertThat(dialog()).hasCount(0)
-        api.requests('DELETE', '/api/products/1/details').isEmpty()
+        api.requests('DELETE', '/api/products/1').isEmpty()
 
         when:
         button('Delete product', true).click()
         dialogButton('Delete product').click()
 
         then:
-        assertThat(snackBar()).containsText("CertScanner could not be deleted. $HAS_SERVICES")
-        awaitRequest('DELETE', '/api/products/1/details')
-        page.url().endsWith('/beadle/admin/products/1')
+        assertThat(snackBar()).containsText("CertScanner could not be deleted. $NOT_REACHED")
+        awaitRequest('DELETE', '/api/products/1')
+        page.url().endsWith('/admin/products/1')
 
         when:
-        api.on('DELETE', '/api/products/1/details') { empty() }
+        beadle.installProducts()
         button('Delete product', true).click()
         dialogButton('Delete product').click()
 
         then:
-        page.waitForURL('**/beadle/admin/products')
-        awaitRequest('DELETE', '/api/products/1/details', 2)
+        page.waitForURL('**/admin/products')
+        awaitRequest('DELETE', '/api/products/1', 2)
         assertThat(snackBar()).containsText('CertScanner deleted')
         assertThat(page.locator('h1')).hasText('Beadle Admin')
-        api.requests('DELETE', '/api/products/1').isEmpty()
-        ownErrors().findAll { !it.contains('409') }.isEmpty()
+        beadle.product(1) == null
+        ownErrors().findAll { !it.contains('503') }.isEmpty()
     }
 
     Locator cardNames() {

@@ -1,35 +1,53 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { Dialog } from '@angular/cdk/dialog';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { outputFromObservable, rxResource, toObservable } from '@angular/core/rxjs-interop';
 import { filter, switchMap } from 'rxjs';
 import { DepartmentsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { Department } from '../core/models';
 import { Notifier } from '../core/notifier';
 import { DepartmentDialog } from '../departments/department-dialog';
-import { BarChart, BarRow } from '../../../dso-gui/src/app/shared/bar-chart';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
 import { counted } from '../shared/formatting';
-import { GRID, GridColumn } from '../ui/grid';
+import { DsoCell, GRID, GridColumn } from '../ui/grid';
 import { DsoLoading } from '../ui/loading';
+
+export interface DepartmentCount<D> {
+  noun: string;
+  count: (department: D) => number;
+}
+
+export interface DepartmentUsage<D extends Department = Department> {
+  subject: string;
+  counts?: readonly DepartmentCount<D>[];
+  columns?: readonly GridColumn<D>[];
+  blocker?: (department: D) => string | null;
+}
 
 @Component({
   selector: 'dso-departments-admin',
-  imports: [GRID, DsoLoading, BarChart],
+  imports: [GRID, DsoLoading],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './departments-admin.html',
   styleUrl: './departments-admin.scss',
 })
-export class DepartmentsAdmin {
-  readonly pipelines = input(false);
+export class DepartmentsAdmin<D extends Department = Department> {
+  readonly usage = input.required<DepartmentUsage<D>>();
+  readonly cells = input<readonly DsoCell<D>[]>([]);
 
   private readonly api = inject(DepartmentsApi);
   private readonly dialog = inject(Dialog);
   private readonly notifier = inject(Notifier);
 
-  protected readonly departments = rxResource({ stream: () => this.api.list() });
-  protected readonly departmentId = (department: Department) => department.id;
-  protected readonly columns = computed<GridColumn<Department>[]>(() => [
+  protected readonly departments = rxResource({ stream: () => this.api.list<D>() });
+  private readonly listed = computed(() =>
+    this.departments.hasValue() ? this.departments.value() : [],
+  );
+
+  readonly loaded = outputFromObservable(toObservable(this.listed));
+
+  protected readonly departmentId = (department: D) => department.id;
+  protected readonly columns = computed<GridColumn<D>[]>(() => [
     { key: 'name', header: 'Department', value: (department) => department.name, minWidth: 150 },
     {
       key: 'products',
@@ -38,77 +56,35 @@ export class DepartmentsAdmin {
       numeric: true,
       width: 100,
     },
-    ...(this.pipelines()
-      ? [
-          {
-            key: 'services',
-            header: 'Services',
-            value: (department: Department) => department.serviceCount,
-            numeric: true,
-            width: 100,
-          },
-          {
-            key: 'pipelines',
-            header: 'Pipelines',
-            value: (department: Department) => department.pipelineCount,
-            minWidth: 150,
-          },
-        ]
-      : []),
+    ...(this.usage().columns ?? []),
     { key: 'actions', header: '', width: 140 },
   ]);
   protected readonly empty = computed(
     () => this.departments.hasValue() && this.departments.value().length === 0,
   );
   protected readonly summary = computed(() => {
-    const departments = this.departments.hasValue() ? this.departments.value() : [];
-    const total = (noun: string, count: (department: Department) => number) =>
+    const departments = this.listed();
+    const counts: DepartmentCount<D>[] = [
+      { noun: 'product', count: (department) => department.productCount },
+      ...(this.usage().counts ?? []),
+    ];
+    const contents = counts.map(({ noun, count }) =>
       counted(
         departments.reduce((sum, department) => sum + count(department), 0),
         noun,
-      );
-    const products = total('product', (department) => department.productCount);
-    const contents = this.pipelines()
-      ? `${products} and ${total('service', (department) => department.serviceCount)}`
-      : products;
-    return `${counted(departments.length, 'department')} with ${contents}`;
+      ),
+    );
+    return `${counted(departments.length, 'department')} with ${contents.join(' and ')}`;
   });
   protected readonly help = computed(
     () =>
       'Every product belongs to one department, and people choose their department to see ' +
-      (this.pipelines() ? 'its products and pipelines. ' : 'its changes. ') +
-      'Only an empty department can be deleted.',
-  );
-  protected readonly chart = computed<BarRow[]>(() =>
-    this.pipelines() && this.departments.hasValue()
-      ? this.departments.value().map((department) => {
-          const invalidated = this.invalidated(department);
-          return {
-            label: department.name,
-            note: [
-              counted(department.pipelineCount, 'pipeline'),
-              ...(invalidated ? [this.keysInvalidated(invalidated)] : []),
-            ].join(', '),
-            segments: [
-              { swatch: 'active', label: 'active', count: department.activePipelineCount },
-              { swatch: 'disabled', label: 'key invalidated', count: invalidated },
-            ],
-          };
-        })
-      : [],
+      `${this.usage().subject}. Only an empty department can be deleted.`,
   );
 
   protected readonly errorMessage = errorMessage;
 
-  protected invalidated(department: Department): number {
-    return department.pipelineCount - department.activePipelineCount;
-  }
-
-  protected keysInvalidated(count: number): string {
-    return `${counted(count, 'key')} invalidated`;
-  }
-
-  protected deleteHint(department: Department): string | null {
+  protected deleteHint(department: D): string | null {
     if (department.productCount) {
       const them = department.productCount === 1 ? 'it' : 'them';
       return (
@@ -116,21 +92,18 @@ export class DepartmentsAdmin {
         `${counted(department.productCount, 'product')}: move ${them} to another department first.`
       );
     }
-    return department.changeCount
-      ? `${department.name} cannot be deleted: it has ` +
-          `${counted(department.changeCount, 'change')} raised in Beadle.`
-      : null;
+    return this.usage().blocker?.(department) ?? null;
   }
 
   protected add(): void {
     this.edit(null, (saved) => `${saved.name} added. Add its products on the Products tab.`);
   }
 
-  protected rename(department: Department): void {
+  protected rename(department: D): void {
     this.edit(department, (saved) => `${department.name} renamed to ${saved.name}`);
   }
 
-  protected delete(department: Department): void {
+  protected delete(department: D): void {
     this.dialog
       .open<boolean, ConfirmDialogData, ConfirmDialog>(ConfirmDialog, {
         data: {
@@ -155,7 +128,7 @@ export class DepartmentsAdmin {
       });
   }
 
-  private edit(department: Department | null, message: (saved: Department) => string): void {
+  private edit(department: D | null, message: (saved: Department) => string): void {
     this.dialog
       .open<Department, Department | null, DepartmentDialog>(DepartmentDialog, { data: department })
       .closed.pipe(filter((saved): saved is Department => !!saved))

@@ -12,7 +12,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Dialog } from '@angular/cdk/dialog';
 import { AbstractControl, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { SvgIconComponent } from 'angular-svg-icon';
-import { BuildTool, DeployTarget } from '../core/models';
 import { DsoCheckbox } from '../ui/checkbox';
 import { FORM_FIELD } from '../ui/form-field';
 import { filled } from './form-controls';
@@ -46,22 +45,8 @@ export interface Field {
   lookup?: Lookup;
 }
 
-export const TOOL_LABELS: Record<BuildTool, string> = {
-  GRADLE: 'Gradle',
-  MAVEN: 'Maven',
-  FLUTTER: 'Flutter',
-};
-
-export const TARGET_LABELS: Record<DeployTarget, string> = {
-  VM: 'Virtual machine',
-  OPENSHIFT: 'OpenShift',
-};
-
-const optionsOf = (labels: Record<string, string>): FieldOption[] =>
+export const optionsOf = (labels: Record<string, string>): FieldOption[] =>
   Object.entries(labels).map(([value, label]) => ({ value, label }));
-
-export const GRADLE_MAVEN_FLUTTER = optionsOf(TOOL_LABELS);
-export const VM_OPENSHIFT = optionsOf(TARGET_LABELS);
 
 export const tristate = (unset: string, yes: string, no: string): FieldOption[] => [
   { value: null, label: unset },

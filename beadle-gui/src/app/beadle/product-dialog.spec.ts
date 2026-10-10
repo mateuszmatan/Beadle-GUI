@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { fieldOf, inputOf, text } from '@common/testing/dom';
-import { department, product, productDetails } from '../testing/fixtures';
+import { department, product } from '../testing/fixtures';
 import { ProductDialog, ProductDialogData } from './product-dialog';
 
 describe('ProductDialog', () => {
@@ -56,7 +56,7 @@ describe('ProductDialog', () => {
     await fixture.whenStable();
   }
 
-  it('adds a product whose code follows its name, without AppScan account or services', async () => {
+  it('adds a product whose code follows its name', async () => {
     await render({ departmentId: 5 });
 
     expect(text(page().querySelector('h2'))).toBe('Add product');
@@ -98,15 +98,12 @@ describe('ProductDialog', () => {
     expect(request.request.body).toEqual({
       code: 'TARC',
       name: 'Trade Archive 3',
-      description: null,
       ownerTeam: 'Custody Technology',
       contactEmail: null,
       departmentId: 5,
-      appScan: null,
       version: null,
-      services: [],
     });
-    const created = product({ id: 7, name: 'Trade Archive 3', appScan: null, services: [] });
+    const created = product({ id: 7, name: 'Trade Archive 3' });
     request.flush(created);
 
     expect(close).toHaveBeenCalledWith(created);
@@ -176,8 +173,8 @@ describe('ProductDialog', () => {
     expect(close).not.toHaveBeenCalled();
   });
 
-  it('changes the details of a product and sends nothing of its services or AppScan account', async () => {
-    const stored = productDetails({ contactEmail: null });
+  it('changes the details of a product and keeps its code', async () => {
+    const stored = product({ contactEmail: null });
     await render({ product: stored });
 
     expect(text(page().querySelector('h2'))).toBe('Edit the details of CertScanner');
@@ -199,27 +196,28 @@ describe('ProductDialog', () => {
     await submit();
     http.expectNone((request) => request.url === '/api/products/code-suggestion');
 
-    const request = http.expectOne({ method: 'PUT', url: '/api/products/1/details' });
+    const request = http.expectOne({ method: 'PUT', url: '/api/products/1' });
     expect(request.request.params.keys()).toEqual([]);
     expect(request.request.body).toEqual({
+      code: null,
       name: 'Cert Scanner',
       departmentId: 5,
       ownerTeam: null,
       contactEmail: 'certs@bbh.com',
       version: 3,
     });
-    const saved = productDetails({ name: 'Cert Scanner', departmentId: 5, version: 4 });
+    const saved = product({ name: 'Cert Scanner', departmentId: 5, version: 4 });
     request.flush(saved);
 
     expect(close).toHaveBeenCalledWith(saved);
   });
 
   it('hands a conflict back so the product can be loaded again', async () => {
-    await render({ product: productDetails() });
+    await render({ product: product() });
 
     await submit();
     http
-      .expectOne({ method: 'PUT', url: '/api/products/1/details' })
+      .expectOne({ method: 'PUT', url: '/api/products/1' })
       .flush({ detail: 'The database is busy' }, { status: 503, statusText: 'Unavailable' });
     fixture.detectChanges();
     expect(text(page().querySelector('[role=alert]'))).toBe(
@@ -229,30 +227,26 @@ describe('ProductDialog', () => {
 
     await submit();
     http
-      .expectOne({ method: 'PUT', url: '/api/products/1/details' })
+      .expectOne({ method: 'PUT', url: '/api/products/1' })
       .flush({ detail: 'Changed by someone else' }, { status: 409, statusText: 'Conflict' });
-    http
-      .expectOne({ method: 'GET', url: '/api/products/1/details' })
-      .flush(productDetails({ version: 4 }));
+    http.expectOne({ method: 'GET', url: '/api/products/1' }).flush(product({ version: 4 }));
 
     expect(close).toHaveBeenCalledWith(expect.any(HttpErrorResponse));
     expect(close.mock.calls[0][0].status).toBe(409);
   });
 
   it('keeps the edits when the new name is taken and nobody else changed the product', async () => {
-    await render({ product: productDetails({ version: 3 }) });
+    await render({ product: product({ version: 3 }) });
     type('Owner team', 'Technology Architecture');
 
     await submit();
     http
-      .expectOne({ method: 'PUT', url: '/api/products/1/details' })
+      .expectOne({ method: 'PUT', url: '/api/products/1' })
       .flush(
         { detail: 'A product named Payments Hub already exists' },
         { status: 409, statusText: 'Conflict' },
       );
-    http
-      .expectOne({ method: 'GET', url: '/api/products/1/details' })
-      .flush(productDetails({ version: 3 }));
+    http.expectOne({ method: 'GET', url: '/api/products/1' }).flush(product({ version: 3 }));
     fixture.detectChanges();
 
     expect(close).not.toHaveBeenCalled();

@@ -42,28 +42,9 @@
   flex: 1;
 }
 
-.chart {
-  margin-bottom: 12px;
-  padding: 10px 14px;
-
-  .section-help {
-    padding: 0;
-    border-bottom: 0;
-  }
-}
-
 .name {
   font-weight: 600;
   color: var(--dso-navy);
-}
-
-.pipelines {
-  white-space: nowrap;
-}
-
-.revoked {
-  color: var(--dso-danger);
-  font-size: 12px;
 }
 
 .actions {

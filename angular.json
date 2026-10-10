@@ -13,10 +13,27 @@
       "prefix": "dso",
       "architect": {
         "build": {
-          "builder": "@angular/build:ng-packagr",
+          "builder": "@angular/build:application",
           "options": {
-            "project": "common-gui/ng-package.json",
-            "tsConfig": "common-gui/tsconfig.lib.json"
+            "browser": "common-gui/src/test-providers.ts",
+            "tsConfig": "common-gui/tsconfig.spec.json",
+            "inlineStyleLanguage": "scss",
+            "allowedCommonJsDependencies": [
+              "highcharts/js/highcharts"
+            ],
+            "define": {
+              "AG_GRID_LICENSE_KEY": "''"
+            }
+          },
+          "configurations": {
+            "public": {
+              "fileReplacements": [
+                {
+                  "replace": "common-gui/src/ui/design-system.ts",
+                  "with": "common-gui/src/ui/design-system.public.ts"
+                }
+              ]
+            }
           }
         },
         "test": {
@@ -30,6 +47,7 @@
             ],
             "coverageExclude": [
               "common-gui/src/**/*.spec.ts",
+              "common-gui/src/**/*.d.ts",
               "common-gui/src/testing/**",
               "common-gui/src/test-providers.ts"
             ],
@@ -38,10 +56,10 @@
               "lines": 60
             },
             "coverageInclude": [
-              "common-gui/src/**"
+              "common-gui/src/**/*.ts"
             ],
             "providersFile": "common-gui/src/test-providers.ts",
-            "buildTarget": "common-gui:build"
+            "buildTarget": "common-gui:build:public"
           }
         }
       }

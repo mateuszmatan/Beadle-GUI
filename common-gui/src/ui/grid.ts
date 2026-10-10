@@ -217,6 +217,9 @@ export class DsoGrid<T> {
   readonly rowClass = input<(row: T) => string | string[] | undefined>();
   readonly empty = input('');
   readonly label = input<string>();
+  readonly templates = input<readonly DsoCell<T>[], readonly DsoCell<T>[] | undefined>([], {
+    transform: (templates) => templates ?? [],
+  });
   readonly rowClick = output<T>();
 
   private readonly cells = contentChildren<DsoCell<T>>(DsoCell);
@@ -260,7 +263,9 @@ export class DsoGrid<T> {
   }
 
   protected readonly columnDefs = computed<ColDef<T>[]>(() => {
-    const templates = new Map(this.cells().map((cell) => [cell.key(), cell.template]));
+    const templates = new Map(
+      [...this.templates(), ...this.cells()].map((cell) => [cell.key(), cell.template]),
+    );
     return this.columns().map((column) => columnDef(column, templates.get(column.key)));
   });
 }

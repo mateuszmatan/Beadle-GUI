@@ -23,7 +23,6 @@ import static com.microsoft.playwright.options.AriaRole.BUTTON
 import static com.microsoft.playwright.options.AriaRole.CHECKBOX
 import static com.microsoft.playwright.options.AriaRole.COMBOBOX
 import static com.microsoft.playwright.options.AriaRole.LINK
-import static com.microsoft.playwright.options.AriaRole.MENUITEM
 import static com.microsoft.playwright.options.AriaRole.RADIO
 import static com.microsoft.playwright.options.LoadState.NETWORKIDLE
 import static java.nio.file.Files.createDirectories
@@ -32,10 +31,6 @@ abstract class GuiSpecification extends Specification {
 
     static final int WIDTH = 1440
     static final int HEIGHT = 1000
-
-    static final Map<String, List<String>> MENUS = [
-            'Beadle'              : ['Changes', 'New Change', 'Admin'],
-            'DevSecOps Management': ['Pipelines', 'Self-service', 'Pipeline Monitoring', 'Change Evidence', 'Admin']]
 
     static final String CLIPBOARD_RECORDER = '''
         window.dsoCopiedTexts = [];
@@ -63,12 +58,14 @@ abstract class GuiSpecification extends Specification {
     GuiServer server
 
     @Shared
-    StubApi api = new StubApi()
+    StubApi api = newApi()
 
     BrowserContext context
     Page page
     List<String> consoleErrors = []
     List<String> failedRequests = []
+
+    abstract StubApi newApi()
 
     def setupSpec() {
         if (!remoteBaseUrl()) {
@@ -200,17 +197,44 @@ abstract class GuiSpecification extends Specification {
         page.getByRole(LINK, new Page.GetByRoleOptions().setName(name).setExact(exact))
     }
 
-    Locator menuButton(String name) {
-        page.locator('nav.menu').getByRole(BUTTON, new Locator.GetByRoleOptions().setName(name).setExact(true))
+    Locator menuLinks() {
+        page.locator('nav.menu a')
     }
 
     Locator menuLink(String label) {
-        menuLink(MENUS.find { it.value.contains(label) }.key, label)
+        page.locator('nav.menu').getByRole(LINK, new Locator.GetByRoleOptions().setName(label).setExact(true))
     }
 
-    Locator menuLink(String menu, String label) {
-        menuButton(menu).click()
-        page.locator('.dso-menu').getByRole(MENUITEM, new Locator.GetByRoleOptions().setName(label).setExact(true))
+    Locator activeMenuLink() {
+        page.locator('nav.menu a.active')
+    }
+
+    void hasValues(Locator scope, Map<String, String> expected) {
+        expected.each { label, value -> assertThat(input(scope, label)).hasValue(value) }
+    }
+
+    void fillIn(Locator scope, Map<String, String> values) {
+        values.each { label, value -> input(scope, label).fill(value) }
+    }
+
+    void hasErrors(Locator scope, Map<String, String> expected) {
+        expected.each { label, message -> assertThat(errorOf(scope, label)).hasText(message) }
+    }
+
+    Locator hintOf(Locator scope, String label) {
+        formField(scope, label).locator('dso-hint')
+    }
+
+    void toggle(Locator scope, String label) {
+        holdingText(scope.locator('dso-toggle-group button'), label).click()
+    }
+
+    Locator selected(Locator scope, String label) {
+        select(scope, label).locator('option:checked')
+    }
+
+    Locator saveError() {
+        page.locator('.save-bar .save-error')
     }
 
     Locator tab(String label) {

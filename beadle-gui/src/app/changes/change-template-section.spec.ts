@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { HTTP_URL_ERROR } from '../shared/form-controls';
+import { HTTP_URL_ERROR } from '@common/shared/form-controls';
 import { changeOptions, changeTemplate } from '../testing/change-fixtures';
 import { buttonOf, choose, fieldOf, inputOf, optionsOf, selectOf, text } from '@common/testing/dom';
 import { SectionKey } from './change-sections';
@@ -237,7 +237,12 @@ describe('ChangeTemplateSection', () => {
   it('asks the template for the secure coding defaults of every change, without a ticket', async () => {
     await render('secure', changeTemplate(), { admin: true });
 
-    expect(labels()).toEqual(['APO number', 'Bitbucket URL', 'Artifact link', 'QC application link']);
+    expect(labels()).toEqual([
+      'APO number',
+      'Bitbucket URL',
+      'Artifact link',
+      'QC application link',
+    ]);
     const bitbucket = inputOf(page(), 'Bitbucket URL');
     expect(bitbucket.readOnly).toBe(false);
     bitbucket.value = 'bitbucket.bbh.com';

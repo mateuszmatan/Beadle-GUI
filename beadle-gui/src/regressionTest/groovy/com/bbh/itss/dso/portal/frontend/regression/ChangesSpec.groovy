@@ -1,5 +1,6 @@
 package com.bbh.itss.dso.portal.frontend.regression
 
+import com.bbh.itss.dso.portal.frontend.support.BeadleSpecification
 import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 import groovy.json.JsonSlurper
@@ -9,21 +10,21 @@ import java.util.function.BooleanSupplier
 import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.CERT_TASKS
 import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.CERT_TEMPLATE
 import static com.bbh.itss.dso.portal.frontend.support.ChangeStubs.details
-import static com.bbh.itss.dso.portal.frontend.support.StubApi.SIGNED_IN_USER
+import static com.bbh.itss.dso.portal.frontend.support.BeadleStubApi.SIGNED_IN_USER
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.BUTTON
 import static java.time.LocalDate.now
 import static java.time.ZoneOffset.UTC
 
-class ChangesSpec extends EditorSpecification {
+class ChangesSpec extends BeadleSpecification {
 
     static final String SYNC_PROBLEM = 'ProTech could not be reached: Connection refused.'
     static final String RETRY = 'Try again in a moment; if it keeps failing, tell the portal administrator.'
 
     def "a release manager picks the department and filters and sorts its ProTech changes in the table header"() {
         when:
-        open('/beadle')
-        page.waitForURL('**/beadle/changes')
+        open('/')
+        page.waitForURL('**/changes')
 
         then:
         assertThat(page.locator('h1')).hasText('ProTech Changes')
@@ -45,7 +46,7 @@ class ChangesSpec extends EditorSpecification {
                 .hasText(['Waiting for the L2 approver', 'Approved, installs in its window', 'Done'] as String[])
         assertThat(column('tasks')).hasText(['2', '2', '2'] as String[])
         assertThat(page.locator('.list .shown')).hasText('3 of 3 changes')
-        assertThat(link('Edit CHG0031001', true)).hasAttribute('href', '/beadle/changes/4/edit')
+        assertThat(link('Edit CHG0031001', true)).hasAttribute('href', '/changes/4/edit')
         assertThat(link('Edit CHG0031001', true)).hasText('Edit change')
         assertThat(link('Edit CHG0030995', true)).isVisible()
         assertThat(link('Edit CHG0030990', true)).hasCount(0)
@@ -86,7 +87,7 @@ class ChangesSpec extends EditorSpecification {
         assertThat(numbers()).hasText(['CHG0030990', 'CHG0030995', 'CHG0031001'] as String[])
 
         when:
-        open('/beadle/changes')
+        open('/changes')
 
         then:
         assertThat(selected(page.locator('.toolbar'), 'Your department')).hasText('Corporate Technology')
@@ -114,7 +115,7 @@ class ChangesSpec extends EditorSpecification {
 
         when:
         link('Raise a change', true).click()
-        page.waitForURL('**/beadle/new-change')
+        page.waitForURL('**/new-change')
 
         then:
         assertThat(selected(page.locator('section.step'), 'Your department')).hasText('Fund Services')
@@ -127,10 +128,10 @@ class ChangesSpec extends EditorSpecification {
         def date = now(UTC).plusDays(3).toString()
 
         when:
-        open('/beadle/changes')
+        open('/changes')
         choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
         gridCell(gridRow(page.locator('body'), 'CHG0031001'), 'product').click()
-        page.waitForURL('**/beadle/changes/4')
+        page.waitForURL('**/changes/4')
 
         then:
         assertThat(page.locator('h1')).hasText('CHG0031001')
@@ -157,15 +158,15 @@ class ChangesSpec extends EditorSpecification {
         assertThat(taskRows().locator('input:enabled, select:enabled, textarea:enabled, button')).hasCount(0)
         assertThat(page.locator('.secure-coding-missing span').first())
                 .hasText('CHG0031001 has no secure coding ticket yet. Create it in CyberTrack, the Jira project SCP.')
-        assertThat(link('Create the secure coding ticket', true)).hasAttribute('href', '/beadle/changes/4/secure-coding')
+        assertThat(link('Create the secure coding ticket', true)).hasAttribute('href', '/changes/4/secure-coding')
         assertThat(page.locator('.now')).hasText('Secondary Approval. Waiting for the L2 approver, James Carter, to approve the change in ProTech.')
-        assertThat(link('Edit the change', true)).hasAttribute('href', '/beadle/changes/4/edit')
+        assertThat(link('Edit the change', true)).hasAttribute('href', '/changes/4/edit')
         awaitRequest('GET', '/api/changes/4')
 
         when:
-        open('/beadle/changes')
+        open('/changes')
         choose(page.locator('.toolbar'), 'Your department', 'Fund Services')
-        open('/beadle/changes/4')
+        open('/changes/4')
 
         then:
         assertThat(button('Edit the change', true)).isDisabled()
@@ -173,7 +174,7 @@ class ChangesSpec extends EditorSpecification {
         assertThat(page.locator('.secure-coding-missing')).hasCount(0)
 
         when:
-        open('/beadle/changes/4/edit')
+        open('/changes/4/edit')
 
         then:
         assertThat(page.locator('.banner.refused span').first()).hasText('Only Corporate Technology can change it')
@@ -181,9 +182,9 @@ class ChangesSpec extends EditorSpecification {
 
         when:
         link('Back to the change', true).click()
-        page.waitForURL('**/beadle/changes/4')
+        page.waitForURL('**/changes/4')
         newPage()
-        open('/beadle/changes/4')
+        open('/changes/4')
 
         then:
         assertThat(button('Edit the change', true)).isDisabled()
@@ -196,10 +197,10 @@ class ChangesSpec extends EditorSpecification {
         def date = now(UTC).plusDays(3).toString()
 
         when:
-        open('/beadle/changes')
+        open('/changes')
         choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
         link('Edit CHG0031001', true).click()
-        page.waitForURL('**/beadle/changes/4/edit')
+        page.waitForURL('**/changes/4/edit')
 
         then:
         assertThat(page.locator('h1')).hasText('Edit CHG0031001')
@@ -250,9 +251,9 @@ class ChangesSpec extends EditorSpecification {
         lookUp(taskRows().nth(2), 'Assignment group', 'ois', 'OIS Support')
         fillIn(taskRows().nth(2), ['Short description': 'Notify the users', 'Description': 'Send the release notes to the users.'])
         button('Remove change task 2', true).click()
-        api.protech.applying = false
+        beadle.protech.applying = false
         button('Publish the update to ProTech', true).click()
-        page.waitForURL('**/beadle/changes/4')
+        page.waitForURL('**/changes/4')
 
         then:
         page.evaluate('window.scrollY') == 0
@@ -281,7 +282,7 @@ class ChangesSpec extends EditorSpecification {
 
         when:
         def reads = api.requests('GET', '/api/changes/4').size()
-        api.protech.applying = true
+        beadle.protech.applying = true
         page.waitForCondition({ api.requests('GET', '/api/changes/4').size() > reads } as BooleanSupplier)
 
         then:
@@ -302,7 +303,7 @@ class ChangesSpec extends EditorSpecification {
 
         when:
         link('Edit the change', true).click()
-        page.waitForURL('**/beadle/changes/4/edit')
+        page.waitForURL('**/changes/4/edit')
 
         then:
         hasTaskNumbers('CTASK0310011', 'CTASK0320001')
@@ -314,11 +315,11 @@ class ChangesSpec extends EditorSpecification {
 
     def "an update of a change that was changed meanwhile is refused until the change is reloaded"() {
         when:
-        open('/beadle/changes')
+        open('/changes')
         choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
-        open('/beadle/changes/4/edit')
+        open('/changes/4/edit')
         input(texts(), 'Short description').fill('CertScanner 4.1 with Java 21')
-        publishFromAnotherTab('/beadle/changes/4/edit')
+        publishFromAnotherTab('/changes/4/edit')
         button('Publish the update to ProTech', true).click()
 
         then:
@@ -335,7 +336,7 @@ class ChangesSpec extends EditorSpecification {
         when:
         input(texts(), 'Short description').fill('CertScanner 4.1 with Java 21')
         button('Publish the update to ProTech', true).click()
-        page.waitForURL('**/beadle/changes/4')
+        page.waitForURL('**/changes/4')
 
         then:
         assertThat(page.locator('.page-header p')).hasText('CertScanner 4.1 with Java 21')
@@ -345,18 +346,18 @@ class ChangesSpec extends EditorSpecification {
 
     def "an update is taken when ProTech only moved the change through its workflow meanwhile"() {
         when:
-        open('/beadle/changes')
+        open('/changes')
         choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
-        open('/beadle/changes/4/edit')
+        open('/changes/4/edit')
         input(texts(), 'Short description').fill('CertScanner 4.1 – Überweisung mit Java 21')
 
         then:
         assertThat(hintOf(texts(), 'Short description')).hasText('44 / 160')
 
         when:
-        api.protech.advance(4, 'CTASK_APPROVAL')
+        beadle.protech.advance(4, 'CTASK_APPROVAL')
         button('Publish the update to ProTech', true).click()
-        page.waitForURL('**/beadle/changes/4')
+        page.waitForURL('**/changes/4')
 
         then:
         awaitRequest('PUT', '/api/changes/4').json().version == 3
@@ -367,9 +368,9 @@ class ChangesSpec extends EditorSpecification {
 
     def "a member removes every change task of a change and ProTech cancels them"() {
         when:
-        open('/beadle/changes')
+        open('/changes')
         choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
-        open('/beadle/changes/4/edit')
+        open('/changes/4/edit')
         button('Remove change task 2', true).click()
         button('Remove change task 1', true).click()
 
@@ -381,7 +382,7 @@ class ChangesSpec extends EditorSpecification {
         when:
         def reads = api.requests('GET', '/api/changes/4').size()
         button('Publish the update to ProTech', true).click()
-        page.waitForURL('**/beadle/changes/4')
+        page.waitForURL('**/changes/4')
 
         then:
         awaitRequest('PUT', '/api/changes/4').json().tasks == []
@@ -393,9 +394,9 @@ class ChangesSpec extends EditorSpecification {
 
     def "a change ProTech did not update says what it kept, and a closed change cannot be edited"() {
         when:
-        open('/beadle/changes')
+        open('/changes')
         choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
-        open('/beadle/changes/2')
+        open('/changes/2')
 
         then:
         assertThat(page.locator('h1')).hasText('CHG0030995')
@@ -411,7 +412,7 @@ class ChangesSpec extends EditorSpecification {
         assertThat(link('Edit the change', true)).isVisible()
 
         when:
-        open('/beadle/changes/1')
+        open('/changes/1')
 
         then:
         assertThat(page.locator('h1')).hasText('CHG0030990')
@@ -422,7 +423,7 @@ class ChangesSpec extends EditorSpecification {
         assertThat(button('Edit the change', true)).hasCount(0)
 
         when:
-        open('/beadle/changes/1/edit')
+        open('/changes/1/edit')
 
         then:
         assertThat(page.locator('.banner.refused span').first()).hasText('CHG0030990 is closed in ProTech and can no longer be changed')
@@ -437,7 +438,7 @@ class ChangesSpec extends EditorSpecification {
         api.get('/api/changes/4') { stored + [syncProblem: SYNC_PROBLEM] }
 
         when:
-        open('/beadle/changes')
+        open('/changes')
         choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
 
         then:
@@ -519,7 +520,7 @@ class ChangesSpec extends EditorSpecification {
         other.navigate(url(path))
         other.locator('section.texts').getByLabel('Short description').fill('Published elsewhere')
         other.getByRole(BUTTON, new Page.GetByRoleOptions().setName('Publish the update to ProTech').setExact(true)).click()
-        other.waitForURL('**/beadle/changes/4')
+        other.waitForURL('**/changes/4')
         other.close()
     }
 }

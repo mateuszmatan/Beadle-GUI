@@ -27,7 +27,7 @@ import { ChangeTemplateForm } from '../changes/change-template-form';
 import { templateForm, toTemplate } from '../changes/change-template-model';
 import { errorMessage, fieldProblems } from '@common/core/errors';
 import { Notifier } from '@common/core/notifier';
-import { BEADLE_ADMIN, BEADLE_PRODUCTS } from '../core/sections';
+import { ADMIN, ADMIN_PRODUCTS } from '../core/sections';
 import { HasUnsavedChanges } from '@common/core/unsaved-changes';
 import { applyFieldProblems } from '@common/shared/form-controls';
 import { DsoLoading, DsoSpinner } from '@common/ui/loading';
@@ -197,8 +197,8 @@ export class BeadleProduct implements HasUnsavedChanges {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly admin = BEADLE_ADMIN;
-  protected readonly products = BEADLE_PRODUCTS;
+  protected readonly admin = ADMIN;
+  protected readonly products = ADMIN_PRODUCTS;
   protected readonly errorMessage = errorMessage;
   protected readonly profile = rxResource({
     params: () => this.id(),
