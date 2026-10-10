@@ -30,11 +30,15 @@ describe('departments', () => {
     });
 
     expect(tally(group({ productCount: 1, pipelineCount: 1, activePipelineCount: 1 }))).toBe(
-      '1 DevSecOps pipeline for 1 product',
+      '1 product, 1 pipeline',
     );
     expect(tally(group({ productCount: 3, pipelineCount: 7, activePipelineCount: 6 }))).toBe(
-      '7 DevSecOps pipelines for 3 products · 6 active',
+      '3 products, 7 pipelines, 1 key invalidated',
     );
+    expect(tally(group({ productCount: 2, pipelineCount: 6, activePipelineCount: 4 }))).toBe(
+      '2 products, 6 pipelines, 2 keys invalidated',
+    );
+    expect(tally(group({ productCount: 0, pipelineCount: 0, activePipelineCount: 0 }))).toBeNull();
   });
 
   it('sums the tally of the products without a department from their rows', () => {
@@ -44,7 +48,7 @@ describe('departments', () => {
     ];
 
     expect(tally({ department: null, name: NOT_IN_A_DEPARTMENT, products })).toBe(
-      '2 DevSecOps pipelines for 2 products',
+      '2 products, 2 pipelines',
     );
   });
 });

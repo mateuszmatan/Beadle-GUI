@@ -1,10 +1,18 @@
 .toolbar {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+}
+
+.toolbar-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 16px;
-  margin-bottom: 12px;
-  padding: 10px 12px;
+}
+
+.intro {
+  margin: 8px 0 0;
+  max-width: 900px;
 }
 
 .search {
@@ -13,8 +21,12 @@
   max-width: 420px;
 }
 
-.count {
-  font-size: 12px;
+.summary {
+  font-size: 12.5px;
+}
+
+.retry {
+  margin-left: auto;
 }
 
 .department {
@@ -24,18 +36,10 @@
 .department-header {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px 16px;
-  padding: 6px 8px 6px 12px;
-  border-bottom: 1px solid var(--dso-border);
-}
-
-.department-title {
-  display: flex;
-  flex-wrap: wrap;
   align-items: baseline;
   gap: 2px 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--dso-border);
 
   h2 {
     margin: 0;
@@ -48,20 +52,29 @@
   font-size: 12px;
 }
 
-.hint,
-.no-products {
+.hint {
   margin: 0;
   font-size: 12px;
 }
 
 .no-products {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
   padding: 10px 12px;
+  font-size: 12.5px;
 }
 
 .product {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 2px 8px;
+
+  .code {
+    white-space: nowrap;
+  }
 }
 
 .description {
@@ -75,13 +88,6 @@
   line-height: 1.4;
 }
 
-.pipelines {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.revoked {
+.pipelines.revoked {
   color: var(--dso-danger);
-  font-size: 12px;
 }
