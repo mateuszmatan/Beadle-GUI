@@ -112,7 +112,7 @@ export function editHint(
   departmentId: number | null,
 ): string | null {
   if (change.departmentId === null) {
-    return `No department owns ${change.number}, so it cannot be changed in Beadle`;
+    return `No department owns ${change.number}, so nobody can change it in Beadle`;
   }
   if (departmentId === null) {
     return 'Choose your department in Changes to change it';

@@ -121,8 +121,9 @@ amber, Approved green) and its last reminder ("James Carter, 2 minutes ago"). Ev
 someone has a small link-style **Remind** button ("Remind the approvers of CTASK0310011" to a screen reader), and
 **Remind everyone who has not approved** sits next to the heading; both send `POST /api/changes/{id}/reminders` with
 your department, show who got the reminder in a message and take the change it answers. They are disabled, with the
-reason under the heading and in their tooltip, for another department, without a department, while ProTech cannot be
-read, and once everyone named has approved; a closed change shows no buttons. The table scrolls sideways on its own
+reason under the heading and in their tooltip, for another department, without a department and while ProTech cannot
+be read; an approved row has no Remind button, Remind everyone is disabled with the reason in its tooltip once everyone
+named has approved, and a closed change shows no buttons. The table scrolls sideways on its own
 on a narrow screen. While
 an open change of your department has no secure coding ticket, a note links to its secure coding page
 (`/changes/{id}/secure-coding`, `changes/change-secure-coding.ts`), which creates the ticket and returns to the

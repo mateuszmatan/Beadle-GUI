@@ -653,8 +653,9 @@ task's assignment group, so each change task has different approvers. Every appr
 yet), **Requested** (asked, waiting) or **Approved**. Beadle reads the approvals of the change and of its tasks from
 ProTech with the change and shows them in **Approvals** on the change page and in the Approval and Approvers fields
 of each task. The change goes **In Progress** (ProTech's Implementation state) only once every change task that is
-not canceled is approved: a change without change tasks waits in CTask approval, and a change task added later sends
-the change back to CTask approval.
+not canceled is approved: a change without change tasks waits in CTask approval, and a change task added later, or
+moved to another assignment group, sends the change back to CTask approval. Beadle holds to this rule itself: when
+ProTech reports Implementation while a change task is still waiting, Beadle shows the change in CTask approval.
 
 Each approval still awaited that names someone has a discreet **Remind** button, and **Remind everyone who has not
 approved** reminds them all at once: the business, L1, L2 and support approvals that are Not Approved or Requested and
@@ -748,11 +749,12 @@ through the workflow by the clock: Business Approval 2 minutes after it was rais
 Approval after 6, Support Approval after 8 and CTask approval after 10 minutes; each approval of the change is
 Requested in its stage and Approved once the change moved past it. In CTask approval it asks the approvers of every
 change task (`DemoApprovers`: two people per assignment group, for example Rebecca Lawson and Thomas Ashby for Release
-Management) and approves the tasks one after another, two minutes apart (a task added later two minutes after it was
-added). Once the last task is approved, at the earliest 12 minutes after the raise, the change goes In Progress, or,
+Management) and approves the tasks one after another, two minutes apart: the n-th change task 2n minutes after it was
+asked, which is at CTask approval or, for a task added or moved to another assignment group later, at that update.
+Once the last task is approved, at the earliest 12 minutes after the raise, the change goes In Progress, or,
 when the installation starts less than 24 hours after that, Escalated approval at once and In Progress 2 hours before
-the installation; a change without change tasks stays in CTask approval, and a task added after it sends the change
-back there. Closed when the post-install validation ends. Its tasks are Work in progress while a change In Progress is
+the installation; a change without change tasks stays in CTask approval, and a task added or moved to another
+assignment group after it sends the change back there. Closed when the post-install validation ends. Its tasks are Work in progress while a change In Progress is
 being installed and Closed once the change is. It records every reminder and answers with the people it reminded, and
 sends nothing. It applies an update
 `dso.demo.protech-apply-delay` (default `PT3S`) after it was published, except a schedule change once the installation
