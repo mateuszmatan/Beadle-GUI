@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": [
+      "vitest/globals"
+    ]
+  },
+  "include": [
+    "src/**/*.d.ts",
+    "src/**/*.spec.ts",
+    "../common-gui/src/test-providers.ts",
+    "../common-gui/src/types/*.d.ts"
+  ]
+}
