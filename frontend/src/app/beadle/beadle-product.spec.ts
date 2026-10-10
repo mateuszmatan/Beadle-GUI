@@ -163,6 +163,26 @@ describe('BeadleProduct', () => {
     expect(editor().hasUnsavedChanges()).toBe(true);
   });
 
+  it('suggests the template again from the new name while it is not saved yet', async () => {
+    await open(changeProfile({ version: null, updatedAt: null }));
+
+    editor().renamed({ name: 'CertWatch' });
+    await settle();
+    http.expectOne('/api/products/1/change-profile').flush(
+      changeProfile({
+        productName: 'CertWatch',
+        version: null,
+        updatedAt: null,
+        template: changeTemplate({ configurationItem: 'CertWatch' }),
+      }),
+    );
+    await settle();
+
+    expect(text(page().querySelector('h1'))).toBe('CertWatch');
+    expect(template().controls.configurationItem.value).toBe('CertWatch');
+    expect(editor().hasUnsavedChanges()).toBe(false);
+  });
+
   it('leaves a deleted product without asking about its unsaved template', async () => {
     await open();
     template().controls.category.setValue('Hardware');

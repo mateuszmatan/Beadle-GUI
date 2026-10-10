@@ -218,10 +218,19 @@ export class ProductDialog {
   }
 
   private failed(error: unknown): void {
-    if (this.product && error instanceof HttpErrorResponse && error.status === 409) {
-      this.dialogRef.close(error);
+    const product = this.product;
+    if (product && error instanceof HttpErrorResponse && error.status === 409) {
+      this.detailsApi.get(product.id).subscribe({
+        next: (latest) =>
+          latest.version === product.version ? this.refused(error) : this.dialogRef.close(error),
+        error: () => this.dialogRef.close(error),
+      });
       return;
     }
+    this.refused(error);
+  }
+
+  private refused(error: unknown): void {
     const problems = fieldProblems(error);
     const unmatched = applyFieldProblems(this.form, problems);
     const failure = this.product

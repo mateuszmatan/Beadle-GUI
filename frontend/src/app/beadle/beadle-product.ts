@@ -228,6 +228,9 @@ export class BeadleProduct implements HasUnsavedChanges {
 
   renamed(product: { name: string }): void {
     this.newName.set(product.name);
+    if (this.version() === null && !this.form()?.dirty) {
+      this.profile.reload();
+    }
   }
 
   hasUnsavedChanges(): boolean {

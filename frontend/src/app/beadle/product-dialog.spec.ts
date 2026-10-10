@@ -231,8 +231,34 @@ describe('ProductDialog', () => {
     http
       .expectOne({ method: 'PUT', url: '/api/products/1/details' })
       .flush({ detail: 'Changed by someone else' }, { status: 409, statusText: 'Conflict' });
+    http
+      .expectOne({ method: 'GET', url: '/api/products/1/details' })
+      .flush(productDetails({ version: 4 }));
 
     expect(close).toHaveBeenCalledWith(expect.any(HttpErrorResponse));
     expect(close.mock.calls[0][0].status).toBe(409);
+  });
+
+  it('keeps the edits when the new name is taken and nobody else changed the product', async () => {
+    await render({ product: productDetails({ version: 3 }) });
+    type('Owner team', 'Technology Architecture');
+
+    await submit();
+    http
+      .expectOne({ method: 'PUT', url: '/api/products/1/details' })
+      .flush(
+        { detail: 'A product named Payments Hub already exists' },
+        { status: 409, statusText: 'Conflict' },
+      );
+    http
+      .expectOne({ method: 'GET', url: '/api/products/1/details' })
+      .flush(productDetails({ version: 3 }));
+    fixture.detectChanges();
+
+    expect(close).not.toHaveBeenCalled();
+    expect(text(page().querySelector('[role=alert]'))).toBe(
+      'The details could not be saved. A product named Payments Hub already exists',
+    );
+    expect(form().controls.ownerTeam.value).toBe('Technology Architecture');
   });
 });
