@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HTTP_URL_ERROR } from '../shared/form-controls';
 import { changeOptions, changeTemplate } from '../testing/change-fixtures';
 import { buttonOf, choose, fieldOf, inputOf, optionsOf, selectOf, text } from '../testing/dom';
 import { SectionKey } from './change-sections';
@@ -188,16 +189,24 @@ describe('ChangeTemplateSection', () => {
       '6',
       '7',
     ]);
-    expect([...page().querySelectorAll('.account legend')].map(text)).toEqual([
-      'Privileged account 1',
-      'Privileged account 2',
+    expect(labels().slice(1)).toEqual([
+      'Person 1',
+      'Privileged access 1',
+      'Person 2',
+      'Privileged access 2',
     ]);
-    const account = page().querySelector('.account')!;
-    expect(labels().slice(1, 3)).toEqual(['Person', 'Privileged account']);
-    expect(account.querySelector('button.lookup')?.getAttribute('aria-label')).toBe('Find Person');
+    const accounts = page().querySelector('.accounts')!;
+    expect(
+      [...accounts.querySelectorAll('dso-form-field')].every((field) =>
+        field.classList.contains('span-6'),
+      ),
+    ).toBe(true);
+    expect(accounts.querySelector('button.lookup')?.getAttribute('aria-label')).toBe(
+      'Find Person 1',
+    );
 
     await chooseOption('How many privileged accounts', 'None');
-    expect(page().querySelector('.account')).toBeNull();
+    expect(page().querySelector('.accounts')).toBeNull();
     expect(form.controls.privilegedAccess.controls.users.length).toBe(0);
   });
 
@@ -213,8 +222,30 @@ describe('ChangeTemplateSection', () => {
 
     fixture.componentRef.setInput('section', 'secure');
     await settle();
-    expect(labels()).toEqual(['Secure coding ticket number']);
-    expect(page().querySelector('.form-fields')?.classList).toContain('stacked');
+    expect(labels()).toEqual([
+      'Secure coding ticket number',
+      'APO number',
+      'Bitbucket URL',
+      'Artifact link',
+      'QC application link',
+    ]);
+    expect(inputOf(page(), 'Secure coding ticket number').readOnly).toBe(false);
+    expect(inputOf(page(), 'APO number').value).toBe('APO-12345');
+    expect(inputOf(page(), 'APO number').readOnly).toBe(true);
+  });
+
+  it('asks the template for the secure coding defaults of every change, without a ticket', async () => {
+    await render('secure', changeTemplate(), { admin: true });
+
+    expect(labels()).toEqual(['APO number', 'Bitbucket URL', 'Artifact link', 'QC application link']);
+    const bitbucket = inputOf(page(), 'Bitbucket URL');
+    expect(bitbucket.readOnly).toBe(false);
+    bitbucket.value = 'bitbucket.bbh.com';
+    bitbucket.dispatchEvent(new Event('input'));
+    bitbucket.dispatchEvent(new Event('blur'));
+    await settle();
+    expect(text(fieldOf(page(), 'Bitbucket URL')?.querySelector('dso-error'))).toBe(HTTP_URL_ERROR);
+    expect(form.controls.secureCoding.controls.bitbucketUrl.value).toBe('bitbucket.bbh.com');
   });
 
   it('shows the planning texts and the schedule defaults of a template', async () => {

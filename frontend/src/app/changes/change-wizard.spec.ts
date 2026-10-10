@@ -13,6 +13,7 @@ import { LookupItem } from '../core/models';
 import {
   changeOptions,
   changeProfile,
+  changeSchedule,
   changeTask,
   changeTemplate,
   epic,
@@ -27,6 +28,7 @@ import { department, productSummary } from '../testing/fixtures';
 import { isoDate } from './change-model';
 import { localInput } from './change-schedule-model';
 import { ChangeWizard } from './change-wizard';
+import { implementationDateOf } from './secure-coding-model';
 
 const ME = { name: 'Mateusz Matan' };
 
@@ -48,7 +50,7 @@ async function settled(fixture: ComponentFixture<ChangeWizard>) {
 function flushIntegrations(http: HttpTestingController) {
   http
     .expectOne('/api/changes/integrations')
-    .flush({ jiraConnected: false, serviceNowConnected: false });
+    .flush({ jiraConnected: false, serviceNowConnected: false, cyberTrackConnected: false });
 }
 
 describe('ChangeWizard', () => {
@@ -173,7 +175,7 @@ describe('ChangeWizard', () => {
 
   async function toReview() {
     await toSchedule();
-    for (let step = 3; step < 8; step++) {
+    for (let step = 3; step < 7; step++) {
       await next();
     }
   }
@@ -185,9 +187,10 @@ describe('ChangeWizard', () => {
     expect(text(page().querySelector('dso-integration-note'))).toBe(
       'Demo mode. Jira and ProTech are not connected yet, so the epics and stories are examples ' +
         'and no change reaches the real ProTech. A demo ProTech gives each change its number, ' +
-        'moves it through the workflow on its own and applies an update a few seconds after it is published.',
+        'moves it through the workflow on its own and applies an update a few seconds after it is published. ' +
+        'CyberTrack is not connected yet, so a secure coding ticket gets an example number and does not reach the real Jira project SCP.',
     );
-    expect(text(page().querySelector('.step-count'))).toBe('Step 1 of 11');
+    expect(text(page().querySelector('.step-count'))).toBe('Step 1 of 8');
     expect(text(page().querySelector('.step-bar .current .step-label'))).toBe('Request data');
     expect(
       [...page().querySelectorAll('.step-bar button')].map((button) =>
@@ -204,10 +207,7 @@ describe('ChangeWizard', () => {
       'Planning',
       'Privileged access',
       'Risk assessment',
-      'Secure coding',
       'Review',
-      'Change tasks',
-      'Raised',
     ]);
     expect(
       wizard()
@@ -380,8 +380,8 @@ describe('ChangeWizard', () => {
     await chooseOption('How many privileged accounts', '1');
     await next();
     expect(wizard()['step']()).toBe(5);
-    await type('Person', 'Jane Smith');
-    await type('Privileged account', 'adm_jsmith');
+    await type('Person 1', 'Jane Smith');
+    await type('Privileged access 1', 'adm_jsmith');
 
     await next();
     expect(wizard()['step']()).toBe(6);
@@ -389,9 +389,6 @@ describe('ChangeWizard', () => {
 
     await next();
     expect(wizard()['step']()).toBe(7);
-    await type('Secure coding ticket number', 'SEC-12');
-    await next();
-    expect(wizard()['step']()).toBe(8);
 
     const preview = http.expectOne('/api/changes/preview');
     expect(preview.request.body).toMatchObject({
@@ -425,7 +422,8 @@ describe('ChangeWizard', () => {
           users: [{ user: 'Jane Smith', account: 'adm_jsmith' }],
         },
         riskAssessment: { businessImpact: 'High', bbhUsers: '5-25' },
-        secureCodingTicket: 'SEC-12',
+        secureCodingTicket: null,
+        secureCoding: { apoNumber: 'APO-12345' },
       },
     });
     expect(preview.request.body.tasks).toBeUndefined();
@@ -441,11 +439,13 @@ describe('ChangeWizard', () => {
     await type('Short description', 'CertScanner 4.2');
     expect(page().querySelector('dso-change-tasks-form')).toBeNull();
 
-    expect(wizard()['nextLabel']()).toBe('Raise the change in ProTech');
+    expect(wizard()['nextLabel']()).toBe('Create and add CTASKs and SecureCoding ticket');
     expect(text(page().querySelector('.lead'))).toBe(
-      'Check every value, then raise the change: ProTech creates it and gives it its change number (CHG). ' +
-        'You add its change tasks in the next step.',
+      'Check every value, then create the change: ProTech creates it and gives it its change number (CHG). ' +
+        'Two more steps then follow: you add its change tasks (CTASKs), which carry that number, ' +
+        'and create its secure coding ticket in CyberTrack.',
     );
+    expect(page().querySelector('dso-secure-coding-form')).toBeNull();
     expect([...page().querySelectorAll('h3')].map(text)).toEqual(
       expect.arrayContaining(['Every value of the change', 'Text sent to ProTech']),
     );
@@ -466,18 +466,24 @@ describe('ChangeWizard', () => {
     );
     await settle();
 
-    expect(wizard()['step']()).toBe(9);
+    expect(wizard()['step']()).toBe(8);
     expect(text(page().querySelector('h2'))).toBe('Change tasks of CHG0012345');
     expect(text(page().querySelector('.raised-note'))).toBe(
-      'CHG0012345 is raised in ProTech. Now add its change tasks to it.',
+      'CHG0012345 is created in ProTech. Now add its change tasks to it.',
     );
-    expect(text(page().querySelector('.step-count'))).toBe('Step 10 of 11');
+    expect(text(page().querySelector('.step-count'))).toBe('Step 9 of 10');
+    expect([...page().querySelectorAll('.step-label')].map(text).slice(6)).toEqual([
+      'Risk assessment',
+      'Review',
+      'Add CTASKs',
+      'Secure coding',
+    ]);
     expect(text(page().querySelector('.step-actions .btn-outline-primary'))).toBe(
-      'Add change tasks later',
+      'Add CTASKs later',
     );
     expect(wizard().hasUnsavedChanges()).toBe(true);
     expect(buttonOf(page(), 'Back')).toBeUndefined();
-    expect(wizard()['nextLabel']()).toBe('Create the change tasks in ProTech');
+    expect(wizard()['nextLabel']()).toBe('Create the CTASKs in ProTech');
     const tasks = wizard()['tasks']()!;
     const rows = () => [...page().querySelectorAll<HTMLElement>('dso-change-tasks-form .task-row')];
     expect(rows().map((row) => text(row.querySelector('.kind')))).toEqual([
@@ -489,7 +495,7 @@ describe('ChangeWizard', () => {
     expect(tasks.at(0).controls.start.value).toBe(localInput(new Date('2026-10-10T06:01:00Z')));
     tasks.at(1).controls.details.controls.shortDescription.setValue(' ');
     await next();
-    expect(wizard()['step']()).toBe(9);
+    expect(wizard()['step']()).toBe(8);
     expect(wizard()['stepProblem']()).toBe('Check the change tasks');
     tasks.at(1).controls.details.controls.shortDescription.setValue('Validate it');
     tasks.at(0).controls.details.controls.platform.setValue('OpenShift');
@@ -543,8 +549,57 @@ describe('ChangeWizard', () => {
     );
     await settle();
 
+    expect(wizard()['step']()).toBe(9);
+    expect(text(page().querySelector('h2'))).toBe('Secure coding ticket of CHG0012345');
+    expect(text(page().querySelector('.step-count'))).toBe('Step 10 of 10');
+    expect(wizard()['nextLabel']()).toBe('Create the secure coding ticket in CyberTrack');
+    expect(text(page().querySelector('.step-actions .btn-outline-primary'))).toBe(
+      'Create the ticket later',
+    );
+    const date = implementationDateOf(changeSchedule().installationStart);
+    expect(inputOf(page(), 'APO number').value).toBe('APO-12345');
+    expect(inputOf(page(), 'Implementation date').value).toBe(date);
+    expect(inputOf(page(), 'Implementation date').readOnly).toBe(true);
+    expect(inputOf(page(), 'Bitbucket URL').value).toBe(
+      'https://bitbucket.bbh.com/projects/CERT/repos/cert',
+    );
+    expect(inputOf(page(), 'Ticket name in CyberTrack').value).toBe(
+      `APO-12345_CertScanner-${date}`,
+    );
+    await type('APO number', ' ');
+    expect(inputOf(page(), 'Ticket name in CyberTrack').value).toBe(`APO-ID_CertScanner-${date}`);
+    await next();
+    expect(wizard()['step']()).toBe(9);
+    expect(text(page().querySelector('.step-problem'))).toBe('Some fields need your attention.');
+    http.expectNone({ method: 'POST', url: '/api/changes/7/secure-coding' });
+    await type('APO number', ' APO-777 ');
+    await type('QC application link', 'https://cert-qc.bbh.com');
+
+    await next();
+    const ticket = http.expectOne({ method: 'POST', url: '/api/changes/7/secure-coding' });
+    expect(ticket.request.body).toEqual({
+      version: 4,
+      departmentId: 3,
+      apoNumber: 'APO-777',
+      implementationDate: date,
+      bitbucketUrl: 'https://bitbucket.bbh.com/projects/CERT/repos/cert',
+      artifactLink: 'https://jenkins.bbh.com/job/CERT/job/cert-release/',
+      qcApplicationLink: 'https://cert-qc.bbh.com',
+    });
+    ticket.flush(
+      productionChange({
+        shortDescription: 'CertScanner 4.2',
+        template: changeTemplate({ release: 'CERT 4.2', secureCodingTicket: 'SCP-1234' }),
+        tasks: [changeTask({ details: releaseDetails('Deploy CertScanner to production') })],
+      }),
+    );
+    await settle();
+
     expect(wizard()['step']()).toBe(10);
-    expect(text(page().querySelector('h2'))).toBe('CHG0012345 is raised');
+    expect(text(page().querySelector('h2'))).toBe('CHG0012345 is created');
+    expect(text(page().querySelector('.step-count'))).toBe('Step 11 of 11');
+    expect(inputOf(page(), 'Change number').value).toBe('CHG0012345');
+    expect(inputOf(page(), 'Secure coding ticket number').value).toBe('SCP-1234');
     expect(text(page().querySelector('.review-list'))).toBe(
       'CTASK0020001 · Deploy CertScanner to production · Release Management',
     );
@@ -561,7 +616,7 @@ describe('ChangeWizard', () => {
       '/beadle/changes/7',
     );
     expect(text(page().querySelector('.step-actions a.btn-primary'))).toBe('Open the change');
-    expect(buttonOf(page(), 'Raise another change').classList).toContain('btn-outline-primary');
+    expect(buttonOf(page(), 'Create another change').classList).toContain('btn-outline-primary');
     expect(wizard().hasUnsavedChanges()).toBe(false);
 
     wizard()['restart']();
@@ -576,7 +631,7 @@ describe('ChangeWizard', () => {
     await next();
     const headings = () => [...page().querySelectorAll('h3')].map(text);
     expect(headings()).not.toContain('Text sent to ProTech');
-    expect(text(page().querySelector('.step-count'))).toBe('Step 2 of 11');
+    expect(text(page().querySelector('.step-count'))).toBe('Step 2 of 8');
     expect(text(page().querySelector('.step-actions .btn-primary'))).toBe('Next: Approval');
     expect(buttonOf(page(), 'Back').classList).toContain('btn-outline-primary');
     expect(text(page().querySelector('.lead'))).toBe(
@@ -662,7 +717,7 @@ describe('ChangeWizard', () => {
     );
     await settle();
 
-    expect(wizard()['step']()).toBe(8);
+    expect(wizard()['step']()).toBe(7);
     expect(wizard()['problems']()).toEqual([
       'Installation start: must be in the future',
       'Installation end: must be after the start',
@@ -704,7 +759,7 @@ describe('ChangeWizard', () => {
     );
     await settle();
 
-    expect(wizard()['step']()).toBe(9);
+    expect(wizard()['step']()).toBe(8);
     expect(text(page().querySelector('.save-problem strong'))).toBe(
       'The change tasks could not be created: 2 fields are invalid',
     );
@@ -723,16 +778,49 @@ describe('ChangeWizard', () => {
     buttonOf(page(), 'Remove change task 1').click();
     await next();
     expect(wizard()['stepProblem']()).toBe(
-      'Add at least one change task, or choose Add change tasks later',
+      'Add at least one change task, or choose Add CTASKs later',
     );
     http.expectNone({ method: 'POST', url: '/api/changes/7/tasks' });
 
-    buttonOf(page(), 'Add change tasks later').click();
+    buttonOf(page(), 'Add CTASKs later').click();
+    await settle();
+    expect(wizard()['step']()).toBe(9);
+    expect(page().querySelector('.save-problem')).toBeNull();
+    expect(wizard().hasUnsavedChanges()).toBe(true);
+
+    await next();
+    http.expectOne({ method: 'POST', url: '/api/changes/7/secure-coding' }).flush(
+      {
+        detail: '2 fields are invalid',
+        errors: [
+          { field: 'apoNumber', message: 'is too long: it may take at most 40 bytes' },
+          { field: 'artifactLink', message: 'must be a link starting with https:// or http://' },
+        ],
+      },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    await settle();
+    const ticket = wizard()['secureCoding']()!;
+    expect(wizard()['step']()).toBe(9);
+    expect(text(page().querySelector('.save-problem strong'))).toBe(
+      'The secure coding ticket could not be created: 2 fields are invalid',
+    );
+    expect(ticket.controls.apoNumber.errors).toEqual({
+      server: 'is too long: it may take at most 40 bytes',
+    });
+    expect(ticket.controls.artifactLink.errors).toEqual({
+      server: 'must be a link starting with https:// or http://',
+    });
+
+    buttonOf(page(), 'Create the ticket later').click();
     await settle();
     expect(wizard()['step']()).toBe(10);
     expect(page().querySelector('.save-problem')).toBeNull();
     expect(text(page().querySelector('.review-list'))).toBe(
       'None yet. Add them with Edit the change on its page.',
+    );
+    expect(inputOf(page(), 'Secure coding ticket number').placeholder).toBe(
+      'Not created yet: create it on the change page',
     );
     expect(wizard().hasUnsavedChanges()).toBe(false);
   });
@@ -1094,7 +1182,7 @@ describe('ChangeWizard', () => {
     expect(text(page().querySelector('.save-problem strong'))).toBe(
       'The change could not be previewed: Jira is down',
     );
-    expect(buttonOf(page(), 'Raise the change in ProTech').disabled).toBe(true);
+    expect(buttonOf(page(), 'Create and add CTASKs and SecureCoding ticket').disabled).toBe(true);
 
     buttonOf(page(), 'Try again').click();
     await settle();
@@ -1103,7 +1191,7 @@ describe('ChangeWizard', () => {
 
     expect(page().querySelector('.save-problem')).toBeNull();
     expect(wizard()['shortDescription'].value).toBe('CertScanner CERT 4.2: Expiry alerts');
-    expect(buttonOf(page(), 'Raise the change in ProTech').disabled).toBe(false);
+    expect(buttonOf(page(), 'Create and add CTASKs and SecureCoding ticket').disabled).toBe(false);
   });
 });
 

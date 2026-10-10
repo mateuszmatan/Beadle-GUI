@@ -56,7 +56,7 @@ class ChangeFlagsMigrationSpec extends MigrationSpecification {
 
         then:
         jdbc.queryForList('SELECT ID FROM DATABASECHANGELOG WHERE ID LIKE ?', String, '%-change-flags-h2').sort() ==
-                ['020-change-flags-h2', '021-change-flags-h2']
+                ['020-change-flags-h2', '021-change-flags-h2', '025-change-flags-h2']
         change.syncedAt() == SYNCED
         change.template().downtime()
         edited.shortDescription() == 'Synced from ProTech'

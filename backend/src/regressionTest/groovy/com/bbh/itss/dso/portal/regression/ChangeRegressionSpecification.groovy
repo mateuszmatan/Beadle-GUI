@@ -52,7 +52,7 @@ abstract class ChangeRegressionSpecification extends PortalSpecification {
     protected static Map raisedAs(Map template, String release, String department = 'Corporate Technology') {
         template + [release: release, requestedFor: template.requestedFor ?: SIGNED_IN,
                     requestedBy: template.requestedBy ?: SIGNED_IN, department: template.department ?: department,
-                    assignedTo: template.assignedTo ?: SIGNED_IN]
+                    assignedTo: template.assignedTo ?: SIGNED_IN, secureCodingTicket: null]
     }
 
     protected static String enc(String text) {

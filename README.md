@@ -97,15 +97,19 @@ Beadle, in three tabs:
   shows at once. "Where the change is" names its state, what it waits for (the approver by name, for example) and the
   workflow progress through Draft, Business Approval, Primary Approval, Secondary Approval, CTask approval, Escalated
   approval, Implementation and Closed; "The change at a glance" shows when it installs, what it delivers and who
-  approves; then come its change tasks with their state in words, and two collapsed panels: "All ProTech fields",
+  approves; then come its change tasks, each with every field of the change task form, read-only, and its state in
+  words, and two collapsed panels: "All ProTech fields",
   with its change number, approval (Not Yet Requested in Draft, Requested in the approval stages, Approved from
   Implementation on) and who opened it, and "Text sent to ProTech". An open change can be edited by its department
   with **Edit the change** (**Edit change** in its row), in the same sections as New Change: the update is published
   to ProTech at once, and Beadle checks and shows whether ProTech applied it (the row says "Update pending" until
-  then). While Jira or ProTech is not connected, a "Demo mode" banner on Changes and New Change says so.
+  then). While an open change of your department has no secure coding ticket, a note on its page offers **Create the
+  secure coding ticket** (see [Secure coding ticket](#secure-coding-ticket)). While Jira, ProTech or CyberTrack is not
+  connected, a "Demo mode" banner on Changes and New Change says so.
   See [ProTech production changes](#protech-production-changes).
-- **New Change**: the guided wizard that raises a change for a production release. A bar shows its eleven steps with
-  their numbers, "Step n of 11" heads each one, and the button at the bottom names the next step (**Next: Jira**).
+- **New Change**: the guided wizard that raises a change for a production release. A bar shows its steps with their
+  numbers: eight until the change is created ("Step n of 8" heads each one), then **Add CTASKs** and **Secure
+  coding** join them and a **Summary** ends the wizard. The button at the bottom names the next step (**Next: Jira**).
   Choose the department and the product: the product's change template fills in every step, and each value can be
   changed for this change. A magnifier next to a person, the department, the assignment group, the release, the affected
   CI, the incident, the problem and the affected clients searches ProTech (see [Lookups](#lookups)) and fills the field
@@ -127,18 +131,22 @@ Beadle, in three tabs:
      window. The template's start time and hours are the defaults, on the release date of the FixVersion while that
      start is still ahead, otherwise on the next day.
   5. **Planning**: test summary, implementation plan, validation plan, backout plan and first use plan.
-  6. **Privileged access**: how many privileged accounts (none to seven), each with its person and its account name.
+  6. **Privileged access**: how many privileged accounts (none to seven), each on one line: the person (with a
+     magnifier) on the left and the privileged access on the right.
   7. **Risk assessment**: nine questions in two columns, each answered from a fixed list; the template's answers are
      the defaults.
-  8. **Secure coding**: the secure coding ticket number.
-  9. **Review**: every value of the change and the text sent to ProTech, which can still be changed; **Raise the
-     change in ProTech** creates the change (CHG) in ProTech, which gives it its number.
-  10. **Change tasks**: the change tasks (CTASK) of the raised change, prefilled from the default change tasks of the
-      template (see [Change tasks](#change-tasks)) and created against its number with **Create the change tasks in
-      ProTech**; **Add change tasks later** skips them, and **Edit the change** on the change page adds them
-      afterwards.
-  11. **Raised**: the change number, the FixVersion, the installation window, the change tasks and what happens next,
-      with **Open the change** and **Raise another change**.
+  8. **Review**: every value of the change and the text sent to ProTech, which can still be changed; **Create and add
+     CTASKs and SecureCoding ticket** creates the change (CHG) in ProTech, which gives it its number. A CTASK can
+     only be created under a CHG that exists, so the two steps that need the number follow.
+  9. **Add CTASKs**: the change tasks (CTASK) of the created change, prefilled from the default change tasks of the
+     template (see [Change tasks](#change-tasks)) and created against its number with **Create the CTASKs in
+     ProTech**; **Add CTASKs later** skips them, and **Edit the change** on the change page adds them afterwards.
+  10. **Secure coding**: the secure coding ticket of the change in CyberTrack (see
+      [Secure coding ticket](#secure-coding-ticket)), its inputs filled in from the template; **Create the secure
+      coding ticket in CyberTrack** creates it, and **Create the ticket later** leaves it to the change page.
+  11. **Summary**: the change number and the secure coding ticket number (both read-only), the FixVersion, the
+      installation window, the change tasks and what happens next, with **Open the change** and **Create another
+      change**.
 - **Admin**, in two tabs: **Departments** (the same departments as DevSecOps Admin, without the pipeline counts) and
   **Products**: every product by department with the state of its change template, "Filled in" (with when it was
   saved) or "Not filled in yet". Add a product with its name, product code, department, owner team and contact e-mail
@@ -233,7 +241,8 @@ seeded there. Every demo product without a saved change template gets a filled o
 (`adapter/in/startup/DemoChangeProfiles.java`), picked with a fixed seed per product code: the assignment group of
 its owner team, its direct business service from the configuration item search, approvers, schedule defaults,
 planning texts, a risk assessment from the fixed answers, affected clients and users affected that match the
-answers, downtime for the products whose risk is High, a secure coding ticket, privileged access for Payments Hub,
+answers, downtime for the products whose risk is High, an APO number and the Bitbucket, Jenkins and QC links of the
+secure coding ticket, privileged access for Payments Hub,
 and two or three default change tasks ("Deploy <product> to production" for Release Management, "Run the database
 scripts of <product>" for Database Administration for the products whose risk is Moderate or High, "Validate
 <product> in production" for its support group); the texts are cut to the bytes ProTech takes, and a product whose
@@ -353,6 +362,8 @@ start over with a new catalogue and a history that ends at the new start.
 | `GRAFANA_2_DASHBOARD_URL`, `GRAFANA_2_SECURITY_DASHBOARD_URL`, `GRAFANA_2_NAME` | empty, empty, `Grafana 2` | the same for a second Grafana instance; both empty links leave it out |
 | `DSO_DEMO_DATA` | `true` with `local` | create the demo products when the database holds no other product, and without `INFLUX_URL` a run history; see [Demo data](#demo-data) |
 | `DSO_SIGNED_IN_USER` | `Mateusz Matan` | the user Beadle names as the signed-in user (`GET /api/me`, Opened by of a new change and the default requester and assignee) until BBH single sign-on exists |
+| `CYBERTRACK_URL`, `CYBERTRACK_TOKEN` | empty | the Jira of CyberTrack and its token; empty creates demo secure coding tickets (see [Secure coding ticket](#secure-coding-ticket)) |
+| `CYBERTRACK_PROJECT_KEY`, `CYBERTRACK_ISSUE_TYPE` | `SCP`, `Task` | the Jira project and issue type of a secure coding ticket |
 
 ```bash
 SPRING_PROFILES_ACTIVE=qc DB_URL=jdbc:oracle:thin:@//<host>:1521/<service> DB_USERNAME=DSO_PORTAL DB_PASSWORD=... \
@@ -632,7 +643,8 @@ tasks (`DSO_CHANGE_PROFILE_PRIVILEGED_USER`, `DSO_CHANGE_PROFILE_TASK`), and eve
 tasks and their states (`DSO_PRODUCTION_CHANGE_TASK`, `TASK_NUMBER` empty until ProTech created the task), the stages
 it entered (`DSO_PRODUCTION_CHANGE_STAGE`) and its privileged users (`DSO_PRODUCTION_CHANGE_PRIVILEGED_USER`).
 Both tables hold the request fields of the wizard (`REQUESTED_FOR`, `REQUESTED_BY`, `REQUEST_DEPARTMENT`,
-`ASSIGNED_TO`, `DIRECT_BUSINESS_SERVICE`, `USERS_AFFECTED`, `SECURE_CODING_TICKET`) and the nine risk answers as
+`ASSIGNED_TO`, `DIRECT_BUSINESS_SERVICE`, `USERS_AFFECTED`, `SECURE_CODING_TICKET`), the secure coding inputs
+(`APO_NUMBER`, `BITBUCKET_URL`, `ARTIFACT_LINK`, `QC_APPLICATION_LINK`) and the nine risk answers as
 their list values (`RISK_*`); the computed risk is not stored. A change also keeps who opened it (`OPENED_BY`) and
 its downtime window (`DOWNTIME_START`, `DOWNTIME_END`).
 
@@ -766,10 +778,11 @@ product's page:
 - **Privileged access**: yes or no; when yes, up to seven users, each with the name of their privileged account.
 - **Risk assessment**: nine questions, each answered from its list (below); an answer left out is the first of its
   list.
-- **Secure coding**: the secure coding ticket number.
-- **Change tasks**: the default CTASKs of a change, one to fifty, each with the fields of
-  [Change tasks](#change-tasks) except those the change gives it: the number, the change number, the approval, the
-  installation window and the task start.
+- **Secure coding**: the defaults of the secure coding ticket: APO number, Bitbucket URL, artifact link and QC
+  application link (see [Secure coding ticket](#secure-coding-ticket)).
+- **Change tasks**: the default CTASKs of a change, one to fifty, in the same form as
+  [Change tasks](#change-tasks); the fields the change gives a task (the number, the change number, the approval, the
+  installation window and the task start) stay empty and say where their value comes from.
 
 | Question | Answers |
 |----------|---------|
@@ -844,7 +857,7 @@ FixVersion unless the template or the user name another, and the people and the 
 The short description names the product, the FixVersion and the epics; the description names the product, its
 department and the schedule with the downtime window (or "No downtime"), lists every epic with its
 chosen stories, then the planning texts, privileged access, the risk with every answer, the users affected and the
-secure coding ticket, cut to the 160 and 4000 bytes ProTech takes. Both stay
+secure coding ticket once it exists, cut to the 160 and 4000 bytes ProTech takes. Both stay
 editable until the change is raised; each new preview writes them again, keeping a text the user edited and offering
 the new one. The change belongs to the department of its product, so New Change lists only
 the products in a department; an admin places the others in one in Beadle Admin first.
@@ -855,8 +868,9 @@ it used, so it outlives later edits of the template and the product itself; it s
 
 ProTech creates a change task (CTASK) only under a change it holds, so New Change raises the change first and then
 creates its change tasks one by one against the new CHG number (`POST /api/changes/{id}/tasks`); an open change gets
-more on its Edit page. A task form lays its fields out in two columns, left then right, and its assignment group
-decides which fields it has. A group whose name contains "Release Management" (ignoring case) makes a release task:
+more on its Edit page. One task form serves adding, editing and viewing (read-only, on the change page and without
+the magnifiers). It lays its fields out compactly in two columns, left then right, with the text areas one under
+another across the width, and its assignment group decides which fields it has. A group whose name contains "Release Management" (ignoring case) makes a release task:
 
 - number (given by ProTech) and change number;
 - assignment group and assigned to, each with a magnifier;
@@ -878,6 +892,35 @@ and a schedule moved on the Edit page keeps the start of every release task insi
 is refused at that task. The demo ProTech asks for the approval of the tasks when the change reaches CTask approval
 and approves them once the change moves past it. `022-change-task-fields.sql` added the fields; a task stored before takes the
 assignment group and the affected CI of its change or template.
+
+### Secure coding ticket
+
+Every change gets a secure coding ticket in CyberTrack, the Jira project SCP. It is created after the change, in the
+Secure coding step of New Change or with **Create the secure coding ticket** on the change page
+(`POST /api/changes/{id}/secure-coding`), from five inputs, all required:
+
+- **APO number**: the ID of the application in Apollo (up to 40 bytes);
+- **Implementation date**: the day the installation starts, written MMDDYYYY (10152026), filled in from the change;
+- **Bitbucket URL**: the repository, for the SAST scan;
+- **Artifact link**: the build in Jenkins or the artifact in Nexus, for the OSA (Nexus IQ) scan;
+- **QC application link**: the application on QC, for the DAST scan.
+
+The links must start with `https://` or `http://` and take up to 500 bytes. The change template keeps the APO number
+and the three links as defaults. The ticket's summary is `APO-ID_APP-NAME-IMPLEMENTATION-DATE`, for example
+`APO-31337_CertScanner-10152026` (the application name is the product's name), and its description lists every input
+and the change number. Beadle then stores the ticket number with the inputs and publishes it to ProTech as the
+change's secure coding ticket number, like any update (see [Editing a change](#editing-a-change)). A change that
+already has a ticket, a closed change, another department, a stale version or a pending update is refused as an
+update is; when CyberTrack created the ticket but ProTech refuses it, the message names the ticket to enter with
+**Edit the change**. `025-secure-coding-ticket.sql` added the inputs (`APO_NUMBER`, `BITBUCKET_URL`,
+`ARTIFACT_LINK`, `QC_APPLICATION_LINK`) to the template and the change, and emptied the secure coding ticket number
+templates used to hold, because a ticket belongs to one change.
+
+CyberTrack sits behind the out port `CyberTrackPort`. Without `CYBERTRACK_URL` the demo adapter numbers the tickets
+`SCP-nnnn` and nothing reaches Jira; with it, `JiraCyberTrackAdapter` creates the issue with
+`POST <CYBERTRACK_URL>/rest/api/2/issue` (project `CYBERTRACK_PROJECT_KEY`, `SCP` by default, issue type
+`CYBERTRACK_ISSUE_TYPE`, `Task` by default) and sends `CYBERTRACK_TOKEN` as a bearer token, so it needs a Jira user
+allowed to create issues in that project and HTTPS access from the portal pods to Jira.
 
 ### Synchronisation and the workflow
 
@@ -1012,7 +1055,7 @@ secrets.
 | `GET /api/evidence/products/{id}` | the change evidence of a product's pipelines |
 | `GET`/`PUT /api/settings` | the DSOEnhanced library defaults (Admin > Library defaults); `PUT` carries the `version` it was read at |
 | `GET`/`PUT /api/service-template` | the template of a new service (Admin > Service template): `agentLabels`, `jenkinsJob`, the Gradle, Maven and Flutter tasks, artifacts and scan patterns, `deliveryTasks`, `nexusIqApplication`, `repositoryUrl`, `bitbucketCredentialsId`, `openShiftProject`, `imageRegistry` and `healthCheckUrl`; `version` is `null` until it is saved (it then holds the BBH defaults), and `PUT` carries the `version` it was read at (409 when stale); a placeholder other than `{CODE}`, `{code}`, `{service}` (and `{type}` in the job) is refused, and so is a name too long for its column once the longest code and service name are filled in |
-| `GET`/`PUT /api/products/{id}/change-profile` | the change template of a product: `template` with the ProTech fields (among them `requestedFor`, `requestedBy`, `department`, `assignedTo`, `directBusinessService`, `usersAffected`, `secureCodingTicket`, `riskAssessment` with the nine answers and `risk`, which is computed and ignored when sent) and `tasks`, its default change tasks (the `details` fields of `POST /api/changes/{id}/tasks`; one to fifty); `version` is `null` until it is saved (it then holds the suggestion), and `PUT` carries `version`, `template` and `tasks` |
+| `GET`/`PUT /api/products/{id}/change-profile` | the change template of a product: `template` with the ProTech fields (among them `requestedFor`, `requestedBy`, `department`, `assignedTo`, `directBusinessService`, `usersAffected`, `secureCoding` with `apoNumber`, `bitbucketUrl`, `artifactLink` and `qcApplicationLink`, `riskAssessment` with the nine answers and `risk`, which is computed and ignored when sent) and `tasks`, its default change tasks (the `details` fields of `POST /api/changes/{id}/tasks`; one to fifty); `version` is `null` until it is saved (it then holds the suggestion), and `PUT` carries `version`, `template` and `tasks` |
 | `GET /api/change-profiles` | the products with a saved change template: `productId`, `productName`, `version`, `updatedAt` |
 | `GET /api/products/{id}/jira/versions`, `/jira/epics?fixVersion=`, `/jira/stories?fixVersion=&epics=` | the FixVersions of the product's Jira project (unreleased first), the epics of a FixVersion and the stories of the chosen epics that carry it; `project=` names another Jira project key |
 | `GET /api/me` | the signed-in user, `{name}`; `dso.signed-in-user` until BBH single sign-on |
@@ -1022,7 +1065,8 @@ secrets.
 | `POST /api/changes/{id}/tasks` | create change tasks under a raised, open change in ProTech, one by one: `version`, `departmentId` (which must own the change) and `tasks`, one to fifty, each with `details` (`assignmentGroup`, `assignedTo`, `configurationItem`, `platform`, `application`, `packages`, `backoutPackages`, `importance`, `shortDescription`, `description`, `additionalComments`) and, for a release task, `start`; answers the change with the numbered tasks; 403 for another department, 409 when stale, pending or closed |
 | `GET /api/changes?departmentId=`, `GET /api/changes/{id}` | the raised changes, newest first, all or of one department, and one change, each read from ProTech first (closed changes of the list are not read again): with `departmentId`, `openedBy`, `state`, `workflow` (each stage with `enteredAt`), the tasks with their `number`, `details`, `start`, `approval` and `state`, `syncedAt`, `syncProblem` when ProTech could not be read, `update` (the status of the last update from Beadle), `version` and `editedVersion` |
 | `PUT /api/changes/{id}` | update an open change in ProTech: `version`, `departmentId` (the user's department, which must own the change), `shortDescription`, `description`, `schedule`, `template` and `tasks` (each with its `number`, or none for a new task, its `details` and its `start`; the list may be empty); answers the change with `update.status` `PENDING`, `APPLIED` or `NOT_APPLIED`; 403 for another department, 409 when stale or closed, 503 when ProTech cannot be reached |
-| `GET /api/changes/integrations` | whether Jira and ProTech are connected (`jiraConnected`, `serviceNowConnected`) |
+| `POST /api/changes/{id}/secure-coding` | create the secure coding ticket of an open change in CyberTrack and publish its number to ProTech: `version`, `departmentId` (which must own the change), `apoNumber`, `implementationDate` (MMDDYYYY), `bitbucketUrl`, `artifactLink` and `qcApplicationLink`, all required; answers the change with `template.secureCodingTicket`; 400 for a missing or wrong input, 403 for another department, 409 when it already has a ticket or is stale, pending or closed, 503 when CyberTrack cannot be reached or refuses the ticket, or ProTech cannot be reached |
+| `GET /api/changes/integrations` | whether Jira, ProTech and CyberTrack are connected (`jiraConnected`, `serviceNowConnected`, `cyberTrackConnected`) |
 
 A `range` is a number of days from `1d` to `730d`, `30d` when left out. Errors are RFC 9457 problem details;
 validation errors name the failing fields, for example `services[2].build.javaPath`. Key values are only sent by the

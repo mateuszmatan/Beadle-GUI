@@ -96,6 +96,12 @@ export function changeTemplate(overrides: Partial<ChangeTemplate> = {}): ChangeT
       businessImpact: 'Low',
     },
     secureCodingTicket: null,
+    secureCoding: {
+      apoNumber: 'APO-12345',
+      bitbucketUrl: 'https://bitbucket.bbh.com/projects/CERT/repos/cert',
+      artifactLink: 'https://jenkins.bbh.com/job/CERT/job/cert-release/',
+      qcApplicationLink: 'https://cert.qc.bbh.com',
+    },
     ...overrides,
   };
 }

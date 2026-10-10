@@ -20,7 +20,12 @@ import { errorMessage, fieldProblems } from '../core/errors';
 import { CHANGES, NEW_CHANGE, beadleChange, beadleProduct } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { byDepartment } from '../products/departments';
-import { applyProblemsAt, byteLength, filled } from '../shared/form-controls';
+import {
+  applyFieldProblems,
+  applyProblemsAt,
+  byteLength,
+  filled,
+} from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
 import { DsoCheckbox } from '../ui/checkbox';
@@ -48,7 +53,7 @@ import {
   scheduleForm,
   scheduleValue,
 } from './change-schedule-model';
-import { SECTIONS, SectionKey, changeFacts, sectionControls } from './change-sections';
+import { SectionKey, WIZARD_SECTIONS, changeFacts, sectionControls } from './change-sections';
 import { ChangeSummary } from './change-summary';
 import { ChangeTasksForm } from './change-tasks-form';
 import {
@@ -67,29 +72,41 @@ import {
   withDefaults,
 } from './change-template-model';
 import { IntegrationNote } from './integration-note';
+import { SecureCodingFields } from './secure-coding-form';
+import { SecureCodingForm, secureCodingForm, secureCodingRequest } from './secure-coding-model';
 
-type StepKey = SectionKey | 'review' | 'tasks' | 'raised';
+type StepKey = SectionKey | 'review' | 'tasks' | 'ticket' | 'raised';
 
 const STEP_KEYS: readonly StepKey[] = [
-  ...SECTIONS.map((section) => section.key),
+  ...WIZARD_SECTIONS.map((section) => section.key),
   'review',
   'tasks',
+  'ticket',
   'raised',
 ];
 
 export const STEPS = [
-  ...SECTIONS.map((section) => section.step),
+  ...WIZARD_SECTIONS.map((section) => section.step),
   'Review',
-  'Change tasks',
-  'Raised',
+  'Add CTASKs',
+  'Secure coding',
+  'Summary',
 ];
 
+const REVIEW = STEP_KEYS.indexOf('review');
 const TASKS = STEP_KEYS.indexOf('tasks');
+const TICKET = STEP_KEYS.indexOf('ticket');
 const RAISED = STEP_KEYS.indexOf('raised');
 
 const NEXT_LABELS: Partial<Record<StepKey, string>> = {
-  review: 'Raise the change in ProTech',
-  tasks: 'Create the change tasks in ProTech',
+  review: 'Create and add CTASKs and SecureCoding ticket',
+  tasks: 'Create the CTASKs in ProTech',
+  ticket: 'Create the secure coding ticket in CyberTrack',
+};
+
+const LATER_LABELS: Partial<Record<StepKey, string>> = {
+  tasks: 'Add CTASKs later',
+  ticket: 'Create the ticket later',
 };
 
 const ATTENTION = 'Some fields need your attention.';
@@ -108,6 +125,7 @@ const ATTENTION = 'Some fields need your attention.';
     ChangeTasksForm,
     ChangeTemplateSection,
     IntegrationNote,
+    SecureCodingFields,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './change-wizard.html',
@@ -120,7 +138,7 @@ export class ChangeWizard implements HasUnsavedChanges {
 
   protected readonly section = NEW_CHANGE;
   protected readonly changes = CHANGES;
-  protected readonly steps = STEPS;
+  protected readonly laterLabels = LATER_LABELS;
   protected readonly errorText = errorText;
   protected readonly errorMessage = errorMessage;
   protected readonly windowText = windowText;
@@ -134,7 +152,7 @@ export class ChangeWizard implements HasUnsavedChanges {
   protected readonly step = signal(0);
   protected readonly stepKey = computed(() => STEP_KEYS[this.step()]);
   protected readonly current = computed(() =>
-    SECTIONS.find((section) => section.key === this.stepKey()),
+    WIZARD_SECTIONS.find((section) => section.key === this.stepKey()),
   );
   protected readonly checked = signal(false);
 
@@ -203,6 +221,7 @@ export class ChangeWizard implements HasUnsavedChanges {
   protected readonly details = signal<TemplateForm | null>(null);
   protected readonly schedule = signal<ScheduleForm | null>(null);
   protected readonly tasks = signal<TasksForm | null>(null);
+  protected readonly secureCoding = signal<SecureCodingForm | null>(null);
 
   protected readonly fixVersion = new FormControl('', {
     nonNullable: true,
@@ -278,6 +297,9 @@ export class ChangeWizard implements HasUnsavedChanges {
   protected readonly problem = signal<string | null>(null);
   protected readonly problems = signal<string[]>([]);
   protected readonly raised = signal<ProductionChange | null>(null);
+  protected readonly steps = computed(() =>
+    STEPS.slice(0, Math.max(this.step(), this.raised() ? TICKET : REVIEW) + 1),
+  );
   private filledRelease: string | null = null;
   private filledStart: string | null = null;
 
@@ -342,7 +364,8 @@ export class ChangeWizard implements HasUnsavedChanges {
 
   hasUnsavedChanges(): boolean {
     return (
-      this.stepKey() === 'tasks' ||
+      this.step() === TASKS ||
+      this.step() === TICKET ||
       (!this.raised() && (this.step() > 0 || this.searched() !== null || !!this.details()?.dirty))
     );
   }
@@ -379,6 +402,10 @@ export class ChangeWizard implements HasUnsavedChanges {
       this.createTasks();
       return;
     }
+    if (leaving === 'ticket') {
+      this.createTicket();
+      return;
+    }
     this.checked.set(false);
     this.step.update((step) => step + 1);
     if (leaving === 'jira') {
@@ -409,9 +436,11 @@ export class ChangeWizard implements HasUnsavedChanges {
           : null;
       case 'tasks':
         if (!this.tasks()!.length) {
-          return 'Add at least one change task, or choose Add change tasks later';
+          return 'Add at least one change task, or choose Add CTASKs later';
         }
         return this.tasks()!.invalid ? 'Check the change tasks' : null;
+      case 'ticket':
+        return this.secureCoding()!.invalid ? ATTENTION : null;
       case 'raised':
         return null;
       default:
@@ -508,12 +537,13 @@ export class ChangeWizard implements HasUnsavedChanges {
     this.checked.set(false);
     this.problem.set(null);
     this.problems.set([]);
-    this.step.set(RAISED);
+    this.step.update((step) => step + 1);
   }
 
   protected restart(): void {
     this.raised.set(null);
     this.tasks.set(null);
+    this.secureCoding.set(null);
     this.productId.setValue(null);
     this.checked.set(false);
     this.step.set(0);
@@ -548,6 +578,8 @@ export class ChangeWizard implements HasUnsavedChanges {
       this.schedule()!.markAllAsTouched();
     } else if (key === 'tasks') {
       this.tasks()!.markAllAsTouched();
+    } else if (key === 'ticket') {
+      this.secureCoding()!.markAllAsTouched();
     } else if (key !== 'review' && key !== 'raised' && this.details()) {
       sectionControls(this.details()!, key).forEach((control) => control.markAllAsTouched());
     }
@@ -676,6 +708,7 @@ export class ChangeWizard implements HasUnsavedChanges {
         next: (change) => {
           this.raised.set(change);
           this.tasks.set(this.draftTasks(change));
+          this.secureCoding.set(secureCodingForm(change));
           this.checked.set(false);
           this.step.set(TASKS);
         },
@@ -714,9 +747,38 @@ export class ChangeWizard implements HasUnsavedChanges {
           this.raised.set(tasked);
           this.tasks()!.markAsPristine();
           this.checked.set(false);
-          this.step.set(RAISED);
+          this.step.set(TICKET);
         },
         error: (error) => this.fail(error, 'The change tasks could not be created: '),
+      });
+  }
+
+  private createTicket(): void {
+    const change = this.raised()!;
+    this.raising.set(true);
+    this.problem.set(null);
+    this.problems.set([]);
+    this.changesApi
+      .createSecureCodingTicket(
+        change.id!,
+        secureCodingRequest(
+          this.secureCoding()!,
+          change,
+          this.departmentId.value ?? change.departmentId!,
+        ),
+      )
+      .pipe(
+        finalize(() => this.raising.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (ticketed) => {
+          this.raised.set(ticketed);
+          this.secureCoding()!.markAsPristine();
+          this.checked.set(false);
+          this.step.set(RAISED);
+        },
+        error: (error) => this.fail(error, 'The secure coding ticket could not be created: '),
       });
   }
 
@@ -735,12 +797,16 @@ export class ChangeWizard implements HasUnsavedChanges {
   private fail(error: unknown, lead = ''): void {
     const problems = fieldProblems(error);
     const tasks = this.tasks();
+    const ticket = this.secureCoding();
     const unmatched = applyTemplateProblems(this.details()!, problems);
-    applyProblemsAt(
+    const rest = applyProblemsAt(
       this.schedule()!,
       SCHEDULE_PREFIX,
       (tasks ? applyTaskProblems(tasks, unmatched) : unmatched).map(onHours),
     );
+    if (ticket && this.stepKey() === 'ticket') {
+      applyFieldProblems(ticket, rest);
+    }
     this.problem.set(lead + errorMessage(error));
     this.problems.set(problems.map(problemText));
   }

@@ -13,10 +13,11 @@ import {
   releaseDetails,
   taskDetails,
 } from '../testing/change-fixtures';
-import { buttonOf, text } from '../testing/dom';
+import { buttonOf, inputOf, text } from '../testing/dom';
 import { ProductionChange } from './change-api';
 import { ChangeDetail, MAX_POLLS, POLL_INTERVAL, updateText } from './change-detail';
 import { momentText } from './change-model';
+import { localInput } from './change-schedule-model';
 import { ChangeSummary } from './change-summary';
 import { PublishedChange } from './published-change';
 
@@ -236,7 +237,13 @@ describe('ChangeDetail', () => {
       'L1 approver: Olivia Bennett',
       'L2 approver: James Carter',
     ]);
-    expect(rows('Secure coding')).toEqual(['Secure coding ticket number: SEC-12']);
+    expect(rows('Secure coding')).toEqual([
+      'Secure coding ticket number: SEC-12',
+      'APO number: APO-12345',
+      'Bitbucket URL: https://bitbucket.bbh.com/projects/CERT/repos/cert',
+      'Artifact link: https://jenkins.bbh.com/job/CERT/job/cert-release/',
+      'QC application link: https://cert.qc.bbh.com',
+    ]);
     expect(rows('Privileged access')).toEqual(['Jane Smith: adm_jsmith']);
     expect(rows('Risk assessment')).toContain('Number of BBH users impacted: 5-25');
     expect(
@@ -244,19 +251,29 @@ describe('ChangeDetail', () => {
         (title) => `${text(title)}: ${text(title.nextElementSibling)}`,
       ),
     ).toContain('Validation plan: Run the smoke tests.');
-    expect([...page().querySelectorAll('.tasks li')].map(text)).toEqual([
-      'Deploy CertScanner to productionCTASK0020001OpenNot done yet; waiting for approval.' +
-        `Release Management · starts ${momentText('2026-10-10T06:01:00Z')} · platform OpenShift · application OCP` +
-        'Deploy the release of CertScanner.',
-      'Old oneCTASK0020002CanceledCanceled; no longer part of the change.' +
-        'Technology Architecture · importance 3 - ModerateDeploy the release of CertScanner.',
-      'Tell the usersnot in ProTech yetOpenNot done yet; approval not requested yet.' +
-        'Technology Architecture · assigned to Mateusz Matan · importance 3 - ModerateSend the e-mail.',
+    const tasks = [...page().querySelectorAll<HTMLElement>('dso-change-tasks-form .task-row')];
+    expect(tasks.map((task) => text(task.querySelector('.task-head')))).toEqual([
+      '1Release ManagementOpenNot done yet; waiting for approval.',
+      '2Change taskCanceledCanceled; no longer part of the change.',
+      '3Change taskOpenNot done yet; approval not requested yet.',
     ]);
-    expect(text(page().querySelector('.tasks')?.previousElementSibling)).toBe(
+    expect(inputOf(tasks[0], 'Change number').value).toBe('CHG0012345');
+    expect(inputOf(tasks[0], 'Task start').value).toBe(localInput(new Date('2026-10-10T06:01:00Z')));
+    expect(inputOf(tasks[0], 'Application').value).toBe('OCP');
+    expect(inputOf(tasks[0], 'Description').value).toBe('Deploy the release of CertScanner.');
+    expect(inputOf(tasks[2], 'Assigned to').value).toBe('Mateusz Matan');
+    expect(inputOf(tasks[2], 'Number').placeholder).toBe('Given by ProTech when created');
+    expect(
+      [...page().querySelectorAll('dso-change-tasks-form input, dso-change-tasks-form textarea')].every(
+        (field) => (field as HTMLInputElement).disabled,
+      ),
+    ).toBe(true);
+    expect(page().querySelector('dso-change-tasks-form button')).toBeNull();
+    expect(tasks[1].classList).toContain('canceled');
+    expect(text(page().querySelector('dso-change-tasks-form')?.previousElementSibling)).toBe(
       'A change task (CTASK) is a piece of work inside the change, done by one team. ProTech asks for their approval in the CTask approval stage.',
     );
-    expect(page().querySelector('.tasks li.canceled')).not.toBeNull();
+    expect(page().querySelector('.secure-coding-missing')).toBeNull();
     expect(text(page().querySelector('pre'))).toBe('Production release of CertScanner (CERT).');
     expect(text(page().querySelector('a[href="https://bbh.service-now.com/CHG0012345"]'))).toBe(
       'Open in ProTech',
@@ -271,13 +288,36 @@ describe('ChangeDetail', () => {
   it('says how to add the change tasks of a change without any', async () => {
     await show(productionChange({ tasks: [] }));
 
-    expect(text(page().querySelector('.tasks'))).toBe(
+    expect(text(page().querySelector('.none'))).toBe(
       'No change tasks yet. Add them with Edit the change.',
     );
+    expect(page().querySelector('dso-change-tasks-form')).toBeNull();
     fixture.destroy();
 
     await show(productionChange({ tasks: [], state: 'CLOSED' }));
-    expect(text(page().querySelector('.tasks'))).toBe('None');
+    expect(text(page().querySelector('.none'))).toBe('None');
+  });
+
+  it('asks for the secure coding ticket of an open change of your department that has none', async () => {
+    const unticketed = productionChange({
+      template: changeTemplate({ secureCodingTicket: null }),
+    });
+    await show(unticketed);
+
+    expect(text(page().querySelector('.secure-coding-missing span'))).toBe(
+      'CHG0012345 has no secure coding ticket yet. Create it in CyberTrack, the Jira project SCP.',
+    );
+    expect(
+      page().querySelector('.secure-coding-missing a')?.getAttribute('href'),
+    ).toBe('/beadle/changes/7/secure-coding');
+    fixture.destroy();
+
+    await show(unticketed, 4);
+    expect(page().querySelector('.secure-coding-missing')).toBeNull();
+    fixture.destroy();
+
+    await show(productionChange({ template: changeTemplate({ secureCodingTicket: null }), state: 'CLOSED' }));
+    expect(page().querySelector('.secure-coding-missing')).toBeNull();
   });
 
   it('says when it read the change from ProTech and when ProTech could not be reached', async () => {

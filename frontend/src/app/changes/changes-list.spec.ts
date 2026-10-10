@@ -130,7 +130,7 @@ describe('ChangesList', () => {
     await settle();
     http
       .expectOne('/api/changes/integrations')
-      .flush({ jiraConnected: true, serviceNowConnected: false });
+      .flush({ jiraConnected: true, serviceNowConnected: false, cyberTrackConnected: true });
     http
       .expectOne('/api/departments')
       .flush([department(), department({ id: 5, name: 'Fund Services' })]);
@@ -380,7 +380,7 @@ describe('ChangesList', () => {
     await settle();
     http
       .expectOne('/api/changes/integrations')
-      .flush({ jiraConnected: true, serviceNowConnected: true });
+      .flush({ jiraConnected: true, serviceNowConnected: true, cyberTrackConnected: true });
     http
       .expectOne('/api/departments')
       .flush({ detail: 'Database unavailable' }, { status: 500, statusText: 'Server Error' });

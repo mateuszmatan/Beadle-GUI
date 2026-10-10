@@ -13,7 +13,10 @@ describe('change sections', () => {
     expect(templateLabel('timing.installationStart')).toBe('Installation start');
     expect(templateLabel('privilegedAccess.users')).toBe('Privileged accounts');
     expect(templateLabel('privilegedAccess.users[2].user')).toBe('Person');
-    expect(templateLabel('privilegedAccess.users[2].account')).toBe('Privileged account');
+    expect(templateLabel('privilegedAccess.users[2].account')).toBe('Privileged access');
+    expect(templateLabel('secureCoding.apoNumber')).toBe('APO number');
+    expect(templateLabel('secureCoding.qcApplicationLink')).toBe('QC application link');
+    expect(templateLabel('secureCoding')).toBe('Secure coding');
     expect(templateLabel('riskAssessment.clientsOutsideBbh')).toBe(
       'Number of impacted clients outside BBH',
     );
@@ -48,6 +51,9 @@ describe('change sections', () => {
       form.controls.downtime,
       form.controls.timing,
     ]);
-    expect(sectionControls(form, 'secure')).toEqual([form.controls.secureCodingTicket]);
+    expect(sectionControls(form, 'secure')).toEqual([
+      form.controls.secureCodingTicket,
+      form.controls.secureCoding,
+    ]);
   });
 });

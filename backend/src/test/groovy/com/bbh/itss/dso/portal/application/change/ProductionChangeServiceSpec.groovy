@@ -4,7 +4,9 @@ import com.bbh.itss.dso.portal.application.change.port.in.ChangeCommand
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeEditCommand
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeIntegrations
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeTasksCommand
+import com.bbh.itss.dso.portal.application.change.port.in.SecureCodingCommand
 import com.bbh.itss.dso.portal.application.change.port.out.ChangeProductsPort
+import com.bbh.itss.dso.portal.application.change.port.out.CyberTrackPort
 import com.bbh.itss.dso.portal.application.change.port.out.JiraPort
 import com.bbh.itss.dso.portal.application.change.port.out.ProductionChangeRepositoryPort
 import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort
@@ -19,6 +21,8 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Timing
 import com.bbh.itss.dso.portal.domain.change.ChangeUpdate
 import com.bbh.itss.dso.portal.domain.change.JiraVersion
 import com.bbh.itss.dso.portal.domain.change.ProductionChange
+import com.bbh.itss.dso.portal.domain.change.SecureCoding
+import com.bbh.itss.dso.portal.domain.change.SecureCodingTicket
 import com.bbh.itss.dso.portal.domain.change.WorkflowStep
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException.FieldProblem
@@ -49,6 +53,7 @@ import static com.bbh.itss.dso.portal.support.ChangeFixtures.epic
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.raised
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.releaseTask
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.schedule
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.secureCoding
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.story
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
 import static java.time.Clock.fixed
@@ -68,10 +73,11 @@ class ProductionChangeServiceSpec extends Specification {
     ProductionChangeRepositoryPort changes = Mock()
     JiraPort jira = Mock()
     ServiceNowPort serviceNow = Mock()
+    CyberTrackPort cyberTrack = Mock()
     SignedInUserUseCase users = Stub() {
         signedInUser() >> new SignedInUser('Mateusz Matan')
     }
-    def service = new ProductionChangeService(products, changes, jira, serviceNow, users, fixed(NOW, UTC))
+    def service = new ProductionChangeService(products, changes, jira, serviceNow, cyberTrack, users, fixed(NOW, UTC))
     def certScanner = changeProduct(jiraProjectKey: 'CSCAN')
 
     def setup() {
@@ -338,14 +344,15 @@ class ProductionChangeServiceSpec extends Specification {
         'versions'| 'a broken project'   | { ProductionChangeService it -> it.versions(1L, 'ce-rt') } || 'project' | JIRA_KEY_MESSAGE
     }
 
-    def "the integrations say whether Jira and ProTech are connected"() {
+    def "the integrations say whether Jira, ProTech and CyberTrack are connected"() {
         when:
         def integrations = service.integrations()
 
         then:
         1 * jira.connected() >> false
         1 * serviceNow.connected() >> true
-        integrations == new ChangeIntegrations(false, true)
+        1 * cyberTrack.connected() >> false
+        integrations == new ChangeIntegrations(false, true, false)
     }
 
     def "the list syncs the open changes with one ProTech read, saves the changed ones and times the rest at once"() {
@@ -912,6 +919,120 @@ class ProductionChangeServiceSpec extends Specification {
         refused.message == 'ProTech does not change a closed change'
     }
 
+    def "a secure coding ticket is created in CyberTrack from its inputs and published to ProTech as the ticket of the change"() {
+        given:
+        def stored = raised()
+        def ticketed = stored.withSecureCoding(secureCoding(), 'SCP-1001')
+
+        when:
+        def change = service.createSecureCodingTicket(7L, ticket(implementationDate: ' 10102026 '))
+
+        then:
+        1 * changes.load(7L) >> Optional.of(stored)
+        1 * serviceNow.read([stored]) >> [CHG0031001: stored]
+        1 * changes.synced([7L], NOW)
+
+        then:
+        1 * cyberTrack.create(new SecureCodingTicket('CHG0031001', 'CertScanner', '10102026', secureCoding())) >>
+                'SCP-1001'
+
+        then:
+        1 * changes.save({ ProductionChange it ->
+            it.template() == ticketed.template() && it.update() == requested(NOW, 'Corporate Technology')
+        }) >> { ProductionChange saved -> saved.toBuilder().version(1L).build() }
+
+        then:
+        1 * serviceNow.update({ ProductionChange it -> it.template().secureCodingTicket() == 'SCP-1001' })
+
+        then:
+        1 * serviceNow.read(_) >> [CHG0031001: ticketed]
+        1 * changes.save({ it.version() == 1L }) >> { ProductionChange saved -> saved.toBuilder().version(2L).build() }
+        0 * changes._
+        0 * serviceNow._
+        0 * cyberTrack._
+        change.template().secureCodingTicket() == 'SCP-1001'
+        change.template().secureCoding() == secureCoding()
+        change.update() == new ChangeUpdate(APPLIED, NOW, 'Corporate Technology', [], null, NOW)
+        change.version() == 2L
+    }
+
+    def "a secure coding ticket is not created when #problem"() {
+        given:
+        changes.load(7L) >> Optional.of(stored)
+        changes.save(_) >> { ProductionChange it -> it }
+        serviceNow.read(_) >> [CHG0031001: stored]
+
+        when:
+        service.createSecureCodingTicket(7L, command)
+
+        then:
+        def refused = thrown(type)
+        refused.message == message
+        0 * cyberTrack.create(_)
+        0 * serviceNow.update(_)
+
+        where:
+        problem                          | stored                                         | command                               || type                    | message
+        'another department asks'        | raised()                                       | ticket(departmentId: 4L)              || SecurityException       | 'Only Corporate Technology can change CHG0031001'
+        'the change moved on meanwhile'  | raised()                                       | ticket(version: 1L)                   || IllegalStateException   | STALE_VERSION
+        'ProTech has closed the change'  | raised(state: CLOSED)                          | ticket()                              || IllegalStateException   | 'CHG0031001 is closed in ProTech and can no longer be changed'
+        'the change has its ticket'      | raised().withSecureCoding(secureCoding(), 'SCP-7') | ticket()                          || IllegalStateException   | 'CHG0031001 already has the secure coding ticket SCP-7'
+        'an input is missing'            | raised()                                       | ticket(apoNumber: ' ')                || InvalidRequestException | 'is required'
+    }
+
+    def "every missing or broken input of a secure coding ticket is refused against its field before CyberTrack is asked"() {
+        given:
+        changes.load(7L) >> Optional.of(raised())
+
+        when:
+        service.createSecureCodingTicket(7L, ticket(apoNumber: null, implementationDate: '13012026',
+                bitbucketUrl: 'bitbucket.bbh.com/projects/CERT', artifactLink: null, qcApplicationLink: 'ftp://cert'))
+
+        then:
+        def refused = thrown(InvalidRequestException)
+        refused.problems() == [new FieldProblem('apoNumber', 'is required'),
+                               new FieldProblem('artifactLink', 'is required'),
+                               new FieldProblem('bitbucketUrl', SecureCoding.LINK_MESSAGE),
+                               new FieldProblem('qcApplicationLink', SecureCoding.LINK_MESSAGE),
+                               new FieldProblem('implementationDate', SecureCodingTicket.DATE_MESSAGE)]
+        0 * serviceNow._
+        0 * cyberTrack._
+    }
+
+    def "a ticket CyberTrack created but ProTech refused is named in the refusal so it can be entered by hand"() {
+        given:
+        changes.load(7L) >> Optional.of(raised())
+        changes.save(_) >> { ProductionChange it -> it }
+        serviceNow.read(_) >> [CHG0031001: raised()]
+        cyberTrack.create(_) >> 'SCP-1002'
+
+        when:
+        service.createSecureCodingTicket(7L, ticket())
+
+        then:
+        1 * serviceNow.update(_) >> { throw new IllegalStateException(CLOSED_REFUSAL) }
+        def refused = thrown(IllegalStateException)
+        refused.message == 'SCP-1002 was created in CyberTrack, but CHG0031001 could not take it: ' + CLOSED_REFUSAL +
+                ' Enter SCP-1002 as the secure coding ticket with Edit the change.'
+        refused.cause.message == CLOSED_REFUSAL
+    }
+
+    def "a CyberTrack failure is passed on and leaves the change as it was"() {
+        given:
+        changes.load(7L) >> Optional.of(raised())
+        serviceNow.read(_) >> [CHG0031001: raised()]
+
+        when:
+        service.createSecureCodingTicket(7L, ticket())
+
+        then:
+        1 * cyberTrack.create(_) >> { throw new UncheckedIOException('CyberTrack is down', new IOException()) }
+        0 * changes.save(_)
+        0 * serviceNow.update(_)
+        def refused = thrown(UncheckedIOException)
+        refused.message == 'CyberTrack is down'
+    }
+
     static ChangeCommand command(Map changes = [:]) {
         Map values = [productId: 1L, fixVersion: FIX_VERSION, epicKeys: ['CERT-1', 'CERT-5'],
                       storyKeys: ['CERT-2', 'CERT-6'], schedule: schedule(), template: template()] + changes
@@ -924,6 +1045,17 @@ class ProductionChangeServiceSpec extends Specification {
         Map values = [version: 0L, departmentId: 3L, tasks: [releaseTask([:], null), ChangeTask.of(details(2))]] +
                 changes
         new ChangeTasksCommand(values.version as Long, values.departmentId as Long, values.tasks as List)
+    }
+
+    static SecureCodingCommand ticket(Map changes = [:]) {
+        SecureCoding inputs = secureCoding()
+        Map values = [version: 0L, departmentId: 3L, implementationDate: '10102026', apoNumber: inputs.apoNumber(),
+                      bitbucketUrl: inputs.bitbucketUrl(), artifactLink: inputs.artifactLink(),
+                      qcApplicationLink: inputs.qcApplicationLink()] + changes
+        new SecureCodingCommand(values.version as Long, values.departmentId as Long,
+                new SecureCoding(values.apoNumber as String, values.bitbucketUrl as String,
+                        values.artifactLink as String, values.qcApplicationLink as String),
+                values.implementationDate as String)
     }
 
     static ChangeEditCommand edit(Map changes = [:]) {
