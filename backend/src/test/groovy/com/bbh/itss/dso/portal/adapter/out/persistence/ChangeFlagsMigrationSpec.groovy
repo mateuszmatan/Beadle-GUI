@@ -2,9 +2,6 @@ package com.bbh.itss.dso.portal.adapter.out.persistence
 
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile
 import com.bbh.itss.dso.portal.domain.change.ProductionChange
-import com.zaxxer.hikari.HikariDataSource
-import liquibase.Scope
-import liquibase.changelog.FastCheckService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
@@ -84,13 +81,5 @@ class ChangeFlagsMigrationSpec extends MigrationSpecification {
                     template: template(downtime: true).releasedAs(FIX_VERSION)))
         }
         [productId, change.id()]
-    }
-
-    private void reopen() {
-        liquibase.close()
-        jdbc.execute('SHUTDOWN')
-        dataSource.unwrap(HikariDataSource).hikariPoolMXBean.softEvictConnections()
-        Scope.currentScope.getSingleton(FastCheckService).clearCache()
-        liquibase = changelog()
     }
 }
