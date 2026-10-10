@@ -69,8 +69,8 @@ describe('ChangeTemplateSection', () => {
     expect(labels()).toEqual([
       'Change number',
       'Approval',
-      'Requested For',
-      'Requested By',
+      'Requested for',
+      'Requested by',
       'Department',
       'Assignment group',
       'Category',
@@ -88,7 +88,7 @@ describe('ChangeTemplateSection', () => {
     expect(inputOf(page(), 'Change number').placeholder).toBe('Given by ProTech when raised');
     expect(inputOf(page(), 'Approval').readOnly).toBe(true);
     expect(inputOf(page(), 'Approval').value).toBe('Not Yet Requested');
-    expect(inputOf(page(), 'Requested For').value).toBe('Grace Turner');
+    expect(inputOf(page(), 'Requested for').value).toBe('Grace Turner');
     expect(inputOf(page(), 'Direct business service').readOnly).toBe(true);
     expect(selected('Category')).toBe('Application');
     expect(selected('Type')).toBe('Standard');
@@ -99,8 +99,8 @@ describe('ChangeTemplateSection', () => {
         button.getAttribute('aria-label'),
       ),
     ).toEqual([
-      'Find Requested For',
-      'Find Requested By',
+      'Find Requested for',
+      'Find Requested by',
       'Find Department',
       'Find Assignment group',
       'Find Assigned to',
@@ -110,7 +110,7 @@ describe('ChangeTemplateSection', () => {
       'Find Problem',
       'Find Affected clients',
     ]);
-    expect(text(fieldOf(page(), 'Requested For')?.querySelector('dso-hint'))).toBe('');
+    expect(text(fieldOf(page(), 'Requested for')?.querySelector('dso-hint'))).toBe('');
 
     expect(await chooseOption('Type', 'Business Critical')).toEqual([
       'Standard',
@@ -126,14 +126,14 @@ describe('ChangeTemplateSection', () => {
   it('tells the admin who fills the empty request fields', async () => {
     await render('request', changeTemplate(), { admin: true });
 
-    expect(text(fieldOf(page(), 'Requested For')?.querySelector('dso-hint'))).toBe(
-      'left empty: the user who opens the change',
+    expect(text(fieldOf(page(), 'Requested for')?.querySelector('dso-hint'))).toBe(
+      'If left empty: the user who opens the change',
     );
     expect(text(fieldOf(page(), 'Assigned to')?.querySelector('dso-hint'))).toBe(
-      'left empty: the user who opens the change',
+      'If left empty: the user who opens the change',
     );
     expect(text(fieldOf(page(), 'Department')?.querySelector('dso-hint'))).toBe(
-      'left empty: the department of the product',
+      'If left empty: the department of the product',
     );
     expect(page().querySelectorAll('.read-only input[readonly]')).toHaveLength(2);
   });

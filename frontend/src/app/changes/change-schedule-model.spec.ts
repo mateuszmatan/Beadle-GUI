@@ -39,13 +39,22 @@ describe('change schedule model', () => {
     expect(fromLocal(null)).toBeNull();
   });
 
-  it('plans on the release date while it is ahead, otherwise on the next day', () => {
+  it('plans on the release date while its start is ahead, otherwise on the next day', () => {
     const now = new Date(2026, 9, 9, 10, 30);
-    expect(plannedDay('2026-10-20', now)).toBe('2026-10-20');
-    expect(plannedDay('2026-10-09', now)).toBe('2026-10-09');
-    expect(plannedDay('2026-10-01', now)).toBe('2026-10-10');
-    expect(plannedDay(null, now)).toBe('2026-10-10');
-    expect(plannedDay(null, new Date(2026, 9, 31, 23, 0))).toBe('2026-11-01');
+    expect(plannedDay('2026-10-20', '18:00', now)).toBe('2026-10-20');
+    expect(plannedDay('2026-10-09', '18:00', now)).toBe('2026-10-09');
+    expect(plannedDay('2026-10-09', '', now)).toBe('2026-10-09');
+    expect(plannedDay('2026-10-01', '18:00', now)).toBe('2026-10-10');
+    expect(plannedDay(null, '18:00', now)).toBe('2026-10-10');
+    expect(plannedDay(null, '18:00', new Date(2026, 9, 31, 23, 0))).toBe('2026-11-01');
+  });
+
+  it('plans on the next day when the start on the release date has passed', () => {
+    const evening = new Date(2026, 9, 9, 19, 30);
+    expect(plannedDay('2026-10-09', '18:00', evening)).toBe('2026-10-10');
+    expect(plannedDay('2026-10-09', '19:30', evening)).toBe('2026-10-10');
+    expect(plannedDay('2026-10-09', '20:00', evening)).toBe('2026-10-09');
+    expect(plannedDay('2026-10-09', '', evening)).toBe('2026-10-09');
   });
 
   it('plans the windows from the release date and the timing defaults', () => {

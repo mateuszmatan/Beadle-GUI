@@ -10,6 +10,7 @@ import {
   productionChange,
 } from '../testing/change-fixtures';
 import {
+  buttonOf,
   choose,
   gridCell,
   gridColumn,
@@ -190,6 +191,8 @@ describe('ChangesList', () => {
       'No ProTech change of Fund Services yet',
     );
     expect(page().querySelector('.empty-state a')?.getAttribute('href')).toBe('/beadle/new-change');
+    expect(text(page().querySelector('.empty-state a'))).toBe('Raise a change');
+    expect(text(page().querySelector('.page-header .btn-primary'))).toBe('Raise a change');
     expect(page().querySelector('dso-grid')?.closest('section')?.hidden).toBe(true);
   });
 
@@ -200,7 +203,7 @@ describe('ChangesList', () => {
       'Corporate Technology',
     );
     expect(gridHeaders(page())).toEqual([
-      'Change',
+      'Change number',
       'Product',
       'FixVersion',
       'State',
@@ -226,12 +229,14 @@ describe('ChangesList', () => {
       'CHG0012345',
       'CertScanner',
       'CERT 4.2',
-      'Primary Approval',
+      'Primary ApprovalWaiting for the L1 approver',
       expect.stringContaining('10 Oct 2026'),
       'CertScanner CERT 4.2: Expiry alerts',
       '1',
     ]);
-    expect(text(gridCell(first, 'actions'))).toBe('Edit');
+    expect(text(gridCell(first, 'actions'))).toBe('Edit change');
+    expect(text(gridCell(second, 'state'))).toBe('ClosedDone');
+    expect(text(gridCell(second, 'actions'))).toBe('');
     expect(gridCell(first, 'number').querySelector('a')?.getAttribute('href')).toBe(
       '/beadle/changes/7',
     );
@@ -242,7 +247,11 @@ describe('ChangesList', () => {
       ),
     ).toEqual(['/beadle/changes/7/edit', '/beadle/changes/9/edit']);
     expect(page().querySelector('a[aria-label="Edit CHG0012346"]')).toBeNull();
-    expect(text(page().querySelector('.zone'))).toBe(zoneNote);
+    expect(text(page().querySelector('.list h2'))).toBe('Changes of Corporate Technology');
+    expect(text(page().querySelector('.zone'))).toBe(
+      'Select a change to see where it is in its workflow and what it needs next. ' +
+        `FixVersion is the Jira release the change delivers. ${zoneNote}`,
+    );
     expect(text(page().querySelector('dso-integration-note'))).not.toContain(
       'Jira is not connected',
     );
@@ -318,9 +327,29 @@ describe('ChangesList', () => {
       ]);
     await settle();
 
-    expect(text(page().querySelector('.banner[role="status"]'))).toBe(
-      'ProTech could not be reached: timed out. The table shows what Beadle last read from ProTech.',
+    expect(text(page().querySelector('.banner[role="status"] span'))).toBe(
+      'ProTech could not be reached: timed out. The table shows what Beadle last read from ProTech. ' +
+        'Try again in a moment; if it keeps failing, tell the portal administrator.',
     );
+
+    buttonOf(page(), 'Try again').click();
+    await settle();
+    http.expectOne('/api/changes?departmentId=3').flush([payments, productionChange()]);
+    await settle();
+    expect(page().querySelector('.banner[role="status"]')).toBeNull();
+  });
+
+  it('says when the last update of a change still waits for ProTech instead of offering to edit it', async () => {
+    await open('3');
+    http.expectOne('/api/changes?departmentId=3').flush([{ ...draft, update: changeUpdate() }]);
+    await settle();
+
+    const pending = gridCell(gridRows(page())[0], 'actions').querySelector('.pending');
+    expect(text(pending)).toBe('Update pending');
+    expect(pending?.getAttribute('title')).toBe(
+      'The last update is still waiting for ProTech; change it again once ProTech has applied it',
+    );
+    expect(page().querySelector('a[aria-label="Edit CHG0012347"]')).toBeNull();
   });
 
   it('names each change ProTech does not hold', async () => {
@@ -334,9 +363,10 @@ describe('ChangesList', () => {
       ]);
     await settle();
 
-    expect(text(page().querySelector('.banner[role="status"]'))).toBe(
+    expect(text(page().querySelector('.banner[role="status"] span'))).toBe(
       'ProTech has no change CHG0012346. ProTech has no change CHG0012347. ' +
-        'The table shows what Beadle last read from ProTech.',
+        'The table shows what Beadle last read from ProTech. ' +
+        'Try again in a moment; if it keeps failing, tell the portal administrator.',
     );
   });
 
@@ -359,10 +389,22 @@ describe('ChangesList', () => {
       .flush({ detail: 'ProTech is down' }, { status: 503, statusText: 'Service Unavailable' });
     await settle();
 
-    expect([...page().querySelectorAll('.banner')].map(text)).toEqual([
+    expect([...page().querySelectorAll('.banner > span:first-child')].map(text)).toEqual([
       'The departments could not be loaded: Database unavailable',
-      'ProTech is down',
+      'The changes could not be loaded: ProTech is down',
     ]);
     expect(page().querySelector('dso-integration-note .banner')).toBeNull();
+
+    const [departments, changes] = [...page().querySelectorAll<HTMLElement>('.banner')].map(
+      (banner) => buttonOf(banner, 'Try again'),
+    );
+    departments.click();
+    changes.click();
+    await settle();
+    http.expectOne('/api/departments').flush([department()]);
+    http.expectOne('/api/changes?departmentId=3').flush([certScanner]);
+    await settle();
+    expect(page().querySelector('.banner')).toBeNull();
+    expect(shownNumbers()).toEqual(['CHG0012345']);
   });
 });

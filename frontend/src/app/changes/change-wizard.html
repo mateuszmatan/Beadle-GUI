@@ -15,6 +15,7 @@
           type="button"
           [disabled]="!canRevisit(index)"
           [attr.aria-current]="index === step() ? 'step' : null"
+          [attr.title]="index + 1 + '. ' + label"
           (click)="goTo(index)"
         >
           <span class="number">{{ index + 1 }}</span>
@@ -25,12 +26,14 @@
   </ol>
 
   <section class="card step">
+    <p class="step-count">Step {{ step() + 1 }} of {{ steps.length }}</p>
     @switch (stepKey()) {
       @case ('request') {
         <h2>{{ current()!.title }}</h2>
         <p class="lead">
-          Choose your department and the product that goes to production. Its change template fills
-          in the change; change any value for this change.
+          Choose your department and the product that goes to production. The product's change
+          template fills in every step, and you can change any value for this change. Fields marked
+          * are required.
         </p>
         @if (departmentsError(); as error) {
           <p class="choice-error">The departments could not be loaded: {{ error }}</p>
@@ -70,8 +73,12 @@
         @if (profile.isLoading()) {
           <dso-loading />
         }
-        @if (profile.error()) {
-          <p class="choice-error">The product could not be loaded.</p>
+        @if (profile.error(); as error) {
+          <div class="banner product-error" role="alert">
+            <span>The product could not be loaded: {{ errorMessage(error) }}</span>
+            <span class="spacer"></span>
+            <button type="button" class="btn btn-link" (click)="profile.reload()">Try again</button>
+          </div>
         }
         @if (profile.hasValue() && details(); as form) {
           @let chosen = profile.value();
@@ -155,7 +162,8 @@
         </div>
         @if (versions.error(); as error) {
           <p class="choice-error">
-            The FixVersions could not be loaded: {{ errorMessage(error) }}. Type the FixVersion.
+            The FixVersions could not be listed, so type the FixVersion yourself.
+            {{ errorMessage(error) }}
           </p>
         }
         <h3>Epics</h3>
@@ -163,7 +171,10 @@
           <dso-loading />
         }
         @if (epics.error(); as error) {
-          <p class="choice-error">The epics could not be loaded: {{ errorMessage(error) }}</p>
+          <p class="choice-error">
+            The epics could not be loaded: {{ errorMessage(error) }}
+            <button type="button" class="text-link" (click)="findEpics()">Try again</button>
+          </p>
         }
         @if (!searched()) {
           <p class="empty">Enter the FixVersion and find its epics.</p>
@@ -194,7 +205,10 @@
           <dso-loading />
         }
         @if (stories.error(); as error) {
-          <p class="choice-error">The stories could not be loaded: {{ errorMessage(error) }}</p>
+          <p class="choice-error">
+            The stories could not be loaded: {{ errorMessage(error) }}
+            <button type="button" class="text-link" (click)="stories.reload()">Try again</button>
+          </p>
         }
         @for (group of storyGroups(); track group.key) {
           <div class="story-group">
@@ -224,11 +238,13 @@
         }
         @if (epicKeys().length) {
           @if (preview(); as draft) {
-            <h3>Short description and description</h3>
-            <p class="hint">
-              Written from the chosen epics and stories; the description takes in the later steps as
-              you fill them in.
-            </p>
+            <div>
+              <h3>Text sent to ProTech</h3>
+              <p class="hint">
+                Written from the chosen epics and stories. The description takes in the later steps
+                as you fill them in, and you can change both texts.
+              </p>
+            </div>
             <ng-container
               [ngTemplateOutlet]="changeTexts"
               [ngTemplateOutletContext]="{ $implicit: draft }"
@@ -247,34 +263,46 @@
       @case ('review') {
         <h2>Check and raise the change</h2>
         <p class="lead">
-          The texts come from the Jira epics and stories and the ProTech fields. Change them if you
-          like before you raise the change. Its change tasks follow once ProTech has given the
-          change its number.
+          Check every value, then raise the change: ProTech creates it and gives it its change
+          number (CHG). You add its change tasks in the next step.
         </p>
         @if (previewing()) {
           <dso-loading />
         }
         @if (preview(); as draft) {
-          <ng-container
-            [ngTemplateOutlet]="changeTexts"
-            [ngTemplateOutletContext]="{ $implicit: draft }"
-          />
-          <h3>Summary</h3>
+          <h3>Every value of the change</h3>
           <dso-change-summary [change]="draft" />
           <p class="scope">
             {{ counted(draft.epicKeys.length, 'epic') }} and
             {{ counted(draft.storyKeys.length, 'story', 'stories') }} of FixVersion
             {{ draft.fixVersion }}
           </p>
+          <div>
+            <h3>Text sent to ProTech</h3>
+            <p class="hint">
+              Written from the values above. Change it if you like before you raise the change.
+            </p>
+          </div>
+          <ng-container
+            [ngTemplateOutlet]="changeTexts"
+            [ngTemplateOutletContext]="{ $implicit: draft }"
+          />
         }
       }
       @case ('tasks') {
         @if (raised(); as change) {
+          <div class="banner success raised-note" role="status">
+            <span
+              ><strong>{{ change.number }} is raised in ProTech.</strong> Now add its change tasks
+              to it.</span
+            >
+          </div>
           <h2>Change tasks of {{ change.number }}</h2>
           <p class="lead">
-            ProTech has raised {{ change.number }}. Each change task is now created against it,
-            starting from the default change tasks of the product. A Release Management task takes
-            the platform, the start in the installation window, the application and the packages.
+            A change task (CTASK) is a piece of work inside the change, done by one team. The
+            product's default change tasks are filled in; the button below adds them to
+            {{ change.number }} in ProTech. A Release Management task also needs the platform, its
+            start in the installation window, the application and the packages.
           </p>
           <dso-change-tasks-form [tasks]="tasks()!" />
         }
@@ -284,7 +312,7 @@
           <h2>{{ change.number }} is raised</h2>
           <p class="lead">{{ change.shortDescription }}</p>
           <dl class="rows">
-            <dt>Change</dt>
+            <dt>Change number</dt>
             <dd class="mono">{{ change.number }}</dd>
             <dt>FixVersion</dt>
             <dd class="mono">{{ change.fixVersion }}</dd>
@@ -302,7 +330,7 @@
                     <span class="muted"> · {{ task.details.assignmentGroup }}</span>
                   </li>
                 } @empty {
-                  <li class="muted">None yet: add them on the change page.</li>
+                  <li class="muted">None yet. Add them with Edit the change on its page.</li>
                 }
               </ul>
             </dd>
@@ -373,20 +401,25 @@
 
     <div class="step-actions">
       @if (stepKey() === 'raised') {
-        <a class="btn btn-link" [routerLink]="changeLink(raised()?.id ?? '')">Open the change</a>
-        <span class="spacer"></span>
-        <button type="button" class="btn btn-primary" (click)="restart()">
+        <button type="button" class="btn btn-outline-primary" (click)="restart()">
           Raise another change
         </button>
+        <span class="spacer"></span>
+        <a class="btn btn-primary" [routerLink]="changeLink(raised()?.id ?? '')">Open the change</a>
       } @else {
         @if (stepKey() === 'tasks') {
-          <button type="button" class="btn btn-link" [disabled]="raising()" (click)="later()">
-            Add them later
+          <button
+            type="button"
+            class="btn btn-outline-primary"
+            [disabled]="raising()"
+            (click)="later()"
+          >
+            Add change tasks later
           </button>
         } @else if (step() > 0) {
           <button
             type="button"
-            class="btn btn-link"
+            class="btn btn-outline-primary"
             [disabled]="raising() || previewing()"
             (click)="back()"
           >

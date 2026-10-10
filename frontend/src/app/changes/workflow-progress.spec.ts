@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
+import { changeTemplate, productionChange } from '../testing/change-fixtures';
 import { text } from '../testing/dom';
-import { WorkflowStep } from './change-api';
-import { WorkflowProgress, stages } from './workflow-progress';
+import { STATES, WorkflowStep } from './change-api';
+import { windowText } from './change-model';
+import { STATE_MEANINGS, WorkflowProgress, stateNow, stages } from './workflow-progress';
 
 const escalated: WorkflowStep[] = [
   { state: 'DRAFT', enteredAt: '2026-10-07T09:00:00Z' },
@@ -72,5 +74,50 @@ describe('workflow progress', () => {
     expect(text(items[5])).toBe('6Escalated approval Skipped');
     expect(items[6].getAttribute('aria-current')).toBe('step');
     expect(text(items[7])).toBe('8Closed');
+  });
+
+  it('says in plain words what each state means and what the change waits for', () => {
+    expect(STATES.map((state) => STATE_MEANINGS[state.value])).toEqual([
+      'Not sent for approval yet',
+      'Waiting for the business approver',
+      'Waiting for the L1 approver',
+      'Waiting for the L2 approver',
+      'Waiting for its change tasks to be approved',
+      'Short notice: waiting for an escalated approval',
+      'Approved, installs in its window',
+      'Done',
+    ]);
+    const change = productionChange();
+    const now = (state: (typeof STATES)[number]['value'], template = change.template) =>
+      stateNow({ ...change, state, template });
+    const { installationStart, installationEnd } = change.schedule;
+
+    expect(now('DRAFT')).toBe(
+      'The change is written but not sent for approval yet. The business approver is asked first.',
+    );
+    expect(now('BUSINESS_APPROVAL')).toBe(
+      'Waiting for the business approver to approve the change in ProTech.',
+    );
+    expect(now('SECONDARY_APPROVAL')).toBe(
+      'Waiting for the L2 approver, James Carter, to approve the change in ProTech.',
+    );
+    expect(
+      now(
+        'PRIMARY_APPROVAL',
+        changeTemplate({
+          approvers: { businessApprover: null, l1Manager: null, l2Manager: null },
+        }),
+      ),
+    ).toBe('Waiting for the L1 approver to approve the change in ProTech.');
+    expect(now('CTASK_APPROVAL')).toBe('Waiting for the change tasks to be approved in ProTech.');
+    expect(now('ESCALATED_APPROVAL')).toBe(
+      'The installation is at short notice, so the change waits for an escalated approval in ProTech.',
+    );
+    expect(now('IMPLEMENTATION')).toBe(
+      `Approved. The teams carry out the change tasks in the installation window, ${windowText(installationStart, installationEnd)}.`,
+    );
+    expect(now('CLOSED')).toBe(
+      'Done. The change is closed in ProTech and can no longer be changed.',
+    );
   });
 });

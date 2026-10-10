@@ -21,18 +21,18 @@ class ChangeTemplateAdminSpec extends EditorSpecification {
                 .hasText(['Beadle Admin', 'Products', 'CertScanner'] as String[])
         assertThat(page.locator('h1')).hasText('CertScanner')
         assertThat(page.locator('.banner.info')).hasCount(0)
-        assertThat(defaults().locator('.template-card h3')).hasText(['Generic request data', 'Jira', 'Approval and Notification',
+        assertThat(defaults().locator('.template-card h3')).hasText(['Request details', 'Jira', 'Approval and notification',
                                                                      'Schedule', 'Planning', 'Privileged access',
                                                                      'Risk assessment', 'Secure coding'] as String[])
         assertThat(input(defaults(), 'Change number')).hasCount(0)
-        hasValues(defaults(), ['Requested For'     : '', 'Department': '', 'Assignment group': 'Technology Architecture',
+        hasValues(defaults(), ['Requested for'     : '', 'Department': '', 'Assignment group': 'Technology Architecture',
                                'Affected CI'       : 'CertScanner', 'Direct business service': 'Certificate Management',
                                'Risk'              : 'Moderate', 'Jira project': 'CERT', 'Business approver': 'Grace Turner',
                                'L1 approver'       : 'Olivia Bennett', 'L2 approver': 'James Carter',
                                'Installation start': '18:00', 'Installation hours': '2', 'Validation hours': '1'])
-        assertThat(hintOf(defaults(), 'Requested For')).hasText('left empty: the user who opens the change')
-        assertThat(hintOf(defaults(), 'Assigned to')).hasText('left empty: the user who opens the change')
-        assertThat(hintOf(defaults(), 'Department')).hasText('left empty: the department of the product')
+        assertThat(hintOf(defaults(), 'Requested for')).hasText('If left empty: the user who opens the change')
+        assertThat(hintOf(defaults(), 'Assigned to')).hasText('If left empty: the user who opens the change')
+        assertThat(hintOf(defaults(), 'Department')).hasText('If left empty: the department of the product')
         assertThat(selected(defaults(), 'Downtime')).hasText('No')
         assertThat(selected(defaults(), 'How many privileged accounts')).hasText('None')
         assertThat(defaults().locator('fieldset.account')).hasCount(0)

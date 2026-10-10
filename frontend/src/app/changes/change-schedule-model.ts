@@ -116,9 +116,11 @@ export function scheduleInput(schedule: ChangeSchedule): ScheduleInput {
   };
 }
 
-export function plannedDay(releaseDate: string | null, now = new Date()): string {
-  return releaseDate && releaseDate >= isoDate(now)
-    ? releaseDate
+export function plannedDay(releaseDate: string | null, start: string, now = new Date()): string {
+  const planned = releaseDate && fromLocal(`${releaseDate}T${start}`);
+  const ahead = planned ? planned > now : !!releaseDate && releaseDate >= isoDate(now);
+  return ahead
+    ? releaseDate!
     : isoDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
 }
 

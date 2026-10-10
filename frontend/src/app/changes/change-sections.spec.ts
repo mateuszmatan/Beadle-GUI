@@ -5,7 +5,7 @@ import { templateForm } from './change-template-model';
 describe('change sections', () => {
   it('names the fields by their path', () => {
     expect(templateLabel('configurationItem')).toBe('Affected CI');
-    expect(templateLabel('requestedFor')).toBe('Requested For');
+    expect(templateLabel('requestedFor')).toBe('Requested for');
     expect(templateLabel('risk')).toBe('Risk');
     expect(templateLabel('description')).toBeNull();
     expect(templateLabel('secureCodingTicket')).toBe('Secure coding ticket number');
@@ -30,7 +30,7 @@ describe('change sections', () => {
     ).toEqual([
       { label: 'Change number', value: 'CHG0012345', placeholder: NUMBER_PENDING, mono: true },
       { label: 'Approval', value: 'Requested' },
-      { label: 'Opened By', value: 'Grace Turner' },
+      { label: 'Opened by', value: 'Grace Turner' },
       { label: 'State', value: 'Primary Approval' },
     ]);
     expect(

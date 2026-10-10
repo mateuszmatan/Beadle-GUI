@@ -42,13 +42,15 @@ const GROUP = line('details.assignmentGroup', 'Assignment group', '', 6, find('a
 const ASSIGNED = line('details.assignedTo', 'Assigned to', '', 6, find('users'));
 const CI = line('details.configurationItem', 'Affected CI', '', 6, {
   ...find('configuration-items'),
-  hint: 'left empty: the Affected CI of the change',
+  hint: 'If left empty: the Affected CI of the change',
 });
 const APPROVAL = line('approval', 'Approval');
 const FROM = line('installationStart', 'Installation start', '', 6, { type: 'datetime-local' });
 const UNTIL = line('installationEnd', 'Installation end', '', 6, { type: 'datetime-local' });
 const START = line('start', 'Task start', '', 6, { type: 'datetime-local' });
-const APPLICATION = line('details.application', 'Application', '', 6, { hint: 'OCP on OpenShift' });
+const APPLICATION = line('details.application', 'Application', '', 6, {
+  hint: 'OCP when the platform is OpenShift',
+});
 const PACKAGES = area('details.packages', 'Packages');
 const BACKOUT = area('details.backoutPackages', 'Backout packages');
 const SHORT = area('details.shortDescription', 'Short description');
