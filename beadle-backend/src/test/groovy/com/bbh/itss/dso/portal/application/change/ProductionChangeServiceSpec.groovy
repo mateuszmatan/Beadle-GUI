@@ -4,6 +4,7 @@ import com.bbh.itss.dso.portal.application.change.port.in.ChangeCommand
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeEditCommand
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeIntegrations
 import com.bbh.itss.dso.portal.application.change.port.in.ChangeTasksCommand
+import com.bbh.itss.dso.portal.application.change.port.in.ReminderCommand
 import com.bbh.itss.dso.portal.application.change.port.in.SecureCodingCommand
 import com.bbh.itss.dso.portal.application.change.port.out.ChangeProductsPort
 import com.bbh.itss.dso.portal.application.change.port.out.CyberTrackPort
@@ -13,6 +14,8 @@ import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort
 import com.bbh.itss.dso.portal.application.change.port.out.ServiceNowPort.RaisedChange
 import com.bbh.itss.dso.portal.application.user.port.in.SignedInUser
 import com.bbh.itss.dso.portal.application.user.port.in.SignedInUserUseCase
+import com.bbh.itss.dso.portal.domain.change.ApprovalRef
+import com.bbh.itss.dso.portal.domain.change.ChangeApproval
 import com.bbh.itss.dso.portal.domain.change.ChangeSchedule
 import com.bbh.itss.dso.portal.domain.change.ChangeTask
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate
@@ -21,6 +24,7 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Timing
 import com.bbh.itss.dso.portal.domain.change.ChangeUpdate
 import com.bbh.itss.dso.portal.domain.change.JiraVersion
 import com.bbh.itss.dso.portal.domain.change.ProductionChange
+import com.bbh.itss.dso.portal.domain.change.Reminder
 import com.bbh.itss.dso.portal.domain.change.SecureCoding
 import com.bbh.itss.dso.portal.domain.change.SecureCodingTicket
 import com.bbh.itss.dso.portal.domain.change.WorkflowStep
@@ -31,10 +35,16 @@ import spock.lang.Specification
 import java.time.Instant
 import java.time.LocalDate
 
+import static com.bbh.itss.dso.portal.domain.change.ApprovalRole.BUSINESS
+import static com.bbh.itss.dso.portal.domain.change.ApprovalRole.SUPPORT
+import static com.bbh.itss.dso.portal.domain.change.ApprovalState.APPROVED
+import static com.bbh.itss.dso.portal.domain.change.ApprovalState.NOT_APPROVED
+import static com.bbh.itss.dso.portal.domain.change.ApprovalState.REQUESTED
 import static com.bbh.itss.dso.portal.domain.change.ChangeSchedule.UNPLANNED
 import static com.bbh.itss.dso.portal.domain.change.ChangeState.BUSINESS_APPROVAL
 import static com.bbh.itss.dso.portal.domain.change.ChangeState.CLOSED
 import static com.bbh.itss.dso.portal.domain.change.ChangeState.DRAFT
+import static com.bbh.itss.dso.portal.domain.change.ChangeState.SUPPORT_APPROVAL
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.JIRA_KEY_MESSAGE
 import static com.bbh.itss.dso.portal.domain.change.ChangeUpdate.NOT_APPLIED_MESSAGE
 import static com.bbh.itss.dso.portal.domain.change.ChangeUpdate.Status.APPLIED
@@ -55,6 +65,7 @@ import static com.bbh.itss.dso.portal.support.ChangeFixtures.releaseTask
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.schedule
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.secureCoding
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.story
+import static com.bbh.itss.dso.portal.support.ChangeFixtures.task
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.template
 import static java.time.Clock.fixed
 import static java.time.ZoneOffset.UTC
@@ -645,7 +656,7 @@ class ProductionChangeServiceSpec extends Specification {
         'without a department'           | raised()                                            | null         | 0L      || InvalidRequestException | 'choose your department'
         'of another department'          | raised()                                            | 4L           | 0L      || SecurityException       | 'Only Corporate Technology can change CHG0031001'
         'of another department at an old version' | raised(version: 2L, editedVersion: 2L)     | 4L           | 1L      || SecurityException       | 'Only Corporate Technology can change CHG0031001'
-        'of a change without department' | raised(departmentId: null, departmentName: null)    | 3L           | 0L      || SecurityException       | 'No department owns CHG0031001, so it cannot be changed in Beadle'
+        'of a change without department' | raised(departmentId: null, departmentName: null)    | 3L           | 0L      || SecurityException       | 'No department owns CHG0031001, so nobody can change it in Beadle'
         'at a stale version'             | raised(version: 2L, editedVersion: 2L)              | 3L           | 1L      || IllegalStateException   | STALE_VERSION
         'read before its last edit'      | raised(version: 4L, editedVersion: 3L)              | 3L           | 2L      || IllegalStateException   | STALE_VERSION
         'at a version it never had'      | raised(version: 2L)                                 | 3L           | 3L      || IllegalStateException   | STALE_VERSION
@@ -826,9 +837,10 @@ class ProductionChangeServiceSpec extends Specification {
         updated.update().status() == APPLIED
     }
 
-    def "the tasks of a raised change are created in ProTech one by one against its number and stored with theirs"() {
+    def "the tasks of a raised change are created in ProTech one by one against its number, stored with theirs and read back with their approvers"() {
         given:
         def stored = raised(tasks: [])
+        ProductionChange recorded
 
         when:
         def change = service.createTasks(7L, created())
@@ -847,13 +859,41 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.save({ ProductionChange it -> it.tasks()*.number() == ['CTASK0050001', 'CTASK0050002'] }) >>
-                { ProductionChange saved -> saved.toBuilder().version(1L).build() }
+                { ProductionChange saved -> recorded = saved.toBuilder().version(1L).build() }
+
+        then:
+        1 * serviceNow.read({ it*.version() == [1L] }) >> { [CHG0031001: recorded.toBuilder().tasks(
+                recorded.tasks().collect { it.withApproval(NOT_APPROVED, ['Rebecca Lawson', 'Thomas Ashby']) })
+                .build()] }
+        1 * changes.save({ ProductionChange it -> it.tasks()*.approvers().every { it == ['Rebecca Lawson', 'Thomas Ashby'] } }) >>
+                { ProductionChange saved -> saved.toBuilder().version(2L).build() }
         0 * changes._
         0 * serviceNow._
         change.tasks()*.number() == ['CTASK0050001', 'CTASK0050002']
         change.tasks()[0].start() == Instant.parse('2026-10-10T06:01:00Z')
-        change.tasks()*.approval() == ['Not Yet Requested'] * 2
+        change.tasks()*.approval() == [NOT_APPROVED] * 2
+        change.tasks()*.approvers() == [['Rebecca Lawson', 'Thomas Ashby']] * 2
+        change.version() == 2L
+    }
+
+    def "change tasks ProTech created are stored even when it cannot be read back just then"() {
+        given:
+        changes.load(7L) >> Optional.of(raised(tasks: []))
+
+        when:
+        def change = service.createTasks(7L, created())
+
+        then:
+        1 * serviceNow.read(_) >> [CHG0031001: raised(tasks: [])]
+        2 * serviceNow.createTask('CHG0031001', _) >>> ['CTASK0050001', 'CTASK0050002']
+        1 * changes.save(_) >> { ProductionChange saved -> saved.toBuilder().version(1L).build() }
+
+        then:
+        1 * serviceNow.read(_) >> { throw new UncheckedIOException('Read timed out', new IOException()) }
+        0 * changes.save(_)
+        change.tasks()*.number() == ['CTASK0050001', 'CTASK0050002']
         change.version() == 1L
+        change.syncProblem() == 'ProTech could not be reached: Read timed out.'
     }
 
     def "change tasks are not created when #problem"() {
@@ -1039,6 +1079,130 @@ class ProductionChangeServiceSpec extends Specification {
         new ChangeCommand(values.productId as long, values.fixVersion as String, values.epicKeys as List,
                 values.storyKeys as List, values.schedule as ChangeSchedule, values.template as ChangeTemplate,
                 values.shortDescription as String, values.description as String)
+    }
+
+    def "a reminder to everyone goes through ProTech to each approver who has not approved and is stored with whom it reached"() {
+        when:
+        def reminded = service.remind(7L, new ReminderCommand(3L, null, null))
+
+        then:
+        1 * changes.load(7L) >> Optional.of(raised())
+        1 * serviceNow.read(_) >> [CHG0031001: awaiting()]
+        1 * changes.save({ ProductionChange it -> it.state() == SUPPORT_APPROVAL && it.syncedAt() == NOW }) >>
+                { ProductionChange it -> it.toBuilder().version(1L).build() }
+
+        then:
+        1 * serviceNow.remind('CHG0031001', ApprovalRef.of(SUPPORT)) >> ['Jane Smith']
+        1 * serviceNow.remind('CHG0031001', ApprovalRef.ofTask('CTASK0041002')) >> ['Ann Lee', 'Grace Turner']
+
+        then:
+        1 * changes.save({ ProductionChange it -> it.version() == 1L }) >>
+                { ProductionChange it -> it.toBuilder().version(2L).build() }
+        0 * changes._
+        0 * serviceNow._
+        reminded.version() == 2L
+        reminded.approvals()*.reminder() == [null, null, null, new Reminder(NOW, ['Jane Smith'])]
+        reminded.tasks()*.reminder() == [null, new Reminder(NOW, ['Ann Lee', 'Grace Turner'])]
+        reminded.approvals()*.state() == [APPROVED, APPROVED, APPROVED, REQUESTED]
+    }
+
+    def "a reminder to one approval reaches only its approvers and keeps the reminders sent before"() {
+        given:
+        def earlier = new Reminder(NOW.minusSeconds(600), ['Jane Smith'])
+        def stored = awaiting().reminded([(ApprovalRef.of(SUPPORT)): earlier])
+
+        when:
+        def reminded = service.remind(7L, new ReminderCommand(3L, null, 'CTASK0041002'))
+
+        then:
+        1 * changes.load(7L) >> Optional.of(stored)
+        1 * serviceNow.read(_) >> [CHG0031001: awaiting()]
+        1 * serviceNow.remind('CHG0031001', ApprovalRef.ofTask('CTASK0041002')) >> ['Ann Lee', 'Grace Turner']
+        1 * changes.save(_) >> { ProductionChange it -> it }
+        1 * changes.synced([7L], NOW)
+        0 * changes._
+        0 * serviceNow._
+        reminded.approvals()*.reminder() == [null, null, null, earlier]
+        reminded.tasks()*.reminder() == [null, new Reminder(NOW, ['Ann Lee', 'Grace Turner'])]
+        reminded.editedVersion() == stored.editedVersion()
+    }
+
+    def "no reminder is sent when #problem"() {
+        given:
+        changes.load(7L) >> Optional.of(stored)
+        changes.load(8L) >> Optional.empty()
+        changes.save(_) >> { ProductionChange it -> it }
+        serviceNow.read(_) >> { reply() }
+
+        when:
+        service.remind(id, command)
+
+        then:
+        def refused = thrown(type)
+        refused.message == message
+        0 * serviceNow.remind(*_)
+
+        where:
+        problem                        | id | stored                                         | command                                     | reply                               || type                    | message
+        'the change is unknown'        | 8L | raised()                                       | new ReminderCommand(3L, null, null)         | { [:] }                             || NoSuchElementException  | 'Change 8 does not exist'
+        'no department is chosen'      | 7L | raised()                                       | new ReminderCommand(null, null, null)       | { [CHG0031001: awaiting()] }        || InvalidRequestException | 'choose your department'
+        'another department asks'      | 7L | raised()                                       | new ReminderCommand(4L, null, null)         | { [CHG0031001: awaiting()] }        || SecurityException       | 'Only Corporate Technology can remind the approvers of CHG0031001'
+        'no department owns it'        | 7L | raised(departmentId: null, departmentName: null) | new ReminderCommand(3L, null, null)       | { [CHG0031001: awaiting()] }        || SecurityException       | 'No department owns CHG0031001, so nobody can remind the approvers of it in Beadle'
+        'ProTech cannot be read'       | 7L | raised()                                       | new ReminderCommand(3L, null, null)         | { throw new UncheckedIOException('Read timed out', new IOException()) } || UncheckedIOException | 'Read timed out'
+        'ProTech closed it'            | 7L | raised()                                       | new ReminderCommand(3L, null, null)         | { [CHG0031001: raised(state: CLOSED)] } || IllegalStateException | 'CHG0031001 is closed in ProTech, so nobody is reminded to approve it'
+        'the approver already approved' | 7L | raised()                                      | new ReminderCommand(3L, BUSINESS, null)     | { [CHG0031001: awaiting()] }        || IllegalStateException   | 'The business approver already approved CHG0031001'
+    }
+
+    def "the reminders ProTech sent before it refused one are stored and the refusal is passed on"() {
+        given:
+        changes.load(7L) >> Optional.of(awaiting())
+        serviceNow.read(_) >> [CHG0031001: awaiting()]
+
+        when:
+        service.remind(7L, new ReminderCommand(3L, null, null))
+
+        then:
+        1 * serviceNow.remind('CHG0031001', ApprovalRef.of(SUPPORT)) >> ['Jane Smith']
+
+        then:
+        1 * serviceNow.remind('CHG0031001', ApprovalRef.ofTask('CTASK0041002')) >>
+                { throw new IllegalStateException('ProTech has nobody to remind on CHG0031001') }
+
+        then:
+        1 * changes.save({ ProductionChange it -> it.approvals()[3].reminder() == new Reminder(NOW, ['Jane Smith'])
+                && it.tasks()*.reminder() == [null, null] }) >> { ProductionChange it -> it }
+        def refused = thrown(IllegalStateException)
+        refused.message == 'ProTech has nobody to remind on CHG0031001'
+    }
+
+    def "reminders are stored on the latest version when a sync stored the change in the meantime"() {
+        given:
+        def latest = awaiting().toBuilder().shortDescription('Renamed meanwhile').version(3L).build()
+        changes.load(7L) >>> [Optional.of(awaiting()), Optional.of(latest)]
+        serviceNow.read(_) >> [CHG0031001: awaiting()]
+        serviceNow.remind('CHG0031001', ApprovalRef.of(SUPPORT)) >> ['Jane Smith']
+
+        when:
+        def reminded = service.remind(7L, new ReminderCommand(3L, SUPPORT, null))
+
+        then:
+        1 * changes.save({ ProductionChange it -> it.version() == 0L }) >> {
+            throw new IllegalStateException(STALE_VERSION)
+        }
+        1 * changes.save({ ProductionChange it -> it.version() == 3L }) >> { ProductionChange it -> it }
+        reminded.shortDescription() == 'Renamed meanwhile'
+        reminded.approvals()[3].reminder() == new Reminder(NOW, ['Jane Smith'])
+    }
+
+    static ProductionChange awaiting() {
+        raised(state: SUPPORT_APPROVAL, workflow: [new WorkflowStep(DRAFT, RAISED),
+                                                   new WorkflowStep(SUPPORT_APPROVAL, RAISED.plusSeconds(480))],
+                syncedAt: NOW,
+                approvals: ChangeApproval.of(template().approvers()).withIndex().collect { approval, index ->
+                    new ChangeApproval(approval.role(), approval.approver(), index < 3 ? APPROVED : REQUESTED, null)
+                },
+                tasks: [task(1).withApproval(APPROVED, ['Ann Lee']),
+                        task(2).withApproval(NOT_APPROVED, ['Ann Lee', 'Grace Turner'])])
     }
 
     static ChangeTasksCommand created(Map changes = [:]) {

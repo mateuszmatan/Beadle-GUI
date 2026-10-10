@@ -41,9 +41,9 @@ class ChangesSpec extends BeadleSpecification {
         awaitRequest('GET', '/api/changes').params() == [departmentId: '3']
         assertThat(gridHeaders())
                 .hasText(['Change number', 'Product', 'FixVersion', 'State', 'Installation', 'Short description', 'Tasks', 'Raised', ''] as String[])
-        assertThat(column('state').locator('.chip')).hasText(['Secondary Approval', 'Implementation', 'Closed'] as String[])
+        assertThat(column('state').locator('.chip')).hasText(['Secondary Approval', 'In Progress', 'Closed'] as String[])
         assertThat(column('state').locator('.meaning'))
-                .hasText(['Waiting for the L2 approver', 'Approved, installs in its window', 'Done'] as String[])
+                .hasText(['Waiting for the L2 approver', 'Every change task approved, installs in its window', 'Done'] as String[])
         assertThat(column('tasks')).hasText(['2', '2', '2'] as String[])
         assertThat(page.locator('.list .shown')).hasText('3 of 3 changes')
         assertThat(link('Edit CHG0031001', true)).hasAttribute('href', '/changes/4/edit')
@@ -138,21 +138,24 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(page.locator('.breadcrumb')).hasText('Changes/CHG0031001')
         assertThat(page.locator('.note.sync')).hasText('Read from ProTech just now')
         assertThat(stages().locator('.label')).hasText(['Draft', 'Business Approval', 'Primary Approval', 'Secondary Approval',
-                                                       'CTask approval', 'Escalated approval', 'Implementation', 'Closed'] as String[])
-        assertThat(stages()).hasClass(['done', 'done', 'done', 'current', 'later', 'later', 'later', 'later'] as String[])
+                                                       'Support Approval', 'CTask approval', 'Escalated approval', 'In Progress',
+                                                       'Closed'] as String[])
+        assertThat(stages()).hasClass(['done', 'done', 'done', 'current', 'later', 'later', 'later', 'later', 'later'] as String[])
         assertThat(page.locator('dso-workflow-progress li[aria-current=step] .label')).hasText('Secondary Approval')
         hasTaskNumbers('CTASK0310011', 'CTASK0310012')
         assertThat(taskRows().locator('.kind')).hasText(['Release Management', 'Change task'] as String[])
         assertThat(taskRows().locator('.chip')).hasText(['Open', 'Open'] as String[])
-        assertThat(taskRows().locator('.task-head .muted')).hasText(['Not done yet; approval not requested yet.',
-                                                                    'Not done yet; approval not requested yet.'] as String[])
+        assertThat(taskRows().locator('.task-head .muted')).hasText(['Not done yet; not approved yet.',
+                                                                    'Not done yet; not approved yet.'] as String[])
         assertThat(taskRows().nth(0).locator('dso-label')).hasText(RELEASE_TASK_FIELDS as String[])
         assertThat(taskRows().nth(1).locator('dso-label')).hasText(OTHER_TASK_FIELDS as String[])
         hasValues(taskRows().nth(0), ['Change number'    : 'CHG0031001', 'Assignment group': 'Release Management',
-                                      'Approval'         : 'Not Yet Requested', 'Task start': "${date}T17:01".toString(),
+                                      'Approval'         : 'Not Approved', 'Approvers': 'Rebecca Lawson, Thomas Ashby',
+                                      'Task start'       : "${date}T17:01".toString(),
                                       'Affected CI'      : 'CertScanner', 'Application': 'CertScanner',
                                       'Short description': CERT_TASKS[0].shortDescription])
         hasValues(taskRows().nth(1), ['Assignment group': 'Technology Architecture', 'Affected CI': 'CertScanner',
+                                      'Approvers'       : 'Daniel Foster, Priya Natarajan',
                                       'Description'     : CERT_TASKS[1].description])
         assertThat(selected(taskRows().nth(1), 'Importance')).hasText('3 - Moderate')
         assertThat(taskRows().locator('input:enabled, select:enabled, textarea:enabled, button')).hasCount(0)
@@ -192,6 +195,84 @@ class ChangesSpec extends BeadleSpecification {
         ownErrors().isEmpty()
     }
 
+    def "the department reminds the approvers who have not approved yet and the change goes In Progress once every change task is approved"() {
+        when:
+        open('/changes')
+        choose(page.locator('.toolbar'), 'Your department', 'Fund Services')
+        open('/changes/4')
+
+        then:
+        assertThat(page.locator('dso-change-approvals .hint')).hasText('Only Corporate Technology can remind its approvers')
+        assertThat(button('Remind everyone who has not approved', true)).isDisabled()
+        assertThat(button('Remind the approvers of L2 approver', true)).isDisabled()
+
+        when:
+        open('/changes')
+        choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
+        open('/changes/4')
+
+        then:
+        assertThat(page.locator('h2')).hasText(['Where the change is', 'Approvals', 'The change at a glance', 'Change tasks'] as String[])
+        assertThat(approvalRows().locator('th .name')).hasText(['Business approver', 'L1 approver', 'L2 approver', 'Support approver',
+                                                              'CTASK0310011', 'CTASK0310012'] as String[])
+        assertThat(approvalRows().locator('td:nth-child(2)')).hasText(['Grace Turner', 'Olivia Bennett', 'James Carter', 'Jane Smith',
+                                                                     'Rebecca Lawson, Thomas Ashby',
+                                                                     'Daniel Foster, Priya Natarajan'] as String[])
+        assertThat(approvalRows().locator('.chip')).hasText(['Approved', 'Approved', 'Requested', 'Not Approved', 'Not Approved',
+                                                           'Not Approved'] as String[])
+        assertThat(page.locator('dso-change-approvals button.remind')).hasCount(4)
+        assertThat(button('Remind the approvers of L1 approver', true)).hasCount(0)
+        assertThat(page.locator('dso-change-approvals .hint')).hasCount(0)
+
+        when:
+        button('Remind the approvers of L2 approver', true).click()
+
+        then:
+        awaitRequest('POST', '/api/changes/4/reminders').json() == [departmentId: 3, approval: 'L2']
+        assertThat(page.locator('dso-toast')).containsText('Reminder sent to James Carter')
+        assertThat(approvalRows().locator('.reminder')).hasText(['', '', 'James Carter, just now', '', '', ''] as String[])
+
+        when:
+        button('Remind everyone who has not approved', true).click()
+
+        then:
+        awaitRequest('POST', '/api/changes/4/reminders', 2).json() == [departmentId: 3]
+        assertThat(page.locator('dso-toast')).containsText('Reminder sent to James Carter, Jane Smith, Rebecca Lawson, ' +
+                'Thomas Ashby, Daniel Foster, Priya Natarajan')
+        assertThat(approvalRows().locator('.reminder')).hasText(['', '', 'James Carter, just now', 'Jane Smith, just now',
+                                                               'Rebecca Lawson, Thomas Ashby, just now',
+                                                               'Daniel Foster, Priya Natarajan, just now'] as String[])
+
+        when:
+        button('Remind the approvers of CTASK0310012', true).click()
+
+        then:
+        awaitRequest('POST', '/api/changes/4/reminders', 3).json() == [departmentId: 3, task: 'CTASK0310012']
+        assertThat(page.locator('dso-toast')).containsText('Reminder sent to Daniel Foster, Priya Natarajan')
+
+        when:
+        beadle.protech.advance(4, 'CTASK_APPROVAL')
+        page.reload()
+
+        then:
+        assertThat(page.locator('.now')).hasText('CTask approval. Waiting for the approvers of each change task in ProTech: ' +
+                '0 of 2 approved. The change goes In Progress once every change task is approved.')
+        assertThat(approvalRows().locator('.chip')).hasText((['Approved'] * 4 + ['Requested'] * 2) as String[])
+
+        when:
+        beadle.protech.advance(4, 'IMPLEMENTATION')
+        page.reload()
+
+        then:
+        assertThat(page.locator('dso-workflow-progress li[aria-current=step] .label')).hasText('In Progress')
+        assertThat(approvalRows().locator('.chip')).hasText((['Approved'] * 6) as String[])
+        assertThat(page.locator('dso-change-approvals button.remind')).hasCount(0)
+        assertThat(button('Remind everyone who has not approved', true)).isDisabled()
+        assertThat(button('Remind everyone who has not approved', true))
+                .hasAttribute('title', 'Everyone named on the change has approved it')
+        ownErrors().isEmpty()
+    }
+
     def "a member of the department publishes an update to ProTech and sees that ProTech applied it"() {
         given:
         def date = now(UTC).plusDays(3).toString()
@@ -223,7 +304,7 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(taskRows().locator('.kind')).hasText(['Release Management', 'Change task'] as String[])
         assertThat(taskRows().locator('.chip')).hasText(['Open', 'Open'] as String[])
         assertThat(input(taskRows().first(), 'Number')).isDisabled()
-        hasValues(taskRows().first(), ['Change number'     : 'CHG0031001', 'Approval': 'Not Yet Requested',
+        hasValues(taskRows().first(), ['Change number'     : 'CHG0031001', 'Approval': 'Not Approved',
                                        'Installation start': "${date}T17:00", 'Installation end': "${date}T19:00",
                                        'Task start'        : "${date}T17:01", 'Affected CI': 'CertScanner',
                                        'Application'       : 'CertScanner'])
@@ -403,9 +484,9 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(updateBanner()).hasClass(~/\bdanger\b/)
         assertThat(updateBanner()).containsText('ProTech did not apply the update of')
         assertThat(updateBanner()).containsText(': Installation start, Installation end. A minute later ProTech still held its own values, so Beadle shows those.')
-        assertThat(page.locator('dso-workflow-progress li[aria-current=step] .label')).hasText('Implementation')
-        assertThat(stages().nth(5)).hasClass(~/\bskipped\b/)
-        assertThat(stages().nth(5).locator('.when')).hasText('Skipped')
+        assertThat(page.locator('dso-workflow-progress li[aria-current=step] .label')).hasText('In Progress')
+        assertThat(stages().nth(6)).hasClass(~/\bskipped\b/)
+        assertThat(stages().nth(6).locator('.when')).hasText('Skipped')
         assertThat(taskRows().first().locator('.chip')).hasText('Work in progress')
         assertThat(taskRows().first().locator('.task-head .muted')).hasText('Being carried out; approved.')
         assertThat(updateBanner()).containsText('Edit the change to send these values again.')
@@ -476,6 +557,10 @@ class ChangesSpec extends BeadleSpecification {
 
     void sortBy(String label) {
         holdingText(gridHeaders(), label).locator('.ag-header-cell-label').click()
+    }
+
+    Locator approvalRows() {
+        page.locator('dso-change-approvals tbody tr:not(.group)')
     }
 
     Locator stages() {

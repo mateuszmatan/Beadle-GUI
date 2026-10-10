@@ -3,6 +3,7 @@ package com.bbh.itss.dso.portal.adapter.out.persistence
 import com.bbh.itss.dso.portal.domain.change.ChangeProfile
 import com.bbh.itss.dso.portal.domain.change.ChangeSchedule
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate
+import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Approvers
 import com.bbh.itss.dso.portal.domain.change.ProductionChange
 import com.bbh.itss.dso.portal.domain.change.RiskAssessment
 import org.springframework.beans.factory.annotation.Autowired
@@ -29,7 +30,7 @@ import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORT
 @AutoConfigureTestDatabase(replace = NONE)
 @Transactional(propagation = NOT_SUPPORTED)
 @Import([ChangeProfilePersistenceAdapter, ProductionChangePersistenceAdapter])
-class BeadleWizardMigrationSpec extends MigrationSpecification {
+class BeadleWizardMigrationSpec extends BeadleMigrationSpecification {
 
     static final List<String> WIZARD_COLUMNS = ['REQUESTED_FOR', 'REQUESTED_BY', 'REQUEST_DEPARTMENT', 'ASSIGNED_TO',
                                                 'DIRECT_BUSINESS_SERVICE', 'USERS_AFFECTED', 'SECURE_CODING_TICKET']
@@ -119,6 +120,8 @@ class BeadleWizardMigrationSpec extends MigrationSpecification {
         def change = inTransaction { changes.load(changeId).get() }
         def migrated = assessed.toBuilder().type(STANDARD).requestedFor(null).requestedBy(null).department(null)
                 .assignedTo(null).directBusinessService(null).usersAffected(null).secureCodingTicket(null)
+                .approvers(new Approvers(assessed.approvers().l1Manager(), assessed.approvers().l2Manager(),
+                        assessed.approvers().businessApprover(), null))
                 .riskAssessment(assessed.riskAssessment().toBuilder().clientsOutsideBbh('More than one but not all')
                         .build()).build()
 

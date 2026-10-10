@@ -1,5 +1,7 @@
 package com.bbh.itss.dso.portal.adapter.out.persistence;
 
+import com.bbh.itss.dso.portal.adapter.out.persistence.ProductionChangeEntity.ReminderEmbeddable;
+import com.bbh.itss.dso.portal.domain.change.ApprovalState;
 import com.bbh.itss.dso.portal.domain.change.ChangeTask;
 import com.bbh.itss.dso.portal.domain.change.TaskState;
 import jakarta.persistence.Column;
@@ -12,8 +14,10 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.EmbeddedColumnNaming;
 
 import java.time.Instant;
+import java.util.List;
 
 import static com.bbh.itss.dso.portal.adapter.RecordMapper.map;
 import static jakarta.persistence.EnumType.STRING;
@@ -46,7 +50,13 @@ public class ProductionChangeTaskEntity {
     @Column(name = "TASK_START")
     private Instant start;
 
-    private String approval;
+    @Enumerated(STRING)
+    private ApprovalState approval;
+
+    private List<String> approvers;
+
+    @EmbeddedColumnNaming("REMINDER_%s")
+    private ReminderEmbeddable reminder;
 
     @Enumerated(STRING)
     private TaskState state;
@@ -62,6 +72,8 @@ public class ProductionChangeTaskEntity {
         this.details = map(task.details(), TaskDetailsEmbeddable.class);
         this.start = task.start();
         this.approval = task.approval();
+        this.approvers = task.approvers();
+        this.reminder = map(task.reminder(), ReminderEmbeddable.class);
         this.state = task.state();
         return this;
     }

@@ -40,7 +40,7 @@ import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORT
 @AutoConfigureTestDatabase(replace = NONE)
 @Transactional(propagation = NOT_SUPPORTED)
 @Import([ChangeProfilePersistenceAdapter, ProductionChangePersistenceAdapter, ProductPersistenceAdapter])
-class ProTechSyncMigrationSpec extends MigrationSpecification {
+class ProTechSyncMigrationSpec extends BeadleMigrationSpecification {
 
     static final List<String> SYNC_COLUMNS = ['DEPARTMENT_ID', 'STATE', 'SYNCED_AT', 'UPDATE_STATUS',
                                               'UPDATE_REQUESTED_AT', 'UPDATE_DEPARTMENT', 'UPDATE_FIELDS',

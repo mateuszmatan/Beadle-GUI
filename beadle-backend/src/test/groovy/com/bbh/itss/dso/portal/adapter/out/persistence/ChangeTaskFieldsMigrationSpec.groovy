@@ -9,7 +9,8 @@ import org.springframework.context.annotation.Import
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.transaction.annotation.Transactional
 
-import static com.bbh.itss.dso.portal.domain.change.ChangeTask.NOT_YET_REQUESTED
+import static com.bbh.itss.dso.portal.domain.change.ApprovalState.APPROVED
+import static com.bbh.itss.dso.portal.domain.change.ApprovalState.NOT_APPROVED
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.FIX_VERSION
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.raised
 import static com.bbh.itss.dso.portal.support.ChangeFixtures.releaseTask
@@ -26,7 +27,7 @@ import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORT
 @AutoConfigureTestDatabase(replace = NONE)
 @Transactional(propagation = NOT_SUPPORTED)
 @Import([ChangeProfilePersistenceAdapter, ProductionChangePersistenceAdapter])
-class ChangeTaskFieldsMigrationSpec extends MigrationSpecification {
+class ChangeTaskFieldsMigrationSpec extends BeadleMigrationSpecification {
 
     static final List<String> PROFILE_TASK_FIELDS = ['ASSIGNMENT_GROUP', 'ASSIGNED_TO', 'CONFIGURATION_ITEM',
                                                      'PLATFORM', 'APPLICATION', 'PACKAGES', 'BACKOUT_PACKAGES',
@@ -49,7 +50,7 @@ class ChangeTaskFieldsMigrationSpec extends MigrationSpecification {
         profiles.save(ChangeProfile.create(productId, payHub, tasks(2)))
         ProductionChange change = inTransaction {
             changes.save(raised(id: null, version: null, productId: productId,
-                    template: payHub.releasedAs(FIX_VERSION), tasks: [task(1).approved('Approved'),
+                    template: payHub.releasedAs(FIX_VERSION), tasks: [task(1).withApproval(APPROVED, ['Ann Lee']),
                                                                       releaseTask().numbered('CTASK0041003')]))
         }
 
@@ -72,7 +73,7 @@ class ChangeTaskFieldsMigrationSpec extends MigrationSpecification {
         migrated.tasks()*.details()*.configurationItem() == ['PayHub'] * 2
         migrated.tasks()*.details()*.shortDescription() == ['Task 1 of the CertScanner release',
                                                             'Task 3 of the CertScanner release']
-        migrated.tasks()*.approval() == [NOT_YET_REQUESTED] * 2
+        migrated.tasks()*.approval() == [NOT_APPROVED] * 2
         migrated.tasks()*.start() == [null, null]
 
         when:

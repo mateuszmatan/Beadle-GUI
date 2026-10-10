@@ -91,6 +91,11 @@ public class ChangeController {
         return changes.createSecureCodingTicket(id, request.toCommand());
     }
 
+    @PostMapping("/changes/{id}/reminders")
+    public ProductionChange remind(@PathVariable long id, @Valid @RequestBody ReminderRequest request) {
+        return changes.remind(id, request.toCommand());
+    }
+
     @GetMapping("/products/{id}/jira/versions")
     public List<JiraVersion> versions(@PathVariable long id, @RequestParam(required = false) String project) {
         return changes.versions(id, project);

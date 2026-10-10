@@ -51,7 +51,7 @@ class NewChangeSpec extends BeadleSpecification {
         choose(step(), 'Product', 'CertScanner (CERTSCANNER)')
 
         then:
-        hasValues(step(), ['Change number'   : '', 'Approval': 'Not Yet Requested', 'Opened by': SIGNED_IN_USER, 'State': 'Draft',
+        hasValues(step(), ['Change number'   : '', 'Approval': 'Not Approved', 'Opened by': SIGNED_IN_USER, 'State': 'Draft',
                            'Requested for'   : SIGNED_IN_USER, 'Requested by': SIGNED_IN_USER, 'Assigned to': SIGNED_IN_USER,
                            'Department'      : 'Corporate Technology', 'Assignment group': 'Technology Architecture',
                            'Release'         : '', 'Affected CI': 'CertScanner', 'Direct business service': 'Certificate Management',
@@ -154,7 +154,8 @@ class NewChangeSpec extends BeadleSpecification {
         assertThat(currentStep()).hasText('Approval')
         assertThat(step().locator('h2')).hasText('Approval and notification')
         assertThat(step().locator('.step-count')).hasText('Step 3 of 8')
-        hasValues(step(), ['Business approver': 'Grace Turner', 'L1 approver': 'Olivia Bennett', 'L2 approver': 'James Carter'])
+        hasValues(step(), ['Business approver': 'Grace Turner', 'L1 approver': 'Olivia Bennett', 'L2 approver': 'James Carter',
+                           'Support approver' : 'Jane Smith'])
 
         when:
         lookUp(step(), 'L2 approver', 'hay', 'William Hayes')
@@ -248,7 +249,7 @@ class NewChangeSpec extends BeadleSpecification {
                                                                     'Approval and notification', 'Risk assessment',
                                                                     'Privileged access', 'Planning'] as String[])
         assertThat(review('Change number')).hasText('Given by ProTech when raised')
-        assertThat(review('Approval')).hasText('Not Yet Requested')
+        assertThat(review('Approval')).hasText('Not Approved')
         assertThat(review('Opened by')).hasText(SIGNED_IN_USER)
         assertThat(review('Release')).hasText('CERT 4.2')
         assertThat(review('Incident')).hasText('INC0105126')
@@ -276,7 +277,8 @@ class NewChangeSpec extends BeadleSpecification {
             template.incident == 'INC0105126'
             template.affectedClients == 'Aurora Global Equity Fund, Kestrel Sovereign Wealth Fund'
             template.risk == null
-            template.approvers == [businessApprover: 'Grace Turner', l1Manager: 'Olivia Bennett', l2Manager: 'William Hayes']
+            template.approvers == [businessApprover: 'Grace Turner', l1Manager: 'Olivia Bennett', l2Manager: 'William Hayes',
+                                   supportApprover : 'Jane Smith']
             template.downtime
             template.planning.backoutPlan == 'Redeploy CERT 4.1 from Nexus.'
             template.privilegedAccess == [required: true, users: [[user: 'Jane Smith', account: 'adm_jsmith']]]
@@ -304,7 +306,7 @@ class NewChangeSpec extends BeadleSpecification {
         assertThat(taskRows().nth(0).locator('dso-label')).hasText(RELEASE_TASK_FIELDS as String[])
         assertThat(taskRows().nth(1).locator('dso-label')).hasText(OTHER_TASK_FIELDS as String[])
         hasValues(taskRows().nth(0), ['Number'            : '', 'Change number': 'CHG0031002', 'Assignment group': 'Release Management',
-                                      'Affected CI'       : 'CertScanner', 'Approval': 'Not Yet Requested',
+                                      'Affected CI'       : 'CertScanner', 'Approval': 'Not Approved',
                                       'Installation start': "${RELEASE_DATE}T18:00", 'Installation end': "${RELEASE_DATE}T20:00",
                                       'Task start'        : "${RELEASE_DATE}T18:01", 'Application': 'CertScanner',
                                       'Short description' : CERT_TASKS[0].shortDescription])
@@ -346,7 +348,7 @@ class NewChangeSpec extends BeadleSpecification {
         assertThat(input(taskRows().nth(0), 'Application')).isDisabled()
         assertThat(errorOf(taskRows().nth(0), 'Task start')).hasText('At least a minute after the installation start')
         assertThat(taskRows().nth(1).locator('dso-label')).hasText(OTHER_TASK_FIELDS as String[])
-        hasValues(taskRows().nth(1), ['Number': '', 'Change number': 'CHG0031002', 'Approval': 'Not Yet Requested', 'Affected CI': ''])
+        hasValues(taskRows().nth(1), ['Number': '', 'Change number': 'CHG0031002', 'Approval': 'Not Approved', 'Affected CI': ''])
         assertThat(hintOf(taskRows().nth(1), 'Affected CI')).hasText('The application; if left empty: the Affected CI of the change')
         assertThat(errorOf(taskRows().nth(1), 'Description')).hasText('Required')
         assertThat(choiceError()).hasText('Check the change tasks')
@@ -412,7 +414,9 @@ class NewChangeSpec extends BeadleSpecification {
         hasValues(step(), ['Change number': 'CHG0031002', 'Secure coding ticket number': 'SCP-4201'])
         assertThat(step().locator('.review-list li')).hasText(['CTASK0310021 · Deploy CertScanner to production · Release Management',
                                                                'CTASK0310022 · Run the database scripts · Cloud Engineering'] as String[])
-        assertThat(step().locator('.next-steps')).containsText('Grace Turner, Olivia Bennett, William Hayes approve the change in ProTech')
+        assertThat(step().locator('.next-steps')).containsText('Grace Turner, Olivia Bennett, William Hayes, Jane Smith approve the change in ' +
+                'ProTech. Then the approvers of each change task approve it, and the change goes In Progress once every ' +
+                'change task is approved.')
         assertThat(step().locator('.next-steps a')).hasText(['CHG0031002', 'Changes'] as String[])
         assertThat(step().locator('.next-steps a').first()).hasAttribute('href', '/changes/5')
         awaitRequest('POST', '/api/changes/5/secure-coding').json() == [version          : 1, departmentId: 3, apoNumber: 'APO-24680',
@@ -428,8 +432,8 @@ class NewChangeSpec extends BeadleSpecification {
         page.waitForURL('**/changes/5')
         assertThat(page.locator('h1')).hasText('CHG0031002')
         assertThat(taskRows().locator('.kind')).hasText(['Release Management', 'Change task'] as String[])
-        assertThat(taskRows().locator('.task-head .muted')).hasText(['Not done yet; approval not requested yet.',
-                                                                    'Not done yet; approval not requested yet.'] as String[])
+        assertThat(taskRows().locator('.task-head .muted')).hasText(['Not done yet; not approved yet.',
+                                                                    'Not done yet; not approved yet.'] as String[])
         assertThat(taskRows().nth(0).locator('dso-label')).hasText(RELEASE_TASK_FIELDS as String[])
         assertThat(taskRows().locator('.chip')).hasText(['Open', 'Open'] as String[])
         assertThat(taskRows().locator('dso-hint')).hasCount(0)
@@ -511,7 +515,7 @@ class NewChangeSpec extends BeadleSpecification {
 
         then:
         assertThat(currentStep()).hasText('Approval')
-        hasValues(step(), ['Business approver': '', 'L1 approver': '', 'L2 approver': ''])
+        hasValues(step(), ['Business approver': '', 'L1 approver': '', 'L2 approver': '', 'Support approver': ''])
 
         when:
         input(step(), 'L1 approver').fill('Emma Brooks')
@@ -543,7 +547,7 @@ class NewChangeSpec extends BeadleSpecification {
             template.jiraProjectKey == 'PAYHUB'
             template.requestedFor == SIGNED_IN_USER
             template.department == 'Fund Services'
-            template.approvers == [businessApprover: null, l1Manager: 'Emma Brooks', l2Manager: null]
+            template.approvers == [businessApprover: null, l1Manager: 'Emma Brooks', l2Manager: null, supportApprover: null]
             template.riskAssessment == (OPTIONS.risk as Map<String, List>).collectEntries { question, answers ->
                 [question, answers.first()]
             }

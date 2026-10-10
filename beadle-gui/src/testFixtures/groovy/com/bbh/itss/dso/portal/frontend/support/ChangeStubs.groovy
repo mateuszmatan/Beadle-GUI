@@ -46,8 +46,16 @@ final class ChangeStubs {
                                            artifactLink     : 'https://jenkins.bbh.com/job/CERT/job/certscanner-release/',
                                            qcApplicationLink: 'https://certscanner.qc.bbh.com']
 
-    static final List<String> STATES = ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL', 'CTASK_APPROVAL',
-                                        'ESCALATED_APPROVAL', 'IMPLEMENTATION', 'CLOSED']
+    static final List<String> STATES = ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL', 'SUPPORT_APPROVAL',
+                                        'CTASK_APPROVAL', 'ESCALATED_APPROVAL', 'IMPLEMENTATION', 'CLOSED']
+
+    static final Map<String, List<String>> ROLES = [BUSINESS: ['businessApprover', 'BUSINESS_APPROVAL'],
+                                                    L1      : ['l1Manager', 'PRIMARY_APPROVAL'],
+                                                    L2      : ['l2Manager', 'SECONDARY_APPROVAL'],
+                                                    SUPPORT : ['supportApprover', 'SUPPORT_APPROVAL']]
+
+    static final Map<String, List<String>> GROUP_APPROVERS = ['Release Management'     : ['Rebecca Lawson', 'Thomas Ashby'],
+                                                              'Technology Architecture': ['Daniel Foster', 'Priya Natarajan']]
 
     static final Map OPTIONS = fixture('change-options.json') as Map
 
@@ -65,7 +73,8 @@ final class ChangeStubs {
             assignmentGroup  : 'Technology Architecture', category: 'Application', assignedTo: null, type: 'STANDARD',
             release          : null, configurationItem: 'CertScanner', incident: null,
             directBusinessService: 'Certificate Management', problem: null, affectedClients: null, usersAffected: null,
-            approvers        : [businessApprover: 'Grace Turner', l1Manager: 'Olivia Bennett', l2Manager: 'James Carter'],
+            approvers        : [businessApprover: 'Grace Turner', l1Manager: 'Olivia Bennett', l2Manager: 'James Carter',
+                                supportApprover : 'Jane Smith'],
             downtime         : false,
             timing           : [installationStart: '18:00', installationHours: 2, validationHours: 1],
             planning         : PLANNING,
@@ -165,6 +174,10 @@ final class ChangeStubs {
             def found = protech.find(ids[0])
             found ? protech.createTasks(found, request.json() as Map) : problem(404, 'Not found', "Change ${ids[0]} does not exist")
         }
+        api.on('POST', '/api/changes/(\\d+)/reminders') { RecordedRequest request, List<String> ids ->
+            def found = protech.find(ids[0])
+            found ? protech.remind(found, request.json() as Map) : problem(404, 'Not found', "Change ${ids[0]} does not exist")
+        }
         api.on('POST', '/api/changes/(\\d+)/secure-coding') { RecordedRequest request, List<String> ids ->
             def found = protech.find(ids[0])
             found ? protech.createSecureCodingTicket(found, request.json() as Map)
@@ -181,7 +194,8 @@ final class ChangeStubs {
                   assignmentGroup   : product.ownerTeam ?: "$product.name Support", category: 'Application',
                   assignedTo        : null, type: 'STANDARD', release: null, configurationItem: product.name,
                   incident          : null, directBusinessService: null, problem: null, affectedClients: null,
-                  usersAffected     : null, approvers: [businessApprover: null, l1Manager: null, l2Manager: null],
+                  usersAffected     : null,
+                  approvers         : [businessApprover: null, l1Manager: null, l2Manager: null, supportApprover: null],
                   downtime          : false,
                   timing            : [installationStart: '18:00', installationHours: 2, validationHours: 1],
                   planning          : PLANNING, privilegedAccess: [required: false, users: []],
@@ -247,9 +261,20 @@ final class ChangeStubs {
         (details.assignmentGroup as String)?.toLowerCase()?.contains(RELEASE_MANAGEMENT.toLowerCase()) ?: false
     }
 
-    static String approvalOf(String state) {
-        def reached = STATES.indexOf(state) <=> STATES.indexOf('CTASK_APPROVAL')
-        reached < 0 ? 'Not Yet Requested' : reached == 0 ? 'Requested' : 'Approved'
+    static String approvalOf(String state, String stage = 'CTASK_APPROVAL') {
+        def reached = STATES.indexOf(state) <=> STATES.indexOf(stage)
+        reached < 0 ? 'NOT_APPROVED' : reached == 0 ? 'REQUESTED' : 'APPROVED'
+    }
+
+    static List<Map> approvals(Map template, String state, List<Map> held = []) {
+        ROLES.collect { role, keyAndStage ->
+            [role    : role, approver: (template.approvers as Map)[keyAndStage[0]], state: approvalOf(state, keyAndStage[1]),
+             reminder: held.find { it.role == role }?.reminder]
+        }
+    }
+
+    static List<String> approversOf(Map details) {
+        GROUP_APPROVERS[details.assignmentGroup] ?: ['Samuel Price']
     }
 
     static Map draft(Map asked) {
@@ -274,7 +299,7 @@ final class ChangeStubs {
                                                 department  : template.department ?: department]),
          epicKeys        : asked.epicKeys, storyKeys: asked.storyKeys,
          tasks           : [],
-         url             : null, state: 'DRAFT', workflow: [], syncedAt: null, syncProblem: null, update: null,
+         url             : null, state: 'DRAFT', workflow: [], approvals: [], syncedAt: null, syncProblem: null, update: null,
          version         : null, editedVersion: null, createdAt: null, openedBy: SIGNED_IN_USER]
     }
 
@@ -314,9 +339,10 @@ final class ChangeStubs {
         issue.subMap('key', 'summary', 'status', 'epicKey', 'updated')
     }
 
-    private static Map task(String number, Map details, String start, String state, String approval) {
+    private static Map task(String number, Map details, String start, String state, String approval, Map reminder = null) {
         def normal = normalized(details)
-        [number: number, details: normal, start: isRelease(normal) ? start : null, approval: approval, state: state]
+        [number  : number, details: normal, start: isRelease(normal) ? start : null, approval: approval,
+         approvers: number ? approversOf(normal) : [], reminder: reminder, state: state]
     }
 
     private static Map plannedIn(Map change, Map details) {
@@ -349,17 +375,17 @@ final class ChangeStubs {
             def at = Instant.now().truncatedTo(MINUTES)
             def today = at.truncatedTo(DAYS)
             changes << seed(1, 'CHG0030990', 1, 'CERT 4.0', at.minus(10, DAYS), today.minus(7, DAYS).plus(17, HOURS),
-                    ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL', 'CTASK_APPROVAL', 'IMPLEMENTATION',
-                     'CLOSED'], 'CLOSED', 6)
+                    ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL', 'SUPPORT_APPROVAL', 'CTASK_APPROVAL',
+                     'IMPLEMENTATION', 'CLOSED'], 'CLOSED', 6)
             changes << seed(2, 'CHG0030995', 1, 'CERT 4.1.1', at.minus(3, DAYS), at.minus(1, HOURS),
-                    ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL', 'CTASK_APPROVAL', 'IMPLEMENTATION'],
-                    'WORK_IN_PROGRESS', 5) + [update: [status       : 'NOT_APPLIED', requestedAt: stamp(at.minus(30, MINUTES)),
+                    ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL', 'SUPPORT_APPROVAL', 'CTASK_APPROVAL',
+                     'IMPLEMENTATION'], 'WORK_IN_PROGRESS', 5) + [update: [status       : 'NOT_APPLIED', requestedAt: stamp(at.minus(30, MINUTES)),
                                                       departmentName: 'Corporate Technology',
                                                       fields        : ['schedule.installationStart', 'schedule.installationEnd'],
                                                       message       : NOT_APPLIED, checkedAt: stamp(at.minus(29, MINUTES))]]
             changes << seed(3, 'CHG0031000', 2, 'PAYHUB 4.2', at.minus(30, MINUTES), at.plus(20, HOURS),
-                    ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL', 'CTASK_APPROVAL', 'ESCALATED_APPROVAL'],
-                    'OPEN', 4)
+                    ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL', 'SUPPORT_APPROVAL', 'CTASK_APPROVAL',
+                     'ESCALATED_APPROVAL'], 'OPEN', 4)
             changes << seed(4, 'CHG0031001', 1, 'CERT 4.1', at.minus(1, DAYS), today.plus(3, DAYS).plus(17, HOURS),
                     ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL'], 'OPEN', 3)
         }
@@ -377,7 +403,8 @@ final class ChangeStubs {
         Map read(Map change) {
             if (applying && (change.update as Map)?.status == 'PENDING') {
                 change.tasks = (change.tasks as List<Map>).collect {
-                    it.number ? it : it + [number: format('CTASK%07d', taskNumbers.incrementAndGet())]
+                    it.number ? it : it + [number   : format('CTASK%07d', taskNumbers.incrementAndGet()),
+                                           approvers: approversOf(it.details as Map)]
                 } + (canceling.remove(change.id as int) ?: [])
                 change.update = (change.update as Map) + [status: 'APPLIED', fields: [], checkedAt: stamp()]
                 change.version = (change.version as int) + 1
@@ -406,7 +433,7 @@ final class ChangeStubs {
                 def kept = held.find { it.number && it.number == wanted.number }
                 task(wanted.number as String, plannedIn(change, wanted.details as Map),
                         (wanted.start ?: earliest(asked.schedule as Map)) as String, kept?.state as String ?: 'OPEN',
-                        kept?.approval as String ?: approvalOf(change.state as String))
+                        kept?.approval as String ?: approvalOf(change.state as String), kept?.reminder as Map)
             }
             def requested = [shortDescription: asked.shortDescription, description: asked.description,
                              schedule        : asked.schedule,
@@ -443,6 +470,39 @@ final class ChangeStubs {
             }
             def version = (change.version as int) + 1
             change.putAll([tasks: held + created, version: version, editedVersion: version, syncedAt: stamp()])
+            change
+        }
+
+        Object remind(Map change, Map asked) {
+            if (asked.departmentId == null) {
+                return problem(400, 'Validation failed', 'must not be null',
+                        [errors: [[field: 'departmentId', message: 'must not be null']]])
+            }
+            if (asked.departmentId != change.departmentId) {
+                return problem(403, 'Forbidden', "Only $change.departmentName can remind the approvers of $change.number")
+            }
+            if (change.state == 'CLOSED') {
+                return problem(409, 'Conflict', "$change.number is closed in ProTech, so nobody is reminded to approve it")
+            }
+            def sentAt = stamp()
+            def roles = (change.approvals as List<Map>).findAll {
+                !asked.task && (!asked.approval || it.role == asked.approval) && it.state != 'APPROVED' && it.approver
+            }*.role
+            def numbers = (change.tasks as List<Map>).findAll {
+                !asked.approval && (!asked.task || it.number == asked.task) && it.number && it.state != 'CANCELED' &&
+                        it.approval != 'APPROVED' && it.approvers
+            }*.number
+            if (!roles && !numbers) {
+                return problem(409, 'Conflict', "Nobody named on $change.number still has to approve it")
+            }
+            change.approvals = (change.approvals as List<Map>).collect {
+                it.role in roles ? it + [reminder: [sentAt: sentAt, sentTo: [it.approver]]] : it
+            }
+            change.tasks = (change.tasks as List<Map>).collect {
+                it.number in numbers ? it + [reminder: [sentAt: sentAt, sentTo: it.approvers]] : it
+            }
+            change.version = (change.version as int) + 1
+            change.syncedAt = stamp()
             change
         }
 
@@ -485,6 +545,7 @@ final class ChangeStubs {
         void advance(Object id, String state) {
             def change = find(id)
             change.tasks = (change.tasks as List<Map>).collect { it + [approval: approvalOf(state)] }
+            change.approvals = approvals(change.template as Map, state, change.approvals as List<Map>)
             change.state = state
             change.workflow = (change.workflow as List<Map>) + [state: state, enteredAt: stamp()]
             change.version = (change.version as int) + 1
@@ -499,7 +560,8 @@ final class ChangeStubs {
                     shortDescription: asked.shortDescription ?: drafted.shortDescription,
                     description     : asked.description ?: drafted.description,
                     tasks           : [],
-                    workflow        : [[state: 'DRAFT', enteredAt: raisedAt]], syncedAt: raisedAt, version: 0, editedVersion: 0]
+                    workflow        : [[state: 'DRAFT', enteredAt: raisedAt]], approvals: approvals(drafted.template as Map, 'DRAFT'),
+                    syncedAt        : raisedAt, version: 0, editedVersion: 0]
             changes << change
             change
         }
@@ -520,6 +582,7 @@ final class ChangeStubs {
                  enteredAt: stamp(stage == 'CLOSED' ? start.plus(3, HOURS) : raisedAt.plus(2 * index, MINUTES))]
             }
             drafted + [id      : id, number: number, createdAt: stamp(raisedAt), state: stages.last(), workflow: entered,
+                       approvals: approvals(drafted.template as Map, stages.last()),
                        template: (drafted.template as Map) + [secureCodingTicket: id == 4 ? null : "SCP-${4100 + id}".toString()],
                        tasks   : texts.withIndex().collect { text, index ->
                            task(format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1), plannedIn(drafted, text),

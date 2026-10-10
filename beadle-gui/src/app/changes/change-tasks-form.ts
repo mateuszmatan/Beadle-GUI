@@ -43,7 +43,12 @@ const CI = line('details.configurationItem', 'Affected CI', '', 6, {
   ...find('configuration-items'),
   hint: 'The application; if left empty: the Affected CI of the change',
 });
-const APPROVAL = line('approval', 'Approval');
+const APPROVAL = line('approval', 'Approval', '', 6, {
+  hint: 'Not Approved, Requested or Approved in ProTech',
+});
+const APPROVERS = line('approvers', 'Approvers', '', 6, {
+  placeholder: 'Named by ProTech from the assignment group',
+});
 const FROM = line('installationStart', 'Installation start', '', 6, { type: 'datetime-local' });
 const UNTIL = line('installationEnd', 'Installation end', '', 6, { type: 'datetime-local' });
 const START = line('start', 'Task start', '', 6, {
@@ -74,11 +79,12 @@ export function taskFields(
         CHANGE,
         GROUP,
         ASSIGNED,
-        CI,
         APPROVAL,
+        APPROVERS,
+        CI,
+        choice('details.platform', 'Platform', choices(platforms)),
         FROM,
         UNTIL,
-        choice('details.platform', 'Platform', choices(platforms)),
         START,
         APPLICATION,
         PACKAGES,
@@ -92,9 +98,10 @@ export function taskFields(
         CHANGE,
         GROUP,
         ASSIGNED,
+        APPROVAL,
+        APPROVERS,
         choice('details.importance', 'Importance', choices(importances)),
         CI,
-        APPROVAL,
         FROM,
         UNTIL,
         SHORT,

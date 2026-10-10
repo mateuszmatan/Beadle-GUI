@@ -9,6 +9,7 @@ export type ChangeState =
   | 'BUSINESS_APPROVAL'
   | 'PRIMARY_APPROVAL'
   | 'SECONDARY_APPROVAL'
+  | 'SUPPORT_APPROVAL'
   | 'CTASK_APPROVAL'
   | 'ESCALATED_APPROVAL'
   | 'IMPLEMENTATION'
@@ -18,10 +19,27 @@ export type TaskState = 'OPEN' | 'WORK_IN_PROGRESS' | 'CLOSED' | 'CANCELED';
 
 export type UpdateStatus = 'PENDING' | 'APPLIED' | 'NOT_APPLIED';
 
+export type ApprovalState = 'NOT_APPROVED' | 'REQUESTED' | 'APPROVED';
+
+export type ApprovalRole = 'BUSINESS' | 'L1' | 'L2' | 'SUPPORT';
+
 export interface ChangeApprovers {
   businessApprover: string | null;
   l1Manager: string | null;
   l2Manager: string | null;
+  supportApprover: string | null;
+}
+
+export interface Reminder {
+  sentAt: string;
+  sentTo: string[];
+}
+
+export interface ChangeApproval {
+  role: ApprovalRole;
+  approver: string | null;
+  state: ApprovalState;
+  reminder: Reminder | null;
 }
 
 export interface ChangeTiming {
@@ -171,7 +189,9 @@ export interface TaskRequest {
 }
 
 export interface ChangeTask extends TaskRequest {
-  approval: string;
+  approval: ApprovalState;
+  approvers: string[];
+  reminder: Reminder | null;
   state: TaskState;
 }
 
@@ -208,6 +228,7 @@ export interface ProductionChange {
   url: string | null;
   state: ChangeState;
   workflow: WorkflowStep[];
+  approvals: ChangeApproval[];
   syncedAt: string | null;
   syncProblem: string | null;
   update: ChangeUpdate | null;
@@ -253,6 +274,12 @@ export interface SecureCodingRequest {
   qcApplicationLink: string;
 }
 
+export interface ReminderRequest {
+  departmentId: number;
+  approval?: ApprovalRole;
+  task?: string;
+}
+
 export interface ChangeIntegrations {
   jiraConnected: boolean;
   serviceNowConnected: boolean;
@@ -264,9 +291,10 @@ export const STATES: { value: ChangeState; label: string }[] = [
   { value: 'BUSINESS_APPROVAL', label: 'Business Approval' },
   { value: 'PRIMARY_APPROVAL', label: 'Primary Approval' },
   { value: 'SECONDARY_APPROVAL', label: 'Secondary Approval' },
+  { value: 'SUPPORT_APPROVAL', label: 'Support Approval' },
   { value: 'CTASK_APPROVAL', label: 'CTask approval' },
   { value: 'ESCALATED_APPROVAL', label: 'Escalated approval' },
-  { value: 'IMPLEMENTATION', label: 'Implementation' },
+  { value: 'IMPLEMENTATION', label: 'In Progress' },
   { value: 'CLOSED', label: 'Closed' },
 ];
 
@@ -277,17 +305,30 @@ export const TASK_STATES: { value: TaskState; label: string }[] = [
   { value: 'CANCELED', label: 'Canceled' },
 ];
 
+export const APPROVAL_STATES: { value: ApprovalState; label: string }[] = [
+  { value: 'NOT_APPROVED', label: 'Not Approved' },
+  { value: 'REQUESTED', label: 'Requested' },
+  { value: 'APPROVED', label: 'Approved' },
+];
+
+export const APPROVAL_ROLES: { value: ApprovalRole; label: string }[] = [
+  { value: 'BUSINESS', label: 'Business approver' },
+  { value: 'L1', label: 'L1 approver' },
+  { value: 'L2', label: 'L2 approver' },
+  { value: 'SUPPORT', label: 'Support approver' },
+];
+
 export const isOpen = (change: Pick<ProductionChange, 'state'>) => change.state !== 'CLOSED';
 
-export function approvalOf(state: ChangeState): string {
+export function approvalOf(state: ChangeState): ApprovalState {
   switch (state) {
     case 'DRAFT':
-      return 'Not Yet Requested';
+      return 'NOT_APPROVED';
     case 'IMPLEMENTATION':
     case 'CLOSED':
-      return 'Approved';
+      return 'APPROVED';
     default:
-      return 'Requested';
+      return 'REQUESTED';
   }
 }
 
@@ -322,6 +363,10 @@ export class ChangesApi {
 
   createTasks(id: number, request: ChangeTasksRequest): Observable<ProductionChange> {
     return this.http.post<ProductionChange>(`/api/changes/${id}/tasks`, request);
+  }
+
+  remind(id: number, request: ReminderRequest): Observable<ProductionChange> {
+    return this.http.post<ProductionChange>(`/api/changes/${id}/reminders`, request);
   }
 
   createSecureCodingTicket(id: number, request: SecureCodingRequest): Observable<ProductionChange> {

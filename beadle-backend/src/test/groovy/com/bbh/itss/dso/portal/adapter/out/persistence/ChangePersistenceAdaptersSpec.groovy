@@ -9,11 +9,13 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTask
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Approvers
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess
+import com.bbh.itss.dso.portal.domain.change.ApprovalRef
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedUser
 import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.Timing
 import com.bbh.itss.dso.portal.domain.change.ChangeUpdate
 import com.bbh.itss.dso.portal.domain.change.ChangeUsage
 import com.bbh.itss.dso.portal.domain.change.ProductionChange
+import com.bbh.itss.dso.portal.domain.change.Reminder
 import com.bbh.itss.dso.portal.domain.change.RiskAssessment
 import com.bbh.itss.dso.portal.domain.change.TaskDetails
 import com.bbh.itss.dso.portal.domain.change.WorkflowStep
@@ -25,6 +27,11 @@ import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.JdbcTemplate
 import spock.lang.Specification
 
+import static com.bbh.itss.dso.portal.domain.change.ApprovalRole.BUSINESS
+import static com.bbh.itss.dso.portal.domain.change.ApprovalRole.L1
+import static com.bbh.itss.dso.portal.domain.change.ApprovalRole.L2
+import static com.bbh.itss.dso.portal.domain.change.ApprovalRole.SUPPORT
+import static com.bbh.itss.dso.portal.domain.change.ApprovalState.REQUESTED
 import static com.bbh.itss.dso.portal.domain.change.ChangeState.BUSINESS_APPROVAL
 import static com.bbh.itss.dso.portal.domain.change.ChangeState.DRAFT
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.TEST_SUMMARY
@@ -108,7 +115,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         def created = profiles.save(ChangeProfile.create(product.id(), FULL, tasks()))
         entities.clear()
         def changed = profiles.save(profiles.find(product.id()).get().change(0L,
-                template(approvers: new Approvers('Emma Brooks', null, null), privilegedAccess: privileged(3)),
+                template(approvers: new Approvers('Emma Brooks', null, null, 'Ann Lee'), privilegedAccess: privileged(3)),
                 tasks(3).reverse()))
         entities.clear()
 
@@ -362,20 +369,28 @@ class ChangePersistenceAdaptersSpec extends Specification {
         def release = releaseTask([assignedTo     : 'Grace Turner', configurationItem: 'CertScanner UI',
                                    platform       : 'Distributed', packages: 'cert-4.2.tar\ncert-ui-4.2.tar',
                                    backoutPackages: 'cert-4.1.tar', additionalComments: 'Call the owner first.'])
-                .numbered('CTASK0002031').approved('Requested')
+                .numbered('CTASK0002031').withApproval(REQUESTED, ['Rebecca Lawson', 'Thomas Ashby'])
+                .remindedBy(new Reminder(RAISED, ['Rebecca Lawson', 'Thomas Ashby']))
         def other = ChangeTask.of(taskDetails(2, [assignmentGroup  : 'Cloud Engineering', importance: '2 - High',
                                                   configurationItem: 'CertScanner']))
-        def saved = changes.save(raise('CHG0001031').withTasks([release, other]))
+        def saved = changes.save(raise('CHG0001031').withTasks([release, other])
+                .reminded([(ApprovalRef.of(SUPPORT)): new Reminder(RAISED, ['Jane Smith'])]))
         profiles.save(ChangeProfile.create(product.id(), FULL, [release.details(), other.details()]))
         entities.clear()
 
         expect:
         changes.load(saved.id()).get().tasks() == [release, other]
+        changes.load(saved.id()).get().approvals() == saved.approvals()
+        saved.approvals()*.role() == [BUSINESS, L1, L2, SUPPORT]
+        saved.approvals()*.reminder() == [null, null, null, new Reminder(RAISED, ['Jane Smith'])]
         profiles.find(product.id()).get().tasks() == [release.details(), other.details()]
-        jdbc.queryForMap('''SELECT ASSIGNMENT_GROUP, PLATFORM, APPLICATION, IMPORTANCE, APPROVAL
-                FROM DSO_PRODUCTION_CHANGE_TASK WHERE CHANGE_ID = ? AND TASK_NUMBER = ?''', saved.id(),
-                'CTASK0002031') == [ASSIGNMENT_GROUP: 'Release Management', PLATFORM: 'Distributed',
-                                    APPLICATION     : 'CertScanner', IMPORTANCE: null, APPROVAL: 'Requested']
+        jdbc.queryForMap('''SELECT ASSIGNMENT_GROUP, PLATFORM, APPLICATION, IMPORTANCE, APPROVAL, APPROVERS,
+                REMINDER_SENT_TO FROM DSO_PRODUCTION_CHANGE_TASK WHERE CHANGE_ID = ? AND TASK_NUMBER = ?''',
+                saved.id(), 'CTASK0002031') == [ASSIGNMENT_GROUP: 'Release Management', PLATFORM: 'Distributed',
+                                                APPLICATION     : 'CertScanner', IMPORTANCE: null,
+                                                APPROVAL        : 'REQUESTED',
+                                                APPROVERS       : 'Rebecca Lawson\nThomas Ashby',
+                                                REMINDER_SENT_TO: 'Rebecca Lawson\nThomas Ashby']
         jdbc.queryForObject('''SELECT COUNT(*) FROM DSO_PRODUCTION_CHANGE_TASK WHERE CHANGE_ID = ?
                 AND TASK_START IS NOT NULL''', Integer, saved.id()) == 1
     }

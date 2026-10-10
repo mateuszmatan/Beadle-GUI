@@ -3,7 +3,7 @@ import { LookupKind } from '../core/models';
 import { Field, FieldOption, area, choice, count, line, mono } from '@common/shared/fields';
 import { HTTP_URL_ERROR } from '@common/shared/form-controls';
 import { Lookup } from '@common/shared/lookup-dialog';
-import { ProductionChange, STATES, approvalOf, labelOf } from './change-api';
+import { APPROVAL_STATES, ProductionChange, STATES, approvalOf, labelOf } from './change-api';
 import {
   JIRA_KEY_ERROR,
   MAX_PRIVILEGED_USERS,
@@ -94,7 +94,7 @@ export function changeFacts(
 ): Fact[] {
   return [
     { label: 'Change number', value: change.number, placeholder: NUMBER_PENDING, mono: true },
-    { label: 'Approval', value: approvalOf(change.state) },
+    { label: 'Approval', value: labelOf(APPROVAL_STATES, approvalOf(change.state)) },
     { label: 'Opened by', value: change.openedBy },
     { label: 'State', value: labelOf(STATES, change.state) },
   ];
@@ -154,6 +154,7 @@ export const APPROVAL_FIELDS: readonly Field[] = [
   person('businessApprover', 'Business approver'),
   person('l1Manager', 'L1 approver'),
   person('l2Manager', 'L2 approver'),
+  person('supportApprover', 'Support approver'),
 ];
 
 const YES_NO: FieldOption[] = [

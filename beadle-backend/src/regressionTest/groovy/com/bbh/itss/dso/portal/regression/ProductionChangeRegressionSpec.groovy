@@ -21,7 +21,8 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
     static final List<String> CHANGE_KEYS = ['id', 'number', 'productId', 'productCode', 'productName',
                                              'departmentId', 'departmentName', 'openedBy', 'fixVersion', 'schedule',
                                              'shortDescription', 'description', 'template', 'epicKeys', 'storyKeys',
-                                             'tasks', 'url', 'state', 'workflow', 'syncedAt', 'syncProblem',
+                                             'tasks', 'url', 'state', 'workflow', 'approvals', 'syncedAt',
+                                             'syncProblem',
                                              'update', 'version', 'editedVersion', 'createdAt']
     static final List<String> TEMPLATE_KEYS = ['jiraProjectKey', 'requestedFor', 'requestedBy', 'department',
                                                'assignmentGroup', 'category', 'assignedTo', 'type', 'release',
@@ -32,12 +33,15 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
     static final List<String> SCHEDULE_PATHS = ['schedule.installationStart', 'schedule.installationEnd',
                                                 'schedule.validationStart', 'schedule.validationEnd',
                                                 'schedule.firstUsage']
-    static final List<String> TASK_KEYS = ['number', 'details', 'start', 'approval', 'state']
+    static final List<String> TASK_KEYS = ['number', 'details', 'start', 'approval', 'approvers', 'reminder', 'state']
     static final List<String> TASK_DETAIL_KEYS = ['assignmentGroup', 'assignedTo', 'configurationItem', 'platform',
                                                   'application', 'packages', 'backoutPackages', 'importance',
                                                   'shortDescription', 'description', 'additionalComments']
     static final String MODERATE = '3 - Moderate'
-    static final String NOT_YET_REQUESTED = 'Not Yet Requested'
+    static final List<String> WORKFLOW = ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL',
+                                          'SUPPORT_APPROVAL', 'CTASK_APPROVAL', 'IMPLEMENTATION']
+    static final List<String> RELEASE_APPROVERS = ['Rebecca Lawson', 'Thomas Ashby']
+    static final List<String> DATABASE_APPROVERS = ['Henry Collins', 'Kenji Watanabe']
 
     def "a product first gets a suggested template, then saves and changes its own at the version it read"() {
         given:
@@ -60,7 +64,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
                 'privilegedAccess', 'riskAssessment', 'secureCodingTicket', 'secureCoding') ==
                 [requestedFor: null, department: null, configurationItem: created.name, assignmentGroup: 'Ledger Ops',
                  category: 'Application', type: 'STANDARD', release: null, risk: 'Low',
-                 approvers: [l1Manager: null, l2Manager: null, businessApprover: null],
+                 approvers: [l1Manager: null, l2Manager: null, businessApprover: null, supportApprover: null],
                  downtime: false, timing: [installationStart: '18:00', installationHours: 2, validationHours: 1],
                  privilegedAccess: [required: false, users: []],
                  riskAssessment: [bbhWorkgroups: 'Single', changeComplexity: 'Simple', bbhUsers: 'Less than 5',
@@ -452,19 +456,21 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         tasked.json.tasks.every { it.keySet() as List == TASK_KEYS && it.details.keySet() as List == TASK_DETAIL_KEYS }
         tasked.json.tasks*.number.every { it ==~ /CTASK\d{7}/ && it != 'CTASK0000001' }
         tasked.json.tasks*.number.toSet().size() == 2
-        tasked.json.tasks*.subMap('details', 'start', 'approval', 'state') ==
+        tasked.json.tasks*.subMap('details', 'start', 'approval', 'approvers', 'reminder', 'state') ==
                 [[details : [assignmentGroup  : 'Release Management', assignedTo: null,
                              configurationItem: raised.template.configurationItem, platform: 'None',
                              application      : 'Payments', packages: 'payments-4.2.jar',
                              backoutPackages  : 'payments-4.1.jar', importance: null,
                              shortDescription : 'Deploy the release', description: 'Run the deployment jobs.',
                              additionalComments: 'Page on-call.'],
-                  start   : START.plus(1, MINUTES).toString(), approval: NOT_YET_REQUESTED, state: 'OPEN'],
+                  start   : START.plus(1, MINUTES).toString(), approval: 'NOT_APPROVED',
+                  approvers: RELEASE_APPROVERS, reminder: null, state: 'OPEN'],
                  [details : [assignmentGroup  : 'Service Desk', assignedTo: 'Grace Turner',
                              configurationItem: 'Payments Gateway', platform: null, application: null, packages: null,
                              backoutPackages  : null, importance: MODERATE, shortDescription: 'Tell the users',
                              description      : 'Post the notice.', additionalComments: null],
-                  start   : null, approval: NOT_YET_REQUESTED, state: 'OPEN']]
+                  start   : null, approval: 'NOT_APPROVED', approvers: ['Jane Smith'], reminder: null,
+                  state   : 'OPEN']]
         tasked.json.findAll { !(it.key in ['tasks', 'version', 'editedVersion', 'syncedAt']) } ==
                 raised.findAll { !(it.key in ['tasks', 'version', 'editedVersion', 'syncedAt']) }
         tasked.json.version > raised.version
@@ -578,28 +584,119 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         where:
         refusal                                        | unowned | closed | edits             || status | detail
         'for another department'                       | false   | false  | [departmentId: 4] || 403    | { "Only Corporate Technology can change $it".toString() }
-        'for a change no department owns'              | true    | false  | [:]               || 403    | { "No department owns $it, so it cannot be changed in Beadle".toString() }
+        'for a change no department owns'              | true    | false  | [:]               || 403    | { "No department owns $it, so nobody can change it in Beadle".toString() }
         'at a version read before the last tasks came' | false   | false  | [version: 0]      || 409    | { 'The record was changed by someone else in the meantime. Reload it and apply your change again.' }
         'once ProTech has closed the change'           | false   | true   | [:]               || 409    | { "$it is closed in ProTech and can no longer be changed".toString() }
     }
 
-    def "ProTech asks for the approval of the change tasks once the change reaches the change task approval"() {
+    def "ProTech asks each change task's own approvers at the change task approval and the change goes In Progress only once all approved, #minutes minutes after it was raised"() {
         given:
-        def raised = raise(createProduct(product(code: uniqueCode(), name: "Approval ${uniqueCode()}")))
+        def raised = raise(createProduct(product(code: uniqueCode(), name: "Approval ${uniqueCode()}")),
+                [changeTaskJson(assignmentGroup: 'Release Management'),
+                 changeTaskJson(assignmentGroup: 'Database Administration')])
         Instant now = Instant.now()
 
         when:
         def drafted = api.get("/api/changes/$raised.id").json
-        adopt(raised.id, now.minus(9, MINUTES), now.plus(3, DAYS), now.plus(3, DAYS).plus(3, HOURS))
-        def requested = api.get("/api/changes/$raised.id").json
+        adopt(raised.id, now.minus(minutes, MINUTES), now.plus(3, DAYS), now.plus(3, DAYS).plus(3, HOURS))
+        def read = api.get("/api/changes/$raised.id").json
 
         then:
         drafted.state == 'DRAFT'
-        drafted.tasks*.approval == [NOT_YET_REQUESTED] * 2
-        requested.state == 'CTASK_APPROVAL'
-        requested.tasks*.approval == ['Requested'] * 2
-        requested.tasks*.state == ['OPEN'] * 2
-        requested.tasks*.number == raised.tasks*.number
+        drafted.approvals*.subMap('role', 'approver', 'state', 'reminder') ==
+                [[role: 'BUSINESS', approver: 'Rebecca Lawson', state: 'NOT_APPROVED', reminder: null],
+                 [role: 'L1', approver: 'Olivia Bennett', state: 'NOT_APPROVED', reminder: null],
+                 [role: 'L2', approver: 'James Carter', state: 'NOT_APPROVED', reminder: null],
+                 [role: 'SUPPORT', approver: 'Jane Smith', state: 'NOT_APPROVED', reminder: null]]
+        drafted.tasks*.approval == ['NOT_APPROVED'] * 2
+        drafted.tasks*.approvers == [RELEASE_APPROVERS, DATABASE_APPROVERS]
+        read.state == state
+        read.workflow*.state == workflow
+        read.approvals*.state == ['APPROVED'] * 4
+        read.tasks*.approval == approvals
+        read.tasks*.approvers == [RELEASE_APPROVERS, DATABASE_APPROVERS]
+        read.tasks*.state == ['OPEN'] * 2
+        read.tasks*.number == raised.tasks*.number
+
+        where:
+        minutes || state            | approvals                  | workflow
+        11      || 'CTASK_APPROVAL' | ['REQUESTED'] * 2          | WORKFLOW.take(6)
+        13      || 'CTASK_APPROVAL' | ['APPROVED', 'REQUESTED']  | WORKFLOW.take(6)
+        15      || 'IMPLEMENTATION' | ['APPROVED'] * 2           | WORKFLOW
+    }
+
+    def "the approvers who have not approved yet are reminded all at once or one approval at a time"() {
+        given:
+        def raised = raise(createProduct(product(code: uniqueCode(), name: "Remind ${uniqueCode()}")),
+                [changeTaskJson(assignmentGroup: 'Release Management'),
+                 changeTaskJson(assignmentGroup: 'Database Administration')])
+        Instant now = Instant.now()
+        def number = adopt(raised.id, now.minus(5, MINUTES), START, START.plus(3, HOURS))
+        def opened = api.get("/api/changes/$raised.id").json
+
+        when:
+        def everyone = api.post("/api/changes/$raised.id/reminders", [departmentId: 3])
+
+        then:
+        opened.state == 'PRIMARY_APPROVAL'
+        opened.approvals*.state == ['APPROVED', 'REQUESTED', 'NOT_APPROVED', 'NOT_APPROVED']
+        everyone.status == 200
+        everyone.json.keySet() as List == CHANGE_KEYS
+        everyone.json.approvals*.reminder*.sentTo == [null, ['Olivia Bennett'], ['James Carter'], ['Jane Smith']]
+        everyone.json.tasks*.reminder*.sentTo == [RELEASE_APPROVERS, DATABASE_APPROVERS]
+        [everyone.json.approvals, everyone.json.tasks].flatten()*.reminder.findAll()*.sentAt.toSet().size() == 1
+        everyone.json.editedVersion == opened.editedVersion
+        api.get("/api/changes/$raised.id").json.findAll { it.key != 'syncedAt' } ==
+                everyone.json.findAll { it.key != 'syncedAt' }
+
+        when:
+        def one = api.post("/api/changes/$raised.id/reminders", [departmentId: 3, task: " ${raised.tasks[1].number} "])
+        def l2 = api.post("/api/changes/$raised.id/reminders", [departmentId: 3, approval: 'L2'])
+        def renamed = api.put("/api/changes/$raised.id", editOf(opened, [shortDescription: 'Renamed release']))
+
+        then:
+        one.status == 200
+        Instant.parse(one.json.tasks[1].reminder.sentAt).isAfter(Instant.parse(everyone.json.tasks[1].reminder.sentAt))
+        one.json.tasks[0].reminder == everyone.json.tasks[0].reminder
+        one.json.approvals == everyone.json.approvals
+        l2.json.approvals[2].reminder.sentTo == ['James Carter']
+        l2.json.approvals[2].reminder != everyone.json.approvals[2].reminder
+        l2.json.approvals[1].reminder == everyone.json.approvals[1].reminder
+        renamed.status == 200
+        renamed.json.shortDescription == 'Renamed release'
+        renamed.json.approvals*.reminder == l2.json.approvals*.reminder
+        renamed.json.tasks*.reminder == l2.json.tasks*.reminder
+
+        expect:
+        refused(raised.id, [departmentId: 3, approval: 'BUSINESS']) ==
+                [409, "The business approver already approved $number".toString()]
+        refused(raised.id, [departmentId: 4]) ==
+                [403, "Only Corporate Technology can remind the approvers of $number".toString()]
+        refused(raised.id, [departmentId: 3, approval: 'L1', task: raised.tasks[0].number]) == [400, ['task']]
+        refused(raised.id, [departmentId: 3, task: 'CTASK0000001']) == [400, ['task']]
+        refused(raised.id, [approval: 'L1']) == [400, ['departmentId']]
+        refused(raised.id, [departmentId: 3, approval: 'L3']) == [400, ['approval']]
+        refused(99999, [departmentId: 3]) == [404, 'Change 99999 does not exist']
+    }
+
+    def "nobody is reminded to approve a change ProTech has closed or one no department owns"() {
+        given:
+        def raised = raise(createProduct(product(code: uniqueCode(), name: "Unremindable ${uniqueCode()}")))
+        Instant now = Instant.now()
+        def number = closed ? adopt(raised.id, now.minus(9, DAYS), now.minus(6, DAYS), now.minus(5, DAYS))
+                : raised.number
+        if (unowned) {
+            jdbc.update('UPDATE DSO_PRODUCTION_CHANGE SET DEPARTMENT_ID = NULL WHERE ID = ?', raised.id)
+        }
+
+        expect:
+        refused(raised.id, [departmentId: 3]) == [status, detail(number)]
+        api.get("/api/changes/$raised.id").json.tasks*.reminder == [null] * 2
+
+        where:
+        unowned | closed || status | detail
+        false   | true   || 409    | { "$it is closed in ProTech, so nobody is reminded to approve it".toString() }
+        true    | false  || 403    | { "No department owns $it, so nobody can remind the approvers of it in Beadle".toString() }
     }
 
     def "a change without change tasks is updated and gets its tasks afterwards"() {
@@ -710,9 +807,9 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         opened.number == number
         opened.state == 'IMPLEMENTATION'
         opened.tasks*.state == ['WORK_IN_PROGRESS'] * 2
-        opened.tasks*.approval == ['Approved'] * 2
-        opened.workflow*.state == ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL',
-                                   'CTASK_APPROVAL', 'IMPLEMENTATION']
+        opened.tasks*.approval == ['APPROVED'] * 2
+        opened.approvals*.state == ['APPROVED'] * 4
+        opened.workflow*.state == WORKFLOW
         updated.status == 200
         updated.json.update.status == 'PENDING'
         updated.json.update.fields == SCHEDULE_PATHS
@@ -741,7 +838,8 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         opened.state == 'CLOSED'
         opened.workflow*.state.last() == 'CLOSED'
         opened.tasks*.state == ['CLOSED'] * 2
-        opened.tasks*.approval == ['Approved'] * 2
+        opened.tasks*.approval == ['APPROVED'] * 2
+        opened.approvals*.state == ['APPROVED'] * 4
         opened.version == raised.version + 1
         refused.status == 409
         refused.json.detail == "$number is closed in ProTech and can no longer be changed".toString()
@@ -767,7 +865,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         where:
         refusal                              | unowned | edits                                                     || status | expected
         'for another department'             | false   | { [departmentId: 4] }                                     || 403    | { "Only Corporate Technology can change $it.number".toString() }
-        'for a change no department owns'    | true    | { [departmentId: 3] }                                     || 403    | { "No department owns $it.number, so it cannot be changed in Beadle".toString() }
+        'for a change no department owns'    | true    | { [departmentId: 3] }                                     || 403    | { "No department owns $it.number, so nobody can change it in Beadle".toString() }
         'without a department'               | false   | { [departmentId: null] }                                  || 400    | { ['departmentId'] }
         'without a version'                  | false   | { [version: null] }                                       || 400    | { ['version'] }
         'without a task list'                | false   | { [tasks: null] }                                         || 400    | { ['tasks'] }
@@ -817,6 +915,11 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         api.post('/api/changes/99999/tasks', tasksOf(raised, changeTasksJson(1))).status == 404
         api.get('/api/changes/integrations').json == [jiraConnected: false, serviceNowConnected: false,
                                                       cyberTrackConnected: false]
+    }
+
+    private List refused(long id, Map request) {
+        def response = api.post("/api/changes/$id/reminders", request)
+        [response.status, response.status == 400 ? response.json.errors*.field : response.json.detail]
     }
 
     private String adopt(long id, Instant raisedAt, Instant installationStart, Instant validationEnd) {

@@ -8,7 +8,15 @@ import {
   setEnabled,
   text,
 } from '@common/shared/form-controls';
-import { ChangeSchedule, ChangeTask, TaskDetails, TaskRequest, TaskState } from './change-api';
+import {
+  APPROVAL_STATES,
+  ChangeSchedule,
+  ChangeTask,
+  TaskDetails,
+  TaskRequest,
+  TaskState,
+  labelOf,
+} from './change-api';
 import { fits } from './change-model';
 import { fromLocal, localInput } from './change-schedule-model';
 import { FieldProblem } from '@common/core/models';
@@ -19,7 +27,6 @@ export const NO_PLATFORM = 'None';
 export const OPENSHIFT = 'OpenShift';
 export const OCP = 'OCP';
 export const MODERATE = '3 - Moderate';
-export const NOT_YET_REQUESTED = 'Not Yet Requested';
 const START_DELAY = 60 * 1000;
 const TASKS_PREFIX = 'tasks';
 
@@ -109,7 +116,8 @@ export function taskForm(task: Partial<ChangeTask> = {}, window: TaskWindow | nu
     number: new FormControl<string | null>({ value: task.number ?? null, disabled: true }),
     changeNumber: shown(window?.changeNumber),
     state: new FormControl<TaskState>(task.state ?? 'OPEN', { nonNullable: true }),
-    approval: shown(task.approval ?? NOT_YET_REQUESTED),
+    approval: shown(labelOf(APPROVAL_STATES, task.approval ?? 'NOT_APPROVED')),
+    approvers: shown(task.approvers?.join(', ')),
     installationStart: shown(window?.installationStart),
     installationEnd: shown(window?.installationEnd),
     start: text(task.start ? localInput(new Date(task.start)) : '', startInWindow),
@@ -240,14 +248,12 @@ export const nestedTaskProblems = (problems: FieldProblem[]): FieldProblem[] =>
   }));
 
 const APPROVALS: Record<string, string> = {
-  [NOT_YET_REQUESTED]: 'approval not requested yet',
-  Requested: 'waiting for approval',
+  'Not Approved': 'not approved yet',
+  Requested: 'approval requested',
   Approved: 'approved',
-  Rejected: 'approval rejected',
-  'Not Required': 'no approval needed',
 };
 
-export function taskStatus(task: Pick<ChangeTask, 'state' | 'approval'>): string {
+export function taskStatus(task: { state: TaskState; approval: string }): string {
   const approval = APPROVALS[task.approval] ?? `approval ${task.approval}`;
   switch (task.state) {
     case 'OPEN':

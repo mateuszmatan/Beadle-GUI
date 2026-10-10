@@ -38,7 +38,7 @@ describe('change sections', () => {
     ]);
     expect(
       changeFacts({ number: null, state: 'DRAFT', openedBy: null }).map((fact) => fact.value),
-    ).toEqual([null, 'Not Yet Requested', null, 'Draft']);
+    ).toEqual([null, 'Not Approved', null, 'Draft']);
   });
 
   it('gives the controls each section shows', () => {

@@ -118,11 +118,11 @@ class BeadleSmokeSpec extends BeadleSpecification {
         '/changes'           | 0
         '/new-change'        | 0
         '/changes/4'         | 0
-        '/changes/4/edit'    | 19
+        '/changes/4/edit'    | 20
         '/changes/2'         | 0
         '/admin/departments' | 0
         '/admin/products'    | 0
-        '/admin/products/1'  | 19
+        '/admin/products/1'  | 20
     }
 
     @IgnoreIf({ BeadleSpecification.remoteBaseUrl() })

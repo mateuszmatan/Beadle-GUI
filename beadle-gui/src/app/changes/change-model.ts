@@ -80,8 +80,10 @@ export function toggled(keys: readonly string[], key: string, on: boolean): stri
 }
 
 export function approverNames(template: ChangeTemplate): string[] {
-  const { businessApprover, l1Manager, l2Manager } = template.approvers;
-  return [businessApprover, l1Manager, l2Manager].filter((name): name is string => !!name);
+  const { businessApprover, l1Manager, l2Manager, supportApprover } = template.approvers;
+  return [businessApprover, l1Manager, l2Manager, supportApprover].filter(
+    (name): name is string => !!name,
+  );
 }
 
 export function changeRequest(
@@ -110,7 +112,7 @@ export function editHint(
   departmentId: number | null,
 ): string | null {
   if (change.departmentId === null) {
-    return `No department owns ${change.number}, so it cannot be changed in Beadle`;
+    return `No department owns ${change.number}, so nobody can change it in Beadle`;
   }
   if (departmentId === null) {
     return 'Choose your department in Changes to change it';

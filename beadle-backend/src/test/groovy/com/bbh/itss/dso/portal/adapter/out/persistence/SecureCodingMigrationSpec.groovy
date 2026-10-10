@@ -25,7 +25,7 @@ import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORT
 @AutoConfigureTestDatabase(replace = NONE)
 @Transactional(propagation = NOT_SUPPORTED)
 @Import([ChangeProfilePersistenceAdapter, ProductionChangePersistenceAdapter])
-class SecureCodingMigrationSpec extends MigrationSpecification {
+class SecureCodingMigrationSpec extends BeadleMigrationSpecification {
 
     static final List<String> INPUTS = ['APO_NUMBER', 'BITBUCKET_URL', 'ARTIFACT_LINK', 'QC_APPLICATION_LINK']
 

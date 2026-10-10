@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - include:
+      file: history.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: oracle/027-change-approvals.sql
+      relativeToChangelogFile: true

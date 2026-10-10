@@ -107,7 +107,7 @@ describe('ChangeDetail', () => {
     localStorage.removeItem(MY_DEPARTMENT_KEY);
   });
 
-  it('shows where a change is, when it installs, what it delivers, who approves, its tasks and the rest folded away', async () => {
+  it('shows where a change is, who approves it, when it installs, what it delivers, its tasks and the rest folded away', async () => {
     await show(
       productionChange({
         url: 'https://bbh.service-now.com/CHG0012345',
@@ -134,7 +134,7 @@ describe('ChangeDetail', () => {
               { platform: 'OpenShift', application: 'OCP' },
             ),
             start: '2026-10-10T06:01:00Z',
-            approval: 'Requested',
+            approval: 'REQUESTED',
           }),
           changeTask({
             number: 'CTASK0020002',
@@ -164,13 +164,13 @@ describe('ChangeDetail', () => {
     expect([...page().querySelectorAll('h1, h2')].map(text)).toEqual([
       'CHG0012345',
       'Where the change is',
+      'Approvals',
       'The change at a glance',
       'Change tasks',
     ]);
     expect([...page().querySelectorAll('dso-change-summary h3')].map(text)).toEqual([
       'When it installs',
       'What it delivers',
-      'Who approves',
       'Request details',
       'Risk assessment',
       'Privileged access',
@@ -186,7 +186,7 @@ describe('ChangeDetail', () => {
         button.getAttribute('aria-expanded'),
       ),
     ).toEqual(['false', 'false']);
-    expect(page().querySelectorAll('dso-workflow-progress li')).toHaveLength(8);
+    expect(page().querySelectorAll('dso-workflow-progress li')).toHaveLength(9);
     expect(text(page().querySelector('dso-workflow-progress li[aria-current="step"]'))).toContain(
       'Primary Approval',
     );
@@ -232,10 +232,17 @@ describe('ChangeDetail', () => {
       expect.stringMatching(/^Downtime: Sat, 10 Oct 2026, \d\d:00 to \d\d:00$/),
     ]);
     expect(text(block('When it installs')!.querySelector('.note'))).toBe(zoneNote);
-    expect(rows('Who approves')).toEqual([
-      'Business approver: not set',
-      'L1 approver: Olivia Bennett',
-      'L2 approver: James Carter',
+    expect(
+      [...page().querySelectorAll('dso-change-approvals tbody tr')].map((row) =>
+        [...row.children].map(text),
+      ),
+    ).toEqual([
+      ['Business approverBusiness Approval', 'Not named in ProTech', 'Approved', '', ''],
+      ['L1 approverPrimary Approval', 'Olivia Bennett', 'Requested', '', 'Remind'],
+      ['L2 approverSecondary Approval', 'James Carter', 'Not Approved', '', 'Remind'],
+      ['Support approverSupport Approval', 'Jane Smith', 'Not Approved', '', 'Remind'],
+      ['CTASK approvals'],
+      ['CTASK0020001Release Management', 'Rebecca Lawson, Thomas Ashby', 'Requested', '', 'Remind'],
     ]);
     expect(rows('Secure coding')).toEqual([
       'Secure coding ticket number: SEC-12',
@@ -253,7 +260,7 @@ describe('ChangeDetail', () => {
     ).toContain('Validation plan: Run the smoke tests.');
     const tasks = [...page().querySelectorAll<HTMLElement>('dso-change-tasks-form .task-row')];
     expect(tasks.map((task) => text(task.querySelector('.task-head')))).toEqual([
-      '1Release ManagementOpenNot done yet; waiting for approval.',
+      '1Release ManagementOpenNot done yet; approval requested.',
       '2Change taskCanceledCanceled; no longer part of the change.',
       '3Change taskNot in ProTech yet.',
     ]);
@@ -273,7 +280,7 @@ describe('ChangeDetail', () => {
     expect(page().querySelector('dso-change-tasks-form button')).toBeNull();
     expect(tasks[1].classList).toContain('canceled');
     expect(text(page().querySelector('dso-change-tasks-form')?.previousElementSibling)).toBe(
-      'A change task (CTASK) is a piece of work inside the change, done by one team. ProTech asks for their approval in the CTask approval stage.',
+      'A change task (CTASK) is a piece of work inside the change, done by one team. ProTech asks the approvers of its assignment group for their approval in the CTask approval stage.',
     );
     expect(page().querySelector('.secure-coding-missing')).toBeNull();
     expect(text(page().querySelector('pre'))).toBe('Production release of CertScanner (CERT).');
@@ -547,7 +554,7 @@ describe('ChangeSummary', () => {
       ].map((term) => `${text(term)}: ${text(term.nextElementSibling)}`);
   };
 
-  it('shows only when, what and who in its key layout and the rest in its details layout', () => {
+  it('shows only when and what in its key layout and the rest in its details layout', () => {
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
@@ -559,7 +566,7 @@ describe('ChangeSummary', () => {
     };
     fixture.componentRef.setInput('change', productionChange());
 
-    expect(titles('key')).toEqual(['When it installs', 'What it delivers', 'Who approves']);
+    expect(titles('key')).toEqual(['When it installs', 'What it delivers']);
     expect(titles('details')).toEqual([
       'Request details',
       'Risk assessment',
@@ -582,7 +589,7 @@ describe('ChangeSummary', () => {
 
     expect(approval('DRAFT')).toEqual([
       'Change number: Given by ProTech when raised',
-      'Approval: Not Yet Requested',
+      'Approval: Not Approved',
     ]);
     TestBed.resetTestingModule();
     expect(approval('IMPLEMENTATION')[1]).toBe('Approval: Approved');

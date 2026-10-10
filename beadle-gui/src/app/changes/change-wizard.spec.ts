@@ -283,7 +283,7 @@ describe('ChangeWizard', () => {
     expect(text(page().querySelector('h2'))).toBe('Request details');
     expect(inputOf(page(), 'Change number').value).toBe('');
     expect(inputOf(page(), 'Change number').placeholder).toBe('Given by ProTech when raised');
-    expect(inputOf(page(), 'Approval').value).toBe('Not Yet Requested');
+    expect(inputOf(page(), 'Approval').value).toBe('Not Approved');
     expect(inputOf(page(), 'Opened by').value).toBe('Mateusz Matan');
     expect(inputOf(page(), 'State').value).toBe('Draft');
     expect(inputOf(page(), 'Requested for').value).toBe('Mateusz Matan');
@@ -434,7 +434,7 @@ describe('ChangeWizard', () => {
     expect(wizard()['shortDescription'].value).toBe('CertScanner CERT 4.2: Expiry alerts');
     expect(text(page().querySelector('.scope'))).toBe('1 epic and 1 story of FixVersion CERT 4.2');
     expect(text(page().querySelector('dso-change-summary'))).toContain(
-      'Change numberGiven by ProTech when raisedApprovalNot Yet Requested',
+      'Change numberGiven by ProTech when raisedApprovalNot Approved',
     );
     await type('Short description', 'CertScanner 4.2');
     expect(page().querySelector('dso-change-tasks-form')).toBeNull();
@@ -604,7 +604,7 @@ describe('ChangeWizard', () => {
       'CTASK0020001 · Deploy CertScanner to production · Release Management',
     );
     expect(text(page().querySelector('.next-steps'))).toContain(
-      'Olivia Bennett, James Carter approve the change in ProTech.',
+      'Olivia Bennett, James Carter, Jane Smith approve the change in ProTech. Then the approvers of each change task approve it, and the change goes In Progress once every change task is approved.',
     );
     expect(text(page().querySelector('.next-steps li:last-child p'))).toBe(
       'CHG0012345 shows the approvals, the workflow and the change tasks as ProTech holds them, and Changes lists every change of your department.',
