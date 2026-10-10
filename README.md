@@ -35,6 +35,7 @@ examples/                       Jenkinsfiles, API calls, a rendered configuratio
 | `common-gui` | the application shell (header, menu, footer, titles), the UI kit (form fields, grid, chart, dialogs, toasts), the departments pages and dialogs, the Admin page with its tabs, the API error texts and the browser test support |
 | `dso-gui` | Pipelines, Self-service, Pipeline Monitoring and DevSecOps Admin (Departments, Products, Service template, Library defaults) |
 | `beadle-gui` | Changes, New Change and Beadle Admin (Departments, Products with their change templates) |
+| `backend` | the launcher jar `backend/build/libs/dso-portal-<version>.jar`, which starts both applications together from their own jars inside it |
 
 Only code that both applications use lives in a common module; everything else belongs to the application it serves.
 
@@ -45,9 +46,10 @@ and `npx` from there, or the paths in `npm.executable` and `npx.executable` of `
 exist). The Gradle wrapper downloads Gradle 8.14 from the BBH Nexus.
 
 ```bash
-./gradlew build                     # both applications: the jars with the GUIs inside, every test suite
+./gradlew build                     # both applications: the jars with the GUIs inside, the launcher, every test suite
 ./gradlew dsoJar                    # the DevSecOps Management Portal only: dso-backend/build/libs/dso-portal-<version>.jar
 ./gradlew beadleJar                 # Beadle only: beadle-backend/build/libs/beadle-<version>.jar
+./gradlew :backend:bootJar          # both in one launcher: backend/build/libs/dso-portal-<version>.jar
 ./gradlew :dso-backend:bootJar -PskipGui   # a service without its GUI, for API work
 ./gradlew check                     # every suite of every module, see Tests
 ./gradlew sonar                     # SonarQube at tools.bbh.com/sonar, project DSOMgmtPortal, token in SONAR_AUTH_TOKEN
@@ -57,13 +59,14 @@ exist). The Gradle wrapper downloads Gradle 8.14 from the BBH Nexus.
 
 `dsoJar` and `beadleJar` build one application and nothing of the other: `dso-backend` depends on `common-backend`
 and takes the bundle of `dso-gui` into its `static` folder, `beadle-backend` on `common-backend` and `beadle-gui`.
-`publish` sends a `-SNAPSHOT` version to `nexus.snapshotsUrl` and any other to `nexus.releasesUrl`, both in
+`:backend:bootJar` builds both and packs the two jars, unchanged, into the launcher jar of the `backend` module (see
+[Running locally](#running-locally)). `publish` sends a `-SNAPSHOT` version to `nexus.snapshotsUrl` and any other to `nexus.releasesUrl`, both in
 `gradle.properties`.
 
 | File | Holds |
 |------|-------|
-| `settings.gradle` | the six modules; whether the BBH Nexus is reachable, and the repositories that follow from it |
-| `build.gradle` | the plugins, Java 17, SonarQube, the npm tasks and test suites of the GUI modules, the test suites and coverage gate of the backend modules, and how each application packages and publishes its jar |
+| `settings.gradle` | the seven modules; whether the BBH Nexus is reachable, and the repositories that follow from it |
+| `build.gradle` | the plugins, Java 17, SonarQube, the npm tasks and test suites of the GUI modules, the test suites and coverage gate of the backend modules, how each application packages and publishes its jar, and the launcher jar of `backend` |
 | `<module>/build.gradle` | the dependencies of that module |
 | `gradle.properties` | the BBH npm registry, proxy and CA file, the `npm`/`npx` paths on Windows and the Nexus URLs |
 | `gradle/libs.versions.toml` | the plugin and library versions |
@@ -116,7 +119,17 @@ java -jar beadle-backend/build/libs/beadle-0.1.0-SNAPSHOT.jar         # http://l
 ```
 
 `./gradlew :dso-backend:bootRun` and `./gradlew :beadle-backend:bootRun` do the same without building the jars.
-Both can run at the same time, and either one alone.
+Both can run at the same time, and either one alone. One command starts the two together:
+
+```bash
+./gradlew :backend:bootJar
+java -jar backend/build/libs/dso-portal-0.1.0-SNAPSHOT.jar             # http://localhost:8080 and http://localhost:8081
+```
+
+That jar is a launcher: it carries the two application jars above, unchanged, and starts each one in its own JVM with
+the `java` that runs the launcher (Java 17 or 21), so the applications stay as independent as when started by hand,
+each on its own port, database and GUI. The environment variables and the command line arguments of the launcher reach
+both applications; the launcher ends when either application ends, stopping the other, and Ctrl+C stops all three.
 
 **The DevSecOps Management Portal** starts with an empty, persistent database: an embedded H2 in Oracle mode in the
 file `~/bbh-devsecops/dso-portal/dso-portal.mv.db` (`DSO_DATA_DIR` moves the folder). Liquibase creates the schema on
@@ -1005,6 +1018,7 @@ runs the suites of one module, `./gradlew :dso-backend:regressionTest` one suite
 | `dso-backend`, `beadle-backend` | regression (`src/regressionTest`) | the API of the service end to end on H2 in Oracle mode; the portal's checks the pinned configuration contract (`-Dregression.updateExpected=true` rewrites the expected files) |
 | `dso-backend`, `beadle-backend` | smoke (`src/smokeTest`) | starts the service on a fresh database and checks health, the API, that the API of the other application is absent and that the GUI is served on every page; `-Dsmoke.baseUrl=https://...` checks a deployed application, `-Dsmoke.ui=false` skips the GUI checks |
 | `dso-backend` | performance (`src/performanceTest`) | p95 latencies of the main calls, the configuration read by DSOEnhanced among them, on 25 products x 16 services |
+| `backend` | unit (`src/test`) | the launcher starts every packed jar in its own JVM, passes the arguments on, ends with the first application to end and leaves nothing behind |
 | `common-gui`, `dso-gui`, `beadle-gui` | unit (Vitest, `testAngular`) | components and form models; fails below 60% of lines and statements per module |
 | `dso-gui`, `beadle-gui` | smoke, regression (`src/smokeTest`, `src/regressionTest`) | Spock and Playwright in Chromium against a stub API of that application: every page, the menu and footer without any trace of the other application, the user journeys with the requests they send |
 | `dso-gui` | performance (`src/performanceTest`) | page timings on a large catalogue |
