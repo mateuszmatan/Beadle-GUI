@@ -255,7 +255,7 @@ describe('ChangeDetail', () => {
     expect(tasks.map((task) => text(task.querySelector('.task-head')))).toEqual([
       '1Release ManagementOpenNot done yet; waiting for approval.',
       '2Change taskCanceledCanceled; no longer part of the change.',
-      '3Change taskOpenNot done yet; approval not requested yet.',
+      '3Change taskNot in ProTech yet.',
     ]);
     expect(inputOf(tasks[0], 'Change number').value).toBe('CHG0012345');
     expect(inputOf(tasks[0], 'Task start').value).toBe(

@@ -96,7 +96,7 @@ describe('ChangeTasksForm', () => {
     expect(TASK_LABELS['start']).toBe('task start');
   });
 
-  it('shows the change, the approval and the window on every task of a change', async () => {
+  it('shows the change, the approval and the window on every task of a change, and the state once ProTech created it', async () => {
     await render(
       tasksForm(
         [
@@ -111,7 +111,7 @@ describe('ChangeTasksForm', () => {
     expect(rows().map((row) => text(row.querySelector('.task-head')))).toEqual([
       '1Release ManagementOpen Remove',
       '2Change taskWork in progress Remove',
-      '3Change taskOpen Remove',
+      '3Change task Remove',
     ]);
     expect(labels(rows()[0])).toContain('Platform');
     expect(labels(rows()[0])).not.toContain('Importance');
@@ -203,6 +203,7 @@ describe('ChangeTasksForm', () => {
       (field as HTMLInputElement).disabled,
     )).toBe(true);
     expect(page().querySelector('.lookup')).toBeNull();
+    expect(page().querySelector('dso-hint')).toBeNull();
     expect(page().querySelector('button')).toBeNull();
   });
 

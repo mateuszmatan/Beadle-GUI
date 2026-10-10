@@ -300,7 +300,7 @@ class NewChangeSpec extends BeadleSpecification {
         assertThat(button('Back', true)).hasCount(0)
         assertThat(button('Add CTASKs later', true)).isVisible()
         assertThat(taskRows().locator('.kind')).hasText(['Release Management', 'Change task'] as String[])
-        assertThat(taskRows().locator('.chip')).hasText(['Open', 'Open'] as String[])
+        assertThat(taskRows().locator('.chip')).hasCount(0)
         assertThat(taskRows().nth(0).locator('dso-label')).hasText(RELEASE_TASK_FIELDS as String[])
         assertThat(taskRows().nth(1).locator('dso-label')).hasText(OTHER_TASK_FIELDS as String[])
         hasValues(taskRows().nth(0), ['Number'            : '', 'Change number': 'CHG0031002', 'Assignment group': 'Release Management',
@@ -431,6 +431,8 @@ class NewChangeSpec extends BeadleSpecification {
         assertThat(taskRows().locator('.task-head .muted')).hasText(['Not done yet; approval not requested yet.',
                                                                     'Not done yet; approval not requested yet.'] as String[])
         assertThat(taskRows().nth(0).locator('dso-label')).hasText(RELEASE_TASK_FIELDS as String[])
+        assertThat(taskRows().locator('.chip')).hasText(['Open', 'Open'] as String[])
+        assertThat(taskRows().locator('dso-hint')).hasCount(0)
         hasValues(taskRows().nth(0), ['Number'           : 'CTASK0310021', 'Change number': 'CHG0031002',
                                       'Task start'       : "${RELEASE_DATE}T18:30".toString(), 'Affected CI': 'CertScanner',
                                       'Application'      : 'OCP',
@@ -732,6 +734,7 @@ class NewChangeSpec extends BeadleSpecification {
         then:
         assertThat(input(taskRows().first(), 'Number')).hasValue('')
         assertThat(input(taskRows().first(), 'Number')).isDisabled()
+        assertThat(taskRows().first().locator('.task-head .muted')).hasText('Not in ProTech yet.')
         awaitRequest('PUT', '/api/changes/5').json().tasks == [[number : null, start: "${RELEASE_DATE}T18:01:00.000Z".toString(),
                                                                  details: CERT_TASKS[0] + [application: null]]]
         awaitRequest('GET', '/api/changes/5', reads + 1)
