@@ -160,7 +160,7 @@ class NewChangeSpec extends EditorSpecification {
         hasValues(step(), ['Installation start'           : "${RELEASE_DATE}T18:00", 'Installation hours': '2',
                            'Post-install validation start': "${RELEASE_DATE}T20:00", 'Validation hours': '1',
                            'First use'                    : "${RELEASE_DATE}T21:00"])
-        assertThat(hintOf(step(), 'Installation hours')).hasText(~/^until .+, 20:00$/)
+        assertThat(hintOf(step(), 'Installation hours')).hasText(~/^Until .+, 20:00$/)
         assertThat(selected(step(), 'Downtime')).hasText('No')
         assertThat(input(step(), 'Downtime start')).hasCount(0)
         assertThat(step().locator('dso-change-schedule .note')).hasText('Times are in your time zone, UTC.')
@@ -175,7 +175,7 @@ class NewChangeSpec extends EditorSpecification {
         fillIn(step(), ['Downtime hours': '1.5', 'First use': "${nextDay()}T08:00"])
 
         then:
-        assertThat(hintOf(step(), 'Downtime hours')).hasText(~/^until .+, 19:30$/)
+        assertThat(hintOf(step(), 'Downtime hours')).hasText(~/^Until .+, 19:30$/)
 
         when:
         button('Next: Planning', true).click()
@@ -480,7 +480,7 @@ class NewChangeSpec extends EditorSpecification {
 
         then:
         hasValues(step(), ['Post-install validation start': "${inDays(3)}T20:00", 'First use': "${inDays(3)}T21:00"])
-        assertThat(hintOf(step(), 'Installation hours')).hasText(~/^until .+, 20:00$/)
+        assertThat(hintOf(step(), 'Installation hours')).hasText(~/^Until .+, 20:00$/)
 
         when:
         continueTo('Review')
@@ -567,7 +567,7 @@ class NewChangeSpec extends EditorSpecification {
         input(step(), 'Installation hours').fill('3')
 
         then:
-        assertThat(hintOf(step(), 'Installation hours')).hasText(~/^until .+, 21:00$/)
+        assertThat(hintOf(step(), 'Installation hours')).hasText(~/^Until .+, 21:00$/)
         assertThat(input(step(), 'Post-install validation start')).hasValue("${RELEASE_DATE}T21:00")
         ownErrors().findAll { !it.contains('400') }.isEmpty()
     }

@@ -225,7 +225,7 @@ class ChangesSpec extends EditorSpecification {
         then:
         assertThat(input(request(), 'Incident')).hasValue('INC0105126')
         assertThat(input(schedule(), 'Downtime start')).hasValue("${date}T17:00")
-        assertThat(hintOf(schedule(), 'Downtime hours')).hasText(~/^until .+, 18:00$/)
+        assertThat(hintOf(schedule(), 'Downtime hours')).hasText(~/^Until .+, 18:00$/)
         assertThat(input(request(), 'Risk')).hasValue('High')
 
         when:
