@@ -96,11 +96,12 @@ builds the GUIs with the `public` configuration, which swaps the BBH Design Syst
 theme with the same layout. The same build therefore works on a BBH workstation and on any other machine.
 
 `-PbbhNetwork=true` or `false` (also as `bbhNetwork=` in `~/.gradle/gradle.properties`) overrides the check. The
-wrapper's own Gradle download sits on the BBH Nexus, so the first build outside BBH needs a local Gradle 8.14
-(`gradle build`, for example from SDKMAN) or the distribution placed in `~/.gradle/wrapper/dists`; after that the
-wrapper finds it there. A machine behind its own proxy sets `systemProp.https.proxyHost` and `systemProp.https.proxyPort`
-in `~/.gradle/gradle.properties`, which win over the project's. Running npm by hand outside BBH needs
-`--registry=https://registry.npmjs.org/`.
+wrapper's own Gradle download sits on the BBH Nexus too, so `gradlew` and `gradlew.bat` make the same check before
+they start: when the BBH distribution does not answer, they run the wrapper from a copy in `.gradle/public-wrapper`
+whose `distributionUrl` points at `https://services.gradle.org/distributions/gradle-8.14-all.zip`, and Gradle 8.14
+is downloaded from there once. `./gradlew build` is therefore the same command everywhere. A machine behind its own
+proxy sets `systemProp.https.proxyHost` and `systemProp.https.proxyPort` in `~/.gradle/gradle.properties`, which win
+over the project's. Running npm by hand outside BBH needs `--registry=https://registry.npmjs.org/`.
 
 ## Running locally
 
