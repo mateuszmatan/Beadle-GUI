@@ -213,6 +213,11 @@ export function formRevision(form: () => AbstractControl): Signal<number> {
     :host {
       display: contents;
     }
+
+    select[multiple] option:checked {
+      background: linear-gradient(var(--dso-navy), var(--dso-navy));
+      color: #fff;
+    }
   `,
 })
 export class Fields {

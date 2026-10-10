@@ -42,12 +42,12 @@ class BeadleAdminSpec extends EditorSpecification {
         then:
         assertThat(gridHeaders()).hasText(['Department', 'Products', ''] as String[])
         assertThat(page.locator('section.chart')).hasCount(0)
-        assertThat(page.locator('.toolbar .count')).hasText('5 departments · 2 products')
+        assertThat(page.locator('.list-header .summary')).hasText('5 departments with 2 products')
 
         when:
         button('Add department', true).click()
         input(dialog(), 'Name').fill('Treasury')
-        dialogButton('Save').click()
+        dialogButton('Add department').click()
 
         then:
         assertThat(snackBar()).containsText('Treasury added')

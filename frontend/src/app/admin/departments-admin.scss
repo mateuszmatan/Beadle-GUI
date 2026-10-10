@@ -1,19 +1,55 @@
-.toolbar {
+.departments {
+  margin-bottom: 12px;
+}
+
+.list-header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 16px;
-  margin-bottom: 12px;
-  padding: 8px 12px;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 8px 12px 2px;
 }
 
-.count {
+.list-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+
+  h2 {
+    margin: 0;
+    font-size: 16px;
+  }
+}
+
+.summary {
+  color: var(--dso-muted);
   font-size: 12px;
+}
+
+.section-help {
+  margin: 0;
+  padding: 0 12px 8px;
+  border-bottom: 1px solid var(--dso-border);
+}
+
+.banner {
+  margin: 8px 12px;
+}
+
+.banner-text {
+  flex: 1;
 }
 
 .chart {
   margin-bottom: 12px;
   padding: 10px 14px;
+
+  .section-help {
+    padding: 0;
+    border-bottom: 0;
+  }
 }
 
 .name {
@@ -22,10 +58,6 @@
 }
 
 .pipelines {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 4px;
   white-space: nowrap;
 }
 
