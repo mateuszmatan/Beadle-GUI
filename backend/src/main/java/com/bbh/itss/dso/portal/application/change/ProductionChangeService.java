@@ -54,6 +54,7 @@ import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.commons.lang3.ObjectUtils.getIfNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
+import static org.apache.commons.lang3.Strings.CI;
 import static org.apache.commons.lang3.Strings.CS;
 
 @UseCase
@@ -194,6 +195,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         List<JiraIssue> epics = List.of();
         List<JiraIssue> stories = List.of();
         if (isJiraKey(project) && version != null && bytes(version) <= FIX_VERSION_MAX) {
+            version = jiraName(project, version);
             epics = chosen(command.epicKeys(), jira.epics(project, version), "epicKeys",
                     " is not an epic of FixVersion " + version + " in Jira project " + project, problems);
             List<String> epicKeys = epics.stream().map(JiraIssue::key).toList();
@@ -210,6 +212,11 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         return ProductionChange.draft(product, users.signedInUser().name(), version,
                 getIfNull(schedule, UNPLANNED), template, epics, stories, command.shortDescription(),
                 command.description());
+    }
+
+    private String jiraName(String project, String version) {
+        return jira.versions(project).stream().map(JiraVersion::name).filter(name -> CI.equals(name, version))
+                .findFirst().orElse(version);
     }
 
     private List<ProductionChange> listed(List<ProductionChange> open) {

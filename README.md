@@ -28,7 +28,8 @@ DevSecOps Management:
   application, the Bitbucket repository, the build and the Jenkins job of each pipeline are filled in from the
   service template, and every value can be changed. Everything else comes from the BBH library defaults and can be
   fine-tuned in DevSecOps Admin.
-- **Pipeline Monitoring**: the DORA metrics and daily runs of all pipelines over the last 30 days, a chart of pipeline
+- **Pipeline Monitoring**: the DORA metrics and daily runs of all pipelines over the last 30 days (today and the 29
+  days before it, in UTC, so the totals add up to the daily bars), a chart of pipeline
   status per department, every product with the status of its pipelines grouped by department, and per pipeline its
   DORA metrics, daily activity, latest runs, the Jenkins job and your DSOEnhanced Grafana dashboard, all read from the
   InfluxDB the pipelines write to.
@@ -55,7 +56,9 @@ DevSecOps Management:
     names the full pipeline of `backend-api` in CERT `DevSecOps/CERT/backend-api-full`. An example shows what a
     service gets while you type. The pipeline the portal creates for a new service takes its agents and job from it.
   - **Library defaults**: the DSOEnhanced library defaults every pipeline shares and no service can override. They
-    replace the library's `defaults.yaml`.
+    replace the library's `defaults.yaml`. The release gate state file is always `release-gate.json`, the one file
+    the security pipeline archives and the extended pipeline copies, and SCA has only its severity limits, since the
+    library has no SCA switch or polling to set.
 
 Beadle, in three tabs:
 
@@ -192,8 +195,9 @@ planning texts, a risk assessment from the fixed answers, affected clients and u
 answers, downtime for the products whose risk is High, a secure coding ticket, privileged access for Payments Hub,
 and two or three default change tasks ("Deploy <product> to production" for Release Management, "Run the database
 scripts of <product>" for Database Administration for the products whose risk is Moderate or High, "Validate
-<product> in production" for its support group). Requested for, requested by,
-the department and assigned to stay empty, so each change takes the signed-in user and the product's department.
+<product> in production" for its support group); the texts are cut to the bytes ProTech takes, and a product whose
+template ProTech would still refuse is skipped with a warning instead of stopping the start. Requested for, requested
+by, the department and assigned to stay empty, so each change takes the signed-in user and the product's department.
 The demo Jira knows two released and one or two unreleased FixVersions per project, for example `PAYHUB 2.4`.
 At start-up twelve demo changes are raised in the demo ProTech (`adapter/out/servicenow/DemoProTechChanges.java`),
 skipping those of a product that already has a change, so a database from an earlier version gets them too when the
@@ -570,7 +574,14 @@ repeat live in child tables of `DSO_SERVICE` (`DSO_SERVICE_TEST_JOB`, `DSO_SERVI
 `DSO_SERVICE_OPENSHIFT_TARGET`, `DSO_UCD_APPLICATION` with `DSO_UCD_COMPONENT`, `DSO_SERVICE_NEXUS_IQ_APP`), and the
 scanners' severity limits in `DSO_GLOBAL_SEVERITY_LIMIT`. The service template of Admin > Service template is the one
 row of `DSO_SERVICE_TEMPLATE`, written on its first save. `DSO_METRIC_POINT` exists on H2 only; see
-[Demo data](#demo-data).
+[Demo data](#demo-data). Changeset `023-release-gate-state-file` sets a release gate state file other than
+`release-gate.json` back to it, and `024-drop-sca-scan-settings` drops `SCA_ENABLED`, `SCA_POLL_TIMEOUT_MIN` and
+`SCA_POLL_INTERVAL_SEC` from `DSO_GLOBAL_SETTINGS`, which the library never read.
+
+Oracle counts `VARCHAR2` columns in bytes, so the portal checks texts in UTF-8 bytes and refuses a longer one with
+400 on its field ("is too long: it may take at most N bytes") instead of failing in the database: a product name and
+owner team take 200 bytes, a product description 4000, a service description 2000, a department name 100, a
+pipeline's Jenkins job and description 1000 each and the reason a key was revoked 500.
 
 Beadle keeps a product's change template in `DSO_CHANGE_PROFILE` with its privileged users and its default change
 tasks (`DSO_CHANGE_PROFILE_PRIVILEGED_USER`, `DSO_CHANGE_PROFILE_TASK`), and every raised change in
@@ -783,7 +794,8 @@ that does) and the chosen epics' stories that carry it, and the schedule: instal
 validation start and end and first usage, in that order, the installation in the future, and the downtime window.
 A change with downtime needs the downtime start and end, the end after the start ("choose when the downtime starts");
 a change without downtime must leave both empty ("must be empty without downtime"). The portal asks Jira again
-when the change is previewed or raised and refuses an epic or story the FixVersion does not list. The release is the
+when the change is previewed or raised and refuses an epic or story the FixVersion does not list. A FixVersion typed
+in another case is stored as Jira spells it, and one Jira does not list is kept as typed. The release is the
 FixVersion unless the template or the user name another, and the people and the department left empty are filled as
 [Signed-in user](#signed-in-user) describes.
 The short description names the product, the FixVersion and the epics; the description names the product, its
@@ -947,9 +959,9 @@ secrets.
 | `GET /api/products/{id}/pipelines` | each service of a product with its pipelines |
 | `POST /api/services/{id}/pipelines` | add a pipeline; it starts with an active key |
 | `GET /api/pipelines?departmentId=` | the pipelines of a department's products as `{pipelines, metricsError}`, by product and service, each with its status and last run and its key by its hint; 404 for an unknown department |
-| `GET`/`PUT`/`DELETE /api/pipelines/{id}` | a pipeline with its key history |
+| `GET`/`PUT`/`DELETE /api/pipelines/{id}` | a pipeline with its key history and its `version`; `PUT` may carry the `version` it was read at (409 when stale) |
 | `POST /api/pipelines/{id}/keys` | issue a new key; an active key is invalidated with the reason "Replaced by a new key"; on a pipeline whose key was invalidated this is Regenerate, and the old keys stay refused |
-| `POST /api/pipelines/{id}/keys/revoke` | invalidate the active key, with a `reason` of at most 500 characters; 409 when the pipeline has no active key |
+| `POST /api/pipelines/{id}/keys/revoke` | invalidate the active key, with a `reason` of at most 500 bytes; 409 when the pipeline has no active key |
 | `GET /api/dso/config/{key}`, `GET /api/pipelines/{id}/config`, `GET /api/products/{id}/config`, `GET /api/settings/config` | the DSOEnhanced configuration as YAML, or as JSON with `?format=json`; see [DevSecOps integration](#devsecops-integration) |
 | `GET /api/monitoring/status`, `/products`, `/products/{id}`, `/pipelines/{id}?range=30d` | monitoring data |
 | `GET /api/monitoring/activity?range=30d` | the DORA summary and the daily activity of all pipelines together, as `{pipelines, dora, metricsError}`: the number of pipelines, the DORA metrics over the range with `dora.daily` (runs, failures and deployments per day), and the metrics error, if any |
