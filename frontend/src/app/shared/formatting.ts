@@ -1,5 +1,7 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
+export const TIME_ZONE_NOTE = `Times are in your time zone, ${Intl.DateTimeFormat().resolvedOptions().timeZone}.`;
+
 export function formatDuration(seconds: number | null | undefined): string {
   if (seconds === null || seconds === undefined || Number.isNaN(seconds)) {
     return '–';

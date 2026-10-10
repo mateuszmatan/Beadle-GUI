@@ -2,8 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormControl, FormGroup } from '@angular/forms';
 import { fieldOf, inputOf, text } from '../testing/dom';
 import { ChangeScheduleFields } from './change-schedule-fields';
-import { TIME_ZONE_NOTE } from './change-model';
 import { ScheduleForm, scheduleForm } from './change-schedule-model';
+import { TIME_ZONE_NOTE } from '../shared/formatting';
 
 describe('ChangeScheduleFields', () => {
   let fixture: ComponentFixture<ChangeScheduleFields>;
@@ -52,15 +52,15 @@ describe('ChangeScheduleFields', () => {
     expect(inputOf(page(), 'Installation start').type).toBe('datetime-local');
     expect(inputOf(page(), 'Installation start').value).toBe('2099-10-20T18:00');
     expect(inputOf(page(), 'Installation hours').step).toBe('0.5');
-    expect(hint('Installation hours')).toBe('until Tue, 20 Oct 2099, 20:00');
-    expect(hint('Validation hours')).toBe('until Tue, 20 Oct 2099, 21:00');
+    expect(hint('Installation hours')).toBe('Until Tue, 20 Oct 2099, 20:00');
+    expect(hint('Validation hours')).toBe('Until Tue, 20 Oct 2099, 21:00');
     expect(text(page().querySelector('.note'))).toBe(TIME_ZONE_NOTE);
 
     const hours = inputOf(page(), 'Installation hours');
     hours.value = '2.5';
     hours.dispatchEvent(new Event('input'));
     await settle();
-    expect(hint('Installation hours')).toBe('until Tue, 20 Oct 2099, 20:30');
+    expect(hint('Installation hours')).toBe('Until Tue, 20 Oct 2099, 20:30');
     expect(inputOf(page(), 'Post-install validation start').value).toBe('2099-10-20T20:30');
   });
 
@@ -70,7 +70,7 @@ describe('ChangeScheduleFields', () => {
 
     expect(labels().slice(-3)).toEqual(['Downtime', 'Downtime start', 'Downtime hours']);
     expect(inputOf(page(), 'Downtime start').value).toBe('2099-10-20T18:00');
-    expect(hint('Downtime hours')).toBe('until Tue, 20 Oct 2099, 20:00');
+    expect(hint('Downtime hours')).toBe('Until Tue, 20 Oct 2099, 20:00');
 
     downtime.setValue(false);
     await settle();

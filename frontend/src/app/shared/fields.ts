@@ -17,6 +17,7 @@ import { DsoCheckbox } from '../ui/checkbox';
 import { FORM_FIELD } from '../ui/form-field';
 import { filled } from './form-controls';
 import { errorText } from './form-errors';
+import { capitalized } from './formatting';
 import { Lookup, openLookup, pickInto } from './lookup-dialog';
 
 export interface FieldOption {
@@ -260,7 +261,7 @@ export class Fields {
 
   protected hint(field: Field): string {
     const code = field.code ? chips(`\`${field.code}\``) : '';
-    const hint = field.hint ? chips(field.hint) : '';
-    return code && hint ? `${code} · ${hint}` : code || hint;
+    const hint = field.hint ? chips(capitalized(field.hint)) : '';
+    return code && hint ? `${hint} · ${code}` : hint || code;
   }
 }

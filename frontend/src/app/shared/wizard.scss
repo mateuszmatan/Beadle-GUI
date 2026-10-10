@@ -103,25 +103,6 @@
   color: var(--dso-muted);
 }
 
-.prepare,
-.today {
-  padding: 8px 12px;
-  border-left: 3px solid var(--dso-navy);
-  background: var(--dso-info-bg);
-
-  ul {
-    margin: 0;
-    padding-left: 16px;
-    list-style: square;
-  }
-}
-
-.today {
-  border-left-color: var(--dso-border);
-  background: var(--dso-neutral-bg);
-  font-size: 12.5px;
-}
-
 .fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

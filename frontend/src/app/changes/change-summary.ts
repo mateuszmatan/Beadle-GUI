@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { ChangePlanning, ChangeType, ProductionChange, RiskQuestion } from './change-api';
-import { TIME_ZONE_NOTE, momentText, windowText } from './change-model';
+import { momentText, windowText } from './change-model';
 import { ChangeOptionLists } from './change-options';
 import {
   Fact,
@@ -10,6 +10,7 @@ import {
   changeFacts,
   templateLabel,
 } from './change-sections';
+import { TIME_ZONE_NOTE } from '../shared/formatting';
 
 interface Row {
   term: string;

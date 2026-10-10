@@ -45,8 +45,6 @@ export function momentText(time: Date | string): string {
   return `${DAY.format(value)}, ${TIME.format(value)}`;
 }
 
-export const TIME_ZONE_NOTE = `Times are in your time zone, ${Intl.DateTimeFormat().resolvedOptions().timeZone}.`;
-
 export function windowText(start: Date | string, end: Date | string): string {
   const from = new Date(start);
   const to = new Date(end);

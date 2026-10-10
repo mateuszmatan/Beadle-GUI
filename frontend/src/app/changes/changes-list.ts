@@ -8,12 +8,12 @@ import { DepartmentsApi } from '../core/api';
 import { RETRY, errorMessage } from '../core/errors';
 import { CHANGES, NEW_CHANGE, beadleChange } from '../core/sections';
 import { text } from '../shared/form-controls';
-import { counted, formatRelative } from '../shared/formatting';
+import { TIME_ZONE_NOTE, counted, formatRelative } from '../shared/formatting';
 import { FORM_FIELD } from '../ui/form-field';
 import { GRID, GridColumn } from '../ui/grid';
 import { DsoLoading } from '../ui/loading';
 import { ChangeState, ChangesApi, ProductionChange, STATES, isOpen, labelOf } from './change-api';
-import { PENDING_HINT, TIME_ZONE_NOTE, activeTasks, editHint, windowText } from './change-model';
+import { PENDING_HINT, activeTasks, editHint, windowText } from './change-model';
 import { IntegrationNote } from './integration-note';
 import { STATE_MEANINGS } from './workflow-progress';
 

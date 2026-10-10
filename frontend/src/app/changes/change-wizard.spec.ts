@@ -983,7 +983,7 @@ describe('ChangeWizard', () => {
   it('plans the schedule from the release date, moves the later windows along and refuses times out of order', async () => {
     await toSchedule();
     expect(text(fieldOf(page(), 'Installation hours')?.querySelector('dso-hint'))).toBe(
-      'until Sun, 20 Oct 2030, 20:00',
+      'Until Sun, 20 Oct 2030, 20:00',
     );
 
     await type('Installation hours', '0');
