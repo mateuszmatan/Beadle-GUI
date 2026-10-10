@@ -36,6 +36,7 @@ export function provideDialogs(): Provider {
   return {
     provide: DEFAULT_DIALOG_CONFIG,
     useValue: {
+      ...new DialogConfig(),
       panelClass: 'dso-dialog',
       maxWidth: '92vw',
       maxHeight: '90vh',
