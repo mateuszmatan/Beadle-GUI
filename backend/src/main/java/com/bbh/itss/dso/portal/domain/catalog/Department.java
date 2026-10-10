@@ -1,6 +1,7 @@
 package com.bbh.itss.dso.portal.domain.catalog;
 
 import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException;
+import com.bbh.itss.dso.portal.domain.shared.ValidationProblems;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -30,9 +31,7 @@ public record Department(Long id, String name, long version) {
         if (isBlank(name)) {
             throw InvalidRequestException.of("name", "must not be blank");
         }
-        if (name.length() > MAX_NAME_LENGTH) {
-            throw InvalidRequestException.of("name", "must be at most " + MAX_NAME_LENGTH + " characters");
-        }
+        new ValidationProblems().fits("name", name, MAX_NAME_LENGTH).throwIfAny();
         byName.apply(name).filter(other -> !other.id().equals(id)).ifPresent(other -> {
             throw new IllegalStateException("A department named " + other.name() + " already exists");
         });
