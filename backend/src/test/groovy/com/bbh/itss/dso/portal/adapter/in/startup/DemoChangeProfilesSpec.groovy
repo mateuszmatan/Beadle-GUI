@@ -10,6 +10,7 @@ import com.bbh.itss.dso.portal.domain.change.ChangeTemplate.PrivilegedAccess
 import com.bbh.itss.dso.portal.domain.change.Lookup
 import com.bbh.itss.dso.portal.domain.change.RiskAssessment
 import com.bbh.itss.dso.portal.domain.change.TaskDetails
+import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException
 import com.bbh.itss.dso.portal.domain.shared.ValidationProblems
 import spock.lang.Specification
 
@@ -98,6 +99,37 @@ class DemoChangeProfilesSpec extends Specification {
         RiskAssessment.builder().bbhUsers('Less than 5').build()        || 'Low'      | ['Deploy PayHub to production', 'Validate PayHub in production']                                                | ['Release Management', 'Technology Architecture']
         risk(businessImpact: 'Medium')                                  || 'Moderate' | ['Deploy PayHub to production', 'Run the database scripts of PayHub', 'Validate PayHub in production']          | ['Release Management', 'Database Administration', 'Technology Architecture']
         risk(businessImpact: 'High')                                    || 'High'     | ['Deploy PayHub to production', 'Run the database scripts of PayHub', 'Validate PayHub in production']          | ['Release Management', 'Database Administration', 'Technology Architecture']
+    }
+
+    def "a product whose name fills its column in characters still gets demo tasks and a configuration item ProTech takes"() {
+        given:
+        def name = 'Zarządzanie płatnościami ' * 8
+        def problems = new ValidationProblems()
+
+        when:
+        def chosen = tasksFor(new ProductSummaryView(2, 'PAYHUB', name, null, null, 3L, 'Custody', 1, 1, 1, null),
+                template(riskAssessment: risk(businessImpact: 'High')))
+        validateTasks(chosen, problems)
+        suggestedFor('PAYHUB', name, null).validate(problems.at('template'))
+
+        then:
+        problems.list() == []
+        chosen[1].shortDescription().startsWith('Run the database scripts of Zarządzanie płatnościami')
+    }
+
+    def "a product whose template ProTech refuses is skipped and the others are still filled in"() {
+        given:
+        def suggested = suggestedFor('PAYHUB', 'PayHub', null)
+        products.list(null) >> [summary(1, 'CERT'), summary(2, 'PAYHUB')]
+        profiles.get(_) >> ChangeProfileView.builder().template(suggested).tasks([]).build()
+
+        when:
+        seeder.fillIn()
+
+        then:
+        1 * profiles.save(1L, *_) >> { throw InvalidRequestException.of('template.department', 'is too long') }
+        1 * profiles.save(2L, *_)
+        noExceptionThrown()
     }
 
     def "the demo defaults of every demo product are complete, realistic and valid"() {

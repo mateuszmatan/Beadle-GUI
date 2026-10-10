@@ -14,6 +14,7 @@ import com.bbh.itss.dso.portal.domain.change.Lookup;
 import com.bbh.itss.dso.portal.domain.change.RiskAssessment;
 import com.bbh.itss.dso.portal.domain.change.RiskAssessment.Question;
 import com.bbh.itss.dso.portal.domain.change.TaskDetails;
+import com.bbh.itss.dso.portal.domain.shared.InvalidRequestException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Random;
 
 import static com.bbh.itss.dso.portal.domain.change.ChangeTemplate.GROUP_MAX;
+import static com.bbh.itss.dso.portal.domain.change.ProductionChange.SHORT_DESCRIPTION_MAX;
 import static com.bbh.itss.dso.portal.domain.change.RiskAssessment.LOW;
 import static com.bbh.itss.dso.portal.domain.change.RiskAssessment.Question.BACKOUT_TESTING;
 import static com.bbh.itss.dso.portal.domain.change.RiskAssessment.Question.BBH_APPLICATIONS;
@@ -79,8 +81,12 @@ public class DemoChangeProfiles {
             ChangeProfileView profile = profiles.get(product.id());
             if (profile.version() == null) {
                 ChangeTemplate defaults = defaultsFor(product, profile.template());
-                profiles.save(product.id(), null, defaults, tasksFor(product, defaults));
-                filled++;
+                try {
+                    profiles.save(product.id(), null, defaults, tasksFor(product, defaults));
+                    filled++;
+                } catch (InvalidRequestException e) {
+                    log.warn("Skipped the demo change template of {}: {}", product.code(), e.getMessage());
+                }
             }
         }
         log.info("Filled in the demo ProTech change template of {} product(s)", filled);
@@ -92,7 +98,8 @@ public class DemoChangeProfiles {
             return tasks;
         }
         tasks.add(1, TaskDetails.builder().assignmentGroup(DATABASE_GROUP)
-                .shortDescription("Run the database scripts of " + product.name())
+                .shortDescription(abbreviateBytes("Run the database scripts of " + product.name(),
+                        SHORT_DESCRIPTION_MAX))
                 .description("Run the reviewed database scripts of the " + product.name() + " release on the"
                         + " production database before the deployment, then record the scripts and their result in"
                         + " this task.").build());
