@@ -171,7 +171,10 @@
           <dso-loading />
         }
         @if (epics.error(); as error) {
-          <p class="choice-error">The epics could not be loaded: {{ errorMessage(error) }}</p>
+          <p class="choice-error">
+            The epics could not be loaded: {{ errorMessage(error) }}
+            <button type="button" class="text-link" (click)="findEpics()">Try again</button>
+          </p>
         }
         @if (!searched()) {
           <p class="empty">Enter the FixVersion and find its epics.</p>
@@ -202,7 +205,10 @@
           <dso-loading />
         }
         @if (stories.error(); as error) {
-          <p class="choice-error">The stories could not be loaded: {{ errorMessage(error) }}</p>
+          <p class="choice-error">
+            The stories could not be loaded: {{ errorMessage(error) }}
+            <button type="button" class="text-link" (click)="stories.reload()">Try again</button>
+          </p>
         }
         @for (group of storyGroups(); track group.key) {
           <div class="story-group">

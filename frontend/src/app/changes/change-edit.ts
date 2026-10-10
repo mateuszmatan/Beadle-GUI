@@ -19,7 +19,7 @@ import { errorMessage, fieldProblems } from '../core/errors';
 import { Notifier } from '../core/notifier';
 import { CHANGES, beadleChange } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
-import { applyFieldProblems, filled, text } from '../shared/form-controls';
+import { applyFieldProblems, byteLength, filled, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { FORM_FIELD } from '../ui/form-field';
 import { DsoLoading, DsoSpinner } from '../ui/loading';
@@ -150,7 +150,7 @@ export type EditForm = ReturnType<typeof editForm>;
                 <dso-label>Short description</dso-label>
                 <input dsoInput formControlName="shortDescription" maxlength="160" required />
                 <dso-hint class="length-hint"
-                  >{{ f.controls.shortDescription.value.length }} / 160</dso-hint
+                  >{{ byteLength(f.controls.shortDescription.value) }} / 160</dso-hint
                 >
                 <dso-error>{{ errorText(f.controls.shortDescription) }}</dso-error>
               </dso-form-field>
@@ -158,7 +158,7 @@ export type EditForm = ReturnType<typeof editForm>;
                 <dso-label>Description</dso-label>
                 <textarea dsoInput rows="9" formControlName="description" required></textarea>
                 <dso-hint class="length-hint"
-                  >{{ f.controls.description.value.length }} / 4000</dso-hint
+                  >{{ byteLength(f.controls.description.value) }} / 4000</dso-hint
                 >
                 <dso-error>{{ errorText(f.controls.description) }}</dso-error>
               </dso-form-field>
@@ -254,6 +254,7 @@ export class ChangeEdit implements HasUnsavedChanges {
   protected readonly changeLink = beadleChange;
   protected readonly errorMessage = errorMessage;
   protected readonly errorText = errorText;
+  protected readonly byteLength = byteLength;
 
   protected readonly change = rxResource({
     params: () => this.id(),

@@ -840,7 +840,9 @@ describe('ChangeWizard', () => {
     );
     await settle();
     const errors = () => [...page().querySelectorAll('.choice-error')].map((error) => text(error));
-    expect(errors()).toContain('The stories could not be loaded: fixVersion must not be blank');
+    expect(errors()).toContain(
+      'The stories could not be loaded: fixVersion must not be blank Try again',
+    );
     expect(wizard()['stepProblem']()).toBe(
       'The epics and stories of this FixVersion could not be loaded',
     );
@@ -848,7 +850,7 @@ describe('ChangeWizard', () => {
     await findEpics('CERT 5.0');
     jira('epics').flush({ detail: 'Jira is down' }, { status: 502, statusText: 'Bad Gateway' });
     await settle();
-    expect(errors()).toContain('The epics could not be loaded: Jira is down');
+    expect(errors()).toContain('The epics could not be loaded: Jira is down Try again');
 
     await findEpics('CERT 5.1');
     jira('epics').flush([]);
@@ -858,6 +860,60 @@ describe('ChangeWizard', () => {
 
     wizard()['goTo'](0);
     expect(wizard().hasUnsavedChanges()).toBe(true);
+  });
+
+  it('loads the stories again when the epics are found again or on Try again', async () => {
+    await chooseCertScanner();
+    await next();
+    await findEpics('CERT 4.2');
+    jira('epics').flush([epic('CERT-1', 'Expiry alerts')]);
+    await settle();
+    wizard()['toggleEpic']('CERT-1', true);
+    await settle();
+    jira('stories').flush({ detail: 'Jira timed out' }, { status: 502, statusText: 'Bad Gateway' });
+    await settle();
+    expect(wizard()['stepProblem']()).toBe(
+      'The epics and stories of this FixVersion could not be loaded',
+    );
+
+    await findEpics('CERT 4.2');
+    jira('epics').flush([epic('CERT-1', 'Expiry alerts')]);
+    jira('stories').flush({ detail: 'Jira timed out' }, { status: 502, statusText: 'Bad Gateway' });
+    await settle();
+    expect(wizard()['stepProblem']()).toBe(
+      'The epics and stories of this FixVersion could not be loaded',
+    );
+
+    buttonOf(page().querySelector('.choice-error')!, 'Try again').click();
+    await settle();
+    jira('stories').flush([story('CERT-2', 'E-mail the owner', 'CERT-1')]);
+    await texts();
+    expect(page().querySelector('.choice-error')).toBeNull();
+    expect(wizard()['storyKeys']()).toEqual(['CERT-2']);
+    expect(wizard()['stepProblem']()).toBeNull();
+  });
+
+  it('takes the name Jira gives a FixVersion typed in another case and plans on its release date', async () => {
+    await chooseCertScanner();
+    await next();
+    await findEpics(' cert 4.3 ');
+    expect(jira('epics').request.params.get('fixVersion')).toBe('CERT 4.3');
+    expect(wizard()['fixVersion'].value).toBe('CERT 4.3');
+    expect(wizard()['searched']()).toBe('CERT 4.3');
+
+    await findEpics('cert 9.9');
+    expect(jira('epics').request.params.get('fixVersion')).toBe('cert 9.9');
+    await findEpics('cert 4.3');
+    jira('epics').flush([epic('CERT-1', 'Expiry alerts')]);
+    await settle();
+    wizard()['toggleEpic']('CERT-1', true);
+    await settle();
+    jira('stories').flush([story('CERT-2', 'E-mail the owner', 'CERT-1')]);
+    await texts();
+    await next();
+    await next();
+    expect(details().controls.release.value).toBe('CERT 4.3');
+    expect(schedule().controls.installationStart.value).toBe('2030-12-01T18:00');
   });
 
   it('lists the matching FixVersions under the field and picks one with the keyboard or the mouse', async () => {

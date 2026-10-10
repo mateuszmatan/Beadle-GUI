@@ -333,14 +333,19 @@ class ChangesSpec extends EditorSpecification {
         open('/beadle/changes')
         choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
         open('/beadle/changes/4/edit')
-        input(texts(), 'Short description').fill('CertScanner 4.1 with Java 21')
+        input(texts(), 'Short description').fill('CertScanner 4.1 – Überweisung mit Java 21')
+
+        then:
+        assertThat(hintOf(texts(), 'Short description')).hasText('44 / 160')
+
+        when:
         api.protech.advance(4, 'CTASK_APPROVAL')
         button('Publish the update to ProTech', true).click()
         page.waitForURL('**/beadle/changes/4')
 
         then:
         awaitRequest('PUT', '/api/changes/4').json().version == 3
-        assertThat(page.locator('.page-header p')).hasText('CertScanner 4.1 with Java 21')
+        assertThat(page.locator('.page-header p')).hasText('CertScanner 4.1 – Überweisung mit Java 21')
         assertThat(page.locator('dso-workflow-progress li[aria-current=step] .label')).hasText('CTask approval')
         ownErrors().isEmpty()
     }

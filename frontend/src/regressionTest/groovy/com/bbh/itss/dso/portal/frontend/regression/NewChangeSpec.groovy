@@ -410,6 +410,9 @@ class NewChangeSpec extends EditorSpecification {
     }
 
     def "a product without a change template raises a change with the suggested values"() {
+        given:
+        api.failOnce('GET', '/api/products/2/jira/stories', problem(502, 'Bad Gateway', 'Jira timed out'))
+
         when:
         open('/beadle/changes/new')
         page.waitForURL('**/beadle/new-change')
@@ -433,11 +436,12 @@ class NewChangeSpec extends EditorSpecification {
         assertThat(input(step(), 'Jira project')).hasValue('PAYHUB')
 
         when:
-        select(step(), 'FixVersion').fill('PAYHUB 4.3')
+        select(step(), 'FixVersion').fill('payhub 4.3')
         select(step(), 'FixVersion').press('Escape')
         button('Find epics', true).click()
 
         then:
+        assertThat(select(step(), 'FixVersion')).hasValue('PAYHUB 4.3')
         assertThat(step().locator('.issues .key')).hasText(['PAYHUB-130'] as String[])
         awaitRequest('GET', '/api/products/2/jira/epics').params() == [fixVersion: 'PAYHUB 4.3']
 
@@ -445,7 +449,15 @@ class NewChangeSpec extends EditorSpecification {
         checkbox(step(), 'PAYHUB-130').check()
 
         then:
+        assertThat(choiceError()).hasText('The stories could not be loaded: Jira timed out Try again')
+
+        when:
+        button('Find epics', true).click()
+
+        then:
         assertThat(checkbox(step(), 'PAYHUB-132')).isChecked()
+        assertThat(choiceError()).hasCount(0)
+        api.requests('GET', '/api/products/2/jira/stories').size() == 2
 
         when:
         button('Next: Approval', true).click()
@@ -503,7 +515,7 @@ class NewChangeSpec extends EditorSpecification {
 
         then:
         assertThat(page.locator('h1')).hasText('Payments Hub')
-        ownErrors().isEmpty()
+        ownErrors() == ['Failed to load resource: the server responded with a status of 502 (Bad Gateway)']
     }
 
     def "a change ProTech refuses stays on the review with the reasons, marked on the fields of each step"() {

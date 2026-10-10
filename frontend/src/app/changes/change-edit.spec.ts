@@ -196,6 +196,21 @@ describe('ChangeEdit', () => {
     );
   });
 
+  it('counts the length of the texts in bytes, as ProTech and the checks do', async () => {
+    await show();
+    const counter = (label: string) =>
+      text(fieldOf(texts(), label)?.querySelector('dso-hint.length-hint'));
+    await type('Short description', 'Überweisung – 4.2', texts());
+    await type('Description', 'Ü', texts());
+
+    expect(counter('Short description')).toBe('20 / 160');
+    expect(counter('Description')).toBe('2 / 4000');
+
+    await type('Short description', 'é'.repeat(80) + 'x', texts());
+    expect(counter('Short description')).toBe('161 / 160');
+    expect(form().controls.shortDescription.errors).toEqual({ bytes: { max: 160 } });
+  });
+
   it('shows the installation window of the change on its tasks and follows a moved start', async () => {
     await show();
 
