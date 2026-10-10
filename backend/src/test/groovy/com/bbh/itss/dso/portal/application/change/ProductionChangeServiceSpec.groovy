@@ -79,6 +79,9 @@ class ProductionChangeServiceSpec extends Specification {
         products.get(2L) >> changeProduct(id: 2L, code: 'PAYHUB', name: 'PayHub', departmentId: 4L,
                 departmentName: 'Custody')
         products.get(3L) >> changeProduct(id: 3L, departmentId: null, departmentName: null)
+        jira.versions('CERT') >> [new JiraVersion(FIX_VERSION, false, LocalDate.parse('2026-10-20')),
+                                  new JiraVersion('CERT 4.1', true, LocalDate.parse('2026-09-01'))]
+        jira.versions(_) >> []
         jira.epics('CERT', _) >> { project, version -> version == FIX_VERSION ? ISSUES.take(2) : [] }
         jira.stories('CERT', _, _) >> { project, version, Collection epics ->
             version == FIX_VERSION ? ISSUES.drop(2).findAll { it.epicKey() in epics } : []
@@ -162,6 +165,22 @@ class ProductionChangeServiceSpec extends Specification {
         raised.url() == 'https://bbh.service-now.com/CHG0012345'
         raised.fixVersion() == FIX_VERSION
         raised.schedule() == schedule()
+    }
+
+    def "a FixVersion is drafted with Jira's own spelling of it, or as typed when the project lists no such version"() {
+        when:
+        def draft = service.preview(command(fixVersion: typed, storyKeys: []))
+
+        then:
+        1 * jira.epics('CERT', stored) >> ISSUES.take(2)
+        draft.fixVersion() == stored
+        draft.template().release() == stored
+
+        where:
+        typed        || stored
+        'cert 4.2'   || FIX_VERSION
+        ' Cert 4.2 ' || FIX_VERSION
+        'CERT 4.3'   || 'CERT 4.3'
     }
 
     def "#refusal is refused with every problem before anything is raised"() {
