@@ -721,8 +721,8 @@ that changes something or calls another system writes one row of `BEADLE_ACTION_
 | `AT`, `DURATION_MS` | when the call started (UTC) and how long it ran |
 | `USER_NAME` | the signed-in user; `system:protech` or `system:internal` for a callback, `system:startup` for the demo data Beadle stores when it starts |
 | `ACTION` | one of the seventeen actions below |
-| `OBJECT_TYPE`, `OBJECT_ID`, `OBJECT_KEY` | what the action was about, taken from the result of the use case or else from its arguments: `CHANGE` with the CHG number, `PRODUCT` with the product code, `CHANGE_PROFILE` (the change template of a product) with the product's id and code, `DEPARTMENT` with its name, `TICKET` with the CyberTrack key, `USER` with the user name; Beadle's database id when the object has one, and the key read from the database when only the id is known (before the call for a deletion) |
-| `DETAILS` | the arguments of the use case by parameter name, as JSON (`{"id": 7, "command": {...}}`); every property whose name contains `token`, `password`, `secret`, `authorization`, `credential` or `apikey` is masked as `*****`, and the text is cut to 32 KB |
+| `OBJECT_TYPE`, `OBJECT_ID`, `OBJECT_KEY` | what the action was about, taken from the result of the use case or else from its arguments: `CHANGE` with the CHG number, `PRODUCT` with the product code, `CHANGE_PROFILE` (the change template of a product) with the product's id and code, `DEPARTMENT` with its name, `TICKET` with the CyberTrack key, `USER` with the user name; Beadle's database id when the object has one, the key read from the database when only the id is known (before the call for a deletion), and the name a department was to have when creating it was refused (`@AuditedKey`) |
+| `DETAILS` | the arguments of the use case by parameter name, as JSON (`{"id": 7, "command": {...}}`), and last what came of it in the other systems, as the use case noted it with `AuditNotes`: `"result": {"created": ["CTASK0041003", "CTASK0041004"]}` for the change tasks ProTech numbered, `["SCP-123"]` for the secure coding ticket CyberTrack created, `["CHG0031001"]` for a raised change (also when Beadle could not store it afterwards), and `"reminded": [{"role": "SUPPORT", "task": null, "people": ["Rebecca Lawson"]}]` for the people a reminder reached; also a call that failed half-way records what it had created. Every property whose name contains `token`, `password`, `secret`, `authorization`, `credential` or `apikey` is masked as `*****`, and the arguments are cut so that the whole text fits in 32 KB with its result |
 | `OUTCOME`, `MESSAGE` | `SUCCESS`, or `FAILURE` with the message of the exception (for a refused request its field problems, such as `name is too long: ...`) |
 | `CORRELATION_ID` | the correlation id of the user action: the `X-Correlation-Id` of the answer and of the calls to Beadle-Internal and Beadle-ProTech, or the one a callback passed on |
 
@@ -752,8 +752,9 @@ be written there is logged and does not change the answer. Reads write nothing. 
 declares `save`, the filtered `findAll(Specification, Pageable)` and the two filter lists, so it has neither update nor
 delete (not even the `update` and `delete` by specification `JpaSpecificationExecutor` would bring).
 `ActionHistoryUseCase` reads the trail newest first, filtered by user, action, object type, object key (its
-beginning, in any case), outcome and time, in pages of at most 200 rows; `GET /api/action-history` serves it to the
-Action History page.
+beginning, in any case, of `OBJECT_KEY` or of a key in `"result": {"created": [...]}`, so a CTASK number or a ticket key
+finds the row of the action that created it), outcome and time, in pages of at most 200 rows;
+`GET /api/action-history` serves it to the Action History page.
 
 In short, the trail answers who did what, to which object, when, with what outcome and as part of which user action:
 every change to a department, a product or a change template, every draft, raise, edit, change task, secure coding
@@ -774,6 +775,8 @@ A row opens its details: when, who, the object, the outcome, the duration, the c
 failure and the request as JSON, with its secrets masked. It answers the usual questions:
 
 - who raised, edited, reminded or synchronised a change: its number as the object key;
+- who created a change task or a secure coding ticket: its CTASK number or ticket key as the object key, which finds
+  the row of the action that created it (the change it belongs to is its object, the key stands in its result);
 - what someone did on a day: their name, and the day as first and last day;
 - what went wrong: outcome Failure; the message says why ("Beadle-ProTech did not answer ...", the field problems of a
   refusal) and the request shows what was sent;
@@ -840,7 +843,7 @@ departments.
 | `POST /api/changes/{id}/reminders` | remind the approvers of an open change who have not approved yet: `departmentId` (which must own the change) and either `approval` (`BUSINESS`, `L1`, `L2` or `SUPPORT`) or `task` (a CTASK number) for one approval, or neither for everyone who has not approved; answers the change with the `reminder` of each approval reminded; 400 for both or a task the change does not have, 403 for another department, 409 when closed, already approved or nobody is named, 503 when ProTech cannot be reached |
 | `GET /api/changes/integrations` | whether Jira, ProTech and CyberTrack are connected (`jiraConnected`, `proTechConnected`, `cyberTrackConnected`), as Beadle-Internal and Beadle-ProTech report them |
 | `POST /api/callbacks/protech`, `POST /api/callbacks/internal` | the callbacks of Beadle-ProTech and Beadle-Internal, with the service token; `202` (see [Callbacks](#callbacks)) |
-| `GET /api/action-history?user=&action=&objectType=&objectKey=&outcome=&from=&to=&page=0&size=50` | the audit trail, newest first: `{content, page, size, total}`, each row with `id`, `at`, `user`, `action`, `objectType`, `objectId`, `objectKey`, `details` (JSON text), `outcome`, `message`, `correlationId` and `durationMs`; `objectKey` matches the beginning of the key in any case, `from` (inclusive) and `to` (exclusive) are instants (`2026-10-15T00:00:00Z`); 400 for a `page` below 0, a `size` outside 1 to 200, a `from` not before `to`, or an unknown action, object type or outcome |
+| `GET /api/action-history?user=&action=&objectType=&objectKey=&outcome=&from=&to=&page=0&size=50` | the audit trail, newest first: `{content, page, size, total}`, each row with `id`, `at`, `user`, `action`, `objectType`, `objectId`, `objectKey`, `details` (JSON text), `outcome`, `message`, `correlationId` and `durationMs`; `objectKey` matches the beginning of the key in any case, or of a key the action created in another system (`"result": {"created": [...]}` in `details`), `from` (inclusive) and `to` (exclusive) are instants (`2026-10-15T00:00:00Z`); 400 for a `page` below 0, a `size` outside 1 to 200, a `from` not before `to`, or an unknown action, object type or outcome |
 | `GET /api/action-history/users`, `GET /api/action-history/actions` | the users and the actions recorded so far, sorted, for the filters of the Action History page |
 
 Errors are RFC 9457 problem details; validation errors name the failing fields, for example `tasks[1].details.start`.

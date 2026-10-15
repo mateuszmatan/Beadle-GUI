@@ -26,6 +26,13 @@ class ActionHistoryPersistenceAdapter implements ActionHistoryPort {
 
     static final Sort NEWEST_FIRST = Sort.by(DESC, "at", "id");
 
+    /**
+     * Where {@code DETAILS} lists what an action created in another system: the {@code "created"} keys stand last in
+     * its {@code "result"}, itself last, so what follows this prefix up to the end is that list alone and the object-key
+     * filter also finds the row of the call that created a CTASK or a secure coding ticket (the keys are upper case).
+     */
+    static final String CREATED_KEYS = "%\"" + ActionRecord.CREATED + "\":[%\"";
+
     private final ActionHistoryJpaRepository rows;
 
     @Override
@@ -64,8 +71,10 @@ class ActionHistoryPersistenceAdapter implements ActionHistoryPort {
                 predicates.add(builder.equal(root.get("objectType"), query.objectType()));
             }
             if (query.objectKey() != null) {
-                predicates.add(builder.like(builder.upper(root.get("objectKey")),
-                        escaped(query.objectKey().toUpperCase(ROOT)) + "%", '\\'));
+                String key = escaped(query.objectKey().toUpperCase(ROOT));
+                predicates.add(builder.or(
+                        builder.like(builder.upper(root.get("objectKey")), key + "%", '\\'),
+                        builder.like(root.get("details"), CREATED_KEYS + key + "%", '\\')));
             }
             if (query.outcome() != null) {
                 predicates.add(builder.equal(root.get("outcome"), query.outcome()));

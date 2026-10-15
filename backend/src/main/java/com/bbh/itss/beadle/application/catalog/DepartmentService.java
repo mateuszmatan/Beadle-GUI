@@ -1,6 +1,7 @@
 package com.bbh.itss.beadle.application.catalog;
 
 import com.bbh.itss.beadle.application.Audited;
+import com.bbh.itss.beadle.application.AuditedKey;
 import com.bbh.itss.beadle.application.ReadOnly;
 import com.bbh.itss.beadle.application.UseCase;
 import com.bbh.itss.beadle.application.catalog.port.in.DepartmentView;
@@ -41,7 +42,7 @@ public class DepartmentService implements DepartmentsUseCase {
 
     @Override
     @Audited(DEPARTMENT_CREATED)
-    public DepartmentView create(String name) {
+    public DepartmentView create(@AuditedKey String name) {
         return view(departments.save(Department.create(name, departments::findByName)).id());
     }
 

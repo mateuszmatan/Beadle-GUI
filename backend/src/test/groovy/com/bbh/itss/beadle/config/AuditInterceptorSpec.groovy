@@ -1,5 +1,6 @@
 package com.bbh.itss.beadle.config
 
+import com.bbh.itss.beadle.application.AuditNotes
 import com.bbh.itss.beadle.application.CallContext
 import com.bbh.itss.beadle.application.audit.port.out.ActionHistoryPort
 import com.bbh.itss.beadle.application.audit.port.out.ObjectKeyPort
@@ -10,6 +11,7 @@ import com.bbh.itss.beadle.application.catalog.port.in.ProductsUseCase
 import com.bbh.itss.beadle.application.catalog.port.out.DepartmentRepositoryPort
 import com.bbh.itss.beadle.application.catalog.port.out.DepartmentUsagePort
 import com.bbh.itss.beadle.application.catalog.port.out.ProductRepositoryPort
+import com.bbh.itss.beadle.application.change.port.in.ChangeTasksCommand
 import com.bbh.itss.beadle.application.change.port.in.ProductionChangesUseCase
 import com.bbh.itss.beadle.application.change.port.out.ChangeProductsPort
 import com.bbh.itss.beadle.application.change.port.out.ChangeProfileRepositoryPort
@@ -25,9 +27,12 @@ import com.bbh.itss.beadle.domain.callback.InternalCallback
 import com.bbh.itss.beadle.domain.callback.ProTechCallback
 import com.bbh.itss.beadle.domain.catalog.Department
 import com.bbh.itss.beadle.domain.catalog.DepartmentUsage
+import com.bbh.itss.beadle.domain.change.ChangeTask
 import com.bbh.itss.beadle.domain.change.WorkflowStep
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException
+import com.bbh.itss.beadle.support.ChangeFixtures
 import com.bbh.itss.beadle.support.RecordingTransactionManager
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.autoconfigure.aop.AopAutoConfiguration
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
@@ -46,6 +51,7 @@ import java.util.function.Supplier
 import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_INTERNAL
 import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_PROTECH
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_SYNCED
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_TASKS_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_DELETED
 import static com.bbh.itss.beadle.domain.audit.Action.PRODUCT_CREATED
@@ -63,6 +69,7 @@ import static com.bbh.itss.beadle.domain.change.ChangeState.BUSINESS_APPROVAL
 import static com.bbh.itss.beadle.domain.change.ChangeState.DRAFT
 import static com.bbh.itss.beadle.support.ChangeFixtures.RAISED
 import static com.bbh.itss.beadle.support.ChangeFixtures.raised
+import static com.bbh.itss.beadle.support.ChangeFixtures.releaseTask
 import static com.bbh.itss.beadle.support.RecordingTransactionManager.transactionState
 
 class AuditInterceptorSpec extends Specification {
@@ -312,6 +319,84 @@ class AuditInterceptorSpec extends Specification {
             details().endsWith('...')
             details().bytes.length <= ActionRecord.DETAILS_MAX
         }
+    }
+
+    def "a department that could not be created is filed under the name it was to have"() {
+        given:
+        departments.findByName('Treasury') >> Optional.of(new Department(4L, 'Treasury', 0))
+
+        when:
+        use(DepartmentsUseCase) { it.create(' Treasury ') }
+
+        then:
+        thrown(IllegalStateException)
+        rows.collect { [it.action(), it.objectType(), it.objectId(), it.objectKey(), it.outcome()] } ==
+                [[DEPARTMENT_CREATED, DEPARTMENT, null, 'Treasury', FAILURE]]
+        0 * keys._
+    }
+
+    def "the change tasks ProTech created stand last in the details of the row, also when it refused one of them"() {
+        given:
+        changes.load(7L) >> Optional.of(raised(tasks: []))
+        changes.save(_) >> { it[0] }
+        keys.keyOf(CHANGE, 7L) >> Optional.of('CHG0031001')
+        proTech.read(_) >> [CHG0031001: raised(tasks: [])]
+        proTech.createTask('CHG0031001', _) >> 'CTASK0050001' >> {
+            if (refused) {
+                throw new IllegalStateException('ProTech refused')
+            }
+            'CTASK0050002'
+        }
+
+        when:
+        try {
+            use(ProductionChangesUseCase) {
+                it.createTasks(7L, new ChangeTasksCommand(0L, 3L, [releaseTask([:], null), ChangeTask.of(ChangeFixtures.details(2))]))
+            }
+        } catch (IllegalStateException expected) {
+            assert refused
+        }
+
+        then:
+        rows.size() == 1
+        with(rows[0]) {
+            action() == CHANGE_TASKS_CREATED
+            objectType() == CHANGE
+            objectKey() == 'CHG0031001'
+            outcome() == (refused ? FAILURE : SUCCESS)
+            details().startsWith('{"id":7,"command":{"version":0,"departmentId":3,"tasks":[')
+            details().endsWith(',"result":{"created":' + created + '}}')
+        }
+
+        where:
+        refused || created
+        false   || '["CTASK0050001","CTASK0050002"]'
+        true    || '["CTASK0050001"]'
+    }
+
+    def "long arguments are trimmed before the result, which stays whole at the end of the details"() {
+        given:
+        def interceptor = new AuditInterceptor(null, null, null, Stub(ObjectProvider) {
+            getIfUnique(_) >> JsonMapper.builder().build()
+        }, null, null)
+        def notes = AuditNotes.listen()
+        AuditNotes.result('reminded', [[role: 'SUPPORT', task: null, people: ['Jane Smith'], token: 'secret']])
+        AuditNotes.created('SCP-1002')
+        notes.close()
+
+        when:
+        def details = interceptor.withResult('{"command":{"name":"' + 'N' * 40_000 + '"}}', notes)
+
+        then:
+        details.bytes.length == ActionRecord.DETAILS_MAX
+        details.startsWith('{"command":{"name":"NNN')
+        details.endsWith('NNN...,"result":{"reminded":[{"role":"SUPPORT","task":null,"people":["Jane Smith"],' +
+                '"token":"*****"}],"created":["SCP-1002"]}}')
+
+        expect:
+        interceptor.withResult('{}', notes) == '{"result":{"reminded":[{"role":"SUPPORT","task":null,' +
+                '"people":["Jane Smith"],"token":"*****"}],"created":["SCP-1002"]}}'
+        interceptor.withResult('{"id":7}', AuditNotes.listen().withCloseable { it }) == '{"id":7}'
     }
 
     def "a signed-in user that cannot be read is recorded as unknown"() {

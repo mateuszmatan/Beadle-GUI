@@ -20,6 +20,10 @@ public record ActionRecord(Long id, Instant at, String user, Action action, Obje
     public static final int DETAILS_MAX = 32 * 1024;
     public static final int MESSAGE_MAX = 4000;
     public static final int CORRELATION_ID_MAX = 64;
+    /** The property of {@code details}, last, with what the use case noted besides its arguments. */
+    public static final String RESULT = "result";
+    /** The property of {@link #RESULT}, last, with the keys of what the action created in another system. */
+    public static final String CREATED = "created";
 
     public ActionRecord {
         user = abbreviateBytes(user, USER_MAX);

@@ -3,6 +3,7 @@ package com.bbh.itss.beadle.config;
 import com.bbh.itss.beadle.application.AuditNotes;
 import com.bbh.itss.beadle.application.AuditNotes.Listening;
 import com.bbh.itss.beadle.application.Audited;
+import com.bbh.itss.beadle.application.AuditedKey;
 import com.bbh.itss.beadle.application.CallContext;
 import com.bbh.itss.beadle.application.CallContext.Scope;
 import com.bbh.itss.beadle.application.UseCase;
@@ -36,9 +37,11 @@ import tools.jackson.databind.node.ObjectNode;
 import tools.jackson.databind.node.StringNode;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -46,11 +49,14 @@ import java.util.regex.Pattern;
 
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE;
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.SUCCESS;
+import static com.bbh.itss.beadle.domain.shared.Text.abbreviateBytes;
+import static com.bbh.itss.beadle.domain.shared.Text.bytes;
 import static com.bbh.itss.beadle.domain.shared.Timestamps.now;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.regex.Pattern.CASE_INSENSITIVE;
 import static java.util.stream.Collectors.joining;
 import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
 import static org.springframework.core.annotation.AnnotatedElementUtils.findMergedAnnotation;
 import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW;
 import static org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive;
@@ -64,6 +70,10 @@ import static org.springframework.transaction.support.TransactionSynchronization
  * {@code FAILURE} row follows if that transaction rolls back after all), while the row of a failed call, and every
  * row of a use case without a transaction, is written in a {@code REQUIRES_NEW} transaction of its own. Rows that
  * cannot be written in their own transaction are logged and do not change the outcome of the use case.
+ * <p>
+ * {@code DETAILS} holds the arguments by parameter name and, last, what the use case noted with {@link AuditNotes}:
+ * {@code "result": {"reminded": [...], "created": ["CTASK0041003", ...]}}, kept whole when long arguments are trimmed
+ * to {@link ActionRecord#DETAILS_MAX}.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -98,26 +108,27 @@ class AuditInterceptor implements MethodInterceptor {
         Action action = audited.value();
         Object[] arguments = invocation.getArguments();
         try (Scope correlation = CallContext.correlated();
-             Listening notes = audited.onlyWhenNoted() ? AuditNotes.listen() : null) {
+             Listening notes = AuditNotes.listen()) {
             ActionRecordBuilder row = ActionRecord.builder().at(now(clock.getIfAvailable(Clock::systemUTC)))
-                    .user(user()).action(action).correlationId(CallContext.correlationId().orElse(null))
-                    .details(details(method, arguments));
-            ActionObject removed = action.deletes() ? keyed(fromArguments(action, arguments)) : null;
+                    .user(user()).action(action).correlationId(CallContext.correlationId().orElse(null));
+            String argumentDetails = details(method, arguments);
+            ActionObject removed = action.deletes() ? keyed(fromArguments(action, method, arguments)) : null;
             long started = System.nanoTime();
             Object result;
             try {
                 result = invocation.proceed();
             } catch (Throwable failure) {
-                if (notes == null || notes.tookPlace()) {
+                if (!audited.onlyWhenNoted() || notes.tookPlace()) {
                     row.durationMs(NANOSECONDS.toMillis(System.nanoTime() - started)).outcome(FAILURE)
-                            .message(messageOf(failure));
-                    inOwnTransaction(row, () -> removed != null ? removed : fromArguments(action, arguments));
+                            .message(messageOf(failure)).details(withResult(argumentDetails, notes));
+                    inOwnTransaction(row, () -> removed != null ? removed : fromArguments(action, method, arguments));
                 }
                 throw failure;
             }
-            if (notes == null || notes.tookPlace()) {
-                row.durationMs(NANOSECONDS.toMillis(System.nanoTime() - started)).outcome(SUCCESS);
-                succeeded(row, () -> removed != null ? removed : objectOf(action, arguments, result));
+            if (!audited.onlyWhenNoted() || notes.tookPlace()) {
+                row.durationMs(NANOSECONDS.toMillis(System.nanoTime() - started)).outcome(SUCCESS)
+                        .details(withResult(argumentDetails, notes));
+                succeeded(row, () -> removed != null ? removed : objectOf(action, method, arguments, result));
             }
             return result;
         }
@@ -167,19 +178,64 @@ class AuditInterceptor implements MethodInterceptor {
     }
 
     /** The object a call was about: what its result says, else what its arguments say. */
-    static ActionObject objectOf(Action action, Object[] arguments, Object result) {
+    static ActionObject objectOf(Action action, Method method, Object[] arguments, Object result) {
         Object value = result instanceof Optional<?> optional ? optional.orElse(null) : result;
-        return value instanceof AuditedObject audited ? audited.auditedObject() : fromArguments(action, arguments);
+        return value instanceof AuditedObject audited ? audited.auditedObject()
+                : fromArguments(action, method, arguments);
     }
 
-    /** A first argument of type long is the id of the action's object; else an argument that names its object. */
-    static ActionObject fromArguments(Action action, Object[] arguments) {
+    /**
+     * A first argument of type long is the id of the action's object; else an argument that names its object; else
+     * the {@link AuditedKey} argument its key, such as the name of a department that could not be created.
+     */
+    static ActionObject fromArguments(Action action, Method method, Object[] arguments) {
         if (arguments.length > 0 && arguments[0] instanceof Long id) {
             return ActionObject.of(action.objectType(), id);
         }
         return Arrays.stream(arguments).filter(AuditedObject.class::isInstance)
                 .map(argument -> ((AuditedObject) argument).auditedObject()).findFirst()
-                .orElseGet(() -> ActionObject.of(action.objectType(), null));
+                .orElseGet(() -> ActionObject.keyed(action.objectType(), auditedKey(method, arguments)));
+    }
+
+    private static String auditedKey(Method method, Object[] arguments) {
+        Parameter[] parameters = method.getParameters();
+        for (int index = 0; index < parameters.length && index < arguments.length; index++) {
+            if (parameters[index].isAnnotationPresent(AuditedKey.class) && arguments[index] != null) {
+                return trimToNull(arguments[index].toString());
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The details of the arguments with what the use case noted appended as {@code "result"}, its {@code "created"}
+     * keys last, where the object-key filter of the audit trail looks for them. Arguments too long for
+     * {@link ActionRecord#DETAILS_MAX} are trimmed before the result, so the result stays whole.
+     */
+    String withResult(String argumentDetails, Listening notes) {
+        Map<String, Object> results = notes.results();
+        List<String> created = notes.created();
+        if (results.isEmpty() && created.isEmpty()) {
+            return argumentDetails;
+        }
+        try {
+            JsonMapper mapper = json.getIfUnique(() -> JsonMapper.builder().build());
+            ObjectNode result = mapper.createObjectNode();
+            results.forEach((name, value) -> result.set(name, masked(name, mapper.valueToTree(value))));
+            if (!created.isEmpty()) {
+                result.remove(ActionRecord.CREATED);
+                result.set(ActionRecord.CREATED, mapper.valueToTree(created));
+            }
+            String suffix = "\"" + ActionRecord.RESULT + "\":" + mapper.writeValueAsString(result) + "}";
+            String arguments = argumentDetails == null || argumentDetails.length() < 2 ? "{"
+                    : argumentDetails.substring(0, argumentDetails.length() - 1);
+            String separator = arguments.equals("{") ? "" : ",";
+            int room = ActionRecord.DETAILS_MAX - bytes(suffix) - bytes(separator);
+            return abbreviateBytes(arguments, Math.max(room, 1)) + separator + suffix;
+        } catch (RuntimeException e) {
+            log.warn("The result of an action could not be written as JSON: {}", e.getMessage());
+            return argumentDetails;
+        }
     }
 
     static String messageOf(Throwable failure) {

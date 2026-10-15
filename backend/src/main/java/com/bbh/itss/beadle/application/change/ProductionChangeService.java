@@ -172,6 +172,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         Instant now = now(clock);
         ProductionChange draft = draft(command, now).raisedAt(now);
         RaisedChange raised = proTech.raise(draft);
+        AuditNotes.created(raised.number());
         return changes.save(draft.numbered(raised.number(), raised.url()));
     }
 
@@ -184,7 +185,11 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         ProductionChange current = changeable(stored);
         List<ChangeTask> created = new ArrayList<>();
         try {
-            planned.forEach(task -> created.add(task.numbered(proTech.createTask(current.number(), task))));
+            planned.forEach(task -> {
+                String number = proTech.createTask(current.number(), task);
+                AuditNotes.created(number);
+                created.add(task.numbered(number));
+            });
         } catch (RuntimeException refused) {
             if (!created.isEmpty()) {
                 recorded(current.withTasks(created));
@@ -207,6 +212,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
             throw new IllegalStateException(current.number() + " already has the secure coding ticket " + existing);
         }
         String key = cyberTrack.create(ticket);
+        AuditNotes.created(key);
         try {
             return published(current.withSecureCoding(command.secureCoding(), key), current, now(clock));
         } catch (RuntimeException refused) {
@@ -229,9 +235,14 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         List<ApprovalRef> awaited = current.toRemind(command.approval(), command.task());
         Instant now = now(clock);
         Map<ApprovalRef, Reminder> sent = new LinkedHashMap<>();
+        List<Map<String, Object>> reminded = new ArrayList<>();
         try {
-            awaited.forEach(approval -> sent.put(approval,
-                    new Reminder(now, proTech.remind(current.number(), approval))));
+            awaited.forEach(approval -> {
+                List<String> people = proTech.remind(current.number(), approval);
+                sent.put(approval, new Reminder(now, people));
+                reminded.add(reminded(approval, people));
+                AuditNotes.result("reminded", List.copyOf(reminded));
+            });
         } catch (RuntimeException refused) {
             if (!sent.isEmpty()) {
                 remembered(current, sent);
@@ -239,6 +250,15 @@ public class ProductionChangeService implements ProductionChangesUseCase {
             throw refused;
         }
         return remembered(current, sent);
+    }
+
+    /** Who ProTech reminded of an approval, as the audit trail records it. */
+    private static Map<String, Object> reminded(ApprovalRef approval, List<String> people) {
+        Map<String, Object> reminded = new LinkedHashMap<>();
+        reminded.put("role", approval.role());
+        reminded.put("task", approval.task());
+        reminded.put("people", people);
+        return reminded;
     }
 
     private ProductionChange remembered(ProductionChange change, Map<ApprovalRef, Reminder> sent) {

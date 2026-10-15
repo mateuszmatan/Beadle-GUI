@@ -14,7 +14,10 @@ import spock.lang.Specification
 import java.time.Instant
 
 import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_INTERNAL
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_EDITED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_TASKS_CREATED
+import static com.bbh.itss.beadle.domain.audit.Action.SECURE_CODING_TICKET_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_RENAMED
 import static com.bbh.itss.beadle.domain.audit.Action.PRODUCT_CREATED
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE
@@ -110,6 +113,30 @@ class ActionHistoryPersistenceAdapterSpec extends Specification {
             total() == 5
         }
         adapter.find(ActionHistoryQuery.of(null, null, null, null, null, null, null, 3, 2)).content() == []
+    }
+
+    def "the object-key filter also finds the row of the action that created a CTASK or a ticket in another system"() {
+        given:
+        def tasks = adapter.record(row(action: CHANGE_TASKS_CREATED, details: '{"id":7,"command":{"tasks":[' +
+                '{"details":{"shortDescription":"Mention CTASK0099999"}}]},"result":{"created":["CTASK0041003",' +
+                '"CTASK0041004"]}}'))
+        def ticket = adapter.record(row(at: '2026-10-15T09:01:00Z', action: SECURE_CODING_TICKET_CREATED,
+                details: '{"id":7,"command":{"version":3},"result":{"created":["SCP-123"]}}'))
+        def mentioned = adapter.record(row(at: '2026-10-15T09:02:00Z', action: CHANGE_EDITED, objectKey: 'CHG0031002',
+                details: '{"id":8,"command":{"shortDescription":"After CTASK0041003 and SCP-123"}}'))
+        def raise = adapter.record(row(at: '2026-10-15T09:03:00Z', objectId: null, objectKey: null,
+                outcome: FAILURE, details: '{"command":{"epicKeys":["SCP-9"]},"result":{"created":["CHG0031009"]}}'))
+
+        expect:
+        found(objectKey: 'CTASK0041004') == [tasks]
+        found(objectKey: 'ctask004100') == [tasks]
+        found(objectKey: 'CTASK0099999') == []
+        found(objectKey: 'SCP-123') == [ticket]
+        found(objectKey: 'SCP-9') == []
+        found(objectKey: 'CHG0031009') == [raise]
+        found(objectKey: 'CHG0031002') == [mentioned]
+        found(objectKey: 'CHG003100') == [raise, mentioned, ticket, tasks]
+        found(objectKey: '%') == []
     }
 
     def "the filter lists hold every user and every action of the trail once"() {

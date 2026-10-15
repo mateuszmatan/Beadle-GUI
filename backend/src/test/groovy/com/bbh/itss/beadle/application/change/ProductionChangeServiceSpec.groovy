@@ -1,5 +1,6 @@
 package com.bbh.itss.beadle.application.change
 
+import com.bbh.itss.beadle.application.AuditNotes
 import com.bbh.itss.beadle.application.change.port.in.ChangeCommand
 import com.bbh.itss.beadle.application.change.port.in.ChangeEditCommand
 import com.bbh.itss.beadle.application.change.port.in.ChangeIntegrations
@@ -1235,6 +1236,88 @@ class ProductionChangeServiceSpec extends Specification {
         1 * changes.save({ ProductionChange it -> it.version() == 3L }) >> { ProductionChange it -> it }
         reminded.shortDescription() == 'Renamed meanwhile'
         reminded.approvals()[3].reminder() == new Reminder(NOW, ['Jane Smith'])
+    }
+
+    def "the number ProTech gave a raised change is noted for the audit trail even when Beadle cannot store it"() {
+        given:
+        proTech.raise(_) >> new RaisedChange('CHG0012345', null)
+        changes.save(_) >> { throw new IllegalStateException('The database refused the change') }
+
+        when:
+        def notes = AuditNotes.listen()
+        try {
+            service.raise(command(storyKeys: []))
+        } finally {
+            notes.close()
+        }
+
+        then:
+        thrown(IllegalStateException)
+        notes.created() == ['CHG0012345']
+    }
+
+    def "the change tasks ProTech created before it refused one are noted for the audit trail"() {
+        given:
+        changes.load(7L) >> Optional.of(raised(tasks: []))
+        proTech.read(_) >> [CHG0031001: raised(tasks: [])]
+        changes.save(_) >> { it[0] }
+        proTech.createTask('CHG0031001', _) >> 'CTASK0050001' >> { throw new IllegalStateException(CLOSED_REFUSAL) }
+
+        when:
+        def notes = AuditNotes.listen()
+        try {
+            service.createTasks(7L, created())
+        } finally {
+            notes.close()
+        }
+
+        then:
+        thrown(IllegalStateException)
+        notes.created() == ['CTASK0050001']
+    }
+
+    def "the key of a secure coding ticket CyberTrack created is noted for the audit trail even when ProTech refuses it"() {
+        given:
+        changes.load(7L) >> Optional.of(raised())
+        changes.save(_) >> { ProductionChange it -> it }
+        proTech.read(_) >> [CHG0031001: raised()]
+        cyberTrack.create(_) >> 'SCP-1002'
+        proTech.update(_) >> { throw new IllegalStateException(CLOSED_REFUSAL) }
+
+        when:
+        def notes = AuditNotes.listen()
+        try {
+            service.createSecureCodingTicket(7L, ticket())
+        } finally {
+            notes.close()
+        }
+
+        then:
+        thrown(IllegalStateException)
+        notes.created() == ['SCP-1002']
+    }
+
+    def "the people ProTech reminded before it refused a reminder are noted for the audit trail"() {
+        given:
+        changes.load(7L) >> Optional.of(awaiting())
+        proTech.read(_) >> [CHG0031001: awaiting()]
+        changes.save(_) >> { ProductionChange it -> it }
+        proTech.remind('CHG0031001', ApprovalRef.of(SUPPORT)) >> ['Jane Smith', 'Ann Lee']
+        proTech.remind('CHG0031001', ApprovalRef.ofTask('CTASK0041002')) >>
+                { throw new IllegalStateException('ProTech has nobody to remind on CHG0031001') }
+
+        when:
+        def notes = AuditNotes.listen()
+        try {
+            service.remind(7L, new ReminderCommand(3L, null, null))
+        } finally {
+            notes.close()
+        }
+
+        then:
+        thrown(IllegalStateException)
+        notes.results() == [reminded: [[role: SUPPORT, task: null, people: ['Jane Smith', 'Ann Lee']]]]
+        notes.created() == []
     }
 
     static ProductionChange awaiting() {

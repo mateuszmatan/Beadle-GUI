@@ -2,11 +2,21 @@ package com.bbh.itss.beadle.application;
 
 import lombok.NoArgsConstructor;
 
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import static lombok.AccessLevel.PRIVATE;
 
 /**
- * Lets a use case audited {@link Audited#onlyWhenNoted() only when noted} say that its action took place. Outside
- * such a use case a note has no effect.
+ * What a running {@link Audited} use case tells the audit trail besides its arguments and its result: what it created
+ * in another system ({@link #created(String)}: the CHG and CTASK numbers ProTech handed out, the key of a CyberTrack
+ * ticket), what else came of it ({@link #result(String, Object)}: the people reminded), and, for a use case audited
+ * {@link Audited#onlyWhenNoted() only when noted}, that its action took place ({@link #tookPlace()}). The notes go to
+ * the row of the innermost audited call running on the thread; outside one a note has no effect. A use case notes as
+ * it goes, so that a call that fails half-way still records what it had done in the other systems.
  */
 @NoArgsConstructor(access = PRIVATE)
 public final class AuditNotes {
@@ -21,7 +31,27 @@ public final class AuditNotes {
         }
     }
 
-    /** Listens for {@link #tookPlace()} until the returned scope is closed; used by the audit interceptor. */
+    /**
+     * Records the key of something the action created in another system (a CHG or CTASK number, a ticket key). The
+     * keys stand last in the row's details, as {@code "result": {..., "created": [...]}}, where the object-key filter
+     * of the audit trail finds them too.
+     */
+    public static void created(String key) {
+        Listening listening = LISTENING.get();
+        if (listening != null && key != null && !key.isBlank()) {
+            listening.created.add(key.trim());
+        }
+    }
+
+    /** Records a further outcome of the action under {@code name} in the result section of the row's details. */
+    public static void result(String name, Object value) {
+        Listening listening = LISTENING.get();
+        if (listening != null) {
+            listening.results.put(name, value);
+        }
+    }
+
+    /** Listens for notes until the returned scope is closed; used by the audit interceptor. */
     public static Listening listen() {
         Listening listening = new Listening(LISTENING.get());
         LISTENING.set(listening);
@@ -32,6 +62,8 @@ public final class AuditNotes {
     public static final class Listening implements CallContext.Scope {
 
         private final Listening enclosing;
+        private final Set<String> created = new LinkedHashSet<>();
+        private final Map<String, Object> results = new LinkedHashMap<>();
         private boolean tookPlace;
 
         private Listening(Listening enclosing) {
@@ -40,6 +72,16 @@ public final class AuditNotes {
 
         public boolean tookPlace() {
             return tookPlace;
+        }
+
+        /** The keys of what the action created in other systems, in the order noted, each once. */
+        public List<String> created() {
+            return List.copyOf(created);
+        }
+
+        /** The further outcomes of the action by name, in the order noted. */
+        public Map<String, Object> results() {
+            return new LinkedHashMap<>(results);
         }
 
         @Override

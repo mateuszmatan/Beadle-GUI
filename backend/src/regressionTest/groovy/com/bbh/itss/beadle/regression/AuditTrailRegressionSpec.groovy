@@ -5,6 +5,8 @@ import com.bbh.itss.beadle.support.PortalClient
 import java.net.CookieManager
 import java.time.Instant
 
+import static com.bbh.itss.beadle.support.ChangeFixtures.secureCodingJson
+
 class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
 
     static final String CORRELATION = '0b7c2f4e-9d1a-4e6b-8c3f-5a2d7e9f1b40'
@@ -65,6 +67,49 @@ class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
         then:
         rowsAbout(raised.number as String)*.ACTION == ['CHANGE_RAISED', 'CHANGE_TASKS_CREATED']
         rowsAbout(raised.number as String).every { it.OUTCOME == 'SUCCESS' && it.OBJECT_ID == raised.id as Long }
+    }
+
+    def "searching the trail for a CTASK or a ticket key finds the row of the action that created it"() {
+        given:
+        def raised = raise(createProduct(product(code: uniqueCode(), name: "Created ${uniqueCode()}")))
+
+        when:
+        def ticket = api.post("/api/changes/$raised.id/secure-coding", [version: raised.version,
+                departmentId: raised.departmentId, implementationDate: '10202026'] + secureCodingJson())
+
+        then:
+        ticket.status == 200
+        def key = ticket.json.template.secureCodingTicket as String
+        key ==~ /SCP-\d+/
+        raised.tasks*.number.every { String number ->
+            def found = api.get("/api/action-history?objectKey=$number").json.content as List<Map>
+            found*.action == ['CHANGE_TASKS_CREATED'] && found[0].objectKey == raised.number &&
+                    (found[0].details as String).endsWith(',"result":{"created":["' +
+                            raised.tasks*.number.join('","') + '"]}}')
+        }
+        def ticketRows = api.get("/api/action-history?objectKey=$key").json.content as List<Map>
+        ticketRows*.action == ['SECURE_CODING_TICKET_CREATED']
+        ticketRows[0].subMap(['user', 'objectType', 'objectId', 'objectKey']) ==
+                [user: SIGNED_IN, objectType: 'CHANGE', objectId: raised.id, objectKey: raised.number]
+        (ticketRows[0].details as String).endsWith(',"result":{"created":["' + key + '"]}}')
+        def raiseRows = api.get("/api/action-history?objectKey=$raised.number&action=CHANGE_RAISED").json.content
+        raiseRows.size() == 1
+        (raiseRows[0].details as String).endsWith(',"result":{"created":["' + raised.number + '"]}}')
+    }
+
+    def "a department that could not be created is filed under the name it was to have"() {
+        given:
+        def name = "Audited ${uniqueCode()}"
+        assert api.post('/api/departments', [name: name]).status == 201
+
+        when:
+        def refused = api.post('/api/departments', [name: " ${name} ".toString()])
+
+        then:
+        refused.status == 409
+        rowsAbout(name)*.subMap(['ACTION', 'OBJECT_TYPE', 'OUTCOME']) == [
+                [ACTION: 'DEPARTMENT_CREATED', OBJECT_TYPE: 'DEPARTMENT', OUTCOME: 'SUCCESS'],
+                [ACTION: 'DEPARTMENT_CREATED', OBJECT_TYPE: 'DEPARTMENT', OUTCOME: 'FAILURE']]
     }
 
     def "the callbacks are recorded as the system that called back, under the correlation id it passed on"() {
