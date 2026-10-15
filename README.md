@@ -1,84 +1,73 @@
-# BBH DevSecOps Management Portal and Beadle
+# Beadle-GUI
 
-Two web applications for BBH's DevSecOps, built by one Gradle build:
+**Beadle** raises ProTech (BBH's ServiceNow) changes for production releases, their change tasks and their CyberTrack
+secure coding tickets, from the change template of each product. It is built from three repositories, described in
+[docs/CONTRACTS.md](docs/CONTRACTS.md), the contract every one of them carries:
 
-- the **DevSecOps Management Portal** (`dso-portal`): onboards products to DevSecOps, manages their pipelines and
-  pipeline keys, watches the pipelines, and serves the configuration the Jenkins library
-  [DSOEnhanced](https://github.com/mateuszmatan/DSOEnhanced) reads;
-- **Beadle** (`beadle`): raises ProTech (BBH's ServiceNow) changes for production releases, their change tasks and
-  their CyberTrack secure coding tickets, from the change template of each product.
+- **Beadle-GUI** (this repository): the Angular interface and the Spring Boot service behind it, the system of record
+  of departments, products, change templates and raised changes, and the audit trail of what users did;
+- **Beadle-Internal**: the Spring Boot service that talks to the BBH Jira, CyberTrack, Confluence and qTest with the
+  service accounts of Beadle;
+- **Beadle-ProTech**: the Spring Boot service that talks to ProTech.
 
-Each application is an Angular GUI and a Spring Boot service of its own, packaged as one jar with the GUI inside and
-as one container image, with its own database. The two know nothing of each other: the Beadle GUI shows no link to the
-DevSecOps Management Portal and the portal none to Beadle, and either one builds, runs and deploys alone.
+Beadle-GUI is one Angular GUI and one Spring Boot service, packaged as one jar with the GUI inside and as one
+container image, with its own database. The three services talk REST, both ways, as the contract describes; today
+Beadle-GUI still carries the demo adapters for Jira, ProTech and CyberTrack it had in DSOMgmtPortal, and the next stage
+replaces them by REST clients of the two other services.
 
 ## Repository layout
 
 ```
-settings.gradle, build.gradle   the root build: modules, repositories, versions, how an application is packaged
-common-backend/                 code both services share: departments, errors, use case wiring, GUI forwarding
-dso-backend/                    the DevSecOps Management Portal service (Spring Boot, port 8080)
-beadle-backend/                 the Beadle service (Spring Boot, port 8081)
-common-gui/                     the Angular code both interfaces share: shell, UI kit, departments, admin page
-dso-gui/                        the DevSecOps Management Portal interface (Angular)
-beadle-gui/                     the Beadle interface (Angular)
-angular.json, package.json      the Angular workspace of the three GUI modules
-deploy/openshift/               Dockerfile notes and the Kustomize manifests of each application
-examples/                       Jenkinsfiles, API calls, a rendered configuration and GUI screenshots
+settings.gradle, build.gradle   the root build: the two modules, repositories, versions, how the jar is packaged
+backend/                        the Beadle service (Spring Boot, port 8081), with the Liquibase changelog
+frontend/                       the Beadle interface (Angular) and the Groovy browser tests
+angular.json, package.json      the Angular workspace with the one project, frontend
+deploy/openshift/beadle/        the Kustomize manifests (base and rd, qc, prod overlays); Dockerfile in the root
+docs/CONTRACTS.md               the contract between Beadle-GUI, Beadle-Internal and Beadle-ProTech
 ```
 
 | Module | Holds |
 |--------|-------|
-| `common-backend` | the departments (domain, use case and `/api/departments`), the problem detail error handling, the `@UseCase` transaction wiring, the clock, the forwarding of the GUI pages to `index.html`, the Liquibase history both databases start from and the test support both services use |
-| `dso-backend` | products with their services and settings, pipelines and keys, the library defaults and the service template, the configuration rendered for DSOEnhanced, and the monitoring on InfluxDB and Grafana |
-| `beadle-backend` | products with their change templates, ProTech changes with their change tasks and secure coding tickets, the lookups, the signed-in user, the demo Jira, ProTech and CyberTrack adapters and the Beadle demo data |
-| `common-gui` | the application shell (header, menu, footer, titles), the UI kit (form fields, grid, chart, dialogs, toasts), the departments pages and dialogs, the Admin page with its tabs, the API error texts and the browser test support |
-| `dso-gui` | Pipelines, Self-service, Pipeline Monitoring and DevSecOps Admin (Departments, Products, Service template, Library defaults) |
-| `beadle-gui` | Changes, New Change and Beadle Admin (Departments, Products with their change templates) |
-| `backend` | the launcher jar `backend/build/libs/dso-portal-<version>.jar`, which starts both applications together from their own jars inside it |
-
-Only code that both applications use lives in a common module; everything else belongs to the application it serves.
+| `backend` | the departments, the products with their change templates, the ProTech changes with their change tasks and secure coding tickets, the lookups, the signed-in user, the problem detail error handling, the `@UseCase` transaction wiring, the clock, the forwarding of the GUI pages to `index.html`, the demo Jira, ProTech and CyberTrack adapters, the Beadle demo data, the Liquibase history and the test support of every suite |
+| `frontend` | the application shell (header, menu, footer, titles), the UI kit (form fields, grid, dialogs, toasts), the departments pages and dialogs, the Admin page with its tabs, Changes, New Change and Beadle Admin (Departments, Products with their change templates), the API error texts and the browser test support; see [frontend/README.md](frontend/README.md) |
 
 ## Build
 
-Needs Java 17, and Node.js 20.19 or a later 20.x with npm 10.8 or a later 10.x on the `PATH` (the build calls `npm`
+Needs Java 21, and Node.js 20.19 or a later 20.x with npm 10.8 or a later 10.x on the `PATH` (the build calls `npm`
 and `npx` from there, or the paths in `npm.executable` and `npx.executable` of `gradle.properties` when those files
 exist). The Gradle wrapper downloads Gradle 8.14 from the BBH Nexus.
 
 ```bash
-./gradlew build                     # both applications: the jars with the GUIs inside, the launcher, every test suite
-./gradlew dsoJar                    # the DevSecOps Management Portal only: dso-backend/build/libs/dso-portal-<version>.jar
-./gradlew beadleJar                 # Beadle only: beadle-backend/build/libs/beadle-<version>.jar
-./gradlew :backend:bootJar          # both in one launcher: backend/build/libs/dso-portal-<version>.jar
-./gradlew :dso-backend:bootJar -PskipGui   # a service without its GUI, for API work
-./gradlew check                     # every suite of every module, see Tests
-./gradlew sonar                     # SonarQube at tools.bbh.com/sonar, project DSOMgmtPortal, token in SONAR_AUTH_TOKEN
-./gradlew publish                   # both jars to the BBH Nexus (bbhNexusUsername and bbhNexusPassword as Gradle properties)
-./gradlew dsoJar -PartifactVersion=1.4.0
+./gradlew build                     # the jar with the GUI inside and every test suite
+./gradlew beadleJar                 # the jar only: backend/build/libs/beadle-<version>.jar
+./gradlew :backend:bootJar -PskipGui   # the service without its GUI, for API work
+./gradlew check                     # every suite of both modules, see Tests
+./gradlew sonar                     # SonarQube at tools.bbh.com/sonar, project Beadle, token in SONAR_AUTH_TOKEN
+./gradlew publish                   # the jar to the BBH Nexus (bbhNexusUsername and bbhNexusPassword as Gradle properties)
+./gradlew beadleJar -PartifactVersion=1.4.0
 ```
 
-`dsoJar` and `beadleJar` build one application and nothing of the other: `dso-backend` depends on `common-backend`
-and takes the bundle of `dso-gui` into its `static` folder, `beadle-backend` on `common-backend` and `beadle-gui`.
-`:backend:bootJar` builds both and packs the two jars, unchanged, into the launcher jar of the `backend` module (see
-[Running locally](#running-locally)). `publish` sends a `-SNAPSHOT` version to `nexus.snapshotsUrl` and any other to `nexus.releasesUrl`, both in
-`gradle.properties`.
+`beadleJar` builds the Angular bundle of `frontend` into the `static` folder of `backend`, so the jar serves the GUI
+and the API on one port. `publish` sends a `-SNAPSHOT` version to `nexus.snapshotsUrl` and any other to
+`nexus.releasesUrl`, both in `gradle.properties`.
 
 | File | Holds |
 |------|-------|
-| `settings.gradle` | the seven modules; whether the BBH Nexus is reachable, and the repositories that follow from it |
-| `build.gradle` | the plugins, Java 17, SonarQube, the npm tasks and test suites of the GUI modules, the test suites and coverage gate of the backend modules, how each application packages and publishes its jar, and the launcher jar of `backend` |
-| `<module>/build.gradle` | the dependencies of that module |
+| `settings.gradle` | the two modules; whether the BBH Nexus is reachable, and the repositories that follow from it |
+| `build.gradle` | the plugins, Java 21, SonarQube, the npm tasks and test suites of `frontend`, the test suites, coverage gate, packaging and publishing of `backend` |
+| `backend/build.gradle`, `frontend/build.gradle` | the dependencies of the module |
 | `gradle.properties` | the BBH npm registry, proxy and CA file, the `npm`/`npx` paths on Windows and the Nexus URLs |
 | `gradle/libs.versions.toml` | the plugin and library versions |
 | `gradle/wrapper/gradle-wrapper.properties` | Gradle 8.14 from the BBH Nexus |
-| `angular.json`, `package.json`, `.npmrc` | the Angular workspace: the projects `common-gui`, `beadle-gui` and `dso-gui`, the BBH npm registry and the Node.js and npm versions as hard requirements |
+| `angular.json`, `package.json`, `.npmrc` | the Angular workspace: the project `frontend`, the BBH npm registry and the Node.js and npm versions as hard requirements |
 
 The GUI tasks run npm with the `npm.*` properties of `gradle.properties` as npm settings: `installNpmCIDeps`
 (`npm ci`), `installDesignSystem` (`npm install --no-save` of the BBH Design System packages `@v6/v6-themes`,
-`@v6/v6-table` and `@v6/v6-icons`, inside BBH only), and per GUI module `buildAngular` (`npx ng build <module>
---configuration=production` into `<module>/dist`) and `testAngular` (`npx ng test <module> --watch=false --coverage`,
-Vitest on jsdom, so it needs no browser). The `processResources` of a service depends on the `buildAngular` of its GUI,
-so `bootJar`, `bootRun` and the smoke tests always carry the current GUI; `-PskipGui` leaves it out.
+`@v6/v6-table` and `@v6/v6-icons`, inside BBH only), `:frontend:buildAngular` (`npx ng build frontend
+--configuration=production` into `frontend/dist`) and `:frontend:testAngular` (`npx ng test frontend --watch=false
+--coverage`, Vitest on jsdom, so it needs no browser; the coverage lands in `coverage/frontend`). The
+`processResources` of `backend` depends on `buildAngular`, so `bootJar`, `bootRun` and the smoke tests always carry
+the current GUI; `-PskipGui` leaves it out.
 
 The BBH Design System packages live only in the BBH npm registry, so `package.json` does not list them and `npm ci`
 works anywhere. `-PdesignSystem.packages="@v6/v6-themes@21 @v6/v6-table @v6/v6-icons"` names other versions. The
@@ -92,10 +81,10 @@ The BBH Nexus, the BBH npm registry and the `njproxy` proxy only answer inside B
 know where it is. `settings.gradle` asks the BBH Nexus for the Gradle distribution of the wrapper with one `HEAD`
 request (3 seconds to connect): when it answers, plugins and libraries come from the BBH Nexus repositories, npm
 packages from `tools.bbh.com/nexus/repository/npm-group` through `njproxy` with the BBH CA file, the Design System is
-installed and the GUIs build with the BBH Design System. When it does not, the build says so once ("The BBH Nexus is
+installed and the GUI builds with the BBH Design System. When it does not, the build says so once ("The BBH Nexus is
 out of reach") and uses the Gradle Plugin Portal, Maven Central and `https://registry.npmjs.org/`
 (`npm.publicRegistry` names another), switches the `njproxy` proxy properties off, skips `installDesignSystem` and
-builds the GUIs with the `public` configuration, which swaps the BBH Design System styles and icons for a navy Bootstrap
+builds the GUI with the `public` configuration, which swaps the BBH Design System styles and icons for a navy Bootstrap
 theme with the same layout. The same build therefore works on a BBH workstation and on any other machine.
 
 `-PbbhNetwork=true` or `false` (also as `bbhNetwork=` in `~/.gradle/gradle.properties`) overrides the check. The
@@ -104,102 +93,55 @@ they start: when the BBH distribution does not answer, they run the wrapper from
 whose `distributionUrl` points at `https://services.gradle.org/distributions/gradle-8.14-all.zip`, and Gradle 8.14
 is downloaded from there once. `./gradlew build` is therefore the same command everywhere. A machine behind its own
 proxy sets `systemProp.https.proxyHost` and `systemProp.https.proxyPort` in `~/.gradle/gradle.properties`, which win
-over the project's. Running npm by hand outside BBH needs `--registry=https://registry.npmjs.org/`.
+over the project's. Running npm by hand outside BBH needs `--registry=https://registry.npmjs.org/`; `package-lock.json`
+resolves every package from `registry.npmjs.org`, which npm maps back to the BBH npm registry inside BBH
+(`replace-registry-host`).
 
 ## Running locally
 
-Build the jar of an application and start it; each one serves its GUI and its API on its own port.
+Build the jar and start it; it serves the GUI and the API on port 8081.
 
 ```bash
-./gradlew dsoJar
-java -jar dso-backend/build/libs/dso-portal-0.1.0-SNAPSHOT.jar        # http://localhost:8080
-
 ./gradlew beadleJar
-java -jar beadle-backend/build/libs/beadle-0.1.0-SNAPSHOT.jar         # http://localhost:8081
+java -jar backend/build/libs/beadle-0.1.0-SNAPSHOT.jar         # http://localhost:8081
 ```
 
-`./gradlew :dso-backend:bootRun` and `./gradlew :beadle-backend:bootRun` do the same without building the jars.
-Both can run at the same time, and either one alone. One command starts the two together:
+`./gradlew :backend:bootRun` does the same without building the jar.
 
-```bash
-./gradlew :backend:bootJar
-java -jar backend/build/libs/dso-portal-0.1.0-SNAPSHOT.jar             # http://localhost:8080 and http://localhost:8081
-```
-
-That jar is a launcher: it carries the two application jars above, unchanged, and starts each one in its own JVM with
-the `java` that runs the launcher (Java 17 or 21), so the applications stay as independent as when started by hand,
-each on its own port, database and GUI. The environment variables and the command line arguments of the launcher reach
-both applications; the launcher ends when either application ends, stopping the other, and Ctrl+C stops all three.
-
-**The DevSecOps Management Portal** starts with an empty, persistent database: an embedded H2 in Oracle mode in the
-file `~/bbh-devsecops/dso-portal/dso-portal.mv.db` (`DSO_DATA_DIR` moves the folder). Liquibase creates the schema on
-the first start with the five BBH departments (AI Lab, Capital Partners, Corporate Technology, Custody and Fund
-Services) and the BBH library defaults, and nothing else: no product, service, pipeline or key is made up, so the
-portal can be used for real from the first start. Every later start finds the data where it was left; the schema is
-updated in place when a new version adds to it. The database file is the portal's data: back up the folder, and move
-it with `DSO_DATA_DIR` when the portal moves. The portal has no Oracle profile: whichever profile is switched on, it
-stays on its H2 file (`rd` only turns the logging up to DEBUG). `DB_USERNAME` and `DB_PASSWORD` protect the H2 file
-(`sa` without a password by default, set them before the first start). Pipeline Monitoring reads
-InfluxDB, so without `INFLUX_URL` it says that the administrator has to set it and shows no runs:
-
-```bash
-INFLUX_URL=https://influx.example.com INFLUX_TOKEN=... \
-GRAFANA_DASHBOARD_URL=https://grafana.example.com/d/adzfc54123/devsecops-pipeline-long \
-GRAFANA_SECURITY_DASHBOARD_URL=https://grafana.example.com/d/ad2trcm/devsecops-pipeline-security \
-  java -jar dso-backend/build/libs/dso-portal-0.1.0-SNAPSHOT.jar
-```
-
-The dashboards are the ones DSOEnhanced ships (`grafana/` in that repository); the portal opens them with the
-service's `project` variable and the selected time range. Security, SAST and Nexus IQ GoldenFix pipelines open the
-security dashboard, the other pipelines the pipeline dashboard. Grafana must let portal users view them. A second
-Grafana instance takes `GRAFANA_2_DASHBOARD_URL` and `GRAFANA_2_SECURITY_DASHBOARD_URL`, and each instance is named
-with `GRAFANA_NAME` and `GRAFANA_2_NAME` (`Grafana` and `Grafana 2` when unset). The pipeline page then embeds the
-dashboard of every instance that has one for the pipeline, under the instance's name, so two Grafanas can share the
-dashboards, or one can hold the pipeline dashboard and the other the security one. An instance without the security
-dashboard shows its pipeline dashboard for security pipelines too, and an instance without the pipeline dashboard
-shows nothing for the other pipelines.
-
-**Beadle** starts with the `local` profile: an embedded H2 in Oracle mode in `~/bbh-devsecops/beadle/beadle.mv.db`
+Beadle starts with the `local` profile: an embedded H2 in Oracle mode in `~/bbh-devsecops/beadle/beadle.mv.db`
 (`BEADLE_DATA_DIR` moves the folder) and demo data, so the ProTech workflow can be tried at once; `BEADLE_DEMO_DATA=false`
-starts it empty but for the five departments. Jira, ProTech and CyberTrack are demo adapters until the real ones are
-connected (see [Demo ProTech and the real adapters](#demo-protech-and-the-real-adapters)), and the pages say so with a
-"Demo mode" banner. On `rd`, `qc` and `prod` Beadle runs on Oracle:
+starts it empty but for the five BBH departments (AI Lab, Capital Partners, Corporate Technology, Custody and Fund
+Services). Liquibase creates the schema on the first start and updates it in place when a new version adds to it;
+every later start finds the data where it was left. Jira, ProTech and CyberTrack are demo adapters until the real ones
+are connected (see [Demo ProTech and the real adapters](#demo-protech-and-the-real-adapters)), and the pages say so with
+a "Demo mode" banner.
+
+The contract gives the three services their local ports, Beadle-GUI 8081, Beadle-Internal 8082 and Beadle-ProTech
+8083, so all three run side by side on one machine, each on its own H2 file. Once the next stage has replaced the demo
+adapters by REST clients, Beadle-GUI reaches the two others at `beadle.services.internal.url` (`BEADLE_INTERNAL_URL`,
+`http://localhost:8082` by default) and `beadle.services.protech.url` (`BEADLE_PROTECH_URL`, `http://localhost:8083`),
+and they call it back at `http://localhost:8081`, all with the shared service token `BEADLE_SERVICE_TOKEN`; until
+then Beadle-GUI runs alone.
+
+On `rd`, `qc` and `prod` Beadle runs on Oracle:
 
 ```bash
 SPRING_PROFILES_ACTIVE=qc DB_URL=jdbc:oracle:thin:@//<host>:1521/<service> DB_USERNAME=BEADLE DB_PASSWORD=... \
-  java -jar beadle-backend/build/libs/beadle-0.1.0-SNAPSHOT.jar
+  java -jar backend/build/libs/beadle-0.1.0-SNAPSHOT.jar
 ```
 
-A database written by the single portal of earlier versions (`./data` next to the jar) is not reused: each
-application starts its own database at its new location, and a database pointed at one application loses the tables
-of the other (see [Data model](#data-model)).
+Each of the three profiles belongs to the group `oracle` (the data source from `DB_URL`, `DB_USERNAME` and
+`DB_PASSWORD`, `ddl-auto: validate`, no demo data); `rd` logs at DEBUG and shows the health details, `prod` hides
+them. A profile without `DB_URL` does not start.
 
-For GUI work, the Angular development servers rebuild on every change and proxy `/api` to the service of their
-application: `npm start` serves `dso-gui` on http://localhost:4200 against port 8080, `npm run start:beadle` serves
-`beadle-gui` against port 8081; `npm run start:public` and `npm run start:beadle:public` do the same without the BBH
-Design System.
+For GUI work, the Angular development server rebuilds on every change and proxies `/api` to the service:
+`npm start` serves the GUI on http://localhost:4201 against port 8081; `npm run start:public` does the same without the
+BBH Design System.
 
 ### Configuration
 
-Both services read `bbh-devsecops-common.yml` from `common-backend` (JPA, Liquibase, actuator health and info) and
-their own `application.yml`.
-
-The DevSecOps Management Portal:
-
-| Variable | Default | Meaning |
-|----------|---------|---------|
-| `PORT` | `8080` | HTTP port |
-| `DSO_DATA_DIR` | `~/bbh-devsecops/dso-portal` | the folder of the H2 database `dso-portal.mv.db` |
-| `DB_USERNAME`, `DB_PASSWORD` | `sa`, empty | the H2 user; set before the first start, since H2 creates the user with the database |
-| `SPRING_PROFILES_ACTIVE` | none | `rd` logs the portal at DEBUG; `qc` and `prod` change nothing yet |
-| `INFLUX_URL`, `INFLUX_TOKEN` | empty | your InfluxDB; empty switches Pipeline Monitoring off and tells the administrator what to set |
-| `INFLUX_ORG`, `INFLUX_BUCKET` | `DevSecOps`, `DORA-metrics` | where DSOEnhanced writes its metrics |
-| `GRAFANA_DASHBOARD_URL` | empty | link to the DSOEnhanced pipeline dashboard; empty leaves this instance without one, and without any link the pipeline page shows no dashboard |
-| `GRAFANA_SECURITY_DASHBOARD_URL` | empty | link to the security dashboard for `SECURITY`, `SAST` and `NEXUS_IQ` pipelines; empty uses the pipeline dashboard |
-| `GRAFANA_NAME` | `Grafana` | the name of that Grafana instance on the pipeline page |
-| `GRAFANA_2_DASHBOARD_URL`, `GRAFANA_2_SECURITY_DASHBOARD_URL`, `GRAFANA_2_NAME` | empty, empty, `Grafana 2` | the same for a second Grafana instance; both empty links leave it out |
-
-Beadle:
+The service reads `backend/src/main/resources/application.yml`: JPA, Liquibase, the actuator health and info, and
+under the prefix `beadle.` its own settings, one document per profile.
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
@@ -209,244 +151,83 @@ Beadle:
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | H2 with `local`; required with `rd`, `qc`, `prod` | the database of the active profile |
 | `DB_POOL_SIZE` | 5, 10, 20 in `rd`, `qc`, `prod` | Oracle connection pool size |
 | `BEADLE_DEMO_DATA` | `true` with `local`, `false` otherwise | the demo products with their change templates and the demo changes; see [Beadle demo data](#beadle-demo-data) |
-| `DSO_SIGNED_IN_USER` | `Mateusz Matan` | the signed-in user (`GET /api/me`, Opened by of a new change and the default requester and assignee) until BBH single sign-on exists |
-| `CYBERTRACK_URL`, `CYBERTRACK_TOKEN` | empty | the Jira of CyberTrack and its token; empty creates demo secure coding tickets (see [Secure coding ticket](#secure-coding-ticket)) |
+| `BEADLE_SIGNED_IN_USER` | `Mateusz Matan` | the signed-in user (`beadle.signed-in-user`: `GET /api/me`, Opened by of a new change and the default requester and assignee) until the Ping sign-in of the contract exists |
+| `CYBERTRACK_URL`, `CYBERTRACK_TOKEN` | empty | the Jira of CyberTrack and its token (`beadle.cybertrack.url`, `beadle.cybertrack.token`); empty creates demo secure coding tickets (see [Secure coding ticket](#secure-coding-ticket)) |
 | `CYBERTRACK_PROJECT_KEY`, `CYBERTRACK_ISSUE_TYPE` | `SCP`, `Task` | the Jira project and issue type of a secure coding ticket |
 
-Liquibase creates and updates the schema at start-up, on H2 and on Oracle. Secrets never reach either application:
-services name Jenkins credentials IDs, and the generated configuration carries only those IDs.
+`beadle.gui.pages` (`changes, new-change, admin`) names the pages of the interface the service forwards to
+`index.html`, and `beadle.demo.protech-apply-delay` (`PT3S`) how long the demo ProTech takes to apply an update.
+Liquibase runs on every start, on H2 and on Oracle. Secrets come from environment variables that OpenShift fills from
+secrets; none is written to the repository, a log or a test fixture.
 
 ## Containers and OpenShift
 
-Each service has its Dockerfile (`dso-backend/Dockerfile`, `beadle-backend/Dockerfile`: UBI 9 with Java 17, any
-non-root UID, the Spring Boot layers extracted) and its Kustomize manifests with `rd`, `qc` and `prod` overlays
-(`deploy/openshift/dso-portal`, `deploy/openshift/beadle`). The portal's image keeps its H2 database on a persistent
-volume at `/application/data`; Beadle's image takes its Oracle connection from a secret.
-[deploy/openshift/README.md](deploy/openshift/README.md) describes building, running and deploying both images.
+The `Dockerfile` in the repository root builds the image: the Spring Boot jar with its Angular GUI inside, on the Red
+Hat UBI 9 OpenJDK 21 runtime, its layers extracted, running as a non-root user and also under the arbitrary UID
+(group 0) that OpenShift assigns, so it fits the default `restricted-v2` security context constraint.
 
-## The DevSecOps Management Portal
-
-The portal's menu has four sections:
-
-- **Pipelines**: the DevSecOps pipelines of your department. Pick your department (the browser remembers it) and see
-  its pipelines in a table you can sort and filter in the header: service, product, pipeline type, Jenkins job,
-  pipeline key (by its hint, or Invalidated), the result of the last run and when it finished. **Set up pipelines in
-  Self-service** opens the wizard. **Edit** in a row changes the pipeline's Jenkins agents, Jenkins job and
-  description; when someone else saved the pipeline meanwhile, the dialog loads their settings and says so, so you
-  make your change again on top of them. A row opens the page of its pipeline: the result of its last run, the
-  pipeline key (shown on request and copied whole) with when it was issued and last used by Jenkins, its settings, the
-  Jenkinsfile ready to copy and up to five of its latest runs of the past 30 days, with **Open in Jenkins** and a link
-  to every run and the delivery performance (DORA) in Pipeline Monitoring. **Edit settings** opens the same dialog,
-  and its **More** menu opens the product in Admin, shows the settings sent to Jenkins (config.yaml) and the key
-  history, replaces or invalidates the key and deletes the pipeline; an invalidated key is regenerated with one button.
-- **Self-service**: a step-by-step wizard for app owners who do not know DevSecOps. It sets up a new product or
-  changes one already in the portal: choose the department and the product, then the pipeline, in this order: SAST
-  (Static Application Security Tests) - HCL AppScan, OSA (Open Source Analysis) (NexusIQ with Golden Fix and Golden Pull
-  Request), Security (Unit Tests, NexusIQ, SAST, SonarQube) or Full (Static Security (unit test, NexusIQ, SAST,
-  SonarQube) + Extended (lower test region deployment, regression, performance, smoke, DAST, higher test region
-  deployment)); for a product in the portal the step shows which pipelines each service has today and how many
-  services already have each one. Then the services: add new ones (name, AppScan application, Gradle or Maven, virtual
-  machines or OpenShift; for OSA also the Nexus IQ application and the Bitbucket repository of each service), change
-  the existing ones (including their build tool and where they run) or remove them. Each step asks one question, and
-  the button at the bottom names the next step (**Next: Services**). The review ("Is everything right?") says what
-  happens to each service, tagged New, Changed or Removed, and which pipelines a removal deletes; nothing is saved
-  until **Create the pipelines** (**Save the changes** for a product in the portal). The last step lists what to do
-  next in order: the Jenkinsfile of each service ready to copy, with the repository it goes into, the Jenkins job to
-  ask for per service, the first run and where to follow the results. The build tool and where a service runs start
-  from the library defaults; the OpenShift project, the Nexus IQ application, the Bitbucket repository, the build and
-  the Jenkins job of each pipeline are filled in from the service template, and every value can be changed. New
-  services, and services that change their build tool or where they run, wait for the service template: when it
-  cannot be loaded, the Services step says so and offers **Try again**. Everything else comes from the BBH library
-  defaults and can be fine-tuned in Admin.
-- **Pipeline Monitoring**: "Latest results" counts the pipelines and how their latest runs ended (Passed, Failed or
-  passed with warnings, Keys invalidated), with a chart of them by department; "Products" lists every product with
-  the results of its pipelines, grouped by department; "Delivery performance (DORA)" rates the four DORA measures of
-  all pipelines over the last 30 days (today and the 29 days before it, in UTC, so the totals add up to the daily
-  bars) as Elite, High, Medium or Low, each with a one-line meaning, above their runs per day. A product shows each
-  pipeline with its latest run and how many of its stages passed; a pipeline shows its delivery performance, runs per
-  day, latest run, recent runs, the Jenkins job and your DSOEnhanced Grafana dashboard over a period of 7, 30, 90 or
-  180 days, and names the time zone of its times. Everything is read from the InfluxDB the pipelines write to. A run
-  reads Passed, Passed with warnings, Failed, Stopped or Not built; a pipeline without runs shows No runs yet, and one
-  whose key was invalidated Key invalidated.
-- **Admin**, for the portal administrator, in four tabs:
-  - **Departments**: add, rename and delete departments (only an empty one can be deleted, and a disabled Delete says
-    why), each with the number of its products, services and pipelines ("12, all active" or "12, 2 keys
-    invalidated"), and the chart "Pipelines per department" of the active pipelines and those whose key was
-    invalidated. The five BBH departments come with the database.
-  - **Products**: add a product with all of its services and every setting the DevSecOps library reads from
-    `config.yaml` today, edit or delete it. Every new service gets a full pipeline with its own key; keys can be
-    invalidated, regenerated and linked to a Jenkins job, and each service names the Bitbucket repository where
-    DSOEnhanced raises its GoldenFix pull requests. The product page lists each service with its build tool, where it
-    is deployed, its Bitbucket repository and its pipelines with their key, Jenkins job, Jenkins agents and monitoring
-    tags; **Edit product** opens the editor, **Add pipeline** adds a pipeline to a service, and the **More** menus of
-    the product and of each pipeline hold the rest: the settings sent to Jenkins (config.yaml), monitoring, the
-    Jenkinsfile, the key history, the pipeline settings, the key actions and deleting. In the editor **Edit settings**
-    opens a service, and the rarely changed settings of a section sit in its collapsed **Advanced settings** panel,
-    which opens by itself when a field in it needs attention.
-  - **Service template**: what a new service and a new pipeline get, in Self-service and in the Add service and Add
-    pipeline forms: the Jenkins agents and job of a pipeline, the Gradle and Maven tasks and artifacts, the Nexus IQ
-    application, scan patterns and Bitbucket repository, and the OpenShift project, image registry and health check.
-    The names take the placeholders `{CODE}` (the product code), `{code}` (the same in lower case) and `{service}`,
-    and the job also `{type}` (full, security, extended, sast or nexusiq), so `DevSecOps/{CODE}/{service}-{type}`
-    names the full pipeline of `backend-api` in CERT `DevSecOps/CERT/backend-api-full`. The panel "What a new service
-    gets" shows what a service gets while you type and what each placeholder stands for.
-  - **Library defaults**: the DSOEnhanced library defaults every pipeline shares, in the sections Tools and servers,
-    Deployment defaults, Security limits, Scans and coverage, Release gate, Service defaults and GoldenFix defaults.
-    They replace the library's `defaults.yaml`. A service can set its own SonarQube, Nexus IQ and InfluxDB values and
-    its own deployment, service and GoldenFix values in the product editor. **Show settings sent to Jenkins** shows
-    the part of `config.yaml` every pipeline receives, built from the saved defaults. The open source scan (SCA) has
-    only its security limits, and the release gate result file is always `release-gate.json`, the one file the
-    security pipeline archives and the extended pipeline copies, so it is shown read-only and always sent.
-
-No `config.yaml` remains in the product repositories. The portal-integrated library reads each pipeline's
-configuration from the portal by its key, so a service needs only the generic Jenkinsfile and its pipeline key:
-
-```groovy
-@Library('DevSecOpsJenkinsLibrary') _
-
-devSecOpsPipeline(pipelineKey: '6f1c2d3e-0000-4abc-9def-123456789abc')
+```bash
+./gradlew beadleJar
+docker build -t beadle:0.1.0-SNAPSHOT .
+docker run --rm -p 8081:8081 beadle:0.1.0-SNAPSHOT
 ```
 
-A run that builds several services of one product passes the keys of their pipelines of that type, the primary service
-first; the product page offers this Jenkinsfile as "Jenkinsfile for several services" in the **More** menu of a
-pipeline, and the page of a pipeline in Pipelines shows its own. Extended pipelines join only when they name the same
-security pipeline, since the run reads the security run state of the primary's only:
+The build context is the repository root, whose `.dockerignore` lets only the application jar through, so build the
+jar first. To build on an internal mirror of the base image, pass `--build-arg BASE_IMAGE=<mirror>/ubi9/openjdk-21-runtime:<tag>`;
+Podman and Buildah accept the same arguments. The container starts the `local` profile: H2 in `/application/data`
+(`BEADLE_DATA_DIR`) with demo data; give it a volume (`-v beadle-data:/application/data`) when the demo changes should
+survive a restart, or `-e SPRING_PROFILES_ACTIVE=rd` with the `DB_*` variables to run it on Oracle.
 
-```groovy
-devSecOpsPipeline(pipelineKeys: ['6f1c2d3e-0000-4abc-9def-123456789abc', 'a1b2c3d4-0000-4abc-9def-123456789abc'])
-```
+The manifests in `deploy/openshift/beadle` are a Kustomize base (Deployment, Service, Route and the ConfigMap
+`beadle-config`) with one overlay per environment, `rd`, `qc` and `prod`, each starting the Spring profile of the
+same name:
 
-During the cutover, pin the portal-integrated library version (for example `DevSecOpsJenkinsLibrary@main`) in the
-shared library of Admin > Library defaults (`platform.jenkinsLibrary`, the name the generated Jenkinsfiles load) and in
-the `@Library` line of every migrated job, until every job carries a key.
+1. Push the image to a registry the cluster can pull from and point the overlay at it:
 
-### How DSOEnhanced reads its configuration
+   ```bash
+   cd deploy/openshift/beadle/overlays/rd
+   kustomize edit set image beadle=<registry>/<project>/beadle:0.1.0-SNAPSHOT
+   ```
 
-| Request | Answer |
-|---------|--------|
-| `GET /api/dso/config/{key}` | 200 with the pipeline's `config.yaml` (`?format=json` for JSON), recording the key's last use; 403 with the reason once the key is invalidated; 404 for a key never issued |
-| `GET /api/pipelines/{id}/config` | the same configuration for the portal UI, without recording a use |
-| `GET /api/products/{id}/config` | every service of a product as one `config.yaml` |
-| `GET /api/settings/config` | the part of every configuration that comes from the library defaults |
+2. Create the database secret in the target project; the values never go into the repository:
 
-The library reads each pipeline's configuration from the portal over HTTPS, with one
-`GET /api/dso/config/<key>?format=json` per key, sent with `curl` from a Jenkins agent before the pipeline starts.
-The portal renders the configuration from its database at that moment and records the key's last use. Jenkins needs
-only the portal's address, the global environment variable `DSO_PORTAL_URL` (for example
-`https://dso-portal.apps.bbh.com`); it holds no database account, no credentials and no driver, and only the portal
-reaches its database. Jenkins jobs never reach that database: the library asks for the configuration by key, writes
-its run metrics to InfluxDB, and raises its GoldenFix pull requests in the service's Bitbucket repository; the portal
-reads the metrics back for Pipeline Monitoring and links the DSOEnhanced Grafana dashboards.
+   ```bash
+   oc create secret generic beadle-db \
+     --from-literal=DB_URL='jdbc:oracle:thin:@//<host>:1521/<service>' \
+     --from-literal=DB_USERNAME='<user>' \
+     --from-literal=DB_PASSWORD='<password>'
+   ```
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant J as Jenkins job
-    participant L as DSOEnhanced library
-    participant P as DevSecOps Management Portal
-    participant D as Portal database (H2)
-    participant I as InfluxDB
-    J->>L: devSecOpsPipeline(pipelineKey: key)
-    L->>P: GET /api/dso/config/{key}?format=json
-    P->>D: find the key (trimmed, lower case)
-    alt active key
-        P->>D: record the key's last use
-        P->>D: read the product, service, pipeline and library defaults
-        P-->>L: 200 with the configuration as JSON
-        L->>L: run the stages of the pipeline type
-        L->>I: pipeline_run, dora, stage_event, security_findings, code_coverage
-        L->>I: test_execution, release_gate, build_evidence, policy_status, vulnerabilities, goldenfix
-    else invalidated key
-        P-->>L: 403 problem detail "Pipeline key invalidated" with the date and the reason
-        L-->>J: the build stops before its stages
-    else key never issued
-        P-->>L: 404 problem detail "Unknown DevSecOps pipeline key"
-        L-->>J: the build stops before its stages
-    end
-```
+   The CyberTrack token is optional, in its own secret:
 
-The key is the only check. Whoever holds a key reads the configuration of that one pipeline, which names Jenkins
-credentials IDs and no passwords, much as anyone who could read a product repository could read its `config.yaml`.
-Keys are random UUIDs, the API lists none of them by this request, and an invalidated key is refused with 403 at once.
-When the portal moves behind BBH SSO, `/api/dso/config/**` stays outside the sign-in.
+   ```bash
+   oc create secret generic beadle-cybertrack --from-literal=CYBERTRACK_TOKEN='<token>'
+   ```
 
-Every key the library reads per service is a setting of the service. A service may name its own Nexus IQ server and
-credentials, SonarQube server, InfluxDB write URL and credentials, and AppScan secret (a Secret text credentials ID);
-left empty, the configuration carries the library default or, for the AppScan secret, the product's. One Nexus IQ
-application is written as `tools.nexusIq.application: <name>`; several are written as a map of applications, each
-entry with its scan patterns, stage and the effective server and credentials.
+3. Set `CYBERTRACK_URL` in the overlay's `configMapGenerator` to the Jira that holds the project SCP to create real
+   secure coding tickets; empty keeps the demo. Then apply the overlay:
 
-A pipeline's metrics are matched by the InfluxDB tags the library writes: `project` (the service's metrics project
-plus the pipeline type suffix: none for full, `security`, `extended`, `sast`, `nexusiq`) and `env`. Several services
-may share one metrics project and env. Under a shared tag a `pipeline_run` belongs to the pipeline whose Jenkins job
-(or a branch of it) recorded it in the `job` field; a pipeline without a Jenkins job shows no run, and a run of one job
-building several services belongs to each of them. DORA metrics and the Grafana dashboard stay per tag. Concurrent runs
-under one tag can still mix the points the library writes without a `module` tag.
+   ```bash
+   oc apply -k deploy/openshift/beadle/overlays/rd
+   oc rollout status deployment/beadle
+   oc get route beadle
+   ```
 
-### Nexus IQ GoldenFix pipeline
+Liquibase updates the Oracle schema when the pod starts. Beadle keeps no file of its own, so its Deployment rolls out
+with `RollingUpdate` and no downtime. The startup probe allows three minutes for Liquibase, and the liveness and
+readiness probes use `/actuator/health/liveness` and `/actuator/health/readiness`. The route terminates TLS at the
+edge and redirects plain HTTP. Memory is limited to 1 GiB per pod with the heap at 75% of it; change `resources` in an
+overlay patch if an environment needs more.
 
-A Nexus IQ GoldenFix pipeline (`NEXUS_IQ`, Jenkinsfile `devSecOpsNexusIqGoldenFixPipeline(pipelineKey: '<key>')`,
-job `DevSecOps/<CODE>/<service>-nexusiq`) runs three stages: *Monitor source changes (download sources)*, *Build
-artifact* and *Dependencies scan (Nexus IQ)*. When the scan reports a policy violation, GoldenFix applies the upgrades
-Nexus IQ offers and raises the golden pull request `GoldenFix-<yyyyMMddHHmm>` in the service's Bitbucket repository.
-The pipeline deploys nothing and runs no other scan.
-
-Its configuration (`pipeline.type: nexusiq`) carries the service's settings like any other pipeline and links no
-security or extended job. The service needs its Nexus IQ applications, with scan patterns that match the artifacts the
-build produces; its Bitbucket repository and credentials ID (`scm.bitbucket`), without which the library records
-`NOT_CONFIGURED` and raises no pull request; GoldenFix switched on, by the service's own switch or by the GoldenFix
-defaults of the library defaults; and an AppScan application, which every service keeps whatever its pipelines. Its
-metrics carry the project suffix `nexusiq` and its Grafana links open the security dashboard of every instance.
-
-### Accepted differences from config.yaml
-
-Moving the configuration into the portal changes these behaviours of the library on purpose:
-
-1. Configuration lives in the portal, not in the repository: no per-branch, per-PR or per-commit configuration; a
-   replay of an old build uses today's portal values; release and develop jobs of one service share one pipeline per
-   type. The console, the report header and `build_evidence` record the key hint, `renderedAt` and the sha256 hint.
-2. Failures before `pipeline {}` leave no report, `release-gate.json` or InfluxDB point; `build_duration` and the DORA
-   duration include the bootstrap read.
-3. The archived run-state file is `pipeline-config.yaml`, not `config.yaml`; the first extended run after cutover needs
-   one security build made by the new library.
-4. The extended pipeline uses its own key's projects plus the security run's run-time tags, not the security run's
-   whole `config.yaml` copy.
-5. Keys the portal does not model are gone from `getCFG()` (custom keys a team added to `config.yaml`);
-   `tests.<suite>.defaults`, bare-string test jobs and `urls` are expanded by migration into jobs; `jobs[].auth` maps
-   other than credentials IDs, OpenShift `appName`/`imageNamespace`/`cluster`/`credentialsId` (only the unused
-   nexusDelivery API reads them) and the keys the library no longer reads are not modelled.
-6. Selecting projects through `PROJECT_NAMES`/`PROJECT_NAME` without keys is gone; the keys decide.
-7. Texts that named `config.yaml`/`defaults.yaml` now name the portal, also where they reach the report,
-   `release-gate.json` and InfluxDB. A Jenkinsfile `securityPipeline` in a full, security, SAST or Nexus IQ GoldenFix
-   pipeline is ignored, which shows the Nexus IQ and SonarQube summary rows it used to hide.
-8. Nexus IQ report links appear for every service, because the IQ server URL is a library default (GoldenFix stays
-   governed by its own per-service switch).
-9. Every build depends on the portal at start; the agents of the `DSO_PORTAL_AGENT` label need HTTPS access to it.
-
-### REST API of the portal
-
-| Method and path | Purpose |
-|-----------------|---------|
-| `GET /api/departments` | departments by name, each with the number of its products, their services, their pipelines and the pipelines with an active key |
-| `POST /api/departments`, `PUT`/`DELETE /api/departments/{id}` | add, rename or delete a department; `PUT` carries the `version` it was read at; a department that still has products is not deleted (409) |
-| `GET /api/products?search=` | products with their department, service and pipeline counts; the search also matches the department name |
-| `POST /api/products`, `GET`/`PUT`/`DELETE /api/products/{id}` | a product in its department (`departmentId`, required on every save) with its complete list of services and its AppScan account (`appScan`, whose `keyId` is required once the product has a service); `PUT` carries the `version` it was read at; every service the save creates gets a full pipeline with an active key, or with `?pipelineType=SAST\|NEXUS_IQ\|SECURITY\|FULL` every service of the product without a pipeline of that type gets one; `DELETE` removes the product with its pipelines and keys |
-| `GET /api/products/code-suggestion?name=` | the code the portal suggests for a new product's name: its letters and digits in upper case, with a number added when another product has that code |
-| `GET /api/products/{id}/pipelines` | each service of a product with its pipelines |
-| `POST /api/services/{id}/pipelines` | add a pipeline; it starts with an active key |
-| `GET /api/pipelines?departmentId=` | the pipelines of a department's products as `{pipelines, metricsError}`, by product and service, each with its status and last run and its key by its hint; 404 for an unknown department |
-| `GET`/`PUT`/`DELETE /api/pipelines/{id}` | a pipeline with its key history and its `version`; `PUT` may carry the `version` it was read at (409 when stale) |
-| `POST /api/pipelines/{id}/keys` | issue a new key; an active key is invalidated with the reason "Replaced by a new key"; on a pipeline whose key was invalidated this is Regenerate, and the old keys stay refused |
-| `POST /api/pipelines/{id}/keys/revoke` | invalidate the active key, with a `reason` of at most 500 bytes; 409 when the pipeline has no active key |
-| `GET /api/dso/config/{key}`, `GET /api/pipelines/{id}/config`, `GET /api/products/{id}/config`, `GET /api/settings/config` | the DSOEnhanced configuration as YAML, or as JSON with `?format=json`; see [How DSOEnhanced reads its configuration](#how-dsoenhanced-reads-its-configuration) |
-| `GET /api/monitoring/status`, `/products`, `/products/{id}`, `/pipelines/{id}?range=30d` | monitoring data; `status` says whether InfluxDB is configured and reachable and names the Grafana instances |
-| `GET /api/monitoring/activity?range=30d` | the DORA summary and the daily activity of all pipelines together, as `{pipelines, dora, metricsError}`: the number of pipelines, the DORA metrics over the range with `dora.daily` (runs, failures and deployments per day), and the metrics error, if any |
-| `GET`/`PUT /api/settings` | the DSOEnhanced library defaults (Admin > Library defaults); `PUT` carries the `version` it was read at |
-| `GET`/`PUT /api/service-template` | the template of a new service (Admin > Service template): `agentLabels`, `jenkinsJob`, the Gradle, Maven and Flutter tasks, artifacts and scan patterns, `deliveryTasks`, `nexusIqApplication`, `repositoryUrl`, `bitbucketCredentialsId`, `openShiftProject`, `imageRegistry` and `healthCheckUrl`; `version` is `null` until it is saved (it then holds the BBH defaults), and `PUT` carries the `version` it was read at (409 when stale); a placeholder other than `{CODE}`, `{code}`, `{service}` (and `{type}` in the job) is refused, and so is a name too long for its column once the longest code and service name are filled in |
-
-A `range` is a number of days from `1d` to `730d`, `30d` when left out. Errors are RFC 9457 problem details;
-validation errors name the failing fields, for example `services[2].build.javaPath`. Key values are only sent by the
-product management endpoints, and only for the active key; everywhere else a key shows as its hint.
+| Variable | Source | Purpose |
+| --- | --- | --- |
+| `SPRING_PROFILES_ACTIVE` | ConfigMap `beadle-config` | `rd`, `qc` or `prod`; each runs on Oracle |
+| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Secret `beadle-db` | Oracle connection |
+| `DB_POOL_SIZE` | ConfigMap (optional) | Connection pool size, defaults per profile |
+| `BEADLE_SIGNED_IN_USER` | ConfigMap (optional) | The name Beadle shows as the signed-in user until the Ping sign-in exists |
+| `CYBERTRACK_URL` | ConfigMap (optional) | Base URL of the Jira that holds CyberTrack; empty creates demo secure coding tickets |
+| `CYBERTRACK_PROJECT_KEY`, `CYBERTRACK_ISSUE_TYPE` | ConfigMap (optional) | The Jira project and issue type of a secure coding ticket, `SCP` and `Task` by default |
+| `CYBERTRACK_TOKEN` | Secret `beadle-cybertrack` (optional) | Personal access token of a Jira user allowed to create issues in that project |
 
 ## Beadle
 
@@ -523,8 +304,7 @@ Beadle's menu has three sections:
   start with values suggested from its name, code and owner team.
 
 Beadle's products are its own: a product is a name, a code, a department, an owner team and a contact e-mail, enough
-to raise changes for it. ProTech knows no services or pipelines, so Beadle neither stores nor shows them; the
-DevSecOps Management Portal keeps its own products with their services and settings.
+to raise changes for it. ProTech knows no services or pipelines, so Beadle neither stores nor shows them.
 
 ### Change templates
 
@@ -589,7 +369,7 @@ a steady set of incidents, problems and clients; nothing reaches ProTech yet.
 
 ### Signed-in user
 
-Until BBH single sign-on exists, the signed-in user is the name in `dso.signed-in-user` (`DSO_SIGNED_IN_USER`,
+Until BBH single sign-on exists, the signed-in user is the name in `beadle.signed-in-user` (`BEADLE_SIGNED_IN_USER`,
 `Mateusz Matan` by default), behind the out port `SignedInUserPort` and served at `GET /api/me`. The wizard shows it
 as Opened by, raising a change stores it as the change's `openedBy`, and it fills an empty requested for, requested
 by and assigned to of the template; an empty department becomes the product's department.
@@ -742,8 +522,8 @@ change at once, a read shows the copy the other request stored.
 ### Demo ProTech and the real adapters
 
 Jira and ProTech sit behind three ports, `JiraPort`, `ProTechPort` and `ProTechLookupPort` (see
-[Lookups](#lookups)), and the signed-in user behind `SignedInUserPort`. Beadle ships demo adapters only, and the pages
-say so ("Demo mode"): the Jira one makes up a steady set of epics and stories per project key, and the ProTech one
+[Lookups](#lookups)), CyberTrack behind `CyberTrackPort` and the signed-in user behind `SignedInUserPort`. Beadle
+ships demo adapters, and the pages say so ("Demo mode"): the Jira one makes up a steady set of epics and stories per project key, and the ProTech one
 (`DemoProTechAdapter`) keeps the changes in memory, hands out demo `CHG` and `CTASK` numbers and moves every change
 through the workflow by the clock: Business Approval 2 minutes after it was raised, Primary Approval after 4, Secondary
 Approval after 6, Support Approval after 8 and CTask approval after 10 minutes; each approval of the change is
@@ -760,7 +540,11 @@ sends nothing. It applies an update
 `beadle.demo.protech-apply-delay` (default `PT3S`) after it was published, except a schedule change once the installation
 has started, and refuses to change a closed change. A new schedule keeps the stages a change has reached; the next ones
 follow the rule above for the new schedule, but never before the moment the schedule was applied. After a restart it
-takes Beadle's copy of each change it is asked for. Connecting the real systems needs:
+takes Beadle's copy of each change it is asked for.
+
+The next stage replaces the demo adapters by REST clients of Beadle-ProTech (`ProTechPort` and `ProTechLookupPort`,
+`/api/protech`) and Beadle-Internal (`JiraPort` and `CyberTrackPort`, `/api/internal`) as [docs/CONTRACTS.md](docs/CONTRACTS.md)
+lays them out; the real adapters then live in those two services. Connecting the real systems there needs:
 
 - **Jira**: an adapter that lists the project's versions and searches it with JQL (`fixVersion = "..."` for the
   stories, the epics by that FixVersion or as the parents of those stories, and the stories of the chosen epics), the
@@ -785,8 +569,8 @@ takes Beadle's copy of each change it is asked for. Connecting the real systems 
 - **Lookups**: an adapter of `ProTechLookupPort` that searches ProTech with the Table API and `sysparm_limit=20`
   (`sys_user`, `cmn_department`, `sys_user_group`, `cmdb_ci` with its business service, `incident`, `problem`, and
   the tables BBH keeps its releases and clients in), with the same integration user.
-- **Single sign-on**: an adapter of `SignedInUserPort` that names the user of the BBH sign-on session instead of
-  `dso.signed-in-user`.
+- **Single sign-on**: the Ping (OpenID Connect) sign-in of the contract, which names the signed-in user instead of
+  `beadle.signed-in-user`.
 
 ### Beadle demo data
 
@@ -807,7 +591,7 @@ cut to the bytes ProTech takes, and a product whose template ProTech would still
 instead of stopping the start. Requested for, requested by, the department and assigned to stay empty, so each change
 takes the signed-in user and the product's department. The demo Jira knows two released and one or two unreleased
 FixVersions per project, for example `PAYHUB 2.4`. At start-up twelve demo changes are raised in the demo ProTech
-(`adapter/out/servicenow/DemoProTechChanges.java`), skipping those of a product that already has a change. They are
+(`adapter/out/protech/DemoProTechChanges.java`), skipping those of a product that already has a change. They are
 spread over the departments and their products, with real demo epics and stories, the installation window as the
 downtime window of the products with downtime, and past raise times and schedules chosen so that on a new database
 three are Closed (installed last week), three are In Progress (one of them installing right now), one is in
@@ -829,7 +613,7 @@ departments.
 | `GET`/`PUT /api/products/{id}/change-profile` | the change template of a product: `template` with the ProTech fields (among them `approvers` with `businessApprover`, `l1Manager`, `l2Manager` and `supportApprover`, `requestedFor`, `requestedBy`, `department`, `assignedTo`, `directBusinessService`, `usersAffected`, `secureCoding` with `apoNumber`, `bitbucketUrl`, `artifactLink` and `qcApplicationLink`, `riskAssessment` with the nine answers and `risk`, which is computed and ignored when sent) and `tasks`, its default change tasks (the `details` fields of `POST /api/changes/{id}/tasks`; one to fifty); `version` is `null` until it is saved (it then holds the suggestion), and `PUT` carries `version`, `template` and `tasks` |
 | `GET /api/change-profiles` | the products with a saved change template: `productId`, `productName`, `version`, `updatedAt` |
 | `GET /api/products/{id}/jira/versions`, `/jira/epics?fixVersion=`, `/jira/stories?fixVersion=&epics=` | the FixVersions of the product's Jira project (unreleased first), the epics of a FixVersion and the stories of the chosen epics that carry it; `project=` names another Jira project key |
-| `GET /api/me` | the signed-in user, `{name}`; `dso.signed-in-user` until BBH single sign-on |
+| `GET /api/me` | the signed-in user, `{name}`; `beadle.signed-in-user` until BBH single sign-on |
 | `GET /api/changes/options` | the lists of the wizard: `categories`, `types` (each `value` and `label`), `risk`, the answers of each of the nine risk questions, the `platforms` and `importances` of change tasks and `releaseManagement`, the group name that makes a release task |
 | `GET /api/lookups/{kind}?q=` | at most 20 ProTech entries (`value`, `detail`) that contain `q` in either, ignoring case, for `users`, `departments`, `assignment-groups`, `releases`, `configuration-items`, `incidents`, `problems` or `clients`; 404 for any other kind |
 | `POST /api/changes/preview`, `POST /api/changes` | draft a production change, or raise it in ProTech without change tasks (`productId`, `fixVersion`, `epicKeys`, `storyKeys`, `schedule` with `installationStart`, `installationEnd`, `validationStart`, `validationEnd`, `firstUsage` and, only with `template.downtime`, `downtimeStart` and `downtimeEnd`, the ProTech fields as `template`, and optionally the edited `shortDescription` and `description`) |
@@ -847,45 +631,34 @@ Errors are RFC 9457 problem details; validation errors name the failing fields, 
 ```mermaid
 flowchart LR
     users(["Users<br/>in a browser"])
-    subgraph dso["DevSecOps Management Portal: one jar, one image, port 8080"]
-        dsogui["dso-gui<br/>Angular, static files"]
-        dsoapi["dso-backend<br/>REST API"]
-        dsogui -- "/api" --> dsoapi
+    subgraph gui["Beadle-GUI: one jar, one image, port 8081"]
+        frontend["frontend<br/>Angular, static files"]
+        backend["backend<br/>REST API, system of record, audit trail"]
+        frontend -- "/api" --> backend
     end
-    subgraph beadle["Beadle: one jar, one image, port 8081"]
-        beadlegui["beadle-gui<br/>Angular, static files"]
-        beadleapi["beadle-backend<br/>REST API"]
-        beadlegui -- "/api" --> beadleapi
-    end
-    subgraph jenkins["Jenkins"]
-        lib["DSOEnhanced<br/>shared library"]
-    end
-    dsodb[("H2 file<br/>DSO_DATA_DIR")]
-    beadledb[("H2 file (local)<br/>Oracle (rd, qc, prod)")]
-    influx[("InfluxDB")]
-    grafana["Grafana dashboards"]
-    protech["ProTech (ServiceNow),<br/>Jira, CyberTrack"]
-    users --> dsogui
-    users --> beadlegui
-    lib -- "GET /api/dso/config/{key}?format=json" --> dsoapi
-    lib -- "run metrics" --> influx
-    dsoapi --> dsodb
-    dsoapi -- "Flux queries" --> influx
-    dsoapi -. "dashboard links" .-> grafana
-    beadleapi --> beadledb
-    beadleapi -- "demo adapters today" --> protech
+    internal["Beadle-Internal<br/>port 8082"]
+    protechsvc["Beadle-ProTech<br/>port 8083"]
+    db[("H2 file (local)<br/>Oracle (rd, qc, prod)")]
+    systems["BBH Jira, CyberTrack,<br/>Confluence, qTest"]
+    protech["ProTech (ServiceNow)"]
+    users --> frontend
+    backend --> db
+    backend -- "REST, both ways (next stage)" --> internal
+    backend -- "REST, both ways (next stage)" --> protechsvc
+    internal --> systems
+    protechsvc --> protech
+    backend -. "demo adapters today" .-> protech
 ```
 
-The two services never talk to each other and share no database; what they share is code, through `common-backend`
-and `common-gui`. Each backend module (`<module>/src/main/java/com/bbh/itss/beadle`) is hexagonal:
+The service (`backend/src/main/java/com/bbh/itss/beadle`) is hexagonal:
 
 | Package | Holds |
 |---------|-------|
-| `domain` | plain Java: in `common-backend` the departments and the shared value rules; in `dso-backend` products, services and their settings, pipelines and keys, the library defaults, the service template, the rendered configuration and DORA metrics; in `beadle-backend` the change templates and the ProTech changes with their tasks, sync and update rules; every business rule lives here |
-| `application` | the use cases behind ports, per area (`catalog` in every module, `dsoconfig`, `monitoring`, `pipeline` and `settings` in the portal, `change` and `user` in Beadle), each with its `port.in` and `port.out` packages; `@UseCase` classes become transactional beans, without Spring in the code |
-| `adapter.in` | Spring MVC controllers with the request and response records (`web`), the forwarding of the GUI pages to `index.html` (`SinglePageAppForwarding`, which reads the pages of the application from `beadle.gui.pages`), and the start-up tasks (`startup`) |
-| `adapter.out` | JPA entities and Spring Data repositories (`persistence`); in the portal the InfluxDB client (`influx`), the Grafana links (`grafana`) and the key generator (`key`); in Beadle the demo Jira, ProTech, lookup and CyberTrack adapters with the demo changes (`jira`, `servicenow`) and the signed-in user (`user`) |
-| `config` | the wiring of use cases, transactions and the clock, in `common-backend` |
+| `domain` | plain Java: the departments and the shared value rules (`catalog`, `shared`), the change templates and the ProTech changes with their tasks, approvals, sync and update rules (`change`); every business rule lives here |
+| `application` | the use cases behind ports, per area (`catalog`, `change` and `user`), each with its `port.in` and `port.out` packages; `@UseCase` classes become transactional beans, without Spring in the code |
+| `adapter.in` | Spring MVC controllers with the request and response records (`web`), the forwarding of the GUI pages to `index.html` (`SinglePageAppForwarding`, which reads the pages from `beadle.gui.pages`), and the start-up tasks that seed the demo data (`startup`) |
+| `adapter.out` | JPA entities and Spring Data repositories (`persistence`), the demo Jira adapter (`jira`), the demo ProTech adapter with the demo changes, approvers and lookups (`protech`), the demo and the Jira CyberTrack adapters (`cybertrack`) and the signed-in user (`user`); Jira and CyberTrack never share a package |
+| `config` | the wiring of use cases, transactions and the clock |
 
 ```mermaid
 flowchart LR
@@ -893,8 +666,8 @@ flowchart LR
     pin["application.*.port.in<br/>use case interfaces, commands, views"]
     usecases["application.*<br/>@UseCase services"]
     domain["domain<br/>business rules"]
-    pout["application.*.port.out<br/>repository, metrics, ProTech and link ports"]
-    aout["adapter.out<br/>persistence, influx, grafana, key,<br/>jira, servicenow, user"]
+    pout["application.*.port.out<br/>repository, Jira, ProTech, lookup,<br/>CyberTrack and user ports"]
+    aout["adapter.out<br/>persistence, jira, protech,<br/>cybertrack, user"]
     ain -- "calls" --> pin
     pin -- "implemented by" --> usecases
     usecases --> domain
@@ -902,19 +675,18 @@ flowchart LR
     aout -- "implements" --> pout
 ```
 
-ArchUnit tests in each backend module keep the domain and the use cases free of Spring, JPA and Jackson, and keep
-the adapters apart: the domain depends only on the JDK, Lombok and Apache Commons, the application only on the domain
+`ArchitectureSpec` (ArchUnit) keeps the domain and the use cases free of Spring, JPA and Jackson, and keeps the
+adapters apart: the domain depends only on the JDK, Lombok and Apache Commons, the application only on the domain
 and the same libraries, `adapter.in` never on `adapter.out` or a `port.out`, `adapter.out` never on `adapter.in`,
-and every `@UseCase` class implements a `port.in` interface.
+only the CyberTrack adapter uses an HTTP client, and every `@UseCase` class implements a `port.in` interface.
 
-The GUI modules follow the same cut: `common-gui/src` holds the shell (`shell/`), the UI kit (`ui/`), the core
-(`core/`: API base, models, errors, titles, the `appConfig` an application starts with), the departments
-(`departments/`), the Admin page (`admin/`), shared forms and dialogs (`shared/`) and the test support (`testing/`,
-and the Groovy fixtures of the browser tests in `src/testFixtures`); `dso-gui/src/app` and `beadle-gui/src/app` hold
-the sections of their application (`core/` with its API clients, models and sections, then one folder per section),
-each importing the common code as `@common/...`. An application is `appConfig('<name>', routes)` with an `AppShell`
-that lists its sections; [dso-gui/README.md](dso-gui/README.md) and [beadle-gui/README.md](beadle-gui/README.md)
-describe each GUI.
+The interface (`frontend/src/app`) follows the same cut: `shell/` holds the application shell, `ui/` the UI kit,
+`core/` the API clients, the models, the sections of the menu, the error texts, the titles and the `appConfig` the
+application starts with, `departments/` the departments, `admin/` the Admin page with its tabs, `shared/` the forms,
+field definitions and dialogs, `changes/` Changes and New Change, `beadle/` Beadle Admin, and `testing/` the fixtures
+of the unit tests; the Groovy fixtures of the browser tests live in `frontend/src/testFixtures`. `main.ts` is
+`appConfig('Beadle', routes)` with an `AppShell` that lists the sections; [frontend/README.md](frontend/README.md)
+describes the interface.
 
 ### Code conventions
 
@@ -928,32 +700,39 @@ describe each GUI.
   fluent (`id()`, like the records), and utility classes use `@NoArgsConstructor(access = PRIVATE)` rather than
   `@UtilityClass`, whose members javac cannot import statically. Entities never get `@Data` or `@EqualsAndHashCode`.
 - No exception classes that only add a name. The code throws JDK exceptions with a message, and
-  `ApiExceptionHandler` in `common-backend` maps them: `NoSuchElementException` is 404, `IllegalStateException` is 409
-  (a clash with stored data or an outdated `version`), `SecurityException` is 403 (an invalidated pipeline key, or a
-  Beadle change of another department) and `InvalidRequestException`, the one exception of our own because it carries
-  the failing fields, is 400. An `UncheckedIOException` from the metrics store becomes the metrics error of the page;
+  `ApiExceptionHandler` maps them: `NoSuchElementException` is 404, `IllegalStateException` is 409
+  (a clash with stored data or an outdated `version`), `SecurityException` is 403 (a
+  change of another department) and `InvalidRequestException`, the one exception of our own because it carries
+  the failing fields, is 400. An `UncheckedIOException` from an unreachable system becomes 503 with its message;
   anything else is a 500 and is logged, so a programming error throws `IllegalArgumentException` (for example
   `Validate.isTrue`), never `IllegalStateException`.
 - Groovy specs and fixtures use Groovy's own `?.`, `?:` and the records' builders instead of Commons and Lombok, and
   keep GDK names such as `min` or `round` qualified.
 - No comments in the code.
 
+
 ### Data model
 
-Both databases start from the same Liquibase history, `common-backend/src/main/resources/db/changelog/history.yaml`
-with the SQL files `001` to `025` under `oracle/`, so a database of the single portal of earlier versions carries the
-same changesets as a new one. Each application then adds its changeset `026` from its own module: the portal's
-`026-dso-tables-only.sql` drops the Beadle tables (change templates and production changes) and the H2 metric store
-of the old demo data, Beadle's `026-beadle-tables-only.sql` drops the pipeline, service, settings and template tables
-and the columns of a product only the portal used. Every later change of an application lives in its module, numbered
-from `027`. Most changesets run on Oracle and on H2, a few on one of them only. The main tables of the portal:
+The database starts from the Liquibase history Beadle shared with the DevSecOps Management Portal in DSOMgmtPortal,
+`backend/src/main/resources/db/changelog/history.yaml` with the SQL files `001` to `025` under `oracle/`, so an
+Oracle schema written by DSOMgmtPortal carries the same change sets, with the same file names, contents and
+relative references, as a new one: the `DATABASECHANGELOG` rows keep matching. `db.changelog-master.yaml` then adds
+`026-beadle-tables-only.sql`, which drops the pipeline, service, settings and template tables and the columns of a
+product only the DevSecOps Management Portal used, and `027-change-approvals.sql`; every later change is numbered from there. The table
+names keep their `DSO_` prefix. Most change sets run on Oracle and on H2, a few on one of them only.
 
 ```mermaid
 erDiagram
     DSO_DEPARTMENT |o--o{ DSO_PRODUCT : groups
-    DSO_PRODUCT ||--o{ DSO_SERVICE : has
-    DSO_SERVICE ||--o{ DSO_PIPELINE : has
-    DSO_PIPELINE ||--o{ DSO_PIPELINE_KEY : has
+    DSO_PRODUCT ||--o| DSO_CHANGE_PROFILE : "change template"
+    DSO_CHANGE_PROFILE ||--o{ DSO_CHANGE_PROFILE_TASK : "default change tasks"
+    DSO_CHANGE_PROFILE ||--o{ DSO_CHANGE_PROFILE_PRIVILEGED_USER : has
+    DSO_DEPARTMENT |o--o{ DSO_PRODUCTION_CHANGE : owns
+    DSO_PRODUCT ||--o{ DSO_PRODUCTION_CHANGE : "raised for"
+    DSO_PRODUCTION_CHANGE ||--o{ DSO_PRODUCTION_CHANGE_TASK : has
+    DSO_PRODUCTION_CHANGE ||--o{ DSO_PRODUCTION_CHANGE_APPROVAL : has
+    DSO_PRODUCTION_CHANGE ||--o{ DSO_PRODUCTION_CHANGE_STAGE : "entered"
+    DSO_PRODUCTION_CHANGE ||--o{ DSO_PRODUCTION_CHANGE_PRIVILEGED_USER : has
     DSO_DEPARTMENT {
         NUMBER ID PK
         VARCHAR2 NAME UK
@@ -962,65 +741,32 @@ erDiagram
     DSO_PRODUCT {
         NUMBER ID PK
         NUMBER DEPARTMENT_ID FK
-        VARCHAR2 CODE UK "such as PAYHUB"
+        VARCHAR2 CODE UK "such as CERT"
         VARCHAR2 NAME UK
         VARCHAR2 OWNER_TEAM
-        VARCHAR2 ASOC_KEY_ID "AppScan API key ID, set once it has services"
+        VARCHAR2 CONTACT_EMAIL
         NUMBER VERSION
     }
-    DSO_SERVICE {
+    DSO_PRODUCTION_CHANGE {
         NUMBER ID PK
         NUMBER PRODUCT_ID FK
-        VARCHAR2 NAME "unique in the product"
-        VARCHAR2 BUILD_TOOL "GRADLE, MAVEN, FLUTTER"
-        VARCHAR2 DEPLOY_TARGET "VM, OPENSHIFT"
-        VARCHAR2 APPSCAN_APP_ID
-        VARCHAR2 REPOSITORY_URL "Bitbucket, for GoldenFix"
-        VARCHAR2 INFLUX_PROJECT
-        VARCHAR2 INFLUX_ENV
-    }
-    DSO_PIPELINE {
-        NUMBER ID PK
-        NUMBER SERVICE_ID FK
-        VARCHAR2 PIPELINE_TYPE "FULL, SECURITY, EXTENDED, SAST, NEXUS_IQ"
-        VARCHAR2 AGENT_LABELS
-        VARCHAR2 JENKINS_JOB
-        VARCHAR2 SECURITY_PIPELINE_JOB
-        VARCHAR2 EXTENDED_PIPELINE_JOB
-    }
-    DSO_PIPELINE_KEY {
-        NUMBER ID PK
-        NUMBER PIPELINE_ID FK
-        VARCHAR2 KEY_VALUE UK "random UUID"
-        VARCHAR2 STATUS "ACTIVE, REVOKED"
-        TIMESTAMP ISSUED_AT
-        TIMESTAMP REVOKED_AT
-        VARCHAR2 REVOKE_REASON
-        TIMESTAMP LAST_USED_AT
-    }
-    DSO_GLOBAL_SETTINGS {
-        NUMBER ID PK "always 1"
-        VARCHAR2 JENKINS_URL
-        VARCHAR2 JENKINS_LIBRARY
-        VARCHAR2 SONAR_SERVER_URL
-        VARCHAR2 NEXUS_IQ_SERVER_URL
-        VARCHAR2 INFLUX_WRITE_URL
-        NUMBER COVERAGE_MIN_LINE
+        NUMBER DEPARTMENT_ID FK "emptied when the department is deleted"
+        VARCHAR2 CHANGE_NUMBER UK "CHG, given by ProTech"
+        VARCHAR2 STATE "the workflow stage"
+        VARCHAR2 OPENED_BY
+        TIMESTAMP SYNCED_AT
+        VARCHAR2 UPDATE_STATUS "PENDING, APPLIED, NOT_APPLIED"
         NUMBER VERSION
     }
+    DSO_PRODUCTION_CHANGE_TASK {
+        NUMBER ID PK
+        NUMBER CHANGE_ID FK
+        VARCHAR2 TASK_NUMBER "CTASK, empty until ProTech created it"
+        VARCHAR2 STATE
+        VARCHAR2 APPROVAL
+        VARCHAR2 APPROVERS
+    }
 ```
-
-A service has at most one pipeline of each type, and a pipeline at most one `ACTIVE` key; revoked keys stay as its
-key history. `DEPARTMENT_ID` is empty only for a product saved before departments existed, and `ASOC_KEY_ID` only for
-a product without services. The service settings that repeat live in child tables of `DSO_SERVICE`
-(`DSO_SERVICE_TEST_JOB`, `DSO_SERVICE_SSH_TARGET`, `DSO_SERVICE_OPENSHIFT_TARGET`, `DSO_UCD_APPLICATION` with
-`DSO_UCD_COMPONENT`, `DSO_SERVICE_NEXUS_IQ_APP`), and the scanners' severity limits in `DSO_GLOBAL_SEVERITY_LIMIT`.
-The service template of Admin > Service template is the one row of `DSO_SERVICE_TEMPLATE`, written on its first save.
-
-Oracle counts `VARCHAR2` columns in bytes, so both applications check texts in UTF-8 bytes and refuse a longer one
-with 400 on its field ("is too long: it may take at most N bytes") instead of failing in the database: a product name
-and owner team take 200 bytes, a service description 2000, a department name 100, a pipeline's Jenkins job and
-description 1000 each and the reason a key was revoked 500.
 
 Beadle keeps its products in `DSO_PRODUCT` (`CODE`, `NAME`, `OWNER_TEAM`, `CONTACT_EMAIL`, `DEPARTMENT_ID`,
 `VERSION`), a product's change template in `DSO_CHANGE_PROFILE` with its privileged users and its default change
@@ -1030,28 +776,21 @@ tasks (`DSO_CHANGE_PROFILE_PRIVILEGED_USER`, `DSO_CHANGE_PROFILE_TASK`), and eve
 `UPDATE_REQUESTED_AT`, `UPDATE_DEPARTMENT`, `UPDATE_FIELDS`, `UPDATE_MESSAGE`, `UPDATE_CHECKED_AT`), with its change
 tasks with their states, approvals, approvers and last reminders (`DSO_PRODUCTION_CHANGE_TASK`, `TASK_NUMBER` empty
 until ProTech created the task; `APPROVAL`, `APPROVERS`, `REMINDER_SENT_AT`, `REMINDER_SENT_TO`), its business, L1,
-L2 and support approvals with their states and last reminders (`DSO_PRODUCTION_CHANGE_APPROVAL`, from changeset
+L2 and support approvals with their states and last reminders (`DSO_PRODUCTION_CHANGE_APPROVAL`, from change set
 `027-change-approvals.sql`), the stages it entered (`DSO_PRODUCTION_CHANGE_STAGE`) and its privileged users
-(`DSO_PRODUCTION_CHANGE_PRIVILEGED_USER`).
-Both tables hold the request fields of the wizard (`REQUESTED_FOR`, `REQUESTED_BY`, `REQUEST_DEPARTMENT`,
-`ASSIGNED_TO`, `DIRECT_BUSINESS_SERVICE`, `USERS_AFFECTED`, `SECURE_CODING_TICKET`), the secure coding inputs
-(`APO_NUMBER`, `BITBUCKET_URL`, `ARTIFACT_LINK`, `QC_APPLICATION_LINK`), the four approvers (`BUSINESS_APPROVER`,
-`L1_MANAGER`, `L2_MANAGER`, `SUPPORT_APPROVER`) and the nine risk answers as their list
-values (`RISK_*`); the computed risk is not stored. A change also keeps who opened it (`OPENED_BY`) and its downtime
-window (`DOWNTIME_START`, `DOWNTIME_END`).
+(`DSO_PRODUCTION_CHANGE_PRIVILEGED_USER`). Both the template and the change hold the request fields of the wizard
+(`REQUESTED_FOR`, `REQUESTED_BY`, `REQUEST_DEPARTMENT`, `ASSIGNED_TO`, `DIRECT_BUSINESS_SERVICE`, `USERS_AFFECTED`,
+`SECURE_CODING_TICKET`), the secure coding inputs (`APO_NUMBER`, `BITBUCKET_URL`, `ARTIFACT_LINK`,
+`QC_APPLICATION_LINK`), the four approvers (`BUSINESS_APPROVER`, `L1_MANAGER`, `L2_MANAGER`, `SUPPORT_APPROVER`) and
+the nine risk answers as their list values (`RISK_*`); the computed risk is not stored. A change also keeps who opened
+it (`OPENED_BY`) and its downtime window (`DOWNTIME_START`, `DOWNTIME_END`).
 
-## Preconditions before wider use
+Oracle counts `VARCHAR2` columns in bytes, so Beadle checks texts in UTF-8 bytes and refuses a longer one with 400 on
+its field ("is too long: it may take at most N bytes") instead of failing in the database: a product name and owner
+team take 200 bytes, a department name 100, a short description 160 and a description 4000.
 
-Neither application brings BBH single sign-on with roles, an audit trail of who changed what, or a history of the
-rendered configuration; the owner decides on them later. Both Admin areas are open to every user until an
-administrator role exists. Until they exist the DevSecOps Management Portal must not be reachable outside the test
-network, because a portal edit steers every build and pipeline keys are bearer secrets.
-
-## Examples
-
-[examples/README.md](examples/README.md) describes the Jenkinsfiles of each pipeline type and of a run that builds
-several services, `curl` scripts for the REST API of the portal, the configuration the library receives for a full
-pipeline, and the screenshots of the GUIs per version.
+The contract adds the audit trail of user actions, `BEADLE_ACTION_HISTORY` (change set `028-action-history.sql`),
+in the next stage.
 
 ## Tests
 
@@ -1059,31 +798,28 @@ pipeline, and the screenshots of the GUIs per version.
 ./gradlew check
 ```
 
-builds everything and runs every suite of every module; `./gradlew :dso-backend:check` or `./gradlew :beadle-gui:check`
-runs the suites of one module, `./gradlew :dso-backend:regressionTest` one suite.
+builds everything and runs every suite of both modules; `./gradlew :backend:check` or `./gradlew :frontend:check`
+runs the suites of one module, `./gradlew :backend:regressionTest` one suite.
 
 | Module | Suite | What |
 |--------|-------|------|
-| `common-backend`, `dso-backend`, `beadle-backend` | unit (`src/test`) | domain rules, use cases, adapters and the architecture rules; JaCoCo fails below 60% line coverage per module (`-Pcoverage.minimum=`) |
-| `dso-backend`, `beadle-backend` | regression (`src/regressionTest`) | the API of the service end to end on H2 in Oracle mode; the portal's checks the pinned configuration contract (`-Dregression.updateExpected=true` rewrites the expected files) |
-| `dso-backend`, `beadle-backend` | smoke (`src/smokeTest`) | starts the service on a fresh database and checks health, the API, that the API of the other application is absent and that the GUI is served on every page; `-Dsmoke.baseUrl=https://...` checks a deployed application, `-Dsmoke.ui=false` skips the GUI checks |
-| `dso-backend` | performance (`src/performanceTest`) | p95 latencies of the main calls, the configuration read by DSOEnhanced among them, on 25 products x 16 services |
-| `backend` | unit (`src/test`) | the launcher starts every packed jar in its own JVM, passes the arguments on, ends with the first application to end and leaves nothing behind |
-| `common-gui`, `dso-gui`, `beadle-gui` | unit (Vitest, `testAngular`) | components and form models; fails below 60% of lines and statements per module |
-| `dso-gui`, `beadle-gui` | smoke, regression (`src/smokeTest`, `src/regressionTest`) | Spock and Playwright in Chromium against a stub API of that application: every page, the menu and footer without any trace of the other application, the user journeys with the requests they send |
-| `dso-gui` | performance (`src/performanceTest`) | page timings on a large catalogue |
+| `backend` | unit (`src/test`, `./gradlew :backend:test`) | domain rules, use cases, adapters, the Liquibase migrations and the architecture rules; JaCoCo fails below 60% line coverage (`-Pcoverage.minimum=`) |
+| `backend` | regression (`src/regressionTest`) | the API end to end on H2 in Oracle mode |
+| `backend` | smoke (`src/smokeTest`) | starts the service on a fresh database and checks health, the API, that the API of the DevSecOps Management Portal is absent and that the GUI is served on every page; `-Dsmoke.baseUrl=https://...` checks a deployed application, `-Dsmoke.ui=false` skips the GUI checks |
+| `frontend` | unit (Vitest, `./gradlew :frontend:testAngular` or `npx ng test frontend --watch=false`) | components and form models; fails below 60% of lines and statements |
+| `frontend` | smoke, regression (`src/smokeTest`, `src/regressionTest`) | Spock and Playwright in Chromium against a stub API: every page, the menu and footer without any trace of the DevSecOps Management Portal, the user journeys with the requests they send |
 
-`-Dperformance.factor=2` relaxes the performance limits on a slow machine.
+`-Dperformance.factor=2` relaxes the performance limits on a slow machine. The browser suites need the Chromium
+revision Playwright 1.56 asks for; `PLAYWRIGHT_BROWSERS_PATH` points them at a folder that already holds it, and
+`-Dfrontend.browser=<path>` at another Chromium.
 
 ## Known gaps
 
-- Neither application has a sign-in yet; see the preconditions above.
+- Beadle-GUI signs everybody in as `beadle.signed-in-user` until the Ping (OpenID Connect) sign-in of the contract
+  exists, "your department" is the department the user last picked (remembered in the browser) and the Admin area
+  is open to every user until an administrator role exists. The audit trail of the contract is not written yet.
 - Production changes use demo Jira, ProTech and CyberTrack adapters, and the wizard's searches demo ProTech data,
-  until the real ones are connected; see [Demo ProTech and the real adapters](#demo-protech-and-the-real-adapters).
-  Until BBH single sign-on exists, "your department" is the department the user last picked (remembered in the
-  browser, per application), and the signed-in user of Beadle is the one name in `dso.signed-in-user`, the same for
-  everybody.
+  until the next stage replaces them by REST clients of Beadle-Internal and Beadle-ProTech; see
+  [Demo ProTech and the real adapters](#demo-protech-and-the-real-adapters).
 - The category, type and risk answer lists are written into Beadle and change only with a new version of it, until
   ProTech's value lists can be read.
-- The DevSecOps Management Portal runs on its H2 file only; moving it to Oracle means adding the Oracle profile and
-  data source to `dso-backend/src/main/resources/application.yml` again.

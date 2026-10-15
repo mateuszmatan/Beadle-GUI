@@ -1,19 +1,19 @@
-# Beadle GUI
+# Beadle frontend
 
-The Angular app of BBH Beadle, one of the three projects of the Angular workspace in the repository root
-(`angular.json`), next to [common-gui](../common-gui/README.md), the code it shares with the DevSecOps Management
-Portal, and [dso-gui](../dso-gui/README.md). See the [main README](../README.md) for the whole of Beadle.
+The Angular interface of BBH Beadle, the one project (`frontend`) of the Angular workspace in the repository root
+(`angular.json`). See the [main README](../README.md) for the whole of Beadle.
 
 ```bash
-./gradlew installNpmCIDeps            # npm ci from package-lock.json, for every GUI project
+./gradlew installNpmCIDeps            # npm ci from package-lock.json
 ./gradlew installDesignSystem         # the BBH Design System packages from the BBH npm registry, inside BBH only
-./gradlew :beadle-gui:buildAngular    # production bundle in beadle-gui/dist, checked against the angular.json budgets
-./gradlew :beadle-gui:testAngular     # Vitest unit tests with coverage, thresholds in angular.json
-./gradlew :beadle-gui:smokeTest       # Spock and Playwright: every page in a browser against a stub API
-./gradlew :beadle-gui:regressionTest  # Spock and Playwright: user journeys against a stub API, with the requests they send
-./gradlew :beadle-gui:check           # all of the above
-npm run start:beadle                  # http://localhost:4200, /api is proxied to the Beadle service on port 8081
-npm run start:beadle:public           # the same without the BBH Design System, for a machine outside BBH
+./gradlew :frontend:buildAngular      # production bundle in frontend/dist, checked against the angular.json budgets
+./gradlew :frontend:testAngular       # Vitest unit tests with coverage in coverage/frontend, thresholds in angular.json
+./gradlew :frontend:smokeTest         # Spock and Playwright: every page in a browser against a stub API
+./gradlew :frontend:regressionTest    # Spock and Playwright: user journeys against a stub API, with the requests they send
+./gradlew :frontend:check             # all of the above
+npm start                             # http://localhost:4201, /api is proxied to the Beadle service on port 8081
+npm run start:public                  # the same without the BBH Design System, for a machine outside BBH
+npx ng test frontend --watch=false    # the unit tests by hand
 ```
 
 `./gradlew beadleJar` builds the bundle and packs it into the Beadle service, which serves it on port 8081. The
@@ -23,21 +23,48 @@ itself, as "Inside and outside the BBH network" in the main README describes.
 
 | Folder (`src/app`) | Holds |
 |--------------------|-------|
-| `core/`    | the API clients (products, lookups, the signed-in user), the models mirroring Beadle's DTOs and the three sections of the menu (`sections.ts`) with the tabs of Beadle Admin |
-| `changes/` | Changes and New Change: the ProTech changes of a department in a table filtered and sorted in its header, the change page with where the change is, its approvals with their reminders (`change-approvals.ts`), its update status and its change tasks, the edit page that publishes to ProTech, the change wizard, the secure coding page, and the ProTech fields form and change tasks editor shared with Beadle Admin |
-| `beadle/`  | Beadle Admin: the products list by department with the state of their change templates, the product dialog, the product page with its details and change template, and what the Departments tab counts (`department-usage.ts`) |
-| `testing/` | fixtures for the unit tests |
+| `shell/`       | `AppShell`: the navy header with "BBH Beadle", the flat menu of the sections with the current one underlined, the routed page and the footer |
+| `core/`        | `appConfig(name, routes)`, the `ApplicationConfig` the application starts with (the router with component input binding, the HTTP client, the title strategy "<page> · BBH Beadle", the dialogs); `APP_NAME`; the API clients (departments, products, lookups, the signed-in user); the models mirroring Beadle's DTOs; the three sections of the menu (`sections.ts`) with the tabs of Beadle Admin; `errorMessage()`; the toast notifier; the unsaved-changes guard |
+| `ui/`          | the UI kit every page builds on: form field, checkbox, panel, dialog, toast, loading bar, the AG Grid table (`dso-grid`) and the BBH Design System icons (`design-system.ts`, swapped for `design-system.public.ts` outside BBH) |
+| `shared/`      | the field definitions and the `dso-fields` component (`fields.ts`), form controls and byte-counting validators, the field problems of the API mapped onto a form, formatting (counts, relative times), the confirm dialog, the lookup dialog and the wizard styles |
+| `departments/` | the department dialog, the grouping of records by department (`byDepartment`) and "your department" remembered in the browser (`my-department.ts`) |
+| `admin/`       | `AdminPage`, the page with the tab bar of an `AdminArea`, and `DepartmentsAdmin`, the Departments tab, completed with Beadle's counts, columns and deletion rule (`DepartmentUsage`) |
+| `changes/`     | Changes and New Change: the ProTech changes of a department in a table filtered and sorted in its header, the change page with where the change is, its approvals with their reminders (`change-approvals.ts`), its update status and its change tasks, the edit page that publishes to ProTech, the change wizard, the secure coding page, and the ProTech fields form and change tasks editor shared with Beadle Admin |
+| `beadle/`      | Beadle Admin: the products list by department with the state of their change templates, the product dialog, the product page with its details and change template, and what the Departments tab counts (`department-usage.ts`) |
+| `testing/`     | fixtures and DOM helpers for the unit tests |
+| `../styles.scss`, `../styles/` | everything more than one page draws: the page header, cards, tables and the 12 column form grid, the chips, the fact lists, the quiet links, the side navigation, the muted help line and the look of the UI kit on top of Bootstrap, plus the navy `public-theme.scss` used outside BBH |
+| `../testFixtures/` | the Groovy support of the browser tests: `GuiServer`, `StubApi` with the departments and the recording of requests, `GuiSpecification` with the Playwright browser, the menu and form helpers and the screenshots, and Beadle's `BeadleSpecification`, `BeadleStubApi` and `ChangeStubs` |
 
-The shell, the UI kit, the form field definitions with their lookups, the departments and the Admin page come from
-`common-gui`, imported as `@common/...` (see its README). `main.ts` is `appConfig('Beadle', routes)`: the header
-reads "BBH Beadle", the menu lists Changes, New Change and Admin, and nothing of the DevSecOps Management Portal
-appears anywhere. "Your department" is the department last picked in Changes or New Change, remembered in the browser
-(`@common/departments/my-department.ts`).
+`main.ts` is `appConfig('Beadle', routes)`: the header reads "BBH Beadle", the menu lists Changes, New Change and
+Admin, and nothing of the DevSecOps Management Portal appears anywhere. "Your department" is the department last
+picked in Changes or New Change, remembered in the browser (`departments/my-department.ts`).
+
+## BBH Design System
+
+The GUI follows the BBH Design System on Bootstrap 5.3.8, with no Angular Material. `angular.json` loads the styles
+in the order the design system asks for: Bootstrap, AG Grid, the BBH table theme `@v6/v6-table`, `@v6/v6-themes`
+`main.min.css`, then the Jersey theme (Boston, London, Cracow and Caymanes are the other BBH themes), the Angular CDK
+overlay styles and `styles.scss` last. The `@v6/v6-icons` SVGs are copied to `@v6/v6-icons/assets/icons` and
+registered with `angular-svg-icon` at start-up (`v6RegisterIcons` in `ui/design-system.ts`), together with the few
+icons of `ui/icons.ts` (Material Icons outlines, Apache License 2.0).
+
+- Tables are AG Grid 33 from `ag-grid-enterprise` (`dso-grid`): a column filters in its header row and sorts on a click
+  of its title; cells that hold links or buttons are `ng-template[dsoCell]` templates, or templates passed in through
+  the `templates` input, and stay in the Tab order. Only community modules are registered, so the grids need no
+  licence; an Enterprise module added to `ui/grid.ts` gets BBH's key from `-PagGridLicenseKey`.
+- Dialogs and the toasts use the Angular CDK (`Dialog`, `Overlay`) with Bootstrap's modal and toast styles.
+  `provideDialogs()` in `ui/dialog.ts` starts from the CDK defaults (a backdrop, `role="dialog"`, closing on
+  navigation) and adds the panel class, size limits and focus handling.
+- The `public` configuration (`npm run start:public`, and the Gradle build outside BBH) replaces `ui/design-system.ts`
+  with `ui/design-system.public.ts` and the design system styles with `styles/public-theme.scss`, a navy Bootstrap
+  theme, so the GUI builds and runs where the BBH npm registry is out of reach. The unit tests use that configuration
+  too.
+- The component selectors and the CSS variables keep the `dso-` prefix of DSOMgmtPortal.
 
 ## Browser tests
 
 The smoke and regression suites are Spock specifications that drive Chromium with Playwright against the production
-build. `GuiServer` (in `common-gui/src/testFixtures`) serves `dist` and answers `/api` from `BeadleStubApi`
+build. `GuiServer` (in `src/testFixtures`) serves `dist` and answers `/api` from `BeadleStubApi`
 (`src/testFixtures`), which serves the departments, the products, the signed-in user and the lookups from recorded
 answers (`src/testFixtures/resources/.../api`), keeps a demo ProTech in memory (`ChangeStubs`) that raises changes,
 creates change tasks and secure coding tickets, names the approvers of each change task, records reminders and moves
@@ -75,7 +102,7 @@ own page heading. Each page starts with the full name of its section as the head
 it. The pages show no icons but the magnifier of each lookup field. Fields are compact, forms reflow to two columns
 below 760px and to one below 480px, and no page scrolls sideways at 800px or 600px. Expandable panels say what they
 open: Show or Hide for the collapsed parts of a change page. An error says what could not be loaded or saved, then
-the reason, then what to do (`errorMessage()` in `@common/core/errors.ts`); a page that can load again offers Try
+the reason, then what to do (`errorMessage()` in `core/errors.ts`); a page that can load again offers Try
 again, and a change ProTech could not be read from shows what was read last with the reason.
 
 ## New ProTech change
@@ -133,7 +160,7 @@ then right, the text areas one under another across the width.
 ## Lookups
 
 A field with a `lookup` gets a magnifier button, "Find <label>", that opens `LookupDialog`
-(`@common/shared/lookup-dialog.ts`): a search field ("Searches ProTech as you type. Enter takes the first match.")
+(`shared/lookup-dialog.ts`): a search field ("Searches ProTech as you type. Enter takes the first match.")
 and the matching entries of `/api/lookups/{kind}`, each with its value and detail. Picking one fills the field, or
 adds it to the comma separated list when the lookup appends, and `detail` names the field the detail of the entry
 fills (the Affected CI fills the Direct business service, which typing the CI by hand clears). A failed search says
