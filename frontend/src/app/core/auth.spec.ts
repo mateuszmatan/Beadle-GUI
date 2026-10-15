@@ -15,6 +15,7 @@ import {
   RETURN_KEY,
   SIGN_IN_PATH,
   XSRF_HEADER,
+  afterSignOut,
   authInterceptor,
   pageBeforeSignIn,
 } from './auth';
@@ -189,5 +190,23 @@ describe('BROWSER_NAVIGATION', () => {
     TestBed.inject(BROWSER_NAVIGATION)(SIGN_IN_PATH);
 
     expect(assign).toHaveBeenCalledExactlyOnceWith(SIGN_IN_PATH);
+  });
+});
+
+describe('afterSignOut', () => {
+  it("goes to Ping's end of the session or to a page of Beadle", () => {
+    expect(afterSignOut('https://ping.bbh.com/idp/init_logout.openid?id_token_hint=t')).toBe(
+      'https://ping.bbh.com/idp/init_logout.openid?id_token_hint=t',
+    );
+    expect(afterSignOut('/')).toBe('/');
+    expect(afterSignOut('/changes')).toBe('/changes');
+  });
+
+  it('starts again from the first page without an answer, or with one that is no web address', () => {
+    expect(afterSignOut(null)).toBe('/');
+    expect(afterSignOut(undefined)).toBe('/');
+    expect(afterSignOut('')).toBe('/');
+    expect(afterSignOut('javascript:alert(1)')).toBe('/');
+    expect(afterSignOut('//elsewhere.example/')).toBe('/');
   });
 });

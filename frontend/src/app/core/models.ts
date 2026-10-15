@@ -37,6 +37,11 @@ export interface SignedInUser {
   email: string | null;
 }
 
+/** What Beadle answers to signing out with Ping: where the browser ends its session at Ping too. */
+export interface SignedOut {
+  redirectUrl: string;
+}
+
 export interface BeadleDepartment extends Department {
   changeCount: number;
 }

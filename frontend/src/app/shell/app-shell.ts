@@ -3,7 +3,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { UserApi } from '../core/api';
 import { APP_NAME } from '../core/app-name';
-import { BROWSER_NAVIGATION } from '../core/auth';
+import { BROWSER_NAVIGATION, afterSignOut } from '../core/auth';
 import { errorMessage } from '../core/errors';
 import { Notifier } from '../core/notifier';
 import { PortalSection } from '../core/sections';
@@ -29,14 +29,17 @@ export class AppShell {
   protected readonly user = computed(() => (this.me.hasValue() ? this.me.value() : null));
   protected readonly signingOut = signal(false);
 
-  /** Ends the session and starts the app again from `/`, which signs in anew when Beadle asks for it. */
+  /**
+   * Ends the session at Beadle and, with Ping, at Ping too: the browser goes where Beadle answered, Ping's end of the
+   * session, which comes back to `/` and asks for the Ping sign-in again. Locally it starts again from `/`.
+   */
   protected signOut(): void {
     if (this.signingOut()) {
       return;
     }
     this.signingOut.set(true);
     this.users.signOut().subscribe({
-      next: () => this.navigate('/'),
+      next: (signedOut) => this.navigate(afterSignOut(signedOut?.redirectUrl)),
       error: (error: unknown) => {
         this.signingOut.set(false);
         this.notifier.error(`You could not be signed out. ${errorMessage(error)}`);

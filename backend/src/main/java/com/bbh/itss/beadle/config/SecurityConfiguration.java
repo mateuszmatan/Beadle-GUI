@@ -36,7 +36,8 @@ import static org.springframework.security.config.http.SessionCreationPolicy.STA
  * {@code ping}); an API call without a session is answered {@code 401}, which sends the Angular app to
  * {@value #SIGN_IN}, and every change needs the CSRF token of the {@code XSRF-TOKEN} cookie in
  * {@code X-XSRF-TOKEN}. With {@code local} everybody is {@code beadle.signed-in-user} and there is no CSRF check.
- * {@code POST /logout} ends the session in both, and {@link SignInRecorder} records the first API call of every
+ * {@code POST /logout} ends the session in both: locally with {@code 204}, with Ping by answering where the browser
+ * ends its Ping session as well ({@link PingSignOut}). {@link SignInRecorder} records the first API call of every
  * session as {@code USER_SIGNED_IN}.</li>
  * </ul>
  */
@@ -77,17 +78,20 @@ public class SecurityConfiguration {
                         .defaultAuthenticationEntryPointFor(new HttpStatusEntryPoint(UNAUTHORIZED), apiCalls()))
                 .requestCache(AbstractHttpConfigurer::disable)
                 .logout(logout -> logout
-                        .logoutRequestMatcher(PathPatternRequestMatcher.withDefaults().matcher(POST, SIGN_OUT))
-                        .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler(NO_CONTENT)))
+                        .logoutRequestMatcher(PathPatternRequestMatcher.withDefaults().matcher(POST, SIGN_OUT)))
                 .addFilterAfter(new SignInRecorder(users), AuthorizationFilter.class);
         switch (auth.mode()) {
             case LOCAL -> http.csrf(AbstractHttpConfigurer::disable)
+                    .logout(logout -> logout
+                            .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler(NO_CONTENT)))
                     .addFilterBefore(new LocalUserFilter(local.signedInUser()), AnonymousAuthenticationFilter.class);
             case OIDC -> {
-                if (registrations.getIfAvailable() == null) {
+                ClientRegistrationRepository ping = registrations.getIfAvailable();
+                if (ping == null) {
                     throw new IllegalStateException(NO_PING);
                 }
                 http.oauth2Login(Customizer.withDefaults())
+                        .logout(logout -> logout.logoutSuccessHandler(new PingSignOut(ping)))
                         .csrf(csrf -> csrf.spa())
                         .addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class);
             }

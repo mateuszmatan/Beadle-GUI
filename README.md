@@ -461,8 +461,15 @@ Users sign in to Beadle with Ping, BBH's OpenID Connect provider, through Spring
 
 `/api/callbacks/**` and `/actuator/health/**` take no session in either mode: the callbacks of Beadle-Internal and
 Beadle-ProTech carry the service token instead (see [Callbacks](#callbacks)), and the health probes of OpenShift are
-open. `POST /logout` ends the session at Beadle and answers `204`; the header's **Sign out** sends it and then opens
-`/`, which goes through Ping again (Ping's own session is Ping's, so a browser Ping knows comes straight back).
+open. `POST /logout` ends the session at Beadle. In mode `oidc` it ends the Ping session as well (OpenID Connect
+RP-initiated logout, `config/PingSignOut`): since the interface posts it by XHR and cannot follow a redirect to Ping,
+Beadle answers `200 {"redirectUrl": "..."}` with the `end_session_endpoint` of Ping's OpenID configuration, the
+`id_token_hint` of the session and `post_logout_redirect_uri=https://<route>/`, and the header's **Sign out** sends
+the browser there. Ping ends its session and sends the browser back to `/`, whose first API call goes to the Ping
+sign-in, which now asks for the password instead of signing the browser straight back in. A PingFederate that only
+advertises `ping_end_session_endpoint` gets that one with `TargetResource=https://<route>/`; an issuer that advertises
+neither leaves `redirectUrl` at `/`, which ends Beadle's session only. In mode `local` it answers `204` and the
+interface opens `/`.
 
 The signed-in user sits behind the out port `SignedInUserPort` (`adapter/out/user/AuthenticatedUserAdapter`): the
 claim `name` of the ID token, else `preferred_username`, else `sub`, and the claim `email`; the name of the local
@@ -475,14 +482,16 @@ as Opened by, raising a change stores it as the change's `openedBy`, and it fill
 and assigned to of the template; an empty department becomes the product's department.
 
 Beadle is registered at Ping as a confidential OpenID Connect client of each environment: the authorization code
-grant, the redirect URI `https://<route>/login/oauth2/code/ping`, the scopes `openid profile email`, and an ID token
+grant, the redirect URI `https://<route>/login/oauth2/code/ping`, the post-logout redirect URI `https://<route>/`, the
+scopes `openid profile email`, and an ID token
 that carries `name` (or at least `preferred_username`) and `email`. Beadle reads the issuer's OpenID configuration
 when it starts, so a wrong `PING_ISSUER_URI` stops the start, as does a missing Ping variable on `rd`, `qc` and `prod`;
 mode `oidc` without the registration (the `local` profile with `BEADLE_AUTH_MODE=oidc`) stops it with
 "beadle.auth.mode=oidc needs the Ping registration ...", since the registration lives in those three profiles only. The session is Beadle's
 own HTTP session, ended by Sign out or after 30 minutes without a request (`server.servlet.session.timeout`); the
 next API call then goes through Ping again and comes back to the page it was on. The tests run in mode `local`,
-except `SecurityConfigurationSpec`, which checks both modes against a made-up Ping that is never called.
+except `SecurityConfigurationSpec`, which checks both modes against a made-up Ping whose OpenID configuration is read
+from a local server, and `PingSignOutSpec`, which checks the end-session addresses.
 
 ### Raising a change
 
@@ -832,7 +841,7 @@ departments.
 | `GET /api/change-profiles` | the products with a saved change template: `productId`, `productName`, `version`, `updatedAt` |
 | `GET /api/products/{id}/jira/versions`, `/jira/epics?fixVersion=`, `/jira/stories?fixVersion=&epics=` | the FixVersions of the product's Jira project (unreleased first), the epics of a FixVersion and the stories of the chosen epics that carry it; `project=` names another Jira project key |
 | `GET /api/me` | the signed-in user, `{name, email}` (`email` is `null` when Ping gives none, and in mode `local`) |
-| `POST /logout` | ends the session; `204`, with the CSRF token in mode `oidc` (see [Signing in](#signing-in)) |
+| `POST /logout` | ends the session; in mode `oidc`, with the CSRF token, `200 {"redirectUrl": "..."}`: where the browser ends its Ping session too; in mode `local` `204` (see [Signing in](#signing-in)) |
 | `GET /api/changes/options` | the lists of the wizard: `categories`, `types` (each `value` and `label`), `risk`, the answers of each of the nine risk questions, the `platforms` and `importances` of change tasks and `releaseManagement`, the group name that makes a release task |
 | `GET /api/lookups/{kind}?q=` | at most 20 ProTech entries (`value`, `detail`) that contain `q` in either, ignoring case, for `users`, `departments`, `assignment-groups`, `releases`, `configuration-items`, `incidents`, `problems` or `clients`; 404 for any other kind |
 | `POST /api/changes/preview`, `POST /api/changes` | draft a production change, or raise it in ProTech without change tasks (`productId`, `fixVersion`, `epicKeys`, `storyKeys`, `schedule` with `installationStart`, `installationEnd`, `validationStart`, `validationEnd`, `firstUsage` and, only with `template.downtime`, `downtimeStart` and `downtimeEnd`, the ProTech fields as `template`, and optionally the edited `shortDescription` and `description`) |
@@ -1053,8 +1062,6 @@ revision Playwright 1.56 asks for; `PLAYWRIGHT_BROWSERS_PATH` points them at a f
 
 - "Your department" is the department the user last picked (remembered in the browser), and the Admin area and the
   Action History are open to every signed-in user until Ping's groups give Beadle an administrator role.
-- Sign out ends the session at Beadle only; Ping's single sign-on session stays, so the browser is signed in again
-  at once, until Beadle sends Ping the end-session request of OpenID Connect.
 - Jira, CyberTrack and ProTech are as real as Beadle-Internal and Beadle-ProTech make them; until their URLs and
   service accounts are configured there, both run their demo adapters and the pages show "Demo mode".
 - The category, type and risk answer lists are written into Beadle and change only with a new version of it, until

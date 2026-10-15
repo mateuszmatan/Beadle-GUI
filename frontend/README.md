@@ -37,7 +37,8 @@ itself, as "Inside and outside the BBH network" in the main README describes.
 | `../testFixtures/` | the Groovy support of the browser tests: `GuiServer`, `StubApi` with the departments and the recording of requests, `GuiSpecification` with the Playwright browser, the menu and form helpers and the screenshots, and Beadle's `BeadleSpecification`, `BeadleStubApi` and `ChangeStubs` |
 
 `main.ts` is `appConfig('Beadle', routes)`: the header reads "BBH Beadle", the menu lists Changes, New Change,
-Admin and Action History, the signed-in user and **Sign out** (`POST /logout`, then `/`) close the header, and nothing
+Admin and Action History, the signed-in user and **Sign out** (`POST /logout`, then where Beadle answers: Ping's end of the session with Ping,
+`/` locally) close the header, and nothing
 of the DevSecOps Management Portal appears anywhere. Beadle signs users in with Ping; the interface has no sign-in
 page of its own: an API call without a session answers `401` and the interceptor sends the browser to Ping, which
 sends it back to `/`, and the app opens the page the browser was on (see the README of the repository, "Signing in"). "Your department" is the department last
@@ -68,10 +69,11 @@ icons of `ui/icons.ts` (Material Icons outlines, Apache License 2.0).
 ## Browser tests
 
 The smoke and regression suites are Spock specifications that drive Chromium with Playwright against the production
-build. `GuiServer` (in `src/testFixtures`) serves `dist` and answers `/api`, `/logout` and `/oauth2/` from
+build. `GuiServer` (in `src/testFixtures`) serves `dist` and answers `/api`, `/logout`, `/oauth2/` and `/ping/` from
 `BeadleStubApi` (`src/testFixtures`), which serves the departments, the products, the signed-in user (a session that
-`POST /logout` ends, after which every API call answers `401`, and a stand-in of the Ping sign-in that signs the
-browser in again and redirects it to `/`), the lookups and the action
+`POST /logout` ends, after which every API call answers `401`, answering the end-session address of a stand-in of
+Ping, whose sign-in signs a browser it knows in again and redirects it to `/` and shows its sign-on page to one whose
+Ping session ended), the lookups and the action
 history (filtered and paged like the API) from recorded answers (`src/testFixtures/resources/.../api`), keeps a demo ProTech in memory (`ChangeStubs`) that raises changes,
 creates change tasks and secure coding tickets, names the approvers of each change task, records reminders and moves
 changes through the workflow with their approvals as the tests ask, and records

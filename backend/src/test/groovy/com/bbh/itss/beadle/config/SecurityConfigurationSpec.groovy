@@ -1,6 +1,7 @@
 package com.bbh.itss.beadle.config
 
 import com.bbh.itss.beadle.BeadleApplication
+import com.bbh.itss.beadle.support.RecordingHttpServer
 import com.bbh.itss.beadle.support.StubServices
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.boot.context.TypeExcludeFilter
@@ -49,8 +50,13 @@ class SecurityConfigurationSpec extends Specification {
             "--spring.security.oauth2.client.provider.ping.token-uri=$PING/as/token.oauth2",
             "--spring.security.oauth2.client.provider.ping.jwk-set-uri=$PING/pf/JWKS"]*.toString()
 
+    /** Ping's OpenID configuration, read when Beadle starts, with the address where Ping ends a session. */
     @Shared
-    ConfigurableApplicationContext oidcContext = start('oidc', ['--beadle.auth.mode=oidc'] + PING_REGISTRATION)
+    RecordingHttpServer ping = new RecordingHttpServer()
+
+    @Shared
+    ConfigurableApplicationContext oidcContext = start('oidc', ['--beadle.auth.mode=oidc'] + PING_REGISTRATION +
+            discoveredAt(ping))
 
     @Shared
     ConfigurableApplicationContext localContext = start('local', [])
@@ -64,6 +70,7 @@ class SecurityConfigurationSpec extends Specification {
     def cleanupSpec() {
         oidcContext?.close()
         localContext?.close()
+        ping?.close()
     }
 
     def "with Ping an API call without a session is answered 401 and not sent to the sign-in"() {
@@ -141,17 +148,23 @@ class SecurityConfigurationSpec extends Specification {
         withToken.status == 201
     }
 
-    def "with Ping POST /logout ends the session and answers 204"() {
+    def "with Ping POST /logout ends the session and answers where the browser ends its session at Ping too"() {
         given:
         def session = signedIn([sub: 'u-7', name: 'Ann Lee'])
         def cookie = answer(oidc, get('/api/me').session(session)).getCookie('XSRF-TOKEN')
 
         when:
         def signedOut = answer(oidc, post('/logout').session(session).cookie(cookie).header('X-XSRF-TOKEN', cookie.value))
+        def target = URI.create(parse(signedOut.contentAsString).redirectUrl as String)
 
         then:
-        signedOut.status == 204
+        signedOut.status == 200
+        signedOut.contentType.startsWith('application/json')
         session.invalid
+        "$target.scheme://$target.host$target.path" == "$PING/idp/init_logout.openid"
+        target.query.split('&').collectEntries { it.split('=', 2) as List } ==
+                [id_token_hint: 'id-token', post_logout_redirect_uri: 'http://localhost/']
+        answer(oidc, get('/api/me').session(session)).status == 401
     }
 
     def "the first API call of a session records the sign-in once, in both modes"() {
@@ -214,6 +227,20 @@ class SecurityConfigurationSpec extends Specification {
         then:
         def e = thrown(Exception)
         causes(e).any { it.message == SecurityConfiguration.NO_PING }
+    }
+
+    private static List<String> discoveredAt(RecordingHttpServer server) {
+        server.answer('GET', '/.well-known/openid-configuration', 200, [
+                issuer                               : server.url,
+                authorization_endpoint               : "$PING/as/authorization.oauth2".toString(),
+                token_endpoint                       : "$PING/as/token.oauth2".toString(),
+                jwks_uri                             : "$PING/pf/JWKS".toString(),
+                end_session_endpoint                 : "$PING/idp/init_logout.openid".toString(),
+                response_types_supported             : ['code'],
+                subject_types_supported              : ['public'],
+                id_token_signing_alg_values_supported: ['RS256'],
+                scopes_supported                     : ['openid', 'profile', 'email']])
+        ["--spring.security.oauth2.client.provider.ping.issuer-uri=$server.url".toString()]
     }
 
     private static ConfigurableApplicationContext start(String name, List<String> arguments) {

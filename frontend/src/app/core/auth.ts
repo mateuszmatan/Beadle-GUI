@@ -68,6 +68,15 @@ function rememberPage(document: Document): void {
 }
 
 /**
+ * Where to send the browser after signing out: the address Beadle answered (Ping's end of the session, an absolute
+ * http(s) address, or a path of Beadle), else the first page.
+ */
+export function afterSignOut(redirectUrl: string | null | undefined): string {
+  const url = redirectUrl?.trim() ?? '';
+  return /^https?:\/\//i.test(url) || (url.startsWith('/') && !url.startsWith('//')) ? url : '/';
+}
+
+/**
  * The page the browser was on when it was sent to sign in, once: Ping brings it back to `/`. Only a path of this
  * application is taken.
  */

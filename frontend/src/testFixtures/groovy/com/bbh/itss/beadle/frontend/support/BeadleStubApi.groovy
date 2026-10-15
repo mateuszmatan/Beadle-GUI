@@ -13,11 +13,16 @@ class BeadleStubApi extends StubApi {
 
     static final String SAVED_AT = '2026-10-05T10:00:00Z'
 
+    /** Where the stand-in of Ping ends its session, on the stub server as Ping's address is in the browser. */
+    static final String PING_END_SESSION = '/ping/idp/init_logout.openid'
+
     List<Map> products
     List<Map> actions
     ChangeStubs.ProTech protech
     /** Whether the browser has a session; without one every API call answers 401, as Beadle does when signing in is oidc. */
     volatile boolean signedIn
+    /** Whether Ping knows the browser, so that it signs it in at once without asking for a password. */
+    volatile boolean pingSession
 
     @Override
     void install() {
@@ -30,17 +35,34 @@ class BeadleStubApi extends StubApi {
     }
 
     /**
-     * Who is signed in, Spring Security's {@code POST /logout} that ends the session, and a stand-in of the Ping sign-in
-     * that signs the browser in at once and sends it back to {@code /}, as Ping does for a browser it knows.
+     * Who is signed in, Spring Security's {@code POST /logout} that ends the session and answers where Ping ends its
+     * own, and a stand-in of Ping: its sign-in signs a browser it knows in at once and sends it back to {@code /}, and
+     * shows its sign-in page to one it does not; its end of the session forgets the browser and sends it back to
+     * {@code post_logout_redirect_uri}.
      */
     void installSignIn() {
         signedIn = true
+        pingSession = true
         get('/api/me') { [name: SIGNED_IN_USER, email: null] }
         on('POST', '/logout') {
             signedIn = false
-            empty()
+            json([redirectUrl: PING_END_SESSION + '?id_token_hint=stub-id-token&post_logout_redirect_uri=%2F'])
+        }
+        get('/ping/idp/init_logout.openid') { RecordedRequest request ->
+            pingSession = false
+            StubResponse.redirect(request.params().post_logout_redirect_uri ?: '/')
         }
         get('/oauth2/authorization/ping') {
+            if (!pingSession) {
+                return new StubResponse(status: 200, contentType: 'text/html; charset=utf-8',
+                        body: '<!doctype html><title>Ping</title><h1>Sign on to Ping</h1>' +
+                                '<a href="/ping/sign-on">Sign On</a>')
+            }
+            signedIn = true
+            StubResponse.redirect('/')
+        }
+        get('/ping/sign-on') {
+            pingSession = true
             signedIn = true
             StubResponse.redirect('/')
         }

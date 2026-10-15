@@ -21,8 +21,8 @@ class GuiServer implements AutoCloseable {
             map  : 'application/json'
     ]
 
-    /** The paths Beadle's backend answers: the API, and the sign-in and sign-out of Spring Security. */
-    private static final List<String> BACKEND = ['/api/', '/oauth2/', '/logout']
+    /** The paths Beadle's backend answers (the API, the sign-in and sign-out of Spring Security) and the stand-in of Ping. */
+    private static final List<String> BACKEND = ['/api/', '/oauth2/', '/logout', '/ping/']
 
     private final HttpServer server
     private final ExecutorService executor

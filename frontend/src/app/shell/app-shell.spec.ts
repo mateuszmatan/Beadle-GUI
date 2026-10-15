@@ -143,6 +143,21 @@ describe('AppShell', () => {
     expect(navigate).toHaveBeenCalledExactlyOnceWith('/');
   });
 
+  it('signs out at Ping too when Beadle answers where Ping ends the session', async () => {
+    await signedIn();
+
+    signOut()!.click();
+    http.expectOne({ method: 'POST', url: '/logout' }).flush({
+      redirectUrl:
+        'https://ping.bbh.com/idp/init_logout.openid?id_token_hint=t&post_logout_redirect_uri=https://beadle/',
+    });
+    await fixture.whenStable();
+
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(
+      'https://ping.bbh.com/idp/init_logout.openid?id_token_hint=t&post_logout_redirect_uri=https://beadle/',
+    );
+  });
+
   it('says so and stays signed in when signing out fails', async () => {
     await signedIn();
 
