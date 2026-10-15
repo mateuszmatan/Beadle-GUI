@@ -102,35 +102,65 @@ resolves every package from `registry.npmjs.org`, which npm maps back to the BBH
 
 Beadle-GUI needs Beadle-Internal and Beadle-ProTech beside it: the contract gives the three services their local
 ports, Beadle-GUI 8081, Beadle-Internal 8082 and Beadle-ProTech 8083, so all three run side by side on one machine,
-each on its own H2 file, and all three take the same service token from `BEADLE_SERVICE_TOKEN`. Any text will do
-locally, as long as the three share it; without one, Beadle-GUI refuses every callback and the two services refuse
-every call of Beadle-GUI.
+each with the profile `local` on its own H2 file, and all three take the same service token from
+`BEADLE_SERVICE_TOKEN`. Any text will do locally, as long as the three share it; without one, Beadle-GUI refuses
+every callback and the two services refuse every call of Beadle-GUI.
 
-```bash
-export BEADLE_SERVICE_TOKEN=local-$(whoami)
+1. Choose the token and export it in each terminal that starts a service:
 
-# in a clone of Beadle-Internal                  http://localhost:8082, demo Jira and CyberTrack unless configured
-./gradlew bootRun
-# in a clone of Beadle-ProTech                   http://localhost:8083, demo ProTech unless configured
-./gradlew bootRun
-# here                                           http://localhost:8081
-./gradlew beadleJar
-java -jar backend/build/libs/beadle-0.1.0-SNAPSHOT.jar
-```
+   ```bash
+   export BEADLE_SERVICE_TOKEN=local-$(whoami)
+   ```
 
-`./gradlew :backend:bootRun` starts Beadle-GUI without building the jar. Beadle-GUI reaches the two others at
+2. Start Beadle-Internal and Beadle-ProTech, each in its own clone, and check that they answer the token:
+
+   ```bash
+   # in a clone of Beadle-Internal: http://localhost:8082
+   ./gradlew bootRun
+   curl -H "Authorization: Bearer $BEADLE_SERVICE_TOKEN" http://localhost:8082/api/internal/status
+   # in a clone of Beadle-ProTech: http://localhost:8083
+   ./gradlew bootRun
+   curl -H "Authorization: Bearer $BEADLE_SERVICE_TOKEN" http://localhost:8083/api/protech/status
+   ```
+
+   Both run their demo adapters, and their status says `"mode": "demo"`, until the systems behind them are
+   configured there: Jira (`JIRA_URL`, `JIRA_TOKEN`) and CyberTrack (`CYBERTRACK_URL`, `CYBERTRACK_TOKEN`) in
+   Beadle-Internal, ProTech (`PROTECH_URL`, `PROTECH_USERNAME`, `PROTECH_PASSWORD`) in Beadle-ProTech; their READMEs
+   list the rest. A `401` means the token of the terminal differs from the one the service started with.
+
+3. Build and start Beadle-GUI here, then open http://localhost:8081:
+
+   ```bash
+   ./gradlew beadleJar
+   java -jar backend/build/libs/beadle-0.1.0-SNAPSHOT.jar
+   ```
+
+   `./gradlew :backend:bootRun` starts it without building the jar. There is no Ping locally: everybody is signed in
+   as `Mateusz Matan` (`BEADLE_SIGNED_IN_USER` names someone else; see [Signing in](#signing-in)).
+
+4. Raise a change in New Change. Beadle-GUI raises it through Beadle-ProTech, whose demo ProTech moves it through the
+   approvals every two minutes and calls Beadle-GUI back each time; the change page follows, and Action History shows
+   `Change raised` by you, then `ProTech callback` rows by `system:protech` that carry the correlation id of the last
+   action on the change (the raise, or the latest time it was opened), which the logs of the three services carry
+   too. Creating the secure coding ticket goes through Beadle-Internal the same
+   way, and its callback arrives as `system:internal` once the demo CyberTrack moves the ticket.
+
+The services can start in any order and restart on their own: Beadle-GUI asks them again on the next request, and
+they send a callback Beadle-GUI did not take again on their next tick. Beadle-GUI reaches the two others at
 `beadle.services.internal.url` (`BEADLE_INTERNAL_URL`, `http://localhost:8082` in the `local` profile) and
 `beadle.services.protech.url` (`BEADLE_PROTECH_URL`, `http://localhost:8083`), and they call it back at
 `http://localhost:8081` (their `BEADLE_GUI_URL`). Beadle-GUI also starts while they are down: the pages then show the
 "Demo mode" banner, because a service that does not answer counts as not connected, and whatever needs them answers
-503 naming the service ("Beadle-ProTech did not answer when asked to read the changes: Connection refused").
+503 naming the service ("Beadle-ProTech did not answer when asked to read the changes: Connection refused"); the
+Admin pages and Action History work without them. None of the test suites needs them: they put the in-process
+stand-ins of [In-process stand-ins for the tests](#in-process-stand-ins-for-the-tests) in their place.
 
 Beadle starts with the `local` profile: an embedded H2 in Oracle mode in `~/bbh-devsecops/beadle/beadle.mv.db`
 (`BEADLE_DATA_DIR` moves the folder) and demo data, so the ProTech workflow can be tried at once; `BEADLE_DEMO_DATA=false`
 starts it empty but for the five BBH departments (AI Lab, Capital Partners, Corporate Technology, Custody and Fund
 Services). Everybody is signed in as `Mateusz Matan` (`BEADLE_SIGNED_IN_USER`), without Ping: the `local` profile
-sets `beadle.auth.mode` to `local` (see [Signing in](#signing-in)). Liquibase creates the schema on the first start and updates it in place when a new version adds to it;
-every later start finds the data where it was left. Jira, ProTech and CyberTrack are whatever Beadle-Internal and
+sets `beadle.auth.mode` to `local` (see [Signing in](#signing-in)). Liquibase creates the schema on the first start
+and updates it in place when a new version adds to it; every later start finds the data where it was left. Jira, ProTech and CyberTrack are whatever Beadle-Internal and
 Beadle-ProTech connect them to: their demo adapters until their URLs are set there, and the pages say so with a "Demo
 mode" banner (see [Beadle-Internal and Beadle-ProTech](#beadle-internal-and-beadle-protech)).
 
@@ -443,6 +473,16 @@ Beadle-ProTech, which only log it: Jira, CyberTrack and ProTech see the service 
 as Opened by, raising a change stores it as the change's `openedBy`, and it fills an empty requested for, requested by
 and assigned to of the template; an empty department becomes the product's department.
 
+Beadle is registered at Ping as a confidential OpenID Connect client of each environment: the authorization code
+grant, the redirect URI `https://<route>/login/oauth2/code/ping`, the scopes `openid profile email`, and an ID token
+that carries `name` (or at least `preferred_username`) and `email`. Beadle reads the issuer's OpenID configuration
+when it starts, so a wrong `PING_ISSUER_URI` stops the start, as does a missing Ping variable on `rd`, `qc` and `prod`;
+mode `oidc` without the registration (the `local` profile with `BEADLE_AUTH_MODE=oidc`) stops it with
+"beadle.auth.mode=oidc needs the Ping registration ...", since the registration lives in those three profiles only. The session is Beadle's
+own HTTP session, ended by Sign out or after 30 minutes without a request (`server.servlet.session.timeout`); the
+next API call then goes through Ping again and comes back to the page it was on. The tests run in mode `local`,
+except `SecurityConfigurationSpec`, which checks both modes against a made-up Ping that is never called.
+
 ### Raising a change
 
 New Change starts from the template and lets the app owner change any field for this change. It adds what changes
@@ -601,15 +641,24 @@ REST clients of the two other Beadle services, on the endpoints of [docs/CONTRAC
 | `CyberTrackPort` | `internal/InternalCyberTrackAdapter` | `POST /api/internal/cybertrack/tickets` |
 | `ProTechPort`, `ProTechLookupPort` | `protech/RestProTechAdapter` | `POST /api/protech/changes`, `POST /api/protech/changes/{number}/tasks`, `POST /api/protech/changes/read`, `PUT /api/protech/changes/{number}`, `POST /api/protech/changes/{number}/reminders`, `GET /api/protech/lookups/{kind}` |
 
-`InternalClient` and `ProTechClient` make the calls, on `BeadleServiceClient` (`adapter/out/http`), which gives every
-call what the contract asks for:
+`InternalClient` and `ProTechClient` make the calls, on `BeadleServiceClient` (`adapter/out/http`), with 5 seconds
+to connect and 30 seconds to answer and the headers of the contract.
 
-- `Authorization: Bearer <BEADLE_SERVICE_TOKEN>`;
-- `X-Beadle-User`: the signed-in user who caused the call, or `system` for a call made for a callback;
-- `X-Correlation-Id`: the correlation id of the user action. `CorrelationIdFilter` gives every request to Beadle-GUI a
-  new UUID (or keeps the one a callback brings), binds it to the request for the calls it makes, puts it in the log
-  context and answers it in the `X-Correlation-Id` response header;
-- 5 seconds to connect and 30 seconds to answer.
+#### Headers between the services
+
+| Header | On the calls of Beadle-GUI to Beadle-Internal and Beadle-ProTech | On their callbacks to Beadle-GUI |
+|--------|------------------------------------------------------------------|----------------------------------|
+| `Authorization` | `Bearer <BEADLE_SERVICE_TOKEN>`; the two services answer `401` without it or with another one, which Beadle-GUI answers `503` ("Beadle-ProTech refused the service token of Beadle-GUI when asked to ...") | `Bearer <BEADLE_SERVICE_TOKEN>`, checked by `ServiceTokenFilter` in a filter chain of its own, without a session or a CSRF token; `401` without it, with another token, or while Beadle-GUI has none |
+| `X-Beadle-User` | who caused the call (`CallerHeaders`): the name of the signed-in user as Ping gives it (or `beadle.signed-in-user` in mode `local`); `system` while Beadle acts for a system, that is for a callback or for the demo data it stores when it starts. The services only log it; Jira, CyberTrack and ProTech see Beadle's service accounts | `system`; Beadle-GUI records the callback as `system:protech` or `system:internal` whatever it says |
+| `X-Correlation-Id` | the correlation id of the user action, so one action reads the same in the logs of all three services | the correlation id of the user action the callback reports on (also in its body), which Beadle-GUI takes over for what the callback causes |
+
+`CorrelationIdFilter` (`config`) gives every request to Beadle-GUI its correlation id: the `X-Correlation-Id` the
+request brings when it is a UUID (a callback, or a caller that already has one), otherwise a new UUID. It binds the id
+to the request for the calls Beadle makes on its behalf, puts it into the log context (`[%X{correlationId}]` on every
+log line) and the audit row of the action, and answers it in the `X-Correlation-Id` response header, so a user who
+reports an error can quote it and an operator finds the action in Action History and in the logs of all three
+services. The browser sends none of these headers: it signs in with Ping and carries its session cookie and the CSRF
+token (see [Signing in](#signing-in)).
 
 The changes and change tasks travel as the JSON of `ProductionChange` and `ChangeTask`. A service that cannot be
 reached or answers `5xx` fails the call with a message that names it, which the API answers `503` ("Beadle-ProTech did
@@ -700,6 +749,35 @@ be written there is logged and does not change the answer. Reads write nothing. 
 `ActionHistoryUseCase` reads the trail newest first, filtered by user, action, object type, object key (its
 beginning, in any case), outcome and time, in pages of at most 200 rows; `GET /api/action-history` serves it to the
 Action History page.
+
+In short, the trail answers who did what, to which object, when, with what outcome and as part of which user action:
+every change to a department, a product or a change template, every draft, raise, edit, change task, secure coding
+ticket and reminder sent to ProTech or CyberTrack, every newer state of a change Beadle stored when it was opened,
+every callback of Beadle-ProTech and Beadle-Internal, and the first API call of every session. Reads (the lists, the
+pages, the lookups, the Jira versions and issues, the trail itself) write nothing.
+
+#### The Action History page
+
+Action History (`/action-history`, after Admin in the menu; see [Beadle](#beadle)) shows the trail through
+`GET /api/action-history` to every signed-in user, newest first, in pages of 25, 50 (the first), 100 or 200 rows.
+Its columns are At (to the second, in the browser's time zone), User, Action in words ("Change raised", "Signed in",
+"ProTech callback"), Object (its type and key, such as "Change CHG0031001"), Outcome (a failure in red) and
+Correlation. The filters narrow it by user and by action (their lists hold the values recorded so far), by the
+beginning of the object key, by outcome, and by a first and a last day (whole days in the browser's time zone, the
+last one included; a last day before the first is refused on the page); each asks the API again from the first page.
+A row opens its details: when, who, the object, the outcome, the duration, the correlation id, the message of a
+failure and the request as JSON, with its secrets masked. It answers the usual questions:
+
+- who raised, edited, reminded or synchronised a change: its number as the object key;
+- what someone did on a day: their name, and the day as first and last day;
+- what went wrong: outcome Failure; the message says why ("Beadle-ProTech did not answer ...", the field problems of a
+  refusal) and the request shows what was sent;
+- what one click caused further on: its correlation id in the logs of the three services and in the call logs of
+  Beadle-Internal and Beadle-ProTech (`GET /api/internal/call-log?correlationId=`,
+  `GET /api/protech/call-log?correlationId=`).
+
+On Oracle the table can also be read directly, for example
+`SELECT AT, USER_NAME, ACTION, OBJECT_KEY, OUTCOME, MESSAGE FROM BEADLE_ACTION_HISTORY WHERE CORRELATION_ID = '...'`.
 
 ### Beadle demo data
 
