@@ -1,5 +1,6 @@
 package com.bbh.itss.beadle.config;
 
+import com.bbh.itss.beadle.adapter.Secrets;
 import com.bbh.itss.beadle.application.AuditNotes;
 import com.bbh.itss.beadle.application.AuditNotes.Listening;
 import com.bbh.itss.beadle.application.Audited;
@@ -31,21 +32,17 @@ import org.springframework.core.ParameterNameDiscoverer;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionTemplate;
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
-import tools.jackson.databind.node.StringNode;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.time.Clock;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
-import java.util.regex.Pattern;
 
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE;
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.SUCCESS;
@@ -53,7 +50,6 @@ import static com.bbh.itss.beadle.domain.shared.Text.abbreviateBytes;
 import static com.bbh.itss.beadle.domain.shared.Text.bytes;
 import static com.bbh.itss.beadle.domain.shared.Timestamps.now;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import static java.util.regex.Pattern.CASE_INSENSITIVE;
 import static java.util.stream.Collectors.joining;
 import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -79,9 +75,6 @@ import static org.springframework.transaction.support.TransactionSynchronization
 @RequiredArgsConstructor
 class AuditInterceptor implements MethodInterceptor {
 
-    static final String MASK = "*****";
-    static final Pattern SECRET = Pattern.compile("token|password|passwd|secret|authorization|credential|api-?key",
-            CASE_INSENSITIVE);
     static final String ROLLED_BACK = "The action ended, but its transaction did not commit";
     static final String UNKNOWN_USER = SignedInUserPort.UNKNOWN;
 
@@ -240,7 +233,7 @@ class AuditInterceptor implements MethodInterceptor {
         try {
             JsonMapper mapper = json.getIfUnique(() -> JsonMapper.builder().build());
             ObjectNode result = mapper.createObjectNode();
-            results.forEach((name, value) -> result.set(name, masked(name, mapper.valueToTree(value))));
+            results.forEach((name, value) -> result.set(name, Secrets.masked(name, mapper.valueToTree(value))));
             if (!created.isEmpty()) {
                 result.remove(ActionRecord.CREATED);
                 result.set(ActionRecord.CREATED, mapper.valueToTree(created));
@@ -277,7 +270,7 @@ class AuditInterceptor implements MethodInterceptor {
         }
     }
 
-    /** The arguments by parameter name as JSON, every property that looks like a secret masked. */
+    /** The arguments by parameter name as JSON, every property that looks like a secret masked ({@link Secrets}). */
     String details(Method method, Object[] arguments) {
         try {
             JsonMapper mapper = json.getIfUnique(() -> JsonMapper.builder().build());
@@ -288,7 +281,7 @@ class AuditInterceptor implements MethodInterceptor {
                 if (arguments[index] == null) {
                     details.putNull(name);
                 } else {
-                    details.set(name, masked(name, mapper.valueToTree(arguments[index])));
+                    details.set(name, Secrets.masked(name, mapper.valueToTree(arguments[index])));
                 }
             }
             return mapper.writeValueAsString(details);
@@ -296,20 +289,6 @@ class AuditInterceptor implements MethodInterceptor {
             log.warn("The arguments of {} could not be written as JSON: {}", method.getName(), e.getMessage());
             return null;
         }
-    }
-
-    static JsonNode masked(String name, JsonNode node) {
-        if (SECRET.matcher(name).find() && !node.isNull()) {
-            return StringNode.valueOf(MASK);
-        }
-        if (node instanceof ObjectNode object) {
-            for (Map.Entry<String, JsonNode> property : new ArrayList<>(object.properties())) {
-                object.set(property.getKey(), masked(property.getKey(), property.getValue()));
-            }
-        } else if (node.isArray()) {
-            node.forEach(element -> masked("", element));
-        }
-        return node;
     }
 
     private static Method implementationOf(MethodInvocation invocation) {

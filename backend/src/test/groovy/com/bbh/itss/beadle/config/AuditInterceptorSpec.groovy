@@ -1,5 +1,6 @@
 package com.bbh.itss.beadle.config
 
+import com.bbh.itss.beadle.adapter.Secrets
 import com.bbh.itss.beadle.application.AuditNotes
 import com.bbh.itss.beadle.application.CallContext
 import com.bbh.itss.beadle.application.audit.port.out.ActionHistoryPort
@@ -466,10 +467,10 @@ class AuditInterceptorSpec extends Specification {
                 "password": null, "list": [{"Authorization": "Bearer x", "apiKey": "k", "keep": "visible"}]}}''')
 
         expect:
-        mapper.writeValueAsString(AuditInterceptor.masked('request', tree)) ==
+        mapper.writeValueAsString(Secrets.masked('request', tree)) ==
                 '{"name":"CertScanner","serviceToken":"*****","nested":{"clientSecret":"*****","password":null,' +
                 '"list":[{"Authorization":"*****","apiKey":"*****","keep":"visible"}]}}'
-        mapper.writeValueAsString(AuditInterceptor.masked('token', mapper.readTree('"plain"'))) == '"*****"'
+        mapper.writeValueAsString(Secrets.masked('token', mapper.readTree('"plain"'))) == '"*****"'
     }
 
     private <T, R> R use(Class<T> useCase, Closure<R> work) {
