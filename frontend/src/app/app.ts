@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { AppShell } from '@common/shell/app-shell';
+import { AppShell } from './shell/app-shell';
 import { SECTIONS } from './core/sections';
 
 @Component({

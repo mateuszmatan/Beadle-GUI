@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { buttonOf, text, toast } from '@common/testing/dom';
+import { buttonOf, text, toast } from '../testing/dom';
 import { department, product } from '../testing/fixtures';
 import { ProductAdmin } from './product-admin';
 import { Product } from '../core/models';

@@ -6,17 +6,17 @@ import { Router, RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, filter, map } from 'rxjs';
 import { ChangesApi } from '../changes/change-api';
 import { ProductsApi } from '../core/api';
-import { errorMessage } from '@common/core/errors';
+import { errorMessage } from '../core/errors';
 import { Product } from '../core/models';
-import { Notifier } from '@common/core/notifier';
+import { Notifier } from '../core/notifier';
 import { beadleProduct } from '../core/sections';
-import { DepartmentGroup, byDepartment } from '@common/departments/departments';
-import { RelativeTimePipe, counted } from '@common/shared/formatting';
-import { DsoInput } from '@common/ui/form-field';
-import { GRID, GridColumn } from '@common/ui/grid';
-import { DsoLoading } from '@common/ui/loading';
+import { DepartmentGroup, byDepartment } from '../departments/departments';
+import { RelativeTimePipe, counted } from '../shared/formatting';
+import { DsoInput } from '../ui/form-field';
+import { GRID, GridColumn } from '../ui/grid';
+import { DsoLoading } from '../ui/loading';
 import { ProductDialog, ProductDialogData } from './product-dialog';
-import { DepartmentsApi } from '@common/core/api';
+import { DepartmentsApi } from '../core/api';
 
 function tally(group: DepartmentGroup<Product>): string {
   return counted(group.department?.productCount ?? group.products.length, 'product');

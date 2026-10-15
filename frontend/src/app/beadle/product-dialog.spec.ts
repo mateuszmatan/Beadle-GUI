@@ -2,7 +2,7 @@ import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
-import { fieldOf, inputOf, text } from '@common/testing/dom';
+import { fieldOf, inputOf, text } from '../testing/dom';
 import { department, product } from '../testing/fixtures';
 import { ProductDialog, ProductDialogData } from './product-dialog';
 

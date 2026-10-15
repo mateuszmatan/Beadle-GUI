@@ -1,4 +1,4 @@
-import { errorText } from '@common/shared/form-errors';
+import { errorText } from '../shared/form-errors';
 import { changeOptions, changeTemplate } from '../testing/change-fixtures';
 import { RiskAssessment } from './change-api';
 import {

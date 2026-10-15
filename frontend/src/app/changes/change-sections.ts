@@ -1,8 +1,8 @@
 import { AbstractControl } from '@angular/forms';
 import { LookupKind } from '../core/models';
-import { Field, FieldOption, area, choice, count, line, mono } from '@common/shared/fields';
-import { HTTP_URL_ERROR } from '@common/shared/form-controls';
-import { Lookup } from '@common/shared/lookup-dialog';
+import { Field, FieldOption, area, choice, count, line, mono } from '../shared/fields';
+import { HTTP_URL_ERROR } from '../shared/form-controls';
+import { Lookup } from '../shared/lookup-dialog';
 import { APPROVAL_STATES, ProductionChange, STATES, approvalOf, labelOf } from './change-api';
 import {
   JIRA_KEY_ERROR,

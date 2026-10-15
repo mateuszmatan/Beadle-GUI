@@ -1,8 +1,8 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { APP_NAME } from '@common/core/app-name';
-import { text } from '@common/testing/dom';
+import { APP_NAME } from './core/app-name';
+import { text } from './testing/dom';
 import { App } from './app';
 import { SECTIONS } from './core/sections';
 

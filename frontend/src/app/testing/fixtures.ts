@@ -1,8 +1,14 @@
-import { department as plainDepartment } from '@common/testing/fixtures';
 import { BeadleDepartment, Product } from '../core/models';
 
 export function department(overrides: Partial<BeadleDepartment> = {}): BeadleDepartment {
-  return { ...plainDepartment(), changeCount: 0, ...overrides };
+  return {
+    id: 3,
+    name: 'Corporate Technology',
+    version: 0,
+    productCount: 1,
+    changeCount: 0,
+    ...overrides,
+  };
 }
 
 export function product(overrides: Partial<Product> = {}): Product {

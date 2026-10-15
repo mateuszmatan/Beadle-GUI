@@ -37,7 +37,7 @@ class GuiServer implements AutoCloseable {
 
     static GuiServer start(Path dist, StubApi api) {
         if (!isRegularFile(dist.resolve('index.html'))) {
-            throw new IllegalStateException("No built gui in $dist; run ./gradlew :gui:buildGui")
+            throw new IllegalStateException("No built gui in $dist; run ./gradlew :frontend:buildAngular")
         }
         def guiServer = new GuiServer(dist, api)
         guiServer.server.start()

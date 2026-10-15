@@ -8,7 +8,7 @@ import {
   releaseDetails,
   taskDetails,
 } from '../testing/change-fixtures';
-import { buttonOf, fieldOf, inputOf, text } from '@common/testing/dom';
+import { buttonOf, fieldOf, inputOf, text } from '../testing/dom';
 import { ChangeTasksForm, TASK_LABELS, taskFields } from './change-tasks-form';
 import { TasksForm, drafts, taskWindow, tasksForm } from './change-tasks-model';
 

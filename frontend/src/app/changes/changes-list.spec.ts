@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { MY_DEPARTMENT_KEY } from '@common/departments/my-department';
+import { MY_DEPARTMENT_KEY } from '../departments/my-department';
 import {
   changeSchedule,
   changeTask,
@@ -20,7 +20,7 @@ import {
   selectOf,
   sortBy,
   text,
-} from '@common/testing/dom';
+} from '../testing/dom';
 import { department } from '../testing/fixtures';
 import { ProductionChange } from './change-api';
 import { ChangeFilters, ChangesList, changeRow, matches } from './changes-list';

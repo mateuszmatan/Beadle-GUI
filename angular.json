@@ -6,64 +6,6 @@
   },
   "newProjectRoot": ".",
   "projects": {
-    "common-gui": {
-      "projectType": "library",
-      "root": "common-gui",
-      "sourceRoot": "common-gui/src",
-      "prefix": "dso",
-      "architect": {
-        "build": {
-          "builder": "@angular/build:application",
-          "options": {
-            "browser": "common-gui/src/test-providers.ts",
-            "tsConfig": "common-gui/tsconfig.spec.json",
-            "inlineStyleLanguage": "scss",
-            "allowedCommonJsDependencies": [
-              "highcharts/js/highcharts"
-            ],
-            "define": {
-              "AG_GRID_LICENSE_KEY": "''"
-            }
-          },
-          "configurations": {
-            "public": {
-              "fileReplacements": [
-                {
-                  "replace": "common-gui/src/ui/design-system.ts",
-                  "with": "common-gui/src/ui/design-system.public.ts"
-                }
-              ]
-            }
-          }
-        },
-        "test": {
-          "builder": "@angular/build:unit-test",
-          "options": {
-            "tsConfig": "common-gui/tsconfig.spec.json",
-            "coverageReporters": [
-              "text-summary",
-              "html",
-              "lcov"
-            ],
-            "coverageExclude": [
-              "common-gui/src/**/*.spec.ts",
-              "common-gui/src/**/*.d.ts",
-              "common-gui/src/testing/**",
-              "common-gui/src/test-providers.ts"
-            ],
-            "coverageThresholds": {
-              "statements": 60,
-              "lines": 60
-            },
-            "coverageInclude": [
-              "common-gui/src/**/*.ts"
-            ],
-            "providersFile": "common-gui/src/test-providers.ts",
-            "buildTarget": "common-gui:build:public"
-          }
-        }
-      }
-    },
     "frontend": {
       "projectType": "application",
       "schematics": {
@@ -89,7 +31,7 @@
             "assets": [
               {
                 "glob": "**/*",
-                "input": "common-gui/public"
+                "input": "frontend/public"
               },
               {
                 "glob": "**/*.svg",
@@ -104,7 +46,6 @@
             ],
             "styles": [
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
-              "node_modules/highcharts/css/highcharts.css",
               "node_modules/ag-grid-community/styles/ag-grid.css",
               "node_modules/ag-grid-community/styles/ag-theme-balham.css",
               "node_modules/@v6/v6-table/assets/v6-table-theme--bbh.min.css",
@@ -112,10 +53,7 @@
               "node_modules/@v6/v6-themes/jersey-theme.min.css",
               "node_modules/@angular/cdk/overlay-prebuilt.css",
               "node_modules/@angular/cdk/a11y-prebuilt.css",
-              "common-gui/src/styles.scss"
-            ],
-            "allowedCommonJsDependencies": [
-              "highcharts/js/highcharts"
+              "frontend/src/styles.scss"
             ],
             "define": {
               "AG_GRID_LICENSE_KEY": "''"
@@ -145,24 +83,23 @@
             "public": {
               "styles": [
                 "node_modules/bootstrap/dist/css/bootstrap.min.css",
-                "node_modules/highcharts/css/highcharts.css",
                 "node_modules/ag-grid-community/styles/ag-grid.css",
                 "node_modules/ag-grid-community/styles/ag-theme-balham.css",
                 "node_modules/@angular/cdk/overlay-prebuilt.css",
                 "node_modules/@angular/cdk/a11y-prebuilt.css",
-                "common-gui/src/styles/public-theme.scss",
-                "common-gui/src/styles.scss"
+                "frontend/src/styles/public-theme.scss",
+                "frontend/src/styles.scss"
               ],
               "assets": [
                 {
                   "glob": "**/*",
-                  "input": "common-gui/public"
+                  "input": "frontend/public"
                 }
               ],
               "fileReplacements": [
                 {
-                  "replace": "common-gui/src/ui/design-system.ts",
-                  "with": "common-gui/src/ui/design-system.public.ts"
+                  "replace": "frontend/src/app/ui/design-system.ts",
+                  "with": "frontend/src/app/ui/design-system.public.ts"
                 }
               ]
             }
@@ -198,18 +135,20 @@
               "lcov"
             ],
             "coverageExclude": [
-              "frontend/src/app/**/*.spec.ts",
-              "frontend/src/app/testing/**"
+              "frontend/src/**/*.spec.ts",
+              "frontend/src/**/*.d.ts",
+              "frontend/src/app/testing/**",
+              "frontend/src/test-providers.ts"
             ],
             "coverageThresholds": {
               "statements": 60,
               "lines": 60
             },
             "coverageInclude": [
-              "frontend/src/app/**"
+              "frontend/src/**/*.ts"
             ],
             "buildTarget": "frontend:build:development,public",
-            "providersFile": "common-gui/src/test-providers.ts"
+            "providersFile": "frontend/src/test-providers.ts"
           }
         }
       }

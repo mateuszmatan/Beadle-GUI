@@ -1,9 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormControl, FormGroup } from '@angular/forms';
-import { fieldOf, inputOf, text } from '@common/testing/dom';
+import { fieldOf, inputOf, text } from '../testing/dom';
 import { ChangeScheduleFields } from './change-schedule-fields';
 import { ScheduleForm, scheduleForm } from './change-schedule-model';
-import { TIME_ZONE_NOTE } from '@common/shared/formatting';
+import { TIME_ZONE_NOTE } from '../shared/formatting';
 
 describe('ChangeScheduleFields', () => {
   let fixture: ComponentFixture<ChangeScheduleFields>;

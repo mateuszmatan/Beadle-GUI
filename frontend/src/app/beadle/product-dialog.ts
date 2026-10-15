@@ -14,14 +14,14 @@ import {
   of,
   switchMap,
 } from 'rxjs';
-import { errorMessage, fieldProblems } from '@common/core/errors';
-import { applyFieldProblems, filled, max, optional, text } from '@common/shared/form-controls';
-import { errorText } from '@common/shared/form-errors';
-import { DIALOG } from '@common/ui/dialog';
-import { FORM_FIELD } from '@common/ui/form-field';
+import { errorMessage, fieldProblems } from '../core/errors';
+import { applyFieldProblems, filled, max, optional, text } from '../shared/form-controls';
+import { errorText } from '../shared/form-errors';
+import { DIALOG } from '../ui/dialog';
+import { FORM_FIELD } from '../ui/form-field';
 import { ProductsApi } from '../core/api';
 import { Product } from '../core/models';
-import { Department, PRODUCT_CODE } from '@common/core/models';
+import { Department, PRODUCT_CODE } from '../core/models';
 
 export interface ProductDialogData {
   departments: readonly Department[];

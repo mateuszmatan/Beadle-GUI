@@ -6,7 +6,7 @@
     "start": "ng serve frontend",
     "start:public": "ng serve frontend --configuration=public",
     "build": "ng build frontend",
-    "test": "ng test common-gui && ng test frontend"
+    "test": "ng test frontend"
   },
   "private": true,
   "packageManager": "npm@10.8.2",
@@ -27,7 +27,6 @@
     "ag-grid-enterprise": "~33.1.0",
     "angular-svg-icon": "^19.1.1",
     "bootstrap": "5.3.8",
-    "highcharts": "^6.1.4",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },

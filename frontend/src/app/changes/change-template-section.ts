@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { errorMessage } from '@common/core/errors';
-import { Field, FieldOption, Fields, formRevision } from '@common/shared/fields';
-import { FORM_FIELD } from '@common/ui/form-field';
+import { errorMessage } from '../core/errors';
+import { Field, FieldOption, Fields, formRevision } from '../shared/fields';
+import { FORM_FIELD } from '../ui/form-field';
 import { ChangeOptions, RiskQuestion } from './change-api';
 import { ChangeOptionLists } from './change-options';
 import {

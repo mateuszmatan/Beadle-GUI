@@ -7,10 +7,10 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { MyDepartment } from '@common/departments/my-department';
-import { Notifier } from '@common/core/notifier';
-import { errorMessage } from '@common/core/errors';
-import { formatRelative } from '@common/shared/formatting';
+import { MyDepartment } from '../departments/my-department';
+import { Notifier } from '../core/notifier';
+import { errorMessage } from '../core/errors';
+import { formatRelative } from '../shared/formatting';
 import {
   APPROVAL_ROLES,
   APPROVAL_STATES,

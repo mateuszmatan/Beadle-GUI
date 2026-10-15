@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { unsavedChangesGuard } from '@common/core/unsaved-changes';
+import { unsavedChangesGuard } from './core/unsaved-changes';
 import { DEPARTMENT_USAGE } from './beadle/department-usage';
 import {
   ADMIN,
@@ -49,7 +49,7 @@ export const routes: Routes = [
   },
   {
     path: 'admin',
-    loadComponent: () => import('@common/admin/admin-page').then((m) => m.AdminPage),
+    loadComponent: () => import('./admin/admin-page').then((m) => m.AdminPage),
     data: { area: BEADLE_ADMIN },
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'products' },
@@ -58,7 +58,7 @@ export const routes: Routes = [
         title: `${ADMIN_DEPARTMENTS.label} · ${ADMIN.heading}`,
         data: { usage: DEPARTMENT_USAGE },
         loadComponent: () =>
-          import('@common/admin/departments-admin').then((m) => m.DepartmentsAdmin),
+          import('./admin/departments-admin').then((m) => m.DepartmentsAdmin),
       },
       {
         path: 'products',

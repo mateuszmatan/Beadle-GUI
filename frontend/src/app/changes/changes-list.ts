@@ -3,19 +3,19 @@ import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-int
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
-import { MyDepartment } from '@common/departments/my-department';
-import { RETRY, errorMessage } from '@common/core/errors';
+import { MyDepartment } from '../departments/my-department';
+import { RETRY, errorMessage } from '../core/errors';
 import { CHANGES, NEW_CHANGE, beadleChange } from '../core/sections';
-import { text } from '@common/shared/form-controls';
-import { TIME_ZONE_NOTE, counted, formatRelative } from '@common/shared/formatting';
-import { FORM_FIELD } from '@common/ui/form-field';
-import { GRID, GridColumn } from '@common/ui/grid';
-import { DsoLoading } from '@common/ui/loading';
+import { text } from '../shared/form-controls';
+import { TIME_ZONE_NOTE, counted, formatRelative } from '../shared/formatting';
+import { FORM_FIELD } from '../ui/form-field';
+import { GRID, GridColumn } from '../ui/grid';
+import { DsoLoading } from '../ui/loading';
 import { ChangeState, ChangesApi, ProductionChange, STATES, isOpen, labelOf } from './change-api';
 import { PENDING_HINT, activeTasks, editHint, windowText } from './change-model';
 import { IntegrationNote } from './integration-note';
 import { STATE_MEANINGS } from './workflow-progress';
-import { DepartmentsApi } from '@common/core/api';
+import { DepartmentsApi } from '../core/api';
 
 export type StateFilter = 'ALL' | 'OPEN' | ChangeState;
 

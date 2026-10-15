@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { changeTask, changeTemplate, productionChange } from '../testing/change-fixtures';
-import { text } from '@common/testing/dom';
+import { text } from '../testing/dom';
 import { STATES, WorkflowStep } from './change-api';
 import { windowText } from './change-model';
 import { STATE_MEANINGS, WorkflowProgress, stateNow, stages } from './workflow-progress';

@@ -2,8 +2,8 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { MyDepartment } from '@common/departments/my-department';
-import { Notifier } from '@common/core/notifier';
+import { MyDepartment } from '../departments/my-department';
+import { Notifier } from '../core/notifier';
 import {
   changeOptions,
   changeSchedule,
@@ -12,7 +12,7 @@ import {
   releaseDetails,
   taskDetails,
 } from '../testing/change-fixtures';
-import { buttonOf, fieldOf, inputOf, selectOf, text } from '@common/testing/dom';
+import { buttonOf, fieldOf, inputOf, selectOf, text } from '../testing/dom';
 import { ProductionChange } from './change-api';
 import { ChangeEdit, STALE } from './change-edit';
 import { PublishedChange } from './published-change';

@@ -11,12 +11,12 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { Subscription, of } from 'rxjs';
-import { MyDepartment } from '@common/departments/my-department';
-import { RETRY, errorMessage } from '@common/core/errors';
+import { MyDepartment } from '../departments/my-department';
+import { RETRY, errorMessage } from '../core/errors';
 import { CHANGES, beadleChange, beadleProduct } from '../core/sections';
-import { RelativeTimePipe, formatRelative } from '@common/shared/formatting';
-import { DsoLoading } from '@common/ui/loading';
-import { PANEL } from '@common/ui/panel';
+import { RelativeTimePipe, formatRelative } from '../shared/formatting';
+import { DsoLoading } from '../ui/loading';
+import { PANEL } from '../ui/panel';
 import {
   ChangeUpdate,
   ChangesApi,

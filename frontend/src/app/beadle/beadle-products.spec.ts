@@ -13,12 +13,12 @@ import {
   settleGrid,
   text,
   toast,
-} from '@common/testing/dom';
+} from '../testing/dom';
 import { department, product } from '../testing/fixtures';
 import { ChangeProfileSummary } from '../changes/change-api';
 import { BeadleProducts } from './beadle-products';
 import { ProductDialog } from './product-dialog';
-import { Department } from '@common/core/models';
+import { Department } from '../core/models';
 
 describe('BeadleProducts', () => {
   let fixture: ComponentFixture<BeadleProducts>;

@@ -10,12 +10,12 @@ import {
 import { Dialog } from '@angular/cdk/dialog';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter, switchMap } from 'rxjs';
-import { errorMessage } from '@common/core/errors';
-import { Notifier } from '@common/core/notifier';
-import { NOT_IN_A_DEPARTMENT } from '@common/departments/departments';
-import { ConfirmDialog, ConfirmDialogData } from '@common/shared/confirm-dialog';
-import { DsoLoading } from '@common/ui/loading';
-import { DepartmentsApi } from '@common/core/api';
+import { errorMessage } from '../core/errors';
+import { Notifier } from '../core/notifier';
+import { NOT_IN_A_DEPARTMENT } from '../departments/departments';
+import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
+import { DsoLoading } from '../ui/loading';
+import { DepartmentsApi } from '../core/api';
 import { ProductsApi } from '../core/api';
 import { Product } from '../core/models';
 import { ProductDialog, ProductDialogData, ProductDialogResult } from './product-dialog';

@@ -25,12 +25,12 @@ import {
 } from '../changes/change-tasks-model';
 import { ChangeTemplateForm } from '../changes/change-template-form';
 import { templateForm, toTemplate } from '../changes/change-template-model';
-import { errorMessage, fieldProblems } from '@common/core/errors';
-import { Notifier } from '@common/core/notifier';
+import { errorMessage, fieldProblems } from '../core/errors';
+import { Notifier } from '../core/notifier';
 import { ADMIN, ADMIN_PRODUCTS } from '../core/sections';
-import { HasUnsavedChanges } from '@common/core/unsaved-changes';
-import { applyFieldProblems } from '@common/shared/form-controls';
-import { DsoLoading, DsoSpinner } from '@common/ui/loading';
+import { HasUnsavedChanges } from '../core/unsaved-changes';
+import { applyFieldProblems } from '../shared/form-controls';
+import { DsoLoading, DsoSpinner } from '../ui/loading';
 import { ProductAdmin } from './product-admin';
 
 export function profileForm(profile: ChangeProfile) {

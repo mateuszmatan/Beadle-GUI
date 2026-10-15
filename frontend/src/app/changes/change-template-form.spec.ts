@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { changeOptions, changeSchedule, changeTemplate } from '../testing/change-fixtures';
-import { fieldOf, inputOf, text } from '@common/testing/dom';
+import { fieldOf, inputOf, text } from '../testing/dom';
 import { scheduleForm } from './change-schedule-model';
 import { ChangeTemplateForm } from './change-template-form';
 import { TemplateForm, templateForm } from './change-template-model';

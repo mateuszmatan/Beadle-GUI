@@ -1,5 +1,5 @@
-import { DepartmentUsage } from '@common/admin/departments-admin';
-import { counted } from '@common/shared/formatting';
+import { DepartmentUsage } from '../admin/departments-admin';
+import { counted } from '../shared/formatting';
 import { BeadleDepartment } from '../core/models';
 
 export const DEPARTMENT_USAGE: DepartmentUsage<BeadleDepartment> = {

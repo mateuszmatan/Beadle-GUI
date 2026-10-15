@@ -9,9 +9,9 @@ import {
   formRevision,
   line,
   mono,
-} from '@common/shared/fields';
-import { errorText } from '@common/shared/form-errors';
-import { counted } from '@common/shared/formatting';
+} from '../shared/fields';
+import { errorText } from '../shared/form-errors';
+import { counted } from '../shared/formatting';
 import { TASK_STATES, TaskState, labelOf } from './change-api';
 import { ChangeOptionLists } from './change-options';
 import {

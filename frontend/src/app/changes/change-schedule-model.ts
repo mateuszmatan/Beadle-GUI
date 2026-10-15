@@ -1,8 +1,8 @@
 import { FormControl, FormGroup, ValidatorFn, Validators } from '@angular/forms';
-import { setEnabled, text } from '@common/shared/form-controls';
+import { setEnabled, text } from '../shared/form-controls';
 import { ChangeSchedule, ChangeTiming } from './change-api';
 import { isoDate, timeOf } from './change-model';
-import { FieldProblem } from '@common/core/models';
+import { FieldProblem } from '../core/models';
 
 export type TimingInput = { [K in keyof ChangeTiming]: ChangeTiming[K] | null };
 

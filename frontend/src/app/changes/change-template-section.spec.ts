@@ -1,9 +1,9 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { HTTP_URL_ERROR } from '@common/shared/form-controls';
+import { HTTP_URL_ERROR } from '../shared/form-controls';
 import { changeOptions, changeTemplate } from '../testing/change-fixtures';
-import { buttonOf, choose, fieldOf, inputOf, optionsOf, selectOf, text } from '@common/testing/dom';
+import { buttonOf, choose, fieldOf, inputOf, optionsOf, selectOf, text } from '../testing/dom';
 import { SectionKey } from './change-sections';
 import { ChangeTemplateSection } from './change-template-section';
 import { TemplateForm, templateForm } from './change-template-model';

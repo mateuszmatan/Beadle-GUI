@@ -14,23 +14,23 @@ import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { EMPTY, Observable, Subject, catchError, finalize, of, switchMap } from 'rxjs';
-import { MyDepartment } from '@common/departments/my-department';
+import { MyDepartment } from '../departments/my-department';
 import { ProductsApi, UserApi } from '../core/api';
-import { errorMessage, fieldProblems } from '@common/core/errors';
+import { errorMessage, fieldProblems } from '../core/errors';
 import { CHANGES, NEW_CHANGE, beadleChange, beadleProduct } from '../core/sections';
-import { HasUnsavedChanges } from '@common/core/unsaved-changes';
-import { byDepartment } from '@common/departments/departments';
+import { HasUnsavedChanges } from '../core/unsaved-changes';
+import { byDepartment } from '../departments/departments';
 import {
   applyFieldProblems,
   applyProblemsAt,
   byteLength,
   filled,
-} from '@common/shared/form-controls';
-import { errorText } from '@common/shared/form-errors';
-import { counted } from '@common/shared/formatting';
-import { DsoCheckbox } from '@common/ui/checkbox';
-import { FORM_FIELD } from '@common/ui/form-field';
-import { DsoLoading } from '@common/ui/loading';
+} from '../shared/form-controls';
+import { errorText } from '../shared/form-errors';
+import { counted } from '../shared/formatting';
+import { DsoCheckbox } from '../ui/checkbox';
+import { FORM_FIELD } from '../ui/form-field';
+import { DsoLoading } from '../ui/loading';
 import { ChangeRequest, ChangesApi, JiraIssue, JiraVersion, ProductionChange } from './change-api';
 import {
   approverNames,
@@ -74,7 +74,7 @@ import {
 import { IntegrationNote } from './integration-note';
 import { SecureCodingFields } from './secure-coding-form';
 import { SecureCodingForm, secureCodingForm, secureCodingRequest } from './secure-coding-model';
-import { DepartmentsApi } from '@common/core/api';
+import { DepartmentsApi } from '../core/api';
 
 type StepKey = SectionKey | 'review' | 'tasks' | 'ticket' | 'raised';
 
@@ -130,7 +130,7 @@ const ATTENTION = 'Some fields need your attention.';
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './change-wizard.html',
-  styleUrls: ['../../../../common-gui/src/shared/wizard.scss', './change-wizard.scss'],
+  styleUrls: ['../shared/wizard.scss', './change-wizard.scss'],
 })
 export class ChangeWizard implements HasUnsavedChanges {
   private readonly changesApi = inject(ChangesApi);

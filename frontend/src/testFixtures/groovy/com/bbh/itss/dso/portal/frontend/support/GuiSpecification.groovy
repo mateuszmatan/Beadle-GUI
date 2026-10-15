@@ -225,10 +225,6 @@ abstract class GuiSpecification extends Specification {
         formField(scope, label).locator('dso-hint')
     }
 
-    void toggle(Locator scope, String label) {
-        holdingText(scope.locator('dso-toggle-group button'), label).click()
-    }
-
     Locator selected(Locator scope, String label) {
         select(scope, label).locator('option:checked')
     }

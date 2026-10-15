@@ -10,7 +10,7 @@ import {
   changeFacts,
   templateLabel,
 } from './change-sections';
-import { TIME_ZONE_NOTE } from '@common/shared/formatting';
+import { TIME_ZONE_NOTE } from '../shared/formatting';
 
 interface Row {
   term: string;

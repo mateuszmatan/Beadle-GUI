@@ -1,10 +1,10 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MyDepartment } from '@common/departments/my-department';
-import { Notifier } from '@common/core/notifier';
+import { MyDepartment } from '../departments/my-department';
+import { Notifier } from '../core/notifier';
 import { changeApproval, changeTask, productionChange } from '../testing/change-fixtures';
-import { buttonOf, text } from '@common/testing/dom';
+import { buttonOf, text } from '../testing/dom';
 import { ProductionChange } from './change-api';
 import {
   ChangeApprovals,

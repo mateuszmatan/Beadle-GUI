@@ -1,5 +1,5 @@
 import { ValidatorFn } from '@angular/forms';
-import { fitsColumn } from '@common/shared/form-controls';
+import { fitsColumn } from '../shared/form-controls';
 import {
   ChangeRequest,
   ChangeSchedule,

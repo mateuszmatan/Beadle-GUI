@@ -1,8 +1,8 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Route, Router, Routes, provideRouter } from '@angular/router';
-import { AdminPage } from '@common/admin/admin-page';
-import { DepartmentsAdmin } from '@common/admin/departments-admin';
+import { AdminPage } from './admin/admin-page';
+import { DepartmentsAdmin } from './admin/departments-admin';
 import { routes } from './app.routes';
 import { BeadleProduct } from './beadle/beadle-product';
 import { BeadleProducts } from './beadle/beadle-products';

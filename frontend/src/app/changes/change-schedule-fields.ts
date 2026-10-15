@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { FormControl } from '@angular/forms';
-import { Field, Fields, count, formRevision, line } from '@common/shared/fields';
-import { errorText } from '@common/shared/form-errors';
+import { Field, Fields, count, formRevision, line } from '../shared/fields';
+import { errorText } from '../shared/form-errors';
 import { momentText } from './change-model';
 import { MAX_HOURS, ScheduleForm, windowsOf } from './change-schedule-model';
 import { DOWNTIME_FIELDS } from './change-sections';
-import { TIME_ZONE_NOTE } from '@common/shared/formatting';
+import { TIME_ZONE_NOTE } from '../shared/formatting';
 
 const start = (key: string, label: string): Field =>
   line(key, label, '', 6, { type: 'datetime-local' });

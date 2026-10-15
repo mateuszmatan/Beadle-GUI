@@ -7,7 +7,7 @@ import {
   removeItem,
   setEnabled,
   text,
-} from '@common/shared/form-controls';
+} from '../shared/form-controls';
 import {
   APPROVAL_STATES,
   ChangeSchedule,
@@ -19,7 +19,7 @@ import {
 } from './change-api';
 import { fits } from './change-model';
 import { fromLocal, localInput } from './change-schedule-model';
-import { FieldProblem } from '@common/core/models';
+import { FieldProblem } from '../core/models';
 
 export const MAX_TASKS = 50;
 export const RELEASE_MANAGEMENT = 'Release Management';

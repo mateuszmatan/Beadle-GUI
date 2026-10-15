@@ -8,7 +8,7 @@ import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { MY_DEPARTMENT_KEY, MyDepartment } from '@common/departments/my-department';
+import { MY_DEPARTMENT_KEY, MyDepartment } from '../departments/my-department';
 import {
   changeOptions,
   changeProfile,
@@ -22,13 +22,13 @@ import {
   story,
   taskDetails,
 } from '../testing/change-fixtures';
-import { buttonOf, choose, fieldOf, inputOf, optionsOf, selectOf, text } from '@common/testing/dom';
+import { buttonOf, choose, fieldOf, inputOf, optionsOf, selectOf, text } from '../testing/dom';
 import { department, product } from '../testing/fixtures';
 import { isoDate } from './change-model';
 import { localInput } from './change-schedule-model';
 import { ChangeWizard } from './change-wizard';
 import { implementationDateOf } from './secure-coding-model';
-import { LookupItem } from '@common/core/models';
+import { LookupItem } from '../core/models';
 
 const ME = { name: 'Mateusz Matan' };
 

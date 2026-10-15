@@ -2,7 +2,7 @@ import { SCHEDULE_LABELS } from './change-schedule-model';
 import { SECURE_CODING_FIELDS, templateLabel } from './change-sections';
 import { TASK_LABELS } from './change-tasks-form';
 import { TEMPLATE_PREFIX } from './change-template-model';
-import { FieldProblem } from '@common/core/models';
+import { FieldProblem } from '../core/models';
 
 const REQUEST_LABELS: Record<string, string> = {
   productId: 'Product',

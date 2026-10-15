@@ -10,7 +10,7 @@ import {
   changeTemplate,
   releaseDetails,
 } from '../testing/change-fixtures';
-import { buttonOf, fieldOf, text, toast } from '@common/testing/dom';
+import { buttonOf, fieldOf, text, toast } from '../testing/dom';
 import { product } from '../testing/fixtures';
 import { BeadleProduct } from './beadle-product';
 
