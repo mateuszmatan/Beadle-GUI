@@ -11,9 +11,10 @@ secure coding tickets, from the change template of each product. It is built fro
 - **Beadle-ProTech**: the Spring Boot service that talks to ProTech.
 
 Beadle-GUI is one Angular GUI and one Spring Boot service, packaged as one jar with the GUI inside and as one
-container image, with its own database. The three services talk REST, both ways, as the contract describes; today
-Beadle-GUI still carries the demo adapters for Jira, ProTech and CyberTrack it had in DSOMgmtPortal, and the next stage
-replaces them by REST clients of the two other services.
+container image, with its own database. The three services talk REST, both ways, as the contract describes:
+Beadle-GUI reads the BBH Jira and creates CyberTrack tickets through Beadle-Internal, raises, reads, updates and
+reminds ProTech changes through Beadle-ProTech, and both call it back when something moved there (see
+[Beadle-Internal and Beadle-ProTech](#beadle-internal-and-beadle-protech)).
 
 ## Repository layout
 
@@ -28,7 +29,7 @@ docs/CONTRACTS.md               the contract between Beadle-GUI, Beadle-Internal
 
 | Module | Holds |
 |--------|-------|
-| `backend` | the departments, the products with their change templates, the ProTech changes with their change tasks and secure coding tickets, the lookups, the signed-in user, the problem detail error handling, the `@UseCase` transaction wiring, the clock, the forwarding of the GUI pages to `index.html`, the demo Jira, ProTech and CyberTrack adapters, the Beadle demo data, the Liquibase history and the test support of every suite |
+| `backend` | the departments, the products with their change templates, the ProTech changes with their change tasks and secure coding tickets, the lookups, the signed-in user, the problem detail error handling, the `@UseCase` transaction wiring, the clock, the forwarding of the GUI pages to `index.html`, the REST clients of Beadle-Internal and Beadle-ProTech and the callbacks they send, the Beadle demo data, the Liquibase history and the test support of every suite, with the in-process stand-ins of the two services |
 | `frontend` | the application shell (header, menu, footer, titles), the UI kit (form fields, grid, dialogs, toasts), the departments pages and dialogs, the Admin page with its tabs, Changes, New Change and Beadle Admin (Departments, Products with their change templates), the API error texts and the browser test support; see [frontend/README.md](frontend/README.md) |
 
 ## Build
@@ -99,29 +100,38 @@ resolves every package from `registry.npmjs.org`, which npm maps back to the BBH
 
 ## Running locally
 
-Build the jar and start it; it serves the GUI and the API on port 8081.
+Beadle-GUI needs Beadle-Internal and Beadle-ProTech beside it: the contract gives the three services their local
+ports, Beadle-GUI 8081, Beadle-Internal 8082 and Beadle-ProTech 8083, so all three run side by side on one machine,
+each on its own H2 file, and all three take the same service token from `BEADLE_SERVICE_TOKEN`. Any text will do
+locally, as long as the three share it; without one, Beadle-GUI refuses every callback and the two services refuse
+every call of Beadle-GUI.
 
 ```bash
+export BEADLE_SERVICE_TOKEN=local-$(whoami)
+
+# in a clone of Beadle-Internal                  http://localhost:8082, demo Jira and CyberTrack unless configured
+./gradlew bootRun
+# in a clone of Beadle-ProTech                   http://localhost:8083, demo ProTech unless configured
+./gradlew bootRun
+# here                                           http://localhost:8081
 ./gradlew beadleJar
-java -jar backend/build/libs/beadle-0.1.0-SNAPSHOT.jar         # http://localhost:8081
+java -jar backend/build/libs/beadle-0.1.0-SNAPSHOT.jar
 ```
 
-`./gradlew :backend:bootRun` does the same without building the jar.
+`./gradlew :backend:bootRun` starts Beadle-GUI without building the jar. Beadle-GUI reaches the two others at
+`beadle.services.internal.url` (`BEADLE_INTERNAL_URL`, `http://localhost:8082` in the `local` profile) and
+`beadle.services.protech.url` (`BEADLE_PROTECH_URL`, `http://localhost:8083`), and they call it back at
+`http://localhost:8081` (their `BEADLE_GUI_URL`). Beadle-GUI also starts while they are down: the pages then show the
+"Demo mode" banner, because a service that does not answer counts as not connected, and whatever needs them answers
+503 naming the service ("Beadle-ProTech did not answer when asked to read the changes: Connection refused").
 
 Beadle starts with the `local` profile: an embedded H2 in Oracle mode in `~/bbh-devsecops/beadle/beadle.mv.db`
 (`BEADLE_DATA_DIR` moves the folder) and demo data, so the ProTech workflow can be tried at once; `BEADLE_DEMO_DATA=false`
 starts it empty but for the five BBH departments (AI Lab, Capital Partners, Corporate Technology, Custody and Fund
 Services). Liquibase creates the schema on the first start and updates it in place when a new version adds to it;
-every later start finds the data where it was left. Jira, ProTech and CyberTrack are demo adapters until the real ones
-are connected (see [Demo ProTech and the real adapters](#demo-protech-and-the-real-adapters)), and the pages say so with
-a "Demo mode" banner.
-
-The contract gives the three services their local ports, Beadle-GUI 8081, Beadle-Internal 8082 and Beadle-ProTech
-8083, so all three run side by side on one machine, each on its own H2 file. Once the next stage has replaced the demo
-adapters by REST clients, Beadle-GUI reaches the two others at `beadle.services.internal.url` (`BEADLE_INTERNAL_URL`,
-`http://localhost:8082` by default) and `beadle.services.protech.url` (`BEADLE_PROTECH_URL`, `http://localhost:8083`),
-and they call it back at `http://localhost:8081`, all with the shared service token `BEADLE_SERVICE_TOKEN`; until
-then Beadle-GUI runs alone.
+every later start finds the data where it was left. Jira, ProTech and CyberTrack are whatever Beadle-Internal and
+Beadle-ProTech connect them to: their demo adapters until their URLs are set there, and the pages say so with a "Demo
+mode" banner (see [Beadle-Internal and Beadle-ProTech](#beadle-internal-and-beadle-protech)).
 
 On `rd`, `qc` and `prod` Beadle runs on Oracle:
 
@@ -132,7 +142,7 @@ SPRING_PROFILES_ACTIVE=qc DB_URL=jdbc:oracle:thin:@//<host>:1521/<service> DB_US
 
 Each of the three profiles belongs to the group `oracle` (the data source from `DB_URL`, `DB_USERNAME` and
 `DB_PASSWORD`, `ddl-auto: validate`, no demo data); `rd` logs at DEBUG and shows the health details, `prod` hides
-them. A profile without `DB_URL` does not start.
+them. A profile without `DB_URL`, `BEADLE_INTERNAL_URL` or `BEADLE_PROTECH_URL` does not start.
 
 For GUI work, the Angular development server rebuilds on every change and proxies `/api` to the service:
 `npm start` serves the GUI on http://localhost:4201 against port 8081; `npm run start:public` does the same without the
@@ -152,11 +162,13 @@ under the prefix `beadle.` its own settings, one document per profile.
 | `DB_POOL_SIZE` | 5, 10, 20 in `rd`, `qc`, `prod` | Oracle connection pool size |
 | `BEADLE_DEMO_DATA` | `true` with `local`, `false` otherwise | the demo products with their change templates and the demo changes; see [Beadle demo data](#beadle-demo-data) |
 | `BEADLE_SIGNED_IN_USER` | `Mateusz Matan` | the signed-in user (`beadle.signed-in-user`: `GET /api/me`, Opened by of a new change and the default requester and assignee) until the Ping sign-in of the contract exists |
-| `CYBERTRACK_URL`, `CYBERTRACK_TOKEN` | empty | the Jira of CyberTrack and its token (`beadle.cybertrack.url`, `beadle.cybertrack.token`); empty creates demo secure coding tickets (see [Secure coding ticket](#secure-coding-ticket)) |
-| `CYBERTRACK_PROJECT_KEY`, `CYBERTRACK_ISSUE_TYPE` | `SCP`, `Task` | the Jira project and issue type of a secure coding ticket |
+| `BEADLE_INTERNAL_URL` | `http://localhost:8082` with `local`; required with `rd`, `qc`, `prod` | where Beadle-Internal answers (`beadle.services.internal.url`): Jira and CyberTrack |
+| `BEADLE_PROTECH_URL` | `http://localhost:8083` with `local`; required with `rd`, `qc`, `prod` | where Beadle-ProTech answers (`beadle.services.protech.url`): ProTech and its lookups |
+| `BEADLE_SERVICE_TOKEN` | empty: every callback is refused | the token the three Beadle services share (`beadle.services.token`): sent as `Authorization: Bearer` with every call to Beadle-Internal and Beadle-ProTech and required of their callbacks |
 
 `beadle.gui.pages` (`changes, new-change, admin`) names the pages of the interface the service forwards to
-`index.html`, and `beadle.demo.protech-apply-delay` (`PT3S`) how long the demo ProTech takes to apply an update.
+`index.html`. The log lines carry the correlation id of the request they belong to (`[%X{correlationId}]`, set by
+`logging.pattern.correlation`).
 Liquibase runs on every start, on H2 and on Oracle. Secrets come from environment variables that OpenShift fills from
 secrets; none is written to the repository, a log or a test fixture.
 
@@ -198,14 +210,17 @@ same name:
      --from-literal=DB_PASSWORD='<password>'
    ```
 
-   The CyberTrack token is optional, in its own secret:
+   The service token the three Beadle services share goes into its own secret, with the same value as the
+   `beadle-internal-services` and `beadle-protech-services` secrets of Beadle-Internal and Beadle-ProTech:
 
    ```bash
-   oc create secret generic beadle-cybertrack --from-literal=CYBERTRACK_TOKEN='<token>'
+   oc create secret generic beadle-services --from-literal=BEADLE_SERVICE_TOKEN='<token>'
    ```
 
-3. Set `CYBERTRACK_URL` in the overlay's `configMapGenerator` to the Jira that holds the project SCP to create real
-   secure coding tickets; empty keeps the demo. Then apply the overlay:
+3. Beadle-Internal and Beadle-ProTech run in the same project as the Services `beadle-internal` (port 8082) and
+   `beadle-protech` (port 8083); `BEADLE_INTERNAL_URL` and `BEADLE_PROTECH_URL` in the overlay's
+   `configMapGenerator` name them (`http://beadle-internal:8082`, `http://beadle-protech:8083`), and they call Beadle-GUI
+   back at `http://beadle:8081`. Then apply the overlay:
 
    ```bash
    oc apply -k deploy/openshift/beadle/overlays/rd
@@ -225,9 +240,8 @@ overlay patch if an environment needs more.
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Secret `beadle-db` | Oracle connection |
 | `DB_POOL_SIZE` | ConfigMap (optional) | Connection pool size, defaults per profile |
 | `BEADLE_SIGNED_IN_USER` | ConfigMap (optional) | The name Beadle shows as the signed-in user until the Ping sign-in exists |
-| `CYBERTRACK_URL` | ConfigMap (optional) | Base URL of the Jira that holds CyberTrack; empty creates demo secure coding tickets |
-| `CYBERTRACK_PROJECT_KEY`, `CYBERTRACK_ISSUE_TYPE` | ConfigMap (optional) | The Jira project and issue type of a secure coding ticket, `SCP` and `Task` by default |
-| `CYBERTRACK_TOKEN` | Secret `beadle-cybertrack` (optional) | Personal access token of a Jira user allowed to create issues in that project |
+| `BEADLE_INTERNAL_URL`, `BEADLE_PROTECH_URL` | ConfigMap `beadle-config` | Where Beadle-Internal and Beadle-ProTech answer, `http://beadle-internal:8082` and `http://beadle-protech:8083` |
+| `BEADLE_SERVICE_TOKEN` | Secret `beadle-services` | The token the three Beadle services share; Jira, CyberTrack and ProTech are configured in Beadle-Internal and Beadle-ProTech |
 
 ## Beadle
 
@@ -361,11 +375,8 @@ The magnifiers of the wizard and of the template form search ProTech through the
 `GET /api/lookups/{kind}?q=`: `users`, `departments`, `assignment-groups`, `releases`, `configuration-items`,
 `incidents`, `problems` and `clients`. Each answer holds at most 20 entries that contain the text, ignoring case,
 in their `value` (what fills the field) or their `detail` (an e-mail address, a cost centre, the department, the
-product code, the business service or a short description); an empty text lists the first 20. Beadle ships a demo
-adapter (`DemoProTechLookups`) only: BBH people (the signed-in user and the demo approvers among them), the
-departments and a few more, an application support group per owner team and the infrastructure groups, three releases
-per product, the products as configuration items with their owner team (or department) as their business service, and
-a steady set of incidents, problems and clients; nothing reaches ProTech yet.
+product code, the business service or a short description); an empty text lists the first 20. Beadle-ProTech
+answers them (`GET /api/protech/lookups/{kind}?q=&limit=20`), from ProTech or from its demo lookups.
 
 ### Signed-in user
 
@@ -469,11 +480,12 @@ already has a ticket, a closed change, another department, a stale version or a 
 update is; when CyberTrack created the ticket but ProTech refuses it, the message names the ticket to enter with
 **Edit the change**.
 
-CyberTrack sits behind the out port `CyberTrackPort`. Without `CYBERTRACK_URL` the demo adapter numbers the tickets
-`SCP-nnnn` and nothing reaches Jira; with it, `JiraCyberTrackAdapter` creates the issue with
-`POST <CYBERTRACK_URL>/rest/api/2/issue` (project `CYBERTRACK_PROJECT_KEY`, `SCP` by default, issue type
-`CYBERTRACK_ISSUE_TYPE`, `Task` by default) and sends `CYBERTRACK_TOKEN` as a bearer token, so it needs a Jira user
-allowed to create issues in that project and HTTPS access from the Beadle pods to Jira.
+CyberTrack sits behind the out port `CyberTrackPort`, which Beadle-Internal serves: `InternalCyberTrackAdapter`
+sends the change number, the application name, the implementation date as an ISO date (`2026-10-15`) and the four
+inputs to `POST /api/internal/cybertrack/tickets` and takes the key of the new ticket from the answer. Beadle-Internal
+creates the issue in CyberTrack with the service account of Beadle (or numbers demo tickets `SCP-nnnn` while
+CyberTrack is not configured there), and tells Beadle-GUI when the ticket changes status (see
+[Callbacks](#callbacks)).
 
 ### Synchronisation and the workflow
 
@@ -519,58 +531,72 @@ change whose last update is still pending or a closed change is refused with 409
 503. Reading and publishing hold no database transaction while ProTech answers; when two requests store the same
 change at once, a read shows the copy the other request stored.
 
-### Demo ProTech and the real adapters
+### Beadle-Internal and Beadle-ProTech
 
-Jira and ProTech sit behind three ports, `JiraPort`, `ProTechPort` and `ProTechLookupPort` (see
-[Lookups](#lookups)), CyberTrack behind `CyberTrackPort` and the signed-in user behind `SignedInUserPort`. Beadle
-ships demo adapters, and the pages say so ("Demo mode"): the Jira one makes up a steady set of epics and stories per project key, and the ProTech one
-(`DemoProTechAdapter`) keeps the changes in memory, hands out demo `CHG` and `CTASK` numbers and moves every change
-through the workflow by the clock: Business Approval 2 minutes after it was raised, Primary Approval after 4, Secondary
-Approval after 6, Support Approval after 8 and CTask approval after 10 minutes; each approval of the change is
-Requested in its stage and Approved once the change moved past it. In CTask approval it asks the approvers of every
-change task (`DemoApprovers`: two people per assignment group, for example Rebecca Lawson and Thomas Ashby for Release
-Management) and approves the tasks one after another, two minutes apart: the n-th change task 2n minutes after it was
-asked, which is at CTask approval or, for a task added or moved to another assignment group later, at that update.
-Once the last task is approved, at the earliest 12 minutes after the raise, the change goes In Progress, or,
-when the installation starts less than 24 hours after that, Escalated approval at once and In Progress 2 hours before
-the installation; a change without change tasks stays in CTask approval, and a task added or moved to another
-assignment group after it sends the change back there. Closed when the post-install validation ends. Its tasks are Work in progress while a change In Progress is
-being installed and Closed once the change is. It records every reminder and answers with the people it reminded, and
-sends nothing. It applies an update
-`beadle.demo.protech-apply-delay` (default `PT3S`) after it was published, except a schedule change once the installation
-has started, and refuses to change a closed change. A new schedule keeps the stages a change has reached; the next ones
-follow the rule above for the new schedule, but never before the moment the schedule was applied. After a restart it
-takes Beadle's copy of each change it is asked for.
+Jira sits behind `JiraPort`, CyberTrack behind `CyberTrackPort`, ProTech behind `ProTechPort` and its searches behind
+`ProTechLookupPort` (see [Lookups](#lookups)). Beadle-GUI talks to none of these systems itself: its adapters are
+REST clients of the two other Beadle services, on the endpoints of [docs/CONTRACTS.md](docs/CONTRACTS.md).
 
-The next stage replaces the demo adapters by REST clients of Beadle-ProTech (`ProTechPort` and `ProTechLookupPort`,
-`/api/protech`) and Beadle-Internal (`JiraPort` and `CyberTrackPort`, `/api/internal`) as [docs/CONTRACTS.md](docs/CONTRACTS.md)
-lays them out; the real adapters then live in those two services. Connecting the real systems there needs:
+| Port | Adapter (`backend/.../adapter/out`) | Calls |
+|------|-------------------------------------|-------|
+| `JiraPort` | `internal/InternalJiraAdapter` | `GET /api/internal/jira/projects/{key}/versions`, `/epics?fixVersion=`, `/stories?fixVersion=&epicKeys=` |
+| `CyberTrackPort` | `internal/InternalCyberTrackAdapter` | `POST /api/internal/cybertrack/tickets` |
+| `ProTechPort`, `ProTechLookupPort` | `protech/RestProTechAdapter` | `POST /api/protech/changes`, `POST /api/protech/changes/{number}/tasks`, `POST /api/protech/changes/read`, `PUT /api/protech/changes/{number}`, `POST /api/protech/changes/{number}/reminders`, `GET /api/protech/lookups/{kind}` |
 
-- **Jira**: an adapter that lists the project's versions and searches it with JQL (`fixVersion = "..."` for the
-  stories, the epics by that FixVersion or as the parents of those stories, and the stories of the chosen epics), the
-  Jira base URL and a service account token in an OpenShift secret, and HTTPS access from the Beadle pods to Jira.
-- **ProTech**: an adapter that creates the change with the Change Management API
-  (`POST /api/sn_chg_rest/change/emergency` for an Emergency change, and for Standard, Business Critical and Model
-  the endpoint or change model ProTech uses for them) and its change tasks, with the wizard fields (requested for and
-  by, department, assigned to, the direct business service, the risk and its answers, users affected, the secure
-  coding ticket and the downtime window) mapped to ProTech's fields; reads `change_request` and `change_task` by
-  number with the Table API (`GET /api/now/table/change_request?number=...`,
-  `change_task?change_request.number=...`), maps ProTech's state values to the nine stages and takes the stage
-  history from the audit of the state field (`sys_audit` or the change's history); reads the approvals of the change
-  and of each change task with their approvers (`sysapproval_approver` by `sysapproval`) and maps their states to Not
-  Approved, Requested and Approved; sends a reminder to the approvers of one approval (an event that fires ProTech's
-  approval reminder notification) and answers whom it reached; updates the change and its tasks
-  with `PATCH`, creates the new CTASKs and cancels the removed ones; and answers `UncheckedIOException` when ProTech
-  cannot be reached and `IllegalStateException` with ProTech's message when it refuses. It needs the instance URL and
-  an integration user allowed to read, create and change changes and change tasks (OAuth client or basic credentials
-  in a secret), the lookup of the configuration item and the assignment group by name, and BBH's rule for approvals
-  (the approval policy of the change model, or the approvers sent as approval records, with the support approver and
-  the approvers of each assignment group).
-- **Lookups**: an adapter of `ProTechLookupPort` that searches ProTech with the Table API and `sysparm_limit=20`
-  (`sys_user`, `cmn_department`, `sys_user_group`, `cmdb_ci` with its business service, `incident`, `problem`, and
-  the tables BBH keeps its releases and clients in), with the same integration user.
-- **Single sign-on**: the Ping (OpenID Connect) sign-in of the contract, which names the signed-in user instead of
-  `beadle.signed-in-user`.
+`InternalClient` and `ProTechClient` make the calls, on `BeadleServiceClient` (`adapter/out/http`), which gives every
+call what the contract asks for:
+
+- `Authorization: Bearer <BEADLE_SERVICE_TOKEN>`;
+- `X-Beadle-User`: the signed-in user who caused the call, or `system` for a call made for a callback;
+- `X-Correlation-Id`: the correlation id of the user action. `CorrelationIdFilter` gives every request to Beadle-GUI a
+  new UUID (or keeps the one a callback brings), binds it to the request for the calls it makes, puts it in the log
+  context and answers it in the `X-Correlation-Id` response header;
+- 5 seconds to connect and 30 seconds to answer.
+
+The changes and change tasks travel as the JSON of `ProductionChange` and `ChangeTask`. A service that cannot be
+reached or answers `5xx` fails the call with a message that names it, which the API answers `503` ("Beadle-ProTech did
+not answer when asked to read the changes: Connection refused", "Beadle-ProTech failed to raise the change: 502 ...");
+`401` or `403` mean the services do not share the token and answer `503` too; a refusal keeps its meaning (`400` with
+its field problems, `404` not found, `409` and every other `4xx` a conflict with the service's own message, such as
+"ProTech does not change a closed change"). Reading the list or a change still shows what Beadle stored last, with
+"ProTech could not be reached: ..." and **Try again**.
+
+Whether Jira, CyberTrack and ProTech are connected (`GET /api/changes/integrations`, the "Demo mode" banner) is what
+`GET /api/internal/status` and `GET /api/protech/status` answer, asked at most every 30 seconds; a service that does not
+answer counts as not connected. Jira, CyberTrack and ProTech themselves, their URLs and service accounts, and their
+demo adapters are configured in Beadle-Internal and Beadle-ProTech.
+
+#### Callbacks
+
+Beadle-ProTech calls `POST /api/callbacks/protech` when ProTech moved a change (state, approval or task):
+`{"number": "CHG0001234", "event": "STATE_CHANGED" | "APPROVAL_CHANGED" | "TASK_CHANGED", "state": "IMPLEMENTATION",
+"at": "...", "correlationId": "..."}`; Beadle-GUI answers `202` once it has read the change again from Beadle-ProTech
+(and stored it when it moved), as actor `system:protech`. A change Beadle did not raise is accepted and left alone.
+Beadle-Internal calls `POST /api/callbacks/internal` when a CyberTrack ticket Beadle created changes status:
+`{"system": "CYBERTRACK", "key": "SCP-123", "status": "Done", "at": "...", "correlationId": "..."}`, answered `202` as
+actor `system:internal`. Both need the service token (`ServiceTokenFilter`: `401` without it or with another one,
+and for every callback while `BEADLE_SERVICE_TOKEN` is blank), a body that cannot be read is answered `400`, and
+what the callback causes runs within the correlation id of the user action it reports on.
+
+#### In-process stand-ins for the tests
+
+The demo Jira, CyberTrack and ProTech Beadle-GUI carried before the two services owned them live on in
+`backend/src/testFixtures` (`DemoJiraAdapter`, `DemoCyberTrackAdapter` with `JiraCyberTrackAdapter`,
+`DemoProTechAdapter` with `DemoApprovers`, `DemoProTechLookups` and `DemoProTechChanges`), so the test suites run
+without the two services: the Spring profile `stub-services` (`StubServices`) puts them in front of the REST adapters.
+The unit, regression and smoke suites (the smoke suite unless `-Dsmoke.baseUrl` names a deployed application) start
+Beadle with the profiles `local` and `stub-services`. The demo ProTech keeps the changes in memory, hands out demo
+`CHG` and `CTASK` numbers and moves every change through the workflow by the clock: Business Approval 2 minutes after
+it was raised, Primary Approval after 4, Secondary Approval after 6, Support Approval after 8 and CTask approval after
+10 minutes; each approval of the change is Requested in its stage and Approved once the change moved past it. In CTask
+approval it asks the approvers of every change task (`DemoApprovers`: two people per assignment group, for example
+Rebecca Lawson and Thomas Ashby for Release Management) and approves the tasks one after another, two minutes apart.
+Once the last task is approved, at the earliest 12 minutes after the raise, the change goes In Progress, or, when the
+installation starts less than 24 hours after that, Escalated approval at once and In Progress 2 hours before the
+installation; it is Closed when the post-install validation ends. It applies an update
+`beadle.demo.protech-apply-delay` (`PT3S`; `PT0S` in the regression suite) after it was published, except a schedule
+change once the installation has started, and refuses to change a closed change. Beadle-ProTech's own demo adapter
+behaves the same way.
 
 ### Beadle demo data
 
@@ -590,8 +616,11 @@ products whose risk is Moderate or High, "Validate <product> in production" for 
 cut to the bytes ProTech takes, and a product whose template ProTech would still refuse is skipped with a warning
 instead of stopping the start. Requested for, requested by, the department and assigned to stay empty, so each change
 takes the signed-in user and the product's department. The demo Jira knows two released and one or two unreleased
-FixVersions per project, for example `PAYHUB 2.4`. At start-up twelve demo changes are raised in the demo ProTech
-(`adapter/out/protech/DemoProTechChanges.java`), skipping those of a product that already has a change. They are
+FixVersions per project, for example `PAYHUB 2.4`. The templates take the direct business service and the clients
+from the lookups of Beadle-ProTech, and go without them, with a warning in the log, while it does not answer. With the
+profile `stub-services` of the test suites, twelve demo changes are also raised in the demo ProTech at start-up
+(`backend/src/testFixtures/.../adapter/out/protech/DemoProTechChanges.java`), skipping those of a product that
+already has a change; a Beadle-GUI that runs against Beadle-ProTech raises only the changes its users raise. They are
 spread over the departments and their products, with real demo epics and stories, the installation window as the
 downtime window of the products with downtime, and past raise times and schedules chosen so that on a new database
 three are Closed (installed last week), three are In Progress (one of them installing right now), one is in
@@ -622,7 +651,8 @@ departments.
 | `PUT /api/changes/{id}` | update an open change in ProTech: `version`, `departmentId` (the user's department, which must own the change), `shortDescription`, `description`, `schedule`, `template` and `tasks` (each with its `number`, or none for a new task, its `details` and its `start`; the list may be empty); answers the change with `update.status` `PENDING`, `APPLIED` or `NOT_APPLIED`; 403 for another department, 409 when stale or closed, 503 when ProTech cannot be reached |
 | `POST /api/changes/{id}/secure-coding` | create the secure coding ticket of an open change in CyberTrack and publish its number to ProTech: `version`, `departmentId` (which must own the change), `apoNumber`, `implementationDate` (MMDDYYYY), `bitbucketUrl`, `artifactLink` and `qcApplicationLink`, all required; answers the change with `template.secureCodingTicket`; 400 for a missing or wrong input, 403 for another department, 409 when it already has a ticket or is stale, pending or closed, 503 when CyberTrack cannot be reached or refuses the ticket, or ProTech cannot be reached |
 | `POST /api/changes/{id}/reminders` | remind the approvers of an open change who have not approved yet: `departmentId` (which must own the change) and either `approval` (`BUSINESS`, `L1`, `L2` or `SUPPORT`) or `task` (a CTASK number) for one approval, or neither for everyone who has not approved; answers the change with the `reminder` of each approval reminded; 400 for both or a task the change does not have, 403 for another department, 409 when closed, already approved or nobody is named, 503 when ProTech cannot be reached |
-| `GET /api/changes/integrations` | whether Jira, ProTech and CyberTrack are connected (`jiraConnected`, `proTechConnected`, `cyberTrackConnected`) |
+| `GET /api/changes/integrations` | whether Jira, ProTech and CyberTrack are connected (`jiraConnected`, `proTechConnected`, `cyberTrackConnected`), as Beadle-Internal and Beadle-ProTech report them |
+| `POST /api/callbacks/protech`, `POST /api/callbacks/internal` | the callbacks of Beadle-ProTech and Beadle-Internal, with the service token; `202` (see [Callbacks](#callbacks)) |
 
 Errors are RFC 9457 problem details; validation errors name the failing fields, for example `tasks[1].details.start`.
 
@@ -643,11 +673,10 @@ flowchart LR
     protech["ProTech (ServiceNow)"]
     users --> frontend
     backend --> db
-    backend -- "REST, both ways (next stage)" --> internal
-    backend -- "REST, both ways (next stage)" --> protechsvc
+    backend -- "REST, both ways" --> internal
+    backend -- "REST, both ways" --> protechsvc
     internal --> systems
     protechsvc --> protech
-    backend -. "demo adapters today" .-> protech
 ```
 
 The service (`backend/src/main/java/com/bbh/itss/beadle`) is hexagonal:
@@ -655,10 +684,10 @@ The service (`backend/src/main/java/com/bbh/itss/beadle`) is hexagonal:
 | Package | Holds |
 |---------|-------|
 | `domain` | plain Java: the departments and the shared value rules (`catalog`, `shared`), the change templates and the ProTech changes with their tasks, approvals, sync and update rules (`change`); every business rule lives here |
-| `application` | the use cases behind ports, per area (`catalog`, `change` and `user`), each with its `port.in` and `port.out` packages; `@UseCase` classes become transactional beans, without Spring in the code |
+| `application` | the use cases behind ports, per area (`catalog`, `change`, `callback` and `user`), each with its `port.in` and `port.out` packages; `@UseCase` classes become transactional beans, without Spring in the code; `CallContext` carries the correlation id of the user action and the system a callback acts for |
 | `adapter.in` | Spring MVC controllers with the request and response records (`web`), the forwarding of the GUI pages to `index.html` (`SinglePageAppForwarding`, which reads the pages from `beadle.gui.pages`), and the start-up tasks that seed the demo data (`startup`) |
-| `adapter.out` | JPA entities and Spring Data repositories (`persistence`), the demo Jira adapter (`jira`), the demo ProTech adapter with the demo changes, approvers and lookups (`protech`), the demo and the Jira CyberTrack adapters (`cybertrack`) and the signed-in user (`user`); Jira and CyberTrack never share a package |
-| `config` | the wiring of use cases, transactions and the clock |
+| `adapter.out` | JPA entities and Spring Data repositories (`persistence`), the REST clients of Beadle-Internal with the Jira and CyberTrack adapters (`internal`) and of Beadle-ProTech with the ProTech adapter (`protech`), what every call to the two services carries (`http`) and the signed-in user (`user`) |
+| `config` | the wiring of use cases, transactions and the clock, the addresses of the two services and the token they share, the correlation id filter and the service token filter of the callbacks |
 
 ```mermaid
 flowchart LR
@@ -667,7 +696,7 @@ flowchart LR
     usecases["application.*<br/>@UseCase services"]
     domain["domain<br/>business rules"]
     pout["application.*.port.out<br/>repository, Jira, ProTech, lookup,<br/>CyberTrack and user ports"]
-    aout["adapter.out<br/>persistence, jira, protech,<br/>cybertrack, user"]
+    aout["adapter.out<br/>persistence, internal, protech,<br/>http, user"]
     ain -- "calls" --> pin
     pin -- "implemented by" --> usecases
     usecases --> domain
@@ -678,7 +707,8 @@ flowchart LR
 `ArchitectureSpec` (ArchUnit) keeps the domain and the use cases free of Spring, JPA and Jackson, and keeps the
 adapters apart: the domain depends only on the JDK, Lombok and Apache Commons, the application only on the domain
 and the same libraries, `adapter.in` never on `adapter.out` or a `port.out`, `adapter.out` never on `adapter.in`,
-only the CyberTrack adapter uses an HTTP client, and every `@UseCase` class implements a `port.in` interface.
+only the clients of Beadle-Internal and Beadle-ProTech (`adapter.out.internal`, `adapter.out.protech`,
+`adapter.out.http`) use an HTTP client, and every `@UseCase` class implements a `port.in` interface.
 
 The interface (`frontend/src/app`) follows the same cut: `shell/` holds the application shell, `ui/` the UI kit,
 `core/` the API clients, the models, the sections of the menu, the error texts, the titles and the `appConfig` the
@@ -803,8 +833,8 @@ runs the suites of one module, `./gradlew :backend:regressionTest` one suite.
 
 | Module | Suite | What |
 |--------|-------|------|
-| `backend` | unit (`src/test`, `./gradlew :backend:test`) | domain rules, use cases, adapters, the Liquibase migrations and the architecture rules; JaCoCo fails below 60% line coverage (`-Pcoverage.minimum=`) |
-| `backend` | regression (`src/regressionTest`) | the API end to end on H2 in Oracle mode |
+| `backend` | unit (`src/test`, `./gradlew :backend:test`) | domain rules, use cases, adapters (the REST clients against a local HTTP server that records the headers and answers what each spec sets, also an unreachable or failing service), the Liquibase migrations and the architecture rules; JaCoCo fails below 60% line coverage (`-Pcoverage.minimum=`) |
+| `backend` | regression (`src/regressionTest`) | the API end to end on H2 in Oracle mode, with the in-process stand-ins of Beadle-Internal and Beadle-ProTech (profile `stub-services`), the callbacks with and without the service token |
 | `backend` | smoke (`src/smokeTest`) | starts the service on a fresh database and checks health, the API, that the API of the DevSecOps Management Portal is absent and that the GUI is served on every page; `-Dsmoke.baseUrl=https://...` checks a deployed application, `-Dsmoke.ui=false` skips the GUI checks |
 | `frontend` | unit (Vitest, `./gradlew :frontend:testAngular` or `npx ng test frontend --watch=false`) | components and form models; fails below 60% of lines and statements |
 | `frontend` | smoke, regression (`src/smokeTest`, `src/regressionTest`) | Spock and Playwright in Chromium against a stub API: every page, the menu and footer without any trace of the DevSecOps Management Portal, the user journeys with the requests they send |
@@ -818,8 +848,7 @@ revision Playwright 1.56 asks for; `PLAYWRIGHT_BROWSERS_PATH` points them at a f
 - Beadle-GUI signs everybody in as `beadle.signed-in-user` until the Ping (OpenID Connect) sign-in of the contract
   exists, "your department" is the department the user last picked (remembered in the browser) and the Admin area
   is open to every user until an administrator role exists. The audit trail of the contract is not written yet.
-- Production changes use demo Jira, ProTech and CyberTrack adapters, and the wizard's searches demo ProTech data,
-  until the next stage replaces them by REST clients of Beadle-Internal and Beadle-ProTech; see
-  [Demo ProTech and the real adapters](#demo-protech-and-the-real-adapters).
+- Jira, CyberTrack and ProTech are as real as Beadle-Internal and Beadle-ProTech make them; until their URLs and
+  service accounts are configured there, both run their demo adapters and the pages show "Demo mode".
 - The category, type and risk answer lists are written into Beadle and change only with a new version of it, until
   ProTech's value lists can be read.

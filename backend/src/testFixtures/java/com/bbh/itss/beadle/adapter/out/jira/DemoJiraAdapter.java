@@ -4,7 +4,7 @@ import com.bbh.itss.beadle.application.change.port.out.JiraPort;
 import com.bbh.itss.beadle.domain.change.JiraIssue;
 import com.bbh.itss.beadle.domain.change.JiraVersion;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Primary;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -21,9 +21,13 @@ import static java.util.Map.entry;
 import static java.util.stream.Collectors.toSet;
 import static org.apache.commons.lang3.ObjectUtils.getIfNull;
 
-@Component
+/**
+ * The demo Jira Beadle-GUI carried before Beadle-Internal owned the Jira calls; profile {@code stub-services} puts it
+ * in front of {@code InternalJiraAdapter} so the test suites run without Beadle-Internal.
+ */
+@Primary
 @RequiredArgsConstructor
-class DemoJiraAdapter implements JiraPort {
+public class DemoJiraAdapter implements JiraPort {
 
     static final int EPICS_PER_PROJECT = 8;
     static final List<String> UPCOMING_STATUSES = List.of("Done", "In Review", "In Progress");

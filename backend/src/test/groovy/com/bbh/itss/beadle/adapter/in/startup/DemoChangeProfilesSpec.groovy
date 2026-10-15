@@ -132,6 +132,28 @@ class DemoChangeProfilesSpec extends Specification {
         noExceptionThrown()
     }
 
+    def "the demo templates are filled in without the ProTech lookups while Beadle-ProTech does not answer"() {
+        given:
+        def silent = Stub(LookupsUseCase) {
+            find(_, _) >> { throw new UncheckedIOException('Beadle-ProTech did not answer', new IOException()) }
+        }
+        products.list(null) >> [summary(2, 'PAYHUB')]
+        profiles.get(2L) >> ChangeProfileView.builder().productId(2L).template(suggestedFor('PAYHUB', 'PayHub', null))
+                .tasks([]).build()
+        ChangeTemplate saved = null
+
+        when:
+        new DemoChangeProfiles(products, profiles, silent).fillIn()
+
+        then:
+        1 * profiles.save(2L, null, _, _) >> { long id, Long version, ChangeTemplate template, List chosen ->
+            saved = template
+            null
+        }
+        saved.directBusinessService() == null
+        saved.affectedClients() == null || saved.affectedClients() == ''
+    }
+
     def "the demo defaults of every demo product are complete, realistic and valid"() {
         when:
         def defaults = DEMO_CODES.collectEntries {

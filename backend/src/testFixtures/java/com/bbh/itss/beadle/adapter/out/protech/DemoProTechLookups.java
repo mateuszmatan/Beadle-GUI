@@ -10,7 +10,7 @@ import com.bbh.itss.beadle.domain.change.Lookup;
 import com.bbh.itss.beadle.domain.change.LookupKind;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Primary;
 
 import java.util.List;
 import java.util.Map;
@@ -33,9 +33,13 @@ import static java.util.stream.IntStream.range;
 import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 import static org.apache.commons.lang3.StringUtils.trim;
 
-@Component
+/**
+ * The demo lookups of ProTech Beadle-GUI carried before Beadle-ProTech owned them; profile {@code stub-services} puts
+ * them in front of {@code RestProTechAdapter}.
+ */
+@Primary
 @RequiredArgsConstructor
-class DemoProTechLookups implements ProTechLookupPort {
+public class DemoProTechLookups implements ProTechLookupPort {
 
     static final String SUPPORT = " Application Support";
     static final List<String> USERS = List.of("Aisha Rahman", "Ann Lee", "Charlotte Reed", "Daniel Foster",

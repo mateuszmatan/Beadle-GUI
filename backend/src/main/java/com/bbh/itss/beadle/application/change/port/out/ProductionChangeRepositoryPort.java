@@ -15,6 +15,8 @@ public interface ProductionChangeRepositoryPort {
 
     Optional<ProductionChange> load(long id);
 
+    Optional<ProductionChange> findByNumber(String number);
+
     ProductionChange save(ProductionChange change);
 
     void synced(Collection<Long> ids, Instant syncedAt);

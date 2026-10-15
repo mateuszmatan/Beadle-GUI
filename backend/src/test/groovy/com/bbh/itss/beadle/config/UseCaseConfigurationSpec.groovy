@@ -72,7 +72,7 @@ class UseCaseConfigurationSpec extends Specification {
             def useCases = context.getBeansWithAnnotation(UseCase)
             assert useCases.keySet() == ['departmentService', 'productService', 'changeProfileService',
                                          'productionChangeService', 'changeOptionsService', 'lookupService',
-                                         'signedInUserService'] as Set
+                                         'signedInUserService', 'callbackService'] as Set
             useCases.values().each { useCase ->
                 assert isAopProxy(useCase)
                 assert (useCase as Advised).advisors*.advice.any { it instanceof TransactionInterceptor }

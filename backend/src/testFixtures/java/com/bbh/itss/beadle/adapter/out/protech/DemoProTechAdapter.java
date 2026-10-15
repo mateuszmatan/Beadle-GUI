@@ -12,7 +12,7 @@ import com.bbh.itss.beadle.domain.change.ProductionChange;
 import com.bbh.itss.beadle.domain.change.TaskState;
 import com.bbh.itss.beadle.domain.change.WorkflowStep;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Primary;
 
 import java.security.SecureRandom;
 import java.time.Clock;
@@ -56,9 +56,13 @@ import static java.util.stream.Collectors.toMap;
 import static org.apache.commons.lang3.ObjectUtils.getIfNull;
 import static org.apache.commons.lang3.ObjectUtils.max;
 
-@Component
+/**
+ * The demo ProTech Beadle-GUI carried before Beadle-ProTech owned it, with its clock-driven workflow; profile
+ * {@code stub-services} puts it in front of {@code RestProTechAdapter} so the test suites run without Beadle-ProTech.
+ */
+@Primary
 @RequiredArgsConstructor
-class DemoProTechAdapter implements ProTechPort {
+public class DemoProTechAdapter implements ProTechPort {
 
     static final Duration STAGE = ofMinutes(2);
     static final Duration SHORT_NOTICE = ofHours(24);

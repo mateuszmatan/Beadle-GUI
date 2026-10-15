@@ -260,6 +260,17 @@ class ChangePersistenceAdaptersSpec extends Specification {
                  RISK_BBH_USERS: 'All users', RISK_BACKOUT_TESTING: 'Unable to test']
     }
 
+    def "a raised change is found by its ProTech number with its tasks"() {
+        given:
+        def saved = changes.save(raise('CHG0001003', 'CTASK0002005'))
+        entities.clear()
+
+        expect:
+        changes.findByNumber('CHG0001003').get() == saved
+        changes.findByNumber('CHG0001003').get().tasks()*.number() == ['CTASK0002005']
+        changes.findByNumber('CHG0009999') == Optional.empty()
+    }
+
     def "a change raised with the empty people of its template names the signed-in user and its department"() {
         given:
         def bare = template(riskAssessment: RiskAssessment.DEFAULTS)

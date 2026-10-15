@@ -2,6 +2,7 @@ package com.bbh.itss.beadle.smoke
 
 import com.bbh.itss.beadle.BeadleApplication
 import com.bbh.itss.beadle.support.PortalClient
+import com.bbh.itss.beadle.support.StubServices
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
 import spock.lang.Requires
@@ -22,7 +23,7 @@ class BeadleSmokeSpec extends Specification {
     def setupSpec() {
         String baseUrl = System.getProperty('smoke.baseUrl')
         if (!baseUrl) {
-            started = new SpringApplicationBuilder(BeadleApplication)
+            started = new SpringApplicationBuilder(BeadleApplication).profiles('local', StubServices.PROFILE)
                     .run('--server.port=0', '--BEADLE_DEMO_DATA=true',
                             '--DB_URL=jdbc:h2:mem:beadle-smoke;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1')
             baseUrl = "http://localhost:${started.environment.getProperty('local.server.port')}"

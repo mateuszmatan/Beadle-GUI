@@ -64,6 +64,45 @@ class ApplicationProfilesSpec extends Specification {
         profile << ['rd', 'qc', 'prod']
     }
 
+    def "locally Beadle-Internal and Beadle-ProTech answer on ports 8082 and 8083 and no callback is taken without a token"() {
+        when:
+        def env = environment([], [:])
+
+        then:
+        env.getProperty('beadle.services.internal.url') == 'http://localhost:8082'
+        env.getProperty('beadle.services.protech.url') == 'http://localhost:8083'
+        env.getProperty('beadle.services.token') == ''
+        def set = environment([], [BEADLE_INTERNAL_URL: 'http://internal:8082', BEADLE_PROTECH_URL: 'http://protech:8083',
+                                   BEADLE_SERVICE_TOKEN: 'shared-secret'])
+        ['beadle.services.internal.url', 'beadle.services.protech.url', 'beadle.services.token']
+                .collect { set.getProperty(it) } == ['http://internal:8082', 'http://protech:8083', 'shared-secret']
+    }
+
+    def "the #profile profile reaches the two services where the environment says"() {
+        when:
+        def env = environment([profile], ORACLE + [BEADLE_INTERNAL_URL: 'http://beadle-internal:8082',
+                                                   BEADLE_PROTECH_URL : 'http://beadle-protech:8083',
+                                                   BEADLE_SERVICE_TOKEN: 'shared-secret'])
+
+        then:
+        env.getProperty('beadle.services.internal.url') == 'http://beadle-internal:8082'
+        env.getProperty('beadle.services.protech.url') == 'http://beadle-protech:8083'
+        env.getProperty('beadle.services.token') == 'shared-secret'
+
+        when:
+        environment([profile], ORACLE).getProperty("beadle.services.${service}.url")
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains(variable)
+
+        where:
+        profile | service   | variable
+        'rd'    | 'internal' | 'BEADLE_INTERNAL_URL'
+        'qc'    | 'protech'  | 'BEADLE_PROTECH_URL'
+        'prod'  | 'internal' | 'BEADLE_INTERNAL_URL'
+    }
+
     private static Environment environment(List<String> profiles, Map<String, String> variables) {
         def application = new SpringApplicationBuilder(Empty)
                 .web(NONE)

@@ -38,6 +38,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 import static com.bbh.itss.beadle.domain.change.ChangeSchedule.UNPLANNED;
 import static com.bbh.itss.beadle.domain.change.ChangeTemplate.JIRA_KEY_MESSAGE;
@@ -99,6 +100,12 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         } catch (UncheckedIOException e) {
             return stored.withSyncProblem(unreachable(e));
         }
+    }
+
+    @Override
+    @WithoutTransaction
+    public Optional<ProductionChange> resync(String number) {
+        return changes.findByNumber(number).map(this::synced);
     }
 
     @Override

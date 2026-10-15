@@ -471,6 +471,49 @@ class ProductionChangeServiceSpec extends Specification {
         'does not hold it'  | { [:] }                                                                  || 'ProTech has no change CHG0031001.'
     }
 
+    def "a change ProTech moved is read again by its number and saved when ProTech #changed it"() {
+        given:
+        def stored = raised()
+
+        when:
+        def reread = service.resync('CHG0031001')
+
+        then:
+        1 * changes.findByNumber('CHG0031001') >> Optional.of(stored)
+        1 * proTech.read([stored]) >> [CHG0031001: remote]
+        saves * changes.save(remote.toBuilder().syncedAt(NOW).build()) >>
+                { ProductionChange change -> change.toBuilder().version(1L).build() }
+        (1 - saves) * changes.synced([7L], NOW)
+        reread.get().state() == remote.state()
+        reread.get().version() == saves
+
+        where:
+        remote                                       || saves
+        raised()                                     || 0
+        raised(state: BUSINESS_APPROVAL, workflow: [new WorkflowStep(DRAFT, RAISED),
+                                                    new WorkflowStep(BUSINESS_APPROVAL, NOW)]) || 1
+
+        changed = saves ? 'moved' : 'did not move'
+    }
+
+    def "a change Beadle did not raise is not read again, and an unreachable ProTech fails the read"() {
+        when:
+        def unknown = service.resync('CHG0099999')
+
+        then:
+        1 * changes.findByNumber('CHG0099999') >> Optional.empty()
+        0 * proTech._
+        unknown.empty
+
+        when:
+        service.resync('CHG0031001')
+
+        then:
+        1 * changes.findByNumber('CHG0031001') >> Optional.of(raised())
+        1 * proTech.read(_) >> { throw new UncheckedIOException('Beadle-ProTech did not answer', new IOException()) }
+        thrown(UncheckedIOException)
+    }
+
     def "a pending update is #status when the change is opened #age seconds after it was published"() {
         given:
         def requested = raised(shortDescription: 'Renamed', update: new ChangeUpdate(PENDING, NOW.minusSeconds(age),

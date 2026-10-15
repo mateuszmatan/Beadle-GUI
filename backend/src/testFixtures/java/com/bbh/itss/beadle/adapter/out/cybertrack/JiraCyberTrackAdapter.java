@@ -4,8 +4,8 @@ import com.bbh.itss.beadle.application.change.port.out.CyberTrackPort;
 import com.bbh.itss.beadle.domain.change.SecureCodingTicket;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
-import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -21,9 +21,13 @@ import static org.apache.commons.lang3.StringUtils.truncate;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
-@Component
+/**
+ * The CyberTrack client Beadle-GUI carried before Beadle-Internal owned it (Beadle-Internal's {@code CyberTrackAdapter}
+ * continues it); profile {@code stub-services} uses it when {@code beadle.cybertrack.url} is set.
+ */
+@Primary
 @ConditionalOnExpression(CONFIGURED)
-class JiraCyberTrackAdapter implements CyberTrackPort {
+public class JiraCyberTrackAdapter implements CyberTrackPort {
 
     static final String REFUSED = "CyberTrack could not create the secure coding ticket: ";
     static final String NO_KEY = "Jira answered without the key of the new issue";

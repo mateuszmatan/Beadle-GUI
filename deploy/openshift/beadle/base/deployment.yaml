@@ -31,8 +31,7 @@ spec:
             - secretRef:
                 name: beadle-db
             - secretRef:
-                name: beadle-cybertrack
-                optional: true
+                name: beadle-services
           env:
             - name: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED
               value: "true"

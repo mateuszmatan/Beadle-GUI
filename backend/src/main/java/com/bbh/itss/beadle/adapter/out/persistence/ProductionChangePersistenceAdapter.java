@@ -42,6 +42,11 @@ class ProductionChangePersistenceAdapter implements ProductionChangeRepositoryPo
     }
 
     @Override
+    public Optional<ProductionChange> findByNumber(String number) {
+        return changes.findByNumber(number).map(ProductionChangeEntity::toDomain);
+    }
+
+    @Override
     public ProductionChange save(ProductionChange change) {
         if (change.id() == null) {
             return changes.saveAndFlush(new ProductionChangeEntity(change)).toDomain();

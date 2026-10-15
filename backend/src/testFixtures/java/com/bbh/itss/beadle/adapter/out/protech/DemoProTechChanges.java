@@ -23,7 +23,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProp
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
-import org.springframework.stereotype.Component;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -43,11 +42,14 @@ import static java.time.temporal.ChronoUnit.MINUTES;
 import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.toSet;
 
-@Component
+/**
+ * Stores the demo changes, raised through the demo ProTech, when {@code beadle.demo-data} is on and profile
+ * {@code stub-services} is active.
+ */
 @ConditionalOnBooleanProperty("beadle.demo-data")
 @RequiredArgsConstructor
 @Slf4j
-class DemoProTechChanges {
+public class DemoProTechChanges {
 
     static final List<Scene> SCENES = List.of(
             new Scene(ofDays(12), ofDays(-8), null),
