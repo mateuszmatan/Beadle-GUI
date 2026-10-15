@@ -652,8 +652,10 @@ to connect and 30 seconds to answer and the headers of the contract.
 | `X-Beadle-User` | who caused the call (`CallerHeaders`): the name of the signed-in user as Ping gives it (or `beadle.signed-in-user` in mode `local`); `system` while Beadle acts for a system, that is for a callback or for the demo data it stores when it starts. The services only log it; Jira, CyberTrack and ProTech see Beadle's service accounts | `system`; Beadle-GUI records the callback as `system:protech` or `system:internal` whatever it says |
 | `X-Correlation-Id` | the correlation id of the user action, so one action reads the same in the logs of all three services | the correlation id of the user action the callback reports on (also in its body), which Beadle-GUI takes over for what the callback causes |
 
-`CorrelationIdFilter` (`config`) gives every request to Beadle-GUI its correlation id: the `X-Correlation-Id` the
-request brings when it is a UUID (a callback, or a caller that already has one), otherwise a new UUID. It binds the id
+`CorrelationIdFilter` (`config`) gives every request to Beadle-GUI its correlation id: a callback
+(`/api/callbacks/**`, which needs the service token) keeps the `X-Correlation-Id` it brings when it is a UUID, and
+every other request gets a new UUID whatever it sends, since Beadle-GUI mints the id of each user action and a user
+must not file an action under the id of another. It binds the id
 to the request for the calls Beadle makes on its behalf, puts it into the log context (`[%X{correlationId}]` on every
 log line) and the audit row of the action, and answers it in the `X-Correlation-Id` response header, so a user who
 reports an error can quote it and an operator finds the action in Action History and in the logs of all three

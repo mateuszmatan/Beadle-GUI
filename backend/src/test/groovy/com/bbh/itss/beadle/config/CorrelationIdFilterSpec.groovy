@@ -52,6 +52,27 @@ class CorrelationIdFilterSpec extends Specification {
         "${CORRELATION}; DROP".toString() || false
     }
 
+    def "a request of a user gets a new correlation id even when it sends one"() {
+        given:
+        def request = new MockHttpServletRequest(method, path)
+        request.addHeader('X-Correlation-Id', CORRELATION)
+
+        when:
+        filter.doFilter(request, response, chain)
+
+        then:
+        CallContext.isCorrelationId(seen.bound)
+        seen.bound != CORRELATION.toLowerCase()
+        response.getHeader('X-Correlation-Id') == seen.bound
+
+        where:
+        method | path
+        'POST' | '/api/changes'
+        'GET'  | '/api/me'
+        'POST' | '/logout'
+        'POST' | '/api/callbacksprotech'
+    }
+
     def "two requests get two correlation ids"() {
         when:
         filter.doFilter(new MockHttpServletRequest('GET', '/api/me'), response, chain)

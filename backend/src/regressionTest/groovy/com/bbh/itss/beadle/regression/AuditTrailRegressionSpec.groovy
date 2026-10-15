@@ -24,6 +24,20 @@ class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
         details(code)[0].contains("\"code\":\"${code}\"")
     }
 
+    def "a user cannot file an action under a correlation id of their choosing"() {
+        given:
+        def code = uniqueCode()
+
+        when:
+        def response = api.post('/api/products', product(code: code, name: "Chosen ${code}"),
+                ['X-Correlation-Id': CORRELATION])
+
+        then:
+        response.status == 201
+        response.header('X-Correlation-Id') != CORRELATION
+        rowsAbout(code)*.CORRELATION_ID == [response.header('X-Correlation-Id')]
+    }
+
     def "a refused product is rolled back, but its FAILURE row stays"() {
         given:
         def code = uniqueCode()

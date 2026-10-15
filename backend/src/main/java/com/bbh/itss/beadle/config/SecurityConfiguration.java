@@ -48,6 +48,7 @@ public class SecurityConfiguration {
     public static final String SIGN_IN = "/oauth2/authorization/ping";
     public static final String SIGN_OUT = "/logout";
     static final String API = "/api/**";
+    static final String CALLBACKS = "/api/callbacks/**";
     static final String NO_PING = "beadle.auth.mode=oidc needs the Ping registration "
             + "spring.security.oauth2.client.registration.ping: set PING_CLIENT_ID, PING_CLIENT_SECRET and "
             + "PING_ISSUER_URI, or BEADLE_AUTH_MODE=local";
@@ -55,7 +56,7 @@ public class SecurityConfiguration {
     @Bean
     @Order(1)
     SecurityFilterChain serviceFilterChain(HttpSecurity http, ServicesProperties services) throws Exception {
-        return http.securityMatcher("/api/callbacks/**", "/actuator/health", "/actuator/health/**")
+        return http.securityMatcher(CALLBACKS, "/actuator/health", "/actuator/health/**")
                 .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
                 .csrf(AbstractHttpConfigurer::disable)
                 .requestCache(AbstractHttpConfigurer::disable)
