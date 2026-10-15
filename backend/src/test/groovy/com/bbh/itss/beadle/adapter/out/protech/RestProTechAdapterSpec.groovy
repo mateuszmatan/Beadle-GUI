@@ -6,6 +6,7 @@ import com.bbh.itss.beadle.application.change.port.out.ProTechLookupPort
 import com.bbh.itss.beadle.application.change.port.out.ProTechPort
 import com.bbh.itss.beadle.domain.change.ApprovalRef
 import com.bbh.itss.beadle.domain.change.Lookup
+import com.bbh.itss.beadle.domain.change.ProductionChange
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException.FieldProblem
 
@@ -45,6 +46,7 @@ class RestProTechAdapterSpec extends ServiceClientSpecification {
             json.template.approvers.l1Manager == 'Olivia Bennett'
             json.schedule.installationStart == '2026-10-10T06:00:00Z'
             json.state == 'DRAFT'
+            json.keySet() == ProductionChange.recordComponents*.name as Set
         }
     }
 

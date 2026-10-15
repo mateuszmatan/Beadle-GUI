@@ -19,6 +19,9 @@ public final class CallContext {
     /** The user named to Beadle-Internal and Beadle-ProTech for a call no user caused. */
     public static final String SYSTEM = "system";
 
+    /** The actor of what Beadle does by itself when it starts, such as storing the demo catalogue. */
+    public static final String STARTUP = "system:startup";
+
     private static final ThreadLocal<String> CORRELATION_ID = new ThreadLocal<>();
     private static final ThreadLocal<String> SYSTEM_ACTOR = new ThreadLocal<>();
 

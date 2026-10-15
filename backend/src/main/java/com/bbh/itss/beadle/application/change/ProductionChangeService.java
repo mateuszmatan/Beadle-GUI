@@ -1,5 +1,7 @@
 package com.bbh.itss.beadle.application.change;
 
+import com.bbh.itss.beadle.application.AuditNotes;
+import com.bbh.itss.beadle.application.Audited;
 import com.bbh.itss.beadle.application.UseCase;
 import com.bbh.itss.beadle.application.WithoutTransaction;
 import com.bbh.itss.beadle.application.change.port.in.ChangeCommand;
@@ -12,9 +14,9 @@ import com.bbh.itss.beadle.application.change.port.in.SecureCodingCommand;
 import com.bbh.itss.beadle.application.change.port.out.ChangeProductsPort;
 import com.bbh.itss.beadle.application.change.port.out.CyberTrackPort;
 import com.bbh.itss.beadle.application.change.port.out.JiraPort;
-import com.bbh.itss.beadle.application.change.port.out.ProductionChangeRepositoryPort;
 import com.bbh.itss.beadle.application.change.port.out.ProTechPort;
 import com.bbh.itss.beadle.application.change.port.out.ProTechPort.RaisedChange;
+import com.bbh.itss.beadle.application.change.port.out.ProductionChangeRepositoryPort;
 import com.bbh.itss.beadle.application.user.port.in.SignedInUserUseCase;
 import com.bbh.itss.beadle.domain.change.ApprovalRef;
 import com.bbh.itss.beadle.domain.change.ChangeProduct;
@@ -40,6 +42,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_EDITED;
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_PREVIEWED;
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED;
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_SYNCED;
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_TASKS_CREATED;
+import static com.bbh.itss.beadle.domain.audit.Action.REMINDER_SENT;
+import static com.bbh.itss.beadle.domain.audit.Action.SECURE_CODING_TICKET_CREATED;
 import static com.bbh.itss.beadle.domain.change.ChangeSchedule.UNPLANNED;
 import static com.bbh.itss.beadle.domain.change.ChangeTemplate.JIRA_KEY_MESSAGE;
 import static com.bbh.itss.beadle.domain.change.ChangeTemplate.isJiraKey;
@@ -93,6 +102,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
 
     @Override
     @WithoutTransaction
+    @Audited(value = CHANGE_SYNCED, onlyWhenNoted = true)
     public ProductionChange get(long id) {
         ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
         try {
@@ -110,6 +120,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
 
     @Override
     @WithoutTransaction
+    @Audited(CHANGE_EDITED)
     public ProductionChange update(long id, ChangeEditCommand command) {
         ProductionChange stored = editable(id, command.version(), command.departmentId());
         Instant now = now(clock);
@@ -149,12 +160,14 @@ public class ProductionChangeService implements ProductionChangesUseCase {
 
     @Override
     @WithoutTransaction
+    @Audited(CHANGE_PREVIEWED)
     public ProductionChange preview(ChangeCommand command) {
         return draft(command, null);
     }
 
     @Override
     @WithoutTransaction
+    @Audited(CHANGE_RAISED)
     public ProductionChange raise(ChangeCommand command) {
         Instant now = now(clock);
         ProductionChange draft = draft(command, now).raisedAt(now);
@@ -164,6 +177,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
 
     @Override
     @WithoutTransaction
+    @Audited(CHANGE_TASKS_CREATED)
     public ProductionChange createTasks(long id, ChangeTasksCommand command) {
         ProductionChange stored = editable(id, command.version(), command.departmentId());
         List<ChangeTask> planned = stored.plannedTasks(command.tasks());
@@ -182,6 +196,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
 
     @Override
     @WithoutTransaction
+    @Audited(SECURE_CODING_TICKET_CREATED)
     public ProductionChange createSecureCodingTicket(long id, SecureCodingCommand command) {
         ProductionChange stored = editable(id, command.version(), command.departmentId());
         SecureCodingTicket ticket = SecureCodingTicket.of(stored, command.secureCoding(),
@@ -203,6 +218,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
 
     @Override
     @WithoutTransaction
+    @Audited(REMINDER_SENT)
     public ProductionChange remind(long id, ReminderCommand command) {
         ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
         requireDepartment(stored, command.departmentId(), "remind the approvers of");
@@ -337,6 +353,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private ProductionChange saved(ProductionChange synced, ProductionChange stored) {
+        AuditNotes.tookPlace();
         try {
             return changes.save(synced);
         } catch (IllegalStateException stale) {

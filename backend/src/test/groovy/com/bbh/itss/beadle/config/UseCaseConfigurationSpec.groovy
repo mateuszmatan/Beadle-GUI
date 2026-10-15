@@ -1,6 +1,8 @@
 package com.bbh.itss.beadle.config
 
 import com.bbh.itss.beadle.application.UseCase
+import com.bbh.itss.beadle.application.audit.port.out.ActionHistoryPort
+import com.bbh.itss.beadle.application.audit.port.out.ObjectKeyPort
 import com.bbh.itss.beadle.application.catalog.port.in.DepartmentsUseCase
 import com.bbh.itss.beadle.application.catalog.port.in.ProductCommand
 import com.bbh.itss.beadle.application.catalog.port.in.ProductsUseCase
@@ -19,6 +21,7 @@ import com.bbh.itss.beadle.application.change.port.out.ProTechPort
 import com.bbh.itss.beadle.application.user.port.out.SignedInUserPort
 import com.bbh.itss.beadle.domain.catalog.Department
 import com.bbh.itss.beadle.domain.catalog.DepartmentUsage
+import com.bbh.itss.beadle.domain.audit.ActionRecord
 import com.bbh.itss.beadle.domain.catalog.Product
 import com.bbh.itss.beadle.support.RecordingTransactionManager
 import org.springframework.aop.framework.Advised
@@ -40,6 +43,8 @@ import static org.springframework.aop.support.AopUtils.isAopProxy
 
 class UseCaseConfigurationSpec extends Specification {
 
+    static final List<String> UNAUDITED = ['changeOptionsService', 'lookupService', 'actionHistoryService']
+
     def transactions = new RecordingTransactionManager()
     List<String> calls = []
     ProductRepositoryPort products = Mock()
@@ -48,6 +53,9 @@ class UseCaseConfigurationSpec extends Specification {
     JiraPort jira = Mock()
     ProTechPort proTech = Mock()
     CyberTrackPort cyberTrack = Mock()
+    ActionHistoryPort history = Mock() {
+        record(_ as ActionRecord) >> { ActionRecord row -> calls << "audit ${row.action()} ${transactionState()}"; row }
+    }
 
     def runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(AopAutoConfiguration, TransactionAutoConfiguration))
@@ -65,17 +73,20 @@ class UseCaseConfigurationSpec extends Specification {
             .withBean(ProTechLookupPort, { Mock(ProTechLookupPort) } as Supplier<ProTechLookupPort>)
             .withBean(SignedInUserPort, { { -> 'Mateusz Matan' } as SignedInUserPort } as Supplier<SignedInUserPort>)
             .withBean(Clock, { systemUTC() } as Supplier<Clock>)
+            .withBean(ActionHistoryPort, { history } as Supplier<ActionHistoryPort>)
+            .withBean(ObjectKeyPort, { Mock(ObjectKeyPort) { keyOf(*_) >> Optional.empty() } } as Supplier<ObjectKeyPort>)
 
-    def "every use case of Beadle is a bean behind a transactional proxy"() {
+    def "every use case of Beadle is a bean behind a transactional proxy that audits the annotated methods inside the transaction"() {
         expect:
         runner.run { ApplicationContext context ->
             def useCases = context.getBeansWithAnnotation(UseCase)
             assert useCases.keySet() == ['departmentService', 'productService', 'changeProfileService',
                                          'productionChangeService', 'changeOptionsService', 'lookupService',
-                                         'signedInUserService', 'callbackService'] as Set
-            useCases.values().each { useCase ->
+                                         'signedInUserService', 'callbackService', 'actionHistoryService'] as Set
+            useCases.each { name, useCase ->
                 assert isAopProxy(useCase)
-                assert (useCase as Advised).advisors*.advice.any { it instanceof TransactionInterceptor }
+                assert (useCase as Advised).advisors*.advice*.class == (name in UNAUDITED ? [TransactionInterceptor]
+                        : [TransactionInterceptor, AuditInterceptor])
             }
         }
     }
@@ -100,7 +111,8 @@ class UseCaseConfigurationSpec extends Specification {
 
         then:
         transactions.log == ['begin read-only', 'commit', 'begin read-write', 'commit']
-        calls == ['departments read-only', 'products read-only', 'save read-write', 'departments read-write']
+        calls == ['departments read-only', 'products read-only', 'save read-write', 'departments read-write',
+                  'audit PRODUCT_CREATED read-write']
     }
 
     def "departments are listed in a read-only transaction and created in a read-write one"() {
@@ -122,7 +134,7 @@ class UseCaseConfigurationSpec extends Specification {
 
         then:
         transactions.log == ['begin read-only', 'commit', 'begin read-write', 'commit']
-        calls == ['find all read-only', 'save read-write', 'find all read-write']
+        calls == ['find all read-only', 'save read-write', 'find all read-write', 'audit DEPARTMENT_CREATED read-write']
     }
 
     def "a refused department deletion rolls the transaction back"() {
@@ -141,8 +153,8 @@ class UseCaseConfigurationSpec extends Specification {
         }
 
         then:
-        transactions.log == ['begin read-write', 'rollback']
-        calls == ['find all read-write', 'refused']
+        transactions.log == ['begin read-write', 'suspend', 'begin read-write', 'commit', 'resume', 'rollback']
+        calls == ['find all read-write', 'audit DEPARTMENT_DELETED read-write', 'refused']
         0 * departments.delete(_)
     }
 

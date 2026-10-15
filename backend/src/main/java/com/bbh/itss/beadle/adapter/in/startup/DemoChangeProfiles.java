@@ -1,5 +1,7 @@
 package com.bbh.itss.beadle.adapter.in.startup;
 
+import com.bbh.itss.beadle.application.CallContext;
+import com.bbh.itss.beadle.application.CallContext.Scope;
 import com.bbh.itss.beadle.application.catalog.port.in.ProductView;
 import com.bbh.itss.beadle.application.catalog.port.in.ProductsUseCase;
 import com.bbh.itss.beadle.application.change.port.in.ChangeProfileView;
@@ -82,6 +84,12 @@ public class DemoChangeProfiles {
     @EventListener(ApplicationReadyEvent.class)
     @Order(1)
     public void fillIn() {
+        try (Scope startup = CallContext.actingAs(CallContext.STARTUP)) {
+            log.info("Filled in the demo ProTech change template of {} product(s)", filledIn());
+        }
+    }
+
+    private int filledIn() {
         int filled = 0;
         for (ProductView product : products.list(null)) {
             ChangeProfileView profile = profiles.get(product.id());
@@ -95,7 +103,7 @@ public class DemoChangeProfiles {
                 }
             }
         }
-        log.info("Filled in the demo ProTech change template of {} product(s)", filled);
+        return filled;
     }
 
     static List<TaskDetails> tasksFor(ProductView product, ChangeTemplate defaults) {

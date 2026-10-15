@@ -1,5 +1,7 @@
 package com.bbh.itss.beadle.domain.change;
 
+import com.bbh.itss.beadle.domain.audit.ActionObject;
+import com.bbh.itss.beadle.domain.audit.AuditedObject;
 import com.bbh.itss.beadle.domain.change.ChangeTemplate.Planning;
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException;
 import com.bbh.itss.beadle.domain.shared.ValidationProblems;
@@ -18,15 +20,17 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE;
+import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT;
 import static com.bbh.itss.beadle.domain.change.ChangeState.CTASK_APPROVAL;
 import static com.bbh.itss.beadle.domain.change.ChangeState.DRAFT;
 import static com.bbh.itss.beadle.domain.change.ChangeState.IMPLEMENTATION;
+import static com.bbh.itss.beadle.domain.change.ChangeTask.validateTasks;
 import static com.bbh.itss.beadle.domain.change.ChangeTemplate.REQUIRED;
+import static com.bbh.itss.beadle.domain.change.TaskDetails.MAX_TASKS;
 import static com.bbh.itss.beadle.domain.change.TaskState.CANCELED;
 import static com.bbh.itss.beadle.domain.change.TaskState.CLOSED;
 import static com.bbh.itss.beadle.domain.change.TaskState.OPEN;
-import static com.bbh.itss.beadle.domain.change.ChangeTask.validateTasks;
-import static com.bbh.itss.beadle.domain.change.TaskDetails.MAX_TASKS;
 import static com.bbh.itss.beadle.domain.shared.Text.abbreviateBytes;
 import static com.bbh.itss.beadle.domain.shared.Text.bytes;
 import static java.time.Duration.ofMinutes;
@@ -45,7 +49,8 @@ public record ProductionChange(Long id, String number, Long productId, String pr
                                ChangeTemplate template, List<String> epicKeys, List<String> storyKeys,
                                List<ChangeTask> tasks, String url, ChangeState state, List<WorkflowStep> workflow,
                                List<ChangeApproval> approvals, Instant syncedAt, String syncProblem,
-                               ChangeUpdate update, Long version, Long editedVersion, Instant createdAt) {
+                               ChangeUpdate update, Long version, Long editedVersion, Instant createdAt)
+        implements AuditedObject {
 
     public static final int FIX_VERSION_MAX = 100;
     public static final int SHORT_DESCRIPTION_MAX = 160;
@@ -249,6 +254,13 @@ public record ProductionChange(Long id, String number, Long productId, String pr
 
     public ProductionChange unverified(ProductionChange stored, String problem) {
         return toBuilder().update(update.waitingFor(unappliedIn(stored))).syncProblem(problem).build();
+    }
+
+    /** A raised change is filed in the audit trail under its number; a draft under the product it is drafted for. */
+    @Override
+    public ActionObject auditedObject() {
+        return number == null ? new ActionObject(PRODUCT, productId, productCode)
+                : new ActionObject(CHANGE, id, number);
     }
 
     public ProductionChange withSyncProblem(String problem) {

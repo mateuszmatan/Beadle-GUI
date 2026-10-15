@@ -598,6 +598,50 @@ installation; it is Closed when the post-install validation ends. It applies an 
 change once the installation has started, and refuses to change a closed change. Beadle-ProTech's own demo adapter
 behaves the same way.
 
+### Audit trail
+
+Beadle-GUI is the system of record and keeps the only audit trail of the three services: every call of a use case
+that changes something or calls another system writes one row of `BEADLE_ACTION_HISTORY` (change set
+`028-action-history.sql`), whether the call succeeds or fails. The use-case method names its action with
+`@Audited(Action.X)` (`application/Audited.java`), and `AuditInterceptor` (`config`, registered by
+`UseCaseConfiguration` next to the transaction advisor, inside it) writes the row:
+
+| Column | Holds |
+|--------|-------|
+| `AT`, `DURATION_MS` | when the call started (UTC) and how long it ran |
+| `USER_NAME` | the signed-in user; `system:protech` or `system:internal` for a callback, `system:startup` for the demo data Beadle stores when it starts |
+| `ACTION` | one of the seventeen actions below |
+| `OBJECT_TYPE`, `OBJECT_ID`, `OBJECT_KEY` | what the action was about, taken from the result of the use case or else from its arguments: `CHANGE` with the CHG number, `PRODUCT` with the product code, `CHANGE_PROFILE` (the change template of a product) with the product's id and code, `DEPARTMENT` with its name, `TICKET` with the CyberTrack key, `USER` with the user name; Beadle's database id when the object has one, and the key read from the database when only the id is known (before the call for a deletion) |
+| `DETAILS` | the arguments of the use case by parameter name, as JSON (`{"id": 7, "command": {...}}`); every property whose name contains `token`, `password`, `secret`, `authorization`, `credential` or `apikey` is masked as `*****`, and the text is cut to 32 KB |
+| `OUTCOME`, `MESSAGE` | `SUCCESS`, or `FAILURE` with the message of the exception (for a refused request its field problems, such as `name is too long: ...`) |
+| `CORRELATION_ID` | the correlation id of the user action: the `X-Correlation-Id` of the answer and of the calls to Beadle-Internal and Beadle-ProTech, or the one a callback passed on |
+
+| Action | Recorded by | Object |
+|--------|-------------|--------|
+| `CHANGE_PREVIEWED` | `POST /api/changes/preview` | the product the change is drafted for |
+| `CHANGE_RAISED` | `POST /api/changes` | the change (the product when ProTech did not raise it) |
+| `CHANGE_EDITED` | `PUT /api/changes/{id}` | the change |
+| `CHANGE_TASKS_CREATED` | `POST /api/changes/{id}/tasks` | the change |
+| `SECURE_CODING_TICKET_CREATED` | `POST /api/changes/{id}/secure-coding` | the change |
+| `REMINDER_SENT` | `POST /api/changes/{id}/reminders` | the change |
+| `CHANGE_SYNCED` | `GET /api/changes/{id}`, only when opening the change stored a newer state read from ProTech | the change |
+| `PRODUCT_CREATED`, `PRODUCT_UPDATED`, `PRODUCT_DELETED` | `POST /api/products`, `PUT` and `DELETE /api/products/{id}` | the product |
+| `CHANGE_PROFILE_UPDATED` | `PUT /api/products/{id}/change-profile` | the change template of the product |
+| `DEPARTMENT_CREATED`, `DEPARTMENT_RENAMED`, `DEPARTMENT_DELETED` | `POST /api/departments`, `PUT` and `DELETE /api/departments/{id}` | the department |
+| `USER_SIGNED_IN` | `SignedInUserUseCase.signIn()`, once per session | the user |
+| `CALLBACK_PROTECH` | `POST /api/callbacks/protech` | the change (its number when Beadle did not raise it) |
+| `CALLBACK_INTERNAL` | `POST /api/callbacks/internal` | the ticket |
+
+The row of a call that returns joins the use case's read-write transaction, so it commits together with what the use
+case stored; should that transaction not commit after all, a `FAILURE` row ("The action ended, but its transaction
+did not commit") follows. The row of a call that throws, and every row of a use case that runs without a transaction
+(the change use cases, which call Beadle-ProTech and Beadle-Internal, and the callbacks), is written in a
+`REQUIRES_NEW` transaction of its own, so a refused or rolled-back action still leaves its trace; a row that cannot
+be written there is logged and does not change the answer. Reads write nothing. Beadle only inserts rows:
+`ActionHistoryEntity` is immutable and `ActionHistoryJpaRepository` has neither update nor delete.
+`ActionHistoryUseCase` reads the trail newest first, filtered by user, action, object type, object key (its
+beginning, in any case), outcome and time, in pages of at most 200 rows.
+
 ### Beadle demo data
 
 With `beadle.demo-data` on (`BEADLE_DEMO_DATA`, `true` in the `local` profile) Beadle fills an empty database with ten
@@ -748,7 +792,7 @@ The database starts from the Liquibase history Beadle shared with the DevSecOps 
 Oracle schema written by DSOMgmtPortal carries the same change sets, with the same file names, contents and
 relative references, as a new one: the `DATABASECHANGELOG` rows keep matching. `db.changelog-master.yaml` then adds
 `026-beadle-tables-only.sql`, which drops the pipeline, service, settings and template tables and the columns of a
-product only the DevSecOps Management Portal used, and `027-change-approvals.sql`; every later change is numbered from there. The table
+product only the DevSecOps Management Portal used, and `027-change-approvals.sql` and `028-action-history.sql`; every later change is numbered from there. The table
 names keep their `DSO_` prefix. Most change sets run on Oracle and on H2, a few on one of them only.
 
 ```mermaid
@@ -763,6 +807,17 @@ erDiagram
     DSO_PRODUCTION_CHANGE ||--o{ DSO_PRODUCTION_CHANGE_APPROVAL : has
     DSO_PRODUCTION_CHANGE ||--o{ DSO_PRODUCTION_CHANGE_STAGE : "entered"
     DSO_PRODUCTION_CHANGE ||--o{ DSO_PRODUCTION_CHANGE_PRIVILEGED_USER : has
+    BEADLE_ACTION_HISTORY {
+        NUMBER ID PK
+        TIMESTAMP AT
+        VARCHAR2 USER_NAME
+        VARCHAR2 ACTION
+        VARCHAR2 OBJECT_TYPE
+        VARCHAR2 OBJECT_KEY "CHG, product code, ticket key"
+        CLOB DETAILS "the request as JSON, no secrets"
+        VARCHAR2 OUTCOME "SUCCESS, FAILURE"
+        VARCHAR2 CORRELATION_ID
+    }
     DSO_DEPARTMENT {
         NUMBER ID PK
         VARCHAR2 NAME UK
@@ -819,8 +874,10 @@ Oracle counts `VARCHAR2` columns in bytes, so Beadle checks texts in UTF-8 bytes
 its field ("is too long: it may take at most N bytes") instead of failing in the database: a product name and owner
 team take 200 bytes, a department name 100, a short description 160 and a description 4000.
 
-The contract adds the audit trail of user actions, `BEADLE_ACTION_HISTORY` (change set `028-action-history.sql`),
-in the next stage.
+`028-action-history.sql` adds the audit trail, `BEADLE_ACTION_HISTORY` (`ID`, `AT`, `USER_NAME`, `ACTION`,
+`OBJECT_TYPE`, `OBJECT_ID`, `OBJECT_KEY`, `DETAILS` as a CLOB, `OUTCOME`, `MESSAGE`, `CORRELATION_ID`, `DURATION_MS`,
+with check constraints on the action, the object type and the outcome, and indexes on `AT`, `USER_NAME`, `ACTION` and
+`OBJECT_KEY`); see [Audit trail](#audit-trail).
 
 ## Tests
 
@@ -833,8 +890,8 @@ runs the suites of one module, `./gradlew :backend:regressionTest` one suite.
 
 | Module | Suite | What |
 |--------|-------|------|
-| `backend` | unit (`src/test`, `./gradlew :backend:test`) | domain rules, use cases, adapters (the REST clients against a local HTTP server that records the headers and answers what each spec sets, also an unreachable or failing service), the Liquibase migrations and the architecture rules; JaCoCo fails below 60% line coverage (`-Pcoverage.minimum=`) |
-| `backend` | regression (`src/regressionTest`) | the API end to end on H2 in Oracle mode, with the in-process stand-ins of Beadle-Internal and Beadle-ProTech (profile `stub-services`), the callbacks with and without the service token |
+| `backend` | unit (`src/test`, `./gradlew :backend:test`) | domain rules, use cases, adapters (the REST clients against a local HTTP server that records the headers and answers what each spec sets, also an unreachable or failing service), the audit interceptor with the transactions it joins or opens, the Liquibase migrations and the architecture rules; JaCoCo fails below 60% line coverage (`-Pcoverage.minimum=`) |
+| `backend` | regression (`src/regressionTest`) | the API end to end on H2 in Oracle mode, with the in-process stand-ins of Beadle-Internal and Beadle-ProTech (profile `stub-services`), the callbacks with and without the service token, and the rows of the audit trail they leave |
 | `backend` | smoke (`src/smokeTest`) | starts the service on a fresh database and checks health, the API, that the API of the DevSecOps Management Portal is absent and that the GUI is served on every page; `-Dsmoke.baseUrl=https://...` checks a deployed application, `-Dsmoke.ui=false` skips the GUI checks |
 | `frontend` | unit (Vitest, `./gradlew :frontend:testAngular` or `npx ng test frontend --watch=false`) | components and form models; fails below 60% of lines and statements |
 | `frontend` | smoke, regression (`src/smokeTest`, `src/regressionTest`) | Spock and Playwright in Chromium against a stub API: every page, the menu and footer without any trace of the DevSecOps Management Portal, the user journeys with the requests they send |
@@ -847,7 +904,7 @@ revision Playwright 1.56 asks for; `PLAYWRIGHT_BROWSERS_PATH` points them at a f
 
 - Beadle-GUI signs everybody in as `beadle.signed-in-user` until the Ping (OpenID Connect) sign-in of the contract
   exists, "your department" is the department the user last picked (remembered in the browser) and the Admin area
-  is open to every user until an administrator role exists. The audit trail of the contract is not written yet.
+  is open to every user until an administrator role exists.
 - Jira, CyberTrack and ProTech are as real as Beadle-Internal and Beadle-ProTech make them; until their URLs and
   service accounts are configured there, both run their demo adapters and the pages show "Demo mode".
 - The category, type and risk answer lists are written into Beadle and change only with a new version of it, until

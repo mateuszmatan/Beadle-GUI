@@ -1,5 +1,6 @@
 package com.bbh.itss.beadle.application.catalog;
 
+import com.bbh.itss.beadle.application.Audited;
 import com.bbh.itss.beadle.application.ReadOnly;
 import com.bbh.itss.beadle.application.UseCase;
 import com.bbh.itss.beadle.application.catalog.port.in.ProductCommand;
@@ -15,6 +16,9 @@ import lombok.RequiredArgsConstructor;
 import java.util.List;
 import java.util.Map;
 
+import static com.bbh.itss.beadle.domain.audit.Action.PRODUCT_CREATED;
+import static com.bbh.itss.beadle.domain.audit.Action.PRODUCT_DELETED;
+import static com.bbh.itss.beadle.domain.audit.Action.PRODUCT_UPDATED;
 import static com.bbh.itss.beadle.domain.catalog.ProductCode.suggest;
 import static com.bbh.itss.beadle.domain.shared.Failures.notFound;
 import static com.bbh.itss.beadle.domain.shared.Text.matches;
@@ -47,17 +51,20 @@ public class ProductService implements ProductsUseCase {
     }
 
     @Override
+    @Audited(PRODUCT_CREATED)
     public ProductView create(ProductCommand command) {
         return view(products.save(Product.create(command.details(), products)), departmentNames());
     }
 
     @Override
+    @Audited(PRODUCT_UPDATED)
     public ProductView update(long id, ProductCommand command) {
         Product changed = find(id).change(command.version(), command.details(), products);
         return view(products.save(changed), departmentNames());
     }
 
     @Override
+    @Audited(PRODUCT_DELETED)
     public void delete(long id) {
         find(id);
         products.delete(id);
