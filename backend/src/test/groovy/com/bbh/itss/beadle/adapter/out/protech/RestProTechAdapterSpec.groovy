@@ -40,7 +40,7 @@ class RestProTechAdapterSpec extends ServiceClientSpecification {
             method == 'POST'
             path == '/api/protech/changes'
             header('Authorization') == "Bearer $TOKEN"
-            header('X-Beadle-User') == USER
+            header('X-Beadle-User') == USER_HEADER
             header('X-Correlation-Id') == CORRELATION
             header('Content-Type').startsWith('application/json')
             json.shortDescription == draft.shortDescription()
@@ -101,6 +101,26 @@ class RestProTechAdapterSpec extends ServiceClientSpecification {
         service.requests*.method == ['PUT', 'POST']
         service.requests[0].json.number == 'CHG0031001'
         service.requests[1].json == [role: 'L1', task: null]
+    }
+
+    def "the name of the signed-in user travels percent-encoded in UTF-8, as the contract has it"() {
+        given:
+        signedInName = name
+        service.answer('GET', '/api/protech/lookups/users', 200, [])
+
+        when:
+        bean(ProTechLookupPort).find(LookupKind.USERS, 'a', 20)
+
+        then:
+        service.last.header('X-Beadle-User') == header
+        URLDecoder.decode(service.last.header('X-Beadle-User'), 'UTF-8') == name
+
+        where:
+        name                   || header
+        'Łukasz Wójcik'        || '%C5%81ukasz+W%C3%B3jcik'
+        'Michał Żak-Nowak'     || 'Micha%C5%82+%C5%BBak-Nowak'
+        "Anne O'Neil+Smith"    || 'Anne+O%27Neil%2BSmith'
+        'system'               || 'system'
     }
 
     def "lookups are found by their kind, the text and the limit"() {

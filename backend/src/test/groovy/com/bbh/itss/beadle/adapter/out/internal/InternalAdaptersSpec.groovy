@@ -48,7 +48,7 @@ class InternalAdaptersSpec extends ServiceClientSpecification {
         epics == [new JiraIssue('CERT-12', 'Expiry alerts', 'In Progress', null, LocalDate.parse('2026-10-01'))]
         stories*.epicKey() == ['CERT-12']
         service.requests*.decodedQuery == [null, 'fixVersion=CERT 4.2+hotfix', 'fixVersion=CERT 4.2&epicKeys=CERT-12,CERT-13']
-        service.requests.every { it.header('Authorization') == "Bearer $TOKEN" && it.header('X-Beadle-User') == USER }
+        service.requests.every { it.header('Authorization') == "Bearer $TOKEN" && it.header('X-Beadle-User') == USER_HEADER }
     }
 
     def "stories of no epic are not asked for"() {
@@ -73,6 +73,19 @@ class InternalAdaptersSpec extends ServiceClientSpecification {
                                                  bitbucketUrl: 'https://bitbucket.bbh.com/projects/CERT/repos/cert',
                                                  artifactLink: 'https://jenkins.bbh.com/job/CERT/job/cert-release/',
                                                  qcApplicationLink: 'https://cert.qc.bbh.com']]
+    }
+
+    def "a ticket created by a user with a Polish name names them percent-encoded in UTF-8"() {
+        given:
+        signedInName = 'Łukasz Wójcik'
+        service.answer('POST', '/api/internal/cybertrack/tickets', 201, [key: 'SCP-124', url: null])
+
+        when:
+        cyberTrack.create(TICKET)
+
+        then:
+        service.last.header('X-Beadle-User') == '%C5%81ukasz+W%C3%B3jcik'
+        URLDecoder.decode(service.last.header('X-Beadle-User'), 'UTF-8') == 'Łukasz Wójcik'
     }
 
     def "an answer without the key of the ticket fails the call"() {

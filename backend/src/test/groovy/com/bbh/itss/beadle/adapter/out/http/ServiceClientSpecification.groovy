@@ -35,12 +35,18 @@ abstract class ServiceClientSpecification extends Specification {
 
     static final String TOKEN = 'spec-service-token'
     static final String USER = 'Mateusz Matan'
+    /** {@link #USER} as {@code X-Beadle-User} carries it, percent-encoded in UTF-8. */
+    static final String USER_HEADER = 'Mateusz+Matan'
+
+    /** The name the signed-in user of the clients has; a feature may change it. */
+    static volatile String signedInName = USER
 
     RecordingHttpServer service = new RecordingHttpServer()
     MovableClock clock = new MovableClock()
     ConfigurableApplicationContext context
 
     def setup() {
+        signedInName = USER
         context = start(service.url)
     }
 
@@ -71,7 +77,7 @@ abstract class ServiceClientSpecification extends Specification {
 
         @Bean
         SignedInUserPort signedInUser() {
-            { -> USER } as SignedInUserPort
+            { -> signedInName } as SignedInUserPort
         }
     }
 
