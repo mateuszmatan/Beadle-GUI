@@ -26,6 +26,11 @@ class InternalJiraAdapter implements JiraPort {
     }
 
     @Override
+    public boolean reachable() {
+        return client.status().isPresent();
+    }
+
+    @Override
     public List<JiraVersion> versions(String project) {
         return client.versions(project);
     }

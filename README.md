@@ -149,9 +149,9 @@ The services can start in any order and restart on their own: Beadle-GUI asks th
 they send a callback Beadle-GUI did not take again on their next tick. Beadle-GUI reaches the two others at
 `beadle.services.internal.url` (`BEADLE_INTERNAL_URL`, `http://localhost:8082` in the `local` profile) and
 `beadle.services.protech.url` (`BEADLE_PROTECH_URL`, `http://localhost:8083`), and they call it back at
-`http://localhost:8081` (their `BEADLE_GUI_URL`). Beadle-GUI also starts while they are down: the pages then show the
-"Demo mode" banner, because a service that does not answer counts as not connected, and whatever needs them answers
-503 naming the service ("Beadle-ProTech did not answer when asked to read the changes: Connection refused"); the
+`http://localhost:8081` (their `BEADLE_GUI_URL`). Beadle-GUI also starts while they are down: the pages then say
+"Not reachable. Beadle-ProTech cannot be reached, ..." (or Beadle-Internal) instead of calling it a demo, and whatever
+needs them answers 503 naming the service ("Beadle-ProTech did not answer when asked to read the changes: Connection refused"); the
 Admin pages and Action History work without them. None of the test suites needs them: they put the in-process
 stand-ins of [In-process stand-ins for the tests](#in-process-stand-ins-for-the-tests) in their place.
 
@@ -322,7 +322,8 @@ Beadle's menu has four sections:
   Change: the update is published to ProTech at once, and Beadle checks and shows whether ProTech applied it (the row
   says "Update pending" until then). While an open change of your department has no secure coding ticket, a note on
   its page offers **Create the secure coding ticket** (see [Secure coding ticket](#secure-coding-ticket)). While Jira,
-  ProTech or CyberTrack is not connected, a "Demo mode" banner on Changes and New Change says so.
+  ProTech or CyberTrack is not connected, a "Demo mode" banner on Changes and New Change says so; while Beadle-ProTech
+  or Beadle-Internal does not answer at all, a "Not reachable" banner says what cannot be done until it answers again.
 - **New Change**: the guided wizard that raises a change for a production release. A bar shows its steps with their
   numbers: eight until the change is created ("Step n of 8" heads each one), then **Add CTASKs** and **Secure
   coding** join them and a **Summary** ends the wizard. The button at the bottom names the next step (**Next: Jira**).
@@ -681,8 +682,9 @@ its field problems, `404` not found, `409` and every other `4xx` a conflict with
 "ProTech could not be reached: ..." and **Try again**.
 
 Whether Jira, CyberTrack and ProTech are connected (`GET /api/changes/integrations`, the "Demo mode" banner) is what
-`GET /api/internal/status` and `GET /api/protech/status` answer, asked at most every 30 seconds; a service that does not
-answer counts as not connected. Jira, CyberTrack and ProTech themselves, their URLs and service accounts, and their
+`GET /api/internal/status` and `GET /api/protech/status` answer, asked at most every 30 seconds. A service that does
+not answer counts as not connected and, apart from that, as not reachable (`internalReachable`, `proTechReachable`):
+the pages then show the "Not reachable" banner, not "Demo mode", since nothing runs a demo while the service is down. Jira, CyberTrack and ProTech themselves, their URLs and service accounts, and their
 demo adapters are configured in Beadle-Internal and Beadle-ProTech.
 
 #### Callbacks
@@ -850,7 +852,7 @@ departments.
 | `PUT /api/changes/{id}` | update an open change in ProTech: `version`, `departmentId` (the user's department, which must own the change), `shortDescription`, `description`, `schedule`, `template` and `tasks` (each with its `number`, or none for a new task, its `details` and its `start`; the list may be empty); answers the change with `update.status` `PENDING`, `APPLIED` or `NOT_APPLIED`; 403 for another department, 409 when stale or closed, 503 when ProTech cannot be reached |
 | `POST /api/changes/{id}/secure-coding` | create the secure coding ticket of an open change in CyberTrack and publish its number to ProTech: `version`, `departmentId` (which must own the change), `apoNumber`, `implementationDate` (MMDDYYYY), `bitbucketUrl`, `artifactLink` and `qcApplicationLink`, all required; answers the change with `template.secureCodingTicket`; 400 for a missing or wrong input, 403 for another department, 409 when it already has a ticket or is stale, pending or closed, 503 when CyberTrack cannot be reached or refuses the ticket, or ProTech cannot be reached |
 | `POST /api/changes/{id}/reminders` | remind the approvers of an open change who have not approved yet: `departmentId` (which must own the change) and either `approval` (`BUSINESS`, `L1`, `L2` or `SUPPORT`) or `task` (a CTASK number) for one approval, or neither for everyone who has not approved; answers the change with the `reminder` of each approval reminded; 400 for both or a task the change does not have, 403 for another department, 409 when closed, already approved or nobody is named, 503 when ProTech cannot be reached |
-| `GET /api/changes/integrations` | whether Jira, ProTech and CyberTrack are connected (`jiraConnected`, `proTechConnected`, `cyberTrackConnected`), as Beadle-Internal and Beadle-ProTech report them |
+| `GET /api/changes/integrations` | whether Jira, ProTech and CyberTrack are connected (`jiraConnected`, `proTechConnected`, `cyberTrackConnected`), as Beadle-Internal and Beadle-ProTech report them, and whether those two answer at all (`internalReachable`, `proTechReachable`) |
 | `POST /api/callbacks/protech`, `POST /api/callbacks/internal` | the callbacks of Beadle-ProTech and Beadle-Internal, with the service token; `202` (see [Callbacks](#callbacks)) |
 | `GET /api/action-history?user=&action=&objectType=&objectKey=&outcome=&from=&to=&page=0&size=50` | the audit trail, newest first: `{content, page, size, total}`, each row with `id`, `at`, `user`, `action`, `objectType`, `objectId`, `objectKey`, `details` (JSON text), `outcome`, `message`, `correlationId` and `durationMs`; `objectKey` matches the beginning of the key in any case, or of a key the action created in another system (`"result": {"created": [...]}` in `details`), `from` (inclusive) and `to` (exclusive) are instants (`2026-10-15T00:00:00Z`); 400 for a `page` below 0, a `size` outside 1 to 200, a `from` not before `to`, or an unknown action, object type or outcome |
 | `GET /api/action-history/users`, `GET /api/action-history/actions` | the users and the actions recorded so far, sorted, for the filters of the Action History page |

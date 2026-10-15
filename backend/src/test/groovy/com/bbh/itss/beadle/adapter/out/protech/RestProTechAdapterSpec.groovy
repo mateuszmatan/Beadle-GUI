@@ -168,6 +168,7 @@ class RestProTechAdapterSpec extends ServiceClientSpecification {
         expect:
         proTech.connected()
         proTech.connected()
+        proTech.reachable()
         service.requests.size() == 1
 
         when:
@@ -182,17 +183,19 @@ class RestProTechAdapterSpec extends ServiceClientSpecification {
 
         then:
         !proTech.connected()
+        proTech.reachable()
         service.requests.size() == 2
         service.last.header('Authorization') == "Bearer $TOKEN"
     }
 
-    def "an unreachable Beadle-ProTech is not connected and fails a call as a service that did not answer"() {
+    def "an unreachable Beadle-ProTech is neither connected nor reachable and fails a call as a service that did not answer"() {
         given:
         context.close()
         context = start('http://127.0.0.1:1')
 
         expect:
         !proTech.connected()
+        !proTech.reachable()
 
         when:
         proTech.read([raised()])

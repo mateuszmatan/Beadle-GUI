@@ -107,6 +107,8 @@ class InternalAdaptersSpec extends ServiceClientSpecification {
         expect:
         jira.connected()
         !cyberTrack.connected()
+        jira.reachable()
+        cyberTrack.reachable()
         service.requests.size() == 1
 
         when:
@@ -119,13 +121,15 @@ class InternalAdaptersSpec extends ServiceClientSpecification {
         service.requests.size() == 2
     }
 
-    def "an unreachable or failing Beadle-Internal connects neither"() {
+    def "an unreachable or failing Beadle-Internal connects neither, and neither is reachable"() {
         given:
         service.answer('GET', '/api/internal/status', 503, '')
 
         expect:
         !jira.connected()
         !cyberTrack.connected()
+        !jira.reachable()
+        !cyberTrack.reachable()
 
         when:
         context.close()

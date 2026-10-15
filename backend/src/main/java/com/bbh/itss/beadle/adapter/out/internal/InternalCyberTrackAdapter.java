@@ -37,6 +37,11 @@ class InternalCyberTrackAdapter implements CyberTrackPort {
     }
 
     @Override
+    public boolean reachable() {
+        return client.status().isPresent();
+    }
+
+    @Override
     public String create(SecureCodingTicket ticket) {
         CreatedTicket created = client.createTicket(new TicketRequest(ticket.changeNumber(), ticket.applicationName(),
                 LocalDate.parse(ticket.implementationDate(), FORM_DATE), ticket.inputs()));

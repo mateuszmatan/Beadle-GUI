@@ -67,7 +67,8 @@ class BeadleSmokeSpec extends Specification {
         expect:
         api.get('/api/changes').status == 200
         api.get('/api/changes/integrations').json.keySet() ==
-                ['jiraConnected', 'proTechConnected', 'cyberTrackConnected'] as Set
+                ['jiraConnected', 'proTechConnected', 'cyberTrackConnected', 'internalReachable',
+                 'proTechReachable'] as Set
         api.get('/api/change-profiles').status == 200
         !started || api.get('/api/change-profiles').json.size() >= products.size()
         products.every { product ->

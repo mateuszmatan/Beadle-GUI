@@ -36,6 +36,11 @@ class RestProTechAdapter implements ProTechPort, ProTechLookupPort {
     }
 
     @Override
+    public boolean reachable() {
+        return client.status().isPresent();
+    }
+
+    @Override
     public RaisedChange raise(ProductionChange change) {
         RaisedChange raised = client.raise(change);
         if (raised == null || isBlank(raised.number())) {

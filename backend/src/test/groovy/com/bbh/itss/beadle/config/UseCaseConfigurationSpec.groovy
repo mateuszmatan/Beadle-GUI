@@ -164,6 +164,9 @@ class UseCaseConfigurationSpec extends Specification {
         jira.connected() >> { calls << 'Jira ' + transactionState(); true }
         proTech.connected() >> { calls << 'ProTech ' + transactionState(); false }
         cyberTrack.connected() >> { calls << 'CyberTrack ' + transactionState(); true }
+        jira.reachable() >> true
+        cyberTrack.reachable() >> true
+        proTech.reachable() >> true
 
         when:
         runner.run { ApplicationContext context ->
@@ -171,7 +174,7 @@ class UseCaseConfigurationSpec extends Specification {
         }
 
         then:
-        integrations == new ChangeIntegrations(true, false, true)
+        integrations == new ChangeIntegrations(true, false, true, true, true)
         calls == ['Jira without transaction', 'ProTech without transaction', 'CyberTrack without transaction']
         transactions.log == []
     }

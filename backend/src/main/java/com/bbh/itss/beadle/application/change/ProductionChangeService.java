@@ -134,7 +134,8 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @Override
     @WithoutTransaction
     public ChangeIntegrations integrations() {
-        return new ChangeIntegrations(jira.connected(), proTech.connected(), cyberTrack.connected());
+        return new ChangeIntegrations(jira.connected(), proTech.connected(), cyberTrack.connected(),
+                jira.reachable() && cyberTrack.reachable(), proTech.reachable());
     }
 
     @Override

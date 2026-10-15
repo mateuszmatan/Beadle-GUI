@@ -50,7 +50,13 @@ async function settled(fixture: ComponentFixture<ChangeWizard>) {
 function flushIntegrations(http: HttpTestingController) {
   http
     .expectOne('/api/changes/integrations')
-    .flush({ jiraConnected: false, proTechConnected: false, cyberTrackConnected: false });
+    .flush({
+      jiraConnected: false,
+      proTechConnected: false,
+      cyberTrackConnected: false,
+      internalReachable: true,
+      proTechReachable: true,
+    });
 }
 
 describe('ChangeWizard', () => {

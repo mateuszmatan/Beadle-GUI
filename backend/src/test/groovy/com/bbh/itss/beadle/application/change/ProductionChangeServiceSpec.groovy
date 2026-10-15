@@ -356,7 +356,12 @@ class ProductionChangeServiceSpec extends Specification {
         'versions'| 'a broken project'   | { ProductionChangeService it -> it.versions(1L, 'ce-rt') } || 'project' | JIRA_KEY_MESSAGE
     }
 
-    def "the integrations say whether Jira, ProTech and CyberTrack are connected"() {
+    def "the integrations say whether Jira, ProTech and CyberTrack are connected and whether their services answered"() {
+        given:
+        jira.reachable() >> jiraAnswered
+        cyberTrack.reachable() >> cyberTrackAnswered
+        proTech.reachable() >> proTechAnswered
+
         when:
         def integrations = service.integrations()
 
@@ -364,7 +369,13 @@ class ProductionChangeServiceSpec extends Specification {
         1 * jira.connected() >> false
         1 * proTech.connected() >> true
         1 * cyberTrack.connected() >> false
-        integrations == new ChangeIntegrations(false, true, false)
+        integrations == new ChangeIntegrations(false, true, false, internal, proTechAnswered)
+
+        where:
+        jiraAnswered | cyberTrackAnswered | proTechAnswered || internal
+        true         | true               | true            || true
+        true         | false              | false           || false
+        false        | true               | true            || false
     }
 
     def "the list syncs the open changes with one ProTech read, saves the changed ones and times the rest at once"() {

@@ -284,6 +284,10 @@ export interface ChangeIntegrations {
   jiraConnected: boolean;
   proTechConnected: boolean;
   cyberTrackConnected: boolean;
+  /** Whether Beadle-Internal, which serves Jira and CyberTrack, answered; one that did not runs no demo either. */
+  internalReachable: boolean;
+  /** Whether Beadle-ProTech answered; one that did not runs no demo either. */
+  proTechReachable: boolean;
 }
 
 export const STATES: { value: ChangeState; label: string }[] = [

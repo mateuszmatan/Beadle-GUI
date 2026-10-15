@@ -12,6 +12,14 @@ public interface ProTechPort {
 
     boolean connected();
 
+    /**
+     * Whether the service behind the port answered when last asked; a system that is not {@link #connected()} but
+     * reachable runs as a demo, one that is not reachable cannot be used at all for now.
+     */
+    default boolean reachable() {
+        return true;
+    }
+
     RaisedChange raise(ProductionChange change);
 
     String createTask(String changeNumber, ChangeTask task);

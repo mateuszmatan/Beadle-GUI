@@ -914,7 +914,8 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         api.put('/api/changes/99999', editOf(raised, [:])).status == 404
         api.post('/api/changes/99999/tasks', tasksOf(raised, changeTasksJson(1))).status == 404
         api.get('/api/changes/integrations').json == [jiraConnected: false, proTechConnected: false,
-                                                      cyberTrackConnected: false]
+                                                      cyberTrackConnected: false, internalReachable: true,
+                                                      proTechReachable: true]
     }
 
     private List refused(long id, Map request) {
