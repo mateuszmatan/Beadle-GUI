@@ -33,6 +33,9 @@ import static org.springframework.http.ProblemDetail.forStatusAndDetail;
 @RestControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
+    /** The member of a problem that lists the fields of a refused request, as the contract of the services names it. */
+    static final String PROBLEMS = "problems";
+
     @ExceptionHandler(NoSuchElementException.class)
     ProblemDetail notFound(NoSuchElementException e) {
         return problem(NOT_FOUND, "Not found", e.getMessage());
@@ -68,7 +71,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(InvalidRequestException.class)
     ProblemDetail invalid(InvalidRequestException e) {
         ProblemDetail detail = problem(BAD_REQUEST, "Validation failed", e.getMessage());
-        detail.setProperty("errors", e.problems());
+        detail.setProperty(PROBLEMS, e.problems());
         return detail;
     }
 
@@ -86,7 +89,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         MalformedBody body = MalformedBody.of(e);
         ProblemDetail detail = problem(BAD_REQUEST, "Malformed request", body.detail());
         if (!body.problems().isEmpty()) {
-            detail.setProperty("errors", body.problems());
+            detail.setProperty(PROBLEMS, body.problems());
         }
         return handleExceptionInternal(e, detail, headers, BAD_REQUEST, request);
     }

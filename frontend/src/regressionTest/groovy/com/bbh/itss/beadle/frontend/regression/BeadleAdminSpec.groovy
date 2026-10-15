@@ -107,7 +107,7 @@ class BeadleAdminSpec extends BeadleSpecification {
     def "an administrator adds a product without any DevSecOps setting and lands on its page"() {
         given:
         api.respond('POST', '/api/products', problem(400, 'Bad Request', 'The portal did not accept some values.',
-                [errors: [[field: 'ownerTeam', message: 'is not a BBH team']]]))
+                [problems: [[field: 'ownerTeam', message: 'is not a BBH team']]]))
         api.get('/api/products/3/change-profile') {
             [productId: 3, productName: 'Trade Archive', version: null, updatedAt: null, template: CERT_TEMPLATE, tasks: CERT_TASKS]
         }

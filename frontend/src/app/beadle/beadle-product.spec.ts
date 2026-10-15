@@ -237,7 +237,7 @@ describe('BeadleProduct', () => {
     second.flush(
       {
         detail: 'Invalid request',
-        errors: [
+        problems: [
           { field: 'template.riskAssessment.bbhUsers', message: 'is not one of the options' },
           { field: 'tasks[1].shortDescription', message: 'is used twice' },
         ],
@@ -266,7 +266,7 @@ describe('BeadleProduct', () => {
     tasks().at(1).controls.details.controls.shortDescription.setValue('Validate it');
     editor()['save']();
     saved().flush(
-      { detail: 'Invalid request', errors: [{ field: 'version', message: 'is unknown' }] },
+      { detail: 'Invalid request', problems: [{ field: 'version', message: 'is unknown' }] },
       { status: 400, statusText: 'Bad Request' },
     );
     await settle();

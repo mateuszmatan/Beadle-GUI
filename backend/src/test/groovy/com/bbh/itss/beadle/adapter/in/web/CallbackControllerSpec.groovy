@@ -96,21 +96,28 @@ class CallbackControllerSpec extends Specification {
         0 * callbacks._
     }
 
-    def "a callback #problem is refused with 400"() {
+    def "a callback #problem is refused with 400 naming the field under problems, as the contract has it"() {
         when:
         def response = callback(path, body, "Bearer $TOKEN")
 
         then:
         response.status == 400
+        response.contentType.startsWith('application/problem+json')
         0 * callbacks._
+        with(parse(response.contentAsString)) {
+            it.status == 400
+            problems*.field == [field]
+            problems.every { it.message }
+            !it.containsKey('errors')
+        }
 
         where:
-        problem                  | path                      | body
-        'without a change'       | '/api/callbacks/protech'  | PROTECH + [number: ' ']
-        'with an unknown event'  | '/api/callbacks/protech'  | PROTECH + [event: 'MOVED']
-        'without an event'       | '/api/callbacks/protech'  | PROTECH + [event: null]
-        'of an unknown system'   | '/api/callbacks/internal' | INTERNAL + [system: 'SHAREPOINT']
-        'without a key'          | '/api/callbacks/internal' | INTERNAL + [key: null]
+        problem                  | path                      | body                               || field
+        'without a change'       | '/api/callbacks/protech'  | PROTECH + [number: ' ']            || 'number'
+        'with an unknown event'  | '/api/callbacks/protech'  | PROTECH + [event: 'MOVED']         || 'event'
+        'without an event'       | '/api/callbacks/protech'  | PROTECH + [event: null]            || 'event'
+        'of an unknown system'   | '/api/callbacks/internal' | INTERNAL + [system: 'SHAREPOINT']  || 'system'
+        'without a key'          | '/api/callbacks/internal' | INTERNAL + [key: null]             || 'key'
     }
 
     private def callback(String path, Map body, String authorization) {

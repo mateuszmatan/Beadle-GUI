@@ -10,7 +10,7 @@ export const UNREACHABLE =
 
 interface Problem {
   detail?: unknown;
-  errors?: unknown;
+  problems?: unknown;
 }
 
 export function errorMessage(error: unknown): string {
@@ -32,8 +32,8 @@ export function errorMessage(error: unknown): string {
 
 export function fieldProblems(error: unknown): FieldProblem[] {
   if (error instanceof HttpErrorResponse && error.status === 400) {
-    const errors = problem(error)?.errors;
-    return Array.isArray(errors) ? (errors as FieldProblem[]) : [];
+    const problems = problem(error)?.problems;
+    return Array.isArray(problems) ? (problems as FieldProblem[]) : [];
   }
   return [];
 }

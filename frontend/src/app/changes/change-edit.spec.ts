@@ -251,7 +251,7 @@ describe('ChangeEdit', () => {
     http.expectOne({ method: 'PUT', url: '/api/changes/7' }).flush(
       {
         detail: '2 fields are invalid',
-        errors: [
+        problems: [
           { field: 'schedule.validationEnd', message: 'must be after the start' },
           { field: 'tasks[0].details.shortDescription', message: 'is used twice' },
           { field: 'tasks', message: 'CTASK0020009 is closed in ProTech and cannot be removed' },

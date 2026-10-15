@@ -141,7 +141,7 @@ describe('ProductDialog', () => {
     http.expectOne({ method: 'POST', url: '/api/products' }).flush(
       {
         detail: 'The portal did not accept some values.',
-        errors: [
+        problems: [
           { field: 'ownerTeam', message: 'is not a BBH team' },
           { field: 'code', message: 'is reserved' },
         ],

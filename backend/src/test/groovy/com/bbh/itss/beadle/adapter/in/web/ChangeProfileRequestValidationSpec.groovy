@@ -27,7 +27,7 @@ class ChangeProfileRequestValidationSpec extends Specification {
         then:
         response.status == 400
         problem.title == title
-        problem.errors*.field.sort() == fields
+        problem.problems*.field.sort() == fields
 
         where:
         refusal                  | edits                                                       | tasks       || title               | fields

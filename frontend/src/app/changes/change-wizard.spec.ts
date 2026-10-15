@@ -712,7 +712,7 @@ describe('ChangeWizard', () => {
     http.expectOne({ method: 'POST', url: '/api/changes' }).flush(
       {
         detail: '4 fields are invalid',
-        errors: [
+        problems: [
           { field: 'schedule.installationStart', message: 'must be in the future' },
           { field: 'schedule.installationEnd', message: 'must be after the start' },
           { field: 'template.planning.backoutPlan', message: 'must not be blank' },
@@ -756,7 +756,7 @@ describe('ChangeWizard', () => {
     http.expectOne({ method: 'POST', url: '/api/changes/7/tasks' }).flush(
       {
         detail: '2 fields are invalid',
-        errors: [
+        problems: [
           { field: 'tasks[0].start', message: 'must be inside the installation window' },
           { field: 'tasks[1].details.assignedTo', message: 'is not a ProTech user' },
         ],
@@ -798,7 +798,7 @@ describe('ChangeWizard', () => {
     http.expectOne({ method: 'POST', url: '/api/changes/7/secure-coding' }).flush(
       {
         detail: '2 fields are invalid',
-        errors: [
+        problems: [
           { field: 'apoNumber', message: 'is too long: it may take at most 40 bytes' },
           { field: 'artifactLink', message: 'must be a link starting with https:// or http://' },
         ],

@@ -39,7 +39,8 @@ class ApiExceptionHandlerSpec extends Specification {
             it.status == status
             it.title == title
             it.detail == detail
-            it.properties?.errors == errors
+            it.properties?.problems == problems
+            !it.properties?.containsKey('errors')
         }
 
         where:
@@ -53,7 +54,7 @@ class ApiExceptionHandlerSpec extends Specification {
 
         detail << ['Product 7 does not exist', 'code clash', STALE_VERSION, 'is required', UNEXPECTED,
                    'ProTech timed out']
-        errors << [null, null, null, [PROBLEM], null, null]
+        problems << [null, null, null, [PROBLEM], null, null]
     }
 
     def "a violated database constraint is 409 without the constraint's name"() {
@@ -66,7 +67,7 @@ class ApiExceptionHandlerSpec extends Specification {
         !problem.detail.contains('UK_DSO_PRODUCT_CODE')
     }
 
-    def "bean validation errors are listed per field"() {
+    def "bean validation errors are listed per field under problems, as the contract of the services names them"() {
         when:
         def response = mvc.perform(json(toJson([day: 'FRIDAY', labels: labels]))).andReturn().response
 
@@ -75,7 +76,8 @@ class ApiExceptionHandlerSpec extends Specification {
         with(parse(response.contentAsString)) {
             title == 'Validation failed'
             it.detail == detail
-            errors*.field == fields
+            problems*.field == fields
+            it.errors == null
         }
 
         where:
@@ -94,7 +96,7 @@ class ApiExceptionHandlerSpec extends Specification {
         with(parse(response.contentAsString)) {
             it.title == title
             it.detail == detail
-            errors == null
+            problems == null
         }
 
         where:
@@ -108,6 +110,23 @@ class ApiExceptionHandlerSpec extends Specification {
         'no query value'         | get('/api/samples')                               || 400    | 'Bad Request'            | "Required parameter 'size' is not present."
         'another method'         | post('/api/samples/7')                            || 405    | 'Method Not Allowed'     | "Method 'POST' is not supported."
         'another content type'   | post('/api/samples').contentType(TEXT_PLAIN).content('FRIDAY') || 415 | 'Unsupported Media Type' | "Content-Type 'text/plain' is not supported."
+    }
+
+    def "a value of the body that cannot be read is listed under problems with its field"() {
+        when:
+        def response = mvc.perform(json('{"day": "FUNDAY", "labels": ["a"]}')).andReturn().response
+
+        then:
+        response.status == 400
+        with(parse(response.contentAsString)) {
+            title == 'Malformed request'
+            it.detail == "day $DAYS".toString()
+            problems == [[field: 'day', message: DAYS]]
+            it.errors == null
+        }
+
+        where:
+        DAYS = 'must be one of MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY'
     }
 
     private static MockHttpServletRequestBuilder json(String body) {

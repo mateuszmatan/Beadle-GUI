@@ -67,7 +67,7 @@ class ActionHistoryControllerSpec extends Specification {
         then:
         0 * history._
         response.status == 400
-        parse(response.contentAsString).errors*.field == fields
+        parse(response.contentAsString).problems*.field == fields
 
         where:
         path                                                                                  || fields

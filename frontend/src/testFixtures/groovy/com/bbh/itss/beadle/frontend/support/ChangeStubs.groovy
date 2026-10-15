@@ -479,7 +479,7 @@ final class ChangeStubs {
         Object remind(Map change, Map asked) {
             if (asked.departmentId == null) {
                 return problem(400, 'Validation failed', 'must not be null',
-                        [errors: [[field: 'departmentId', message: 'must not be null']]])
+                        [problems: [[field: 'departmentId', message: 'must not be null']]])
             }
             if (asked.departmentId != change.departmentId) {
                 return problem(403, 'Forbidden', "Only $change.departmentName can remind the approvers of $change.number")
@@ -526,7 +526,7 @@ final class ChangeStubs {
             }
             if (errors) {
                 return problem(400, 'Bad Request', errors.size() == 1 ? errors[0].message : "${errors.size()} fields are invalid",
-                        [errors: errors])
+                        [problems: errors])
             }
             if (change.state == 'CLOSED') {
                 return problem(409, 'Conflict', "$change.number is closed in ProTech and can no longer be changed")

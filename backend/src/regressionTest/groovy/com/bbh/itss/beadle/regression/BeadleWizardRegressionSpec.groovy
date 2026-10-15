@@ -190,7 +190,7 @@ class BeadleWizardRegressionSpec extends ChangeRegressionSpecification {
 
         then:
         incomplete.status == 400
-        incomplete.json.errors.collect { [it.field, it.message] } == [['apoNumber', 'is required'],
+        incomplete.json.problems.collect { [it.field, it.message] } == [['apoNumber', 'is required'],
                 ['bitbucketUrl', 'is required'], ['qcApplicationLink', 'must be a link starting with https:// or http://'],
                 ['implementationDate', 'must be a date written MMDDYYYY, such as 10152026']]
         foreign.status == 403

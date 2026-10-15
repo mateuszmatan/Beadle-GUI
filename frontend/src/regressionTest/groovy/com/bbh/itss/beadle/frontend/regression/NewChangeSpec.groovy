@@ -572,7 +572,7 @@ class NewChangeSpec extends BeadleSpecification {
     def "a change ProTech refuses stays on the review with the reasons, marked on the fields of each step"() {
         given:
         api.respond('POST', '/api/changes', problem(400, 'Bad Request', '3 fields are invalid',
-                [errors: [[field: 'schedule.installationEnd', message: 'must be after the start'],
+                [problems: [[field: 'schedule.installationEnd', message: 'must be after the start'],
                           [field: 'template.planning.backoutPlan', message: 'must not mention Nexus'],
                           [field: 'template.riskAssessment.businessImpact', message: 'is not one of the answers']]]))
 
@@ -626,7 +626,7 @@ class NewChangeSpec extends BeadleSpecification {
     def "change tasks ProTech refuses are marked on their fields, and the change gets them and its secure coding ticket later on its own page"() {
         given:
         api.respond('POST', '/api/changes/5/tasks', problem(400, 'Bad Request', '2 fields are invalid',
-                [errors: [[field: 'tasks[0].start', message: 'must be inside the installation window'],
+                [problems: [[field: 'tasks[0].start', message: 'must be inside the installation window'],
                           [field: 'tasks[1].details.shortDescription', message: 'is used twice']]]))
 
         when:
