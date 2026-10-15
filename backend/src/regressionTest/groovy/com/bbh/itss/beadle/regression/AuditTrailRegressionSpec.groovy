@@ -1,15 +1,23 @@
 package com.bbh.itss.beadle.regression
 
 import com.bbh.itss.beadle.support.PortalClient
+import tools.jackson.databind.DeserializationFeature
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.json.JsonMapper
 
 import java.net.CookieManager
 import java.time.Instant
 
 import static com.bbh.itss.beadle.support.ChangeFixtures.secureCodingJson
+import static com.bbh.itss.beadle.support.ChangeFixtures.tasksJson
+import static com.bbh.itss.beadle.support.ChangeFixtures.templateJson
+import static java.nio.charset.StandardCharsets.UTF_8
 
 class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
 
     static final String CORRELATION = '0b7c2f4e-9d1a-4e6b-8c3f-5a2d7e9f1b40'
+    static final int DETAILS_MAX = 32 * 1024
+    static final JsonMapper STRICT = JsonMapper.builder().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build()
 
     def "creating a product leaves one SUCCESS row under the correlation id of the request"() {
         given:
@@ -136,6 +144,40 @@ class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
         (rowOf(bare).MESSAGE as String).split('; ')*.split(' ')*.getAt(0) as Set ==
                 (bare.json.problems*.field as Set)
         detailsOf(bare) == """{"request":{"productId":$created.id}}""".toString()
+    }
+
+    def "a template of 12 long tasks and a refused body of 100 KB leave details that are JSON within 32 KB"() {
+        given:
+        def code = uniqueCode()
+        def created = createProduct(product(code: code, name: "Large ${code}"))
+        def tasks = (1..12).collect { tasksJson(1)[0] + [description: 'Step ' + it + ' ' + 'x' * 3_890] }
+        def large = change(created, 'CERT 4.2', ['CHG-1']) + [description: 'T' * 100_000]
+
+        when:
+        def saved = api.put("/api/products/$created.id/change-profile", [template: templateJson(), tasks: tasks])
+        def preview = api.post('/api/changes/preview', large)
+        def raise = api.post('/api/changes', large + [fixVersion: ''])
+
+        then:
+        saved.status == 200
+        rowOf(saved).subMap(['ACTION', 'OBJECT_ID', 'OUTCOME']) ==
+                [ACTION: 'CHANGE_PROFILE_UPDATED', OBJECT_ID: created.id as Long, OUTCOME: 'SUCCESS']
+        def template = parsed(detailsOf(saved))
+        template.get('productId').asLong() == created.id as Long
+        template.get('tasks').size() == 12
+        template.get('tasks').every { it.get('description').stringValue() ==~ /Step \d+ x+…/ }
+
+        and:
+        [preview, raise]*.status == [400, 400]
+        rowOf(preview).subMap(['ACTION', 'OUTCOME', 'MESSAGE']) ==
+                [ACTION: 'CHANGE_PREVIEWED', OUTCOME: 'FAILURE', MESSAGE: 'description size must be between 0 and 4000']
+        rowOf(raise).subMap(['ACTION', 'OUTCOME']) == [ACTION: 'CHANGE_RAISED', OUTCOME: 'FAILURE']
+        [preview, raise].every { response ->
+            def request = parsed(detailsOf(response)).get('request')
+            request.get('productId').asLong() == created.id as Long &&
+                    request.get('description').stringValue() ==~ /T{30000,}…/ &&
+                    request.get('fixVersion').stringValue() == (response.is(raise) ? '' : 'CERT 4.2')
+        }
     }
 
     def "a department refused by the validation of its name leaves a FAILURE row with the field problem"() {
@@ -316,6 +358,12 @@ class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
     private String detailsOf(PortalClient.Response response) {
         jdbc.queryForObject('SELECT DETAILS FROM BEADLE_ACTION_HISTORY WHERE CORRELATION_ID = ?', String,
                 response.header('X-Correlation-Id'))
+    }
+
+    /** The details of a row as JSON, which they must be, and within the 32 KB of the column. */
+    private static JsonNode parsed(String details) {
+        assert details.getBytes(UTF_8).length <= DETAILS_MAX
+        STRICT.readTree(details)
     }
 
     private List<String> details(String key) {
