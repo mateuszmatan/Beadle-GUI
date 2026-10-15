@@ -1,0 +1,14 @@
+description = 'Beadle service: ProTech changes, change tasks, change templates and their products, with the departments, the error handling, the use case transactions and the single page app forwarding'
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-liquibase'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-restclient'
+    implementation 'org.apache.commons:commons-lang3'
+    implementation libs.commons.collections4
+    runtimeOnly 'com.h2database:h2'
+    runtimeOnly 'com.oracle.database.jdbc:ojdbc11'
+}
