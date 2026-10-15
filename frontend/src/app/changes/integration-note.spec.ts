@@ -51,7 +51,9 @@ describe('demoText', () => {
       `ProTech is not connected yet, so no change reaches the real ProTech. ${demoProTech}`,
     );
     expect(
-      demoText(answering({ ...nothingConnected, internalReachable: false, proTechReachable: false })),
+      demoText(
+        answering({ ...nothingConnected, internalReachable: false, proTechReachable: false }),
+      ),
     ).toBeNull();
   });
 });
