@@ -19,7 +19,7 @@ import static java.time.ZoneOffset.UTC
 class ChangesSpec extends BeadleSpecification {
 
     static final String SYNC_PROBLEM = 'ProTech could not be reached: Connection refused.'
-    static final String RETRY = 'Try again in a moment; if it keeps failing, tell the portal administrator.'
+    static final String RETRY = 'Try again in a moment; if it keeps failing, tell the Beadle administrator.'
 
     def "a release manager picks the department and filters and sorts its ProTech changes in the table header"() {
         when:

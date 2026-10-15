@@ -24,7 +24,7 @@ describe('Notifier', () => {
     expect(text(toast())).toContain('CertScanner is saved');
     expect(announce).toHaveBeenCalledWith('CertScanner is saved', 'polite');
 
-    notifier.error(new Error('The portal API cannot be reached.'));
+    notifier.error(new Error('The Beadle API cannot be reached.'));
     await settled();
 
     expect(document.querySelectorAll('dso-toast')).toHaveLength(1);

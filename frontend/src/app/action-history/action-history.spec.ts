@@ -322,7 +322,7 @@ describe('ActionHistory', () => {
 
     const banners = [...page().querySelectorAll('.banner')].map(text);
     expect(banners).toEqual([
-      'The lists of users and actions could not be loaded. Try again in a moment; if it keeps failing, tell the portal administrator.Try again',
+      'The lists of users and actions could not be loaded. Try again in a moment; if it keeps failing, tell the Beadle administrator.Try again',
       'The action history could not be loaded: The database is not answering.Try again',
     ]);
 

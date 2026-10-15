@@ -22,8 +22,8 @@ import { FORM_FIELD } from '../ui/form-field';
       <div class="modal-body">
         @if (department) {
           <p class="intro">
-            The new name shows everywhere in the portal at once. The products of the department stay
-            as they are.
+            The new name shows everywhere in Beadle at once. The products of the department stay as
+            they are.
           </p>
         }
         <dso-form-field class="full-width">

@@ -74,7 +74,7 @@ describe('DepartmentDialog', () => {
     await render(department({ version: 2 }));
     expect(page().querySelector('h2')?.textContent).toBe('Rename Corporate Technology');
     expect(text(page().querySelector('.intro'))).toBe(
-      'The new name shows everywhere in the portal at once. The products of the department stay as they are.',
+      'The new name shows everywhere in Beadle at once. The products of the department stay as they are.',
     );
     expect(text(page().querySelector('button[type=submit]'))).toBe('Rename department');
     expect(inputOf(page(), 'Name').value).toBe('Corporate Technology');
@@ -88,7 +88,7 @@ describe('DepartmentDialog', () => {
     expect(close).toHaveBeenCalledWith(department({ name: 'Corporate Tech', version: 3 }));
   });
 
-  it('shows the conflict the portal reports and stays open', async () => {
+  it('shows the conflict Beadle reports and stays open', async () => {
     await render(null);
 
     await submit('custody');

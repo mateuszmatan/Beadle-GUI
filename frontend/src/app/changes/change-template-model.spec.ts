@@ -74,7 +74,7 @@ describe('change template model', () => {
     expect(template.riskAssessment).toMatchObject({ bbhUsers: null, platformStatus: 'New' });
   });
 
-  it('checks the values as the portal does', () => {
+  it('checks the values as Beadle does', () => {
     const form = templateForm(changeTemplate());
     const c = form.controls;
     const invalid = () =>
@@ -131,7 +131,7 @@ describe('change template model', () => {
     expect(c.timing.controls.installationHours.hasError('required')).toBe(true);
   });
 
-  it('counts the length of a text in bytes as the portal does', () => {
+  it('counts the length of a text in bytes as Beadle does', () => {
     const form = templateForm(changeTemplate());
     const c = form.controls;
     const access = c.privilegedAccess.controls;
@@ -258,7 +258,7 @@ describe('change template model', () => {
     expect(riskOf({ ...NOTHING, platformStatus: 'Decommissioned' }, lists)).toBe('High');
   });
 
-  it('marks the fields the portal refused and hands back the problems of other fields', () => {
+  it('marks the fields Beadle refused and hands back the problems of other fields', () => {
     const form = templateForm(
       changeTemplate({
         privilegedAccess: {

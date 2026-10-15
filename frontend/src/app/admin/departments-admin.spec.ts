@@ -124,7 +124,7 @@ describe('DepartmentsAdmin', () => {
     await fixture.whenStable();
 
     expect(text(page().querySelector('.banner'))).toContain(
-      'The departments could not be loaded: The portal cannot be reached.',
+      'The departments could not be loaded: Beadle cannot be reached.',
     );
 
     buttonOf(page().querySelector('.banner')!, 'Try again').click();
@@ -209,7 +209,7 @@ describe('DepartmentsAdmin', () => {
     expect(open.mock.calls[0][1]?.data).toMatchObject({
       title: 'Delete the department Fund Services?',
       message:
-        'Fund Services has no products, so nothing else is deleted with it. It disappears from every list of departments in the portal. This cannot be undone.',
+        'Fund Services has no products, so nothing else is deleted with it. It disappears from every list of departments in Beadle. This cannot be undone.',
       confirmLabel: 'Delete department',
       danger: true,
     });

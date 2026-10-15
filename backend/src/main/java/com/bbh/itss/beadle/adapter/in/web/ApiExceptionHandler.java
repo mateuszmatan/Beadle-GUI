@@ -94,7 +94,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(UncheckedIOException.class)
     ProblemDetail unavailable(UncheckedIOException e) {
-        logger.warn("A system the portal relies on could not be reached: " + e.getMessage());
+        logger.warn("A system Beadle relies on could not be reached: " + e.getMessage());
         return problem(SERVICE_UNAVAILABLE, "Service Unavailable", e.getMessage());
     }
 
@@ -107,9 +107,9 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ProblemDetail unexpected(Exception e) {
-        logger.error("The portal could not serve a request", e);
+        logger.error("Beadle could not serve a request", e);
         return problem(INTERNAL_SERVER_ERROR, "Request failed",
-                "The portal could not handle the request. The failure is in the portal's log.");
+                "Beadle could not handle the request. The failure is in Beadle's log.");
     }
 
     @Override

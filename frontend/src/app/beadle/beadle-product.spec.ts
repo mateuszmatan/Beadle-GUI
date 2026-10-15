@@ -223,7 +223,7 @@ describe('BeadleProduct', () => {
     http.expectNone({ method: 'PUT', url: '/api/products/1/change-profile' });
   });
 
-  it('marks the fields the portal refused and reports a conflict as it is', async () => {
+  it('marks the fields Beadle refused and reports a conflict as it is', async () => {
     await open();
 
     editor()['save']();
@@ -246,7 +246,7 @@ describe('BeadleProduct', () => {
     );
     await settle();
     expect(editor()['saveError']()).toBe(
-      'The portal did not accept some values. They are marked below.',
+      'Beadle did not accept some values. They are marked below.',
     );
     expect(text(fieldOf(page(), 'Number of BBH users impacted')?.querySelector('dso-error'))).toBe(
       'is not one of the options',

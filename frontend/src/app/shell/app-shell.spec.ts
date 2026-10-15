@@ -194,7 +194,7 @@ describe('AppShell', () => {
     expect(signOut()?.disabled).toBe(false);
     expect(signOut()?.hasAttribute('aria-busy')).toBe(false);
     expect(text(toast())).toContain(
-      'You could not be signed out. The portal could not complete the request (error 403 Forbidden).',
+      'You could not be signed out. Beadle could not complete the request (error 403 Forbidden).',
     );
   });
 });

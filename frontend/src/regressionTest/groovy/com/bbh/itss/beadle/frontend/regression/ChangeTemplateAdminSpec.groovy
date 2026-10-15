@@ -163,7 +163,7 @@ class ChangeTemplateAdminSpec extends BeadleSpecification {
         ownErrors().isEmpty()
     }
 
-    def "a suggested change template is checked, a value the portal refuses is marked on its field and a conflict is reloaded"() {
+    def "a suggested change template is checked, a value Beadle refuses is marked on its field and a conflict is reloaded"() {
         when:
         open('/admin/products/2')
 
@@ -225,7 +225,7 @@ class ChangeTemplateAdminSpec extends BeadleSpecification {
         then:
         assertThat(errorOf(defaults(), 'Privileged access 1')).hasText('must be a privileged account')
         assertThat(errorOf(taskRows().nth(1), 'Assigned to')).hasText('is not a ProTech user')
-        assertThat(saveError()).hasText('The portal did not accept some values. They are marked below.')
+        assertThat(saveError()).hasText('Beadle did not accept some values. They are marked below.')
         with(awaitRequest('PUT', '/api/products/2/change-profile', 3).json()) {
             version == 0
             template.timing.installationStart == '19:30'

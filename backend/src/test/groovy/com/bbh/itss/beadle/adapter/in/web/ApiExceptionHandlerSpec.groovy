@@ -1,7 +1,11 @@
 package com.bbh.itss.beadle.adapter.in.web
 
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException.FieldProblem
+import org.slf4j.LoggerFactory
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.test.web.servlet.MockMvc
@@ -30,7 +34,7 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 class ApiExceptionHandlerSpec extends Specification {
 
     static final FieldProblem PROBLEM = new FieldProblem('services[0].build.javaPath', 'is required')
-    static final String UNEXPECTED = "The portal could not handle the request. The failure is in the portal's log."
+    static final String UNEXPECTED = "Beadle could not handle the request. The failure is in Beadle's log."
     static final String DAYS = 'must be one of MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY'
 
     def handler = new ApiExceptionHandler()
@@ -59,6 +63,25 @@ class ApiExceptionHandlerSpec extends Specification {
         detail << ['Product 7 does not exist', 'code clash', STALE_VERSION, 'is required', UNEXPECTED,
                    'ProTech timed out']
         problems << [null, null, null, [PROBLEM], null, null]
+    }
+
+    def "names Beadle, not the portal it came from, in what it logs of a failure"() {
+        given:
+        def logged = new ListAppender<ILoggingEvent>()
+        def logger = LoggerFactory.getLogger(ApiExceptionHandler) as Logger
+        logged.start()
+        logger.addAppender(logged)
+
+        when:
+        handler.unavailable(new UncheckedIOException('Beadle-ProTech did not answer', new IOException()))
+        handler.unexpected(new IllegalStateException('at com.bbh'))
+
+        then:
+        logged.list*.formattedMessage == ['A system Beadle relies on could not be reached: Beadle-ProTech did not answer',
+                                          'Beadle could not serve a request']
+
+        cleanup:
+        logger.detachAppender(logged)
     }
 
     def "a violated database constraint is 409 without the constraint's name"() {

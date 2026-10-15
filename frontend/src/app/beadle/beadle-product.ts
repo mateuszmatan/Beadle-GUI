@@ -282,7 +282,7 @@ export class BeadleProduct implements HasUnsavedChanges {
           this.saveError.set(
             unmatched.length || !problems.length
               ? errorMessage(error)
-              : 'The portal did not accept some values. They are marked below.',
+              : 'Beadle did not accept some values. They are marked below.',
           );
           this.conflict.set(error instanceof HttpErrorResponse && error.status === 409);
         },

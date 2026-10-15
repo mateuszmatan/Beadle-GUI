@@ -185,9 +185,9 @@ describe('ProductAdmin', () => {
     });
     http
       .expectOne({ method: 'DELETE', url: '/api/products/1' })
-      .flush({ detail: 'The portal cannot be reached.' }, { status: 503, statusText: 'Down' });
+      .flush({ detail: 'Beadle cannot be reached.' }, { status: 503, statusText: 'Down' });
     await fixture.whenStable();
-    expect(snack()).toContain('CertScanner could not be deleted. The portal cannot be reached.');
+    expect(snack()).toContain('CertScanner could not be deleted. Beadle cannot be reached.');
     expect(deleted).toEqual([]);
 
     buttonOf(page(), 'Delete product').click();

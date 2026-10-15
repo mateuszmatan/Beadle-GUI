@@ -57,7 +57,7 @@ class DemoProTechLookupsSpec extends Specification {
         lookups.find(USERS, '', 100).size() == DemoProTechLookups.USERS.size() + 1
     }
 
-    def "the departments are the portal's, also as added or renamed in Beadle Admin, and ProTech's others, each once"() {
+    def "the departments are Beadle's, also as added or renamed in Beadle Admin, and ProTech's others, each once"() {
         when:
         def found = lookups.find(DEPARTMENTS, null, 100)
 
@@ -70,7 +70,7 @@ class DemoProTechLookupsSpec extends Specification {
         lookups.find(DEPARTMENTS, 'operations', 20)*.value() == ['Infrastructure & Operations', 'Treasury Operations']
     }
 
-    def "the values stay within the ProTech fields they fill, however long the names in the portal are"() {
+    def "the values stay within the ProTech fields they fill, however long the names in Beadle are"() {
         given:
         def wide = new DemoProTechLookups(Stub(ChangeProductsPort) {
             findAll() >> [new ChangeProduct(1L, 'LONG', 'Ł' * 200, 'Ż' * 200, 3L, 'Custody', null)]

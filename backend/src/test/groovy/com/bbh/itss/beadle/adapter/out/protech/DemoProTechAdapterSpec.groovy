@@ -450,7 +450,7 @@ class DemoProTechAdapterSpec extends Specification {
         'a change it does not hold' | true || 'ProTech has no change CHG0000001'
     }
 
-    def "a change ProTech does not hold, as after a restart, is adopted from the portal's copy"() {
+    def "a change ProTech does not hold, as after a restart, is adopted from Beadle's copy"() {
         given:
         def known = raised(tasks: raised().tasks() + CHECK)
         clock.instant = RAISED.plus(ofMinutes(3))

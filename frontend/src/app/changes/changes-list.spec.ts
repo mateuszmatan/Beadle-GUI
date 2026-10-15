@@ -331,7 +331,7 @@ describe('ChangesList', () => {
 
     expect(text(page().querySelector('.banner[role="status"] span'))).toBe(
       'ProTech could not be reached: timed out. The table shows what Beadle last read from ProTech. ' +
-        'Try again in a moment; if it keeps failing, tell the portal administrator.',
+        'Try again in a moment; if it keeps failing, tell the Beadle administrator.',
     );
 
     buttonOf(page(), 'Try again').click();
@@ -368,7 +368,7 @@ describe('ChangesList', () => {
     expect(text(page().querySelector('.banner[role="status"] span'))).toBe(
       'ProTech has no change CHG0012346. ProTech has no change CHG0012347. ' +
         'The table shows what Beadle last read from ProTech. ' +
-        'Try again in a moment; if it keeps failing, tell the portal administrator.',
+        'Try again in a moment; if it keeps failing, tell the Beadle administrator.',
     );
   });
 

@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { RETRY, errorMessage, fieldProblems } from './errors';
+import { RETRY, UNREACHABLE, errorMessage, fieldProblems } from './errors';
 
 describe('errorMessage', () => {
   it('uses the detail of the problem the API returned', () => {
@@ -21,26 +21,39 @@ describe('errorMessage', () => {
 
   it('names the status when the body is no problem and the reason phrase is empty', () => {
     expect(errorMessage(new HttpErrorResponse({ status: 404, error: 'not json' }))).toBe(
-      `The portal could not complete the request (error 404). ${RETRY}`,
+      `Beadle could not complete the request (error 404). ${RETRY}`,
     );
     expect(
       errorMessage(new HttpErrorResponse({ status: 500, statusText: ' ', error: '[1]' })),
-    ).toBe(`The portal could not complete the request (error 500). ${RETRY}`);
+    ).toBe(`Beadle could not complete the request (error 500). ${RETRY}`);
     expect(
       errorMessage(new HttpErrorResponse({ status: 500, error: JSON.stringify({ detail: ' ' }) })),
-    ).toBe(`The portal could not complete the request (error 500). ${RETRY}`);
+    ).toBe(`Beadle could not complete the request (error 500). ${RETRY}`);
   });
 
   it('explains a request that never reached the API', () => {
     expect(errorMessage(new HttpErrorResponse({ status: 0 }))).toBe(
-      'The portal cannot be reached. Check your network connection and try again.',
+      'Beadle cannot be reached. Check your network connection and try again.',
     );
   });
 
   it('falls back to the status without a problem detail', () => {
     expect(errorMessage(new HttpErrorResponse({ status: 502, statusText: 'Bad Gateway' }))).toBe(
-      `The portal could not complete the request (error 502 Bad Gateway). ${RETRY}`,
+      `Beadle could not complete the request (error 502 Bad Gateway). ${RETRY}`,
     );
+  });
+
+  it('names Beadle, not the portal it came from, in every message of its own', () => {
+    const messages = [
+      RETRY,
+      UNREACHABLE,
+      errorMessage(new HttpErrorResponse({ status: 0 })),
+      errorMessage(new HttpErrorResponse({ status: 502, statusText: 'Bad Gateway' })),
+    ];
+    for (const message of messages) {
+      expect(message).toContain('Beadle');
+      expect(message).not.toMatch(/portal/i);
+    }
   });
 
   it('shows other errors as their message', () => {

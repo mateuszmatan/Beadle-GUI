@@ -344,7 +344,7 @@ describe('ChangeDetail', () => {
     );
     expect(text(page().querySelector('.sync-problem > span'))).toBe(
       'ProTech could not be reached: timed out. Beadle shows what it last read from ProTech 1 hour ago. ' +
-        'Try again in a moment; if it keeps failing, tell the portal administrator.',
+        'Try again in a moment; if it keeps failing, tell the Beadle administrator.',
     );
     expect(page().querySelector('.note.sync')).toBeNull();
     buttonOf(page(), 'Try again').click();
@@ -360,7 +360,7 @@ describe('ChangeDetail', () => {
     );
     expect(text(page().querySelector('.sync-problem > span'))).toBe(
       'ProTech has no change CHG0012345. Beadle shows what it last read from ProTech. ' +
-        'Try again in a moment; if it keeps failing, tell the portal administrator.',
+        'Try again in a moment; if it keeps failing, tell the Beadle administrator.',
     );
   });
 

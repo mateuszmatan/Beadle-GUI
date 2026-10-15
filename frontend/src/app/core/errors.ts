@@ -3,10 +3,9 @@ import { FieldProblem } from '../core/models';
 
 const DEFAULT_REASONS = new Set(['OK', 'Unknown Error']);
 
-export const RETRY = 'Try again in a moment; if it keeps failing, tell the portal administrator.';
+export const RETRY = 'Try again in a moment; if it keeps failing, tell the Beadle administrator.';
 
-export const UNREACHABLE =
-  'The portal cannot be reached. Check your network connection and try again.';
+export const UNREACHABLE = 'Beadle cannot be reached. Check your network connection and try again.';
 
 interface Problem {
   detail?: unknown;
@@ -25,7 +24,7 @@ export function errorMessage(error: unknown): string {
     const reason = error.statusText?.trim();
     const code =
       reason && !DEFAULT_REASONS.has(reason) ? `${error.status} ${reason}` : error.status;
-    return `The portal could not complete the request (error ${code}). ${RETRY}`;
+    return `Beadle could not complete the request (error ${code}). ${RETRY}`;
   }
   return error instanceof Error ? error.message : String(error);
 }

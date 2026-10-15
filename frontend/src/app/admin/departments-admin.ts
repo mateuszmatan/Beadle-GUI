@@ -110,7 +110,7 @@ export class DepartmentsAdmin<D extends Department = Department> {
           title: `Delete the department ${department.name}?`,
           message:
             `${department.name} has no products, so nothing else is deleted with it. ` +
-            'It disappears from every list of departments in the portal. This cannot be undone.',
+            'It disappears from every list of departments in Beadle. This cannot be undone.',
           confirmLabel: 'Delete department',
           danger: true,
         },

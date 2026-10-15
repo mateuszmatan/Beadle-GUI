@@ -198,7 +198,7 @@ describe('BeadleProducts', () => {
     http.expectOne('/api/products').flush(null, { status: 0, statusText: 'Unknown Error' });
     await fixture.whenStable();
     expect(text(page().querySelector('.banner span'))).toBe(
-      'The products could not be loaded. The portal cannot be reached. Check your network connection and try again.',
+      'The products could not be loaded. Beadle cannot be reached. Check your network connection and try again.',
     );
 
     buttonOf(page().querySelector('.banner')!, 'Try again').click();

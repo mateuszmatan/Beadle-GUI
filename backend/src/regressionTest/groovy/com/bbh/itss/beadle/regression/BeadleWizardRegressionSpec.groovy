@@ -10,7 +10,7 @@ class BeadleWizardRegressionSpec extends ChangeRegressionSpecification {
     static final List<String> KINDS = ['users', 'departments', 'assignment-groups', 'releases', 'configuration-items',
                                        'incidents', 'problems', 'clients']
 
-    def "the portal names the user signed in locally, without an email address"() {
+    def "Beadle names the user signed in locally, without an email address"() {
         when:
         def me = api.get('/api/me')
 
