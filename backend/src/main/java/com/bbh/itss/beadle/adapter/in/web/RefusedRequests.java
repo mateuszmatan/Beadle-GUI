@@ -1,5 +1,6 @@
 package com.bbh.itss.beadle.adapter.in.web;
 
+import com.bbh.itss.beadle.adapter.AuditDetails;
 import com.bbh.itss.beadle.adapter.Secrets;
 import com.bbh.itss.beadle.application.CallContext;
 import com.bbh.itss.beadle.application.CallContext.Scope;
@@ -113,7 +114,10 @@ final class RefusedRequests {
         return isNumeric(text) && text.length() < 19 ? Long.valueOf(text) : null;
     }
 
-    /** The path values by name (numbers as numbers) and the body under the name of its parameter, secrets masked. */
+    /**
+     * The path values by name (numbers as numbers) and the body under the name of its parameter, secrets masked, as
+     * JSON that {@link AuditDetails} trims inside the tree to fit the {@code DETAILS} of the row.
+     */
     String details(HandlerMethod handler, Map<String, String> variables, JsonNode body) {
         try {
             ObjectNode details = json.createObjectNode();
@@ -125,7 +129,8 @@ final class RefusedRequests {
             if (bodyName != null) {
                 details.set(bodyName, body == null ? NullNode.getInstance() : body);
             }
-            return json.writeValueAsString(Secrets.masked("", details));
+            Secrets.masked("", details);
+            return AuditDetails.write(json, details);
         } catch (RuntimeException e) {
             log.warn("The refused request could not be written as JSON: {}", e.getMessage());
             return null;
