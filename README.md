@@ -141,9 +141,10 @@ every callback and the two services refuse every call of Beadle-GUI.
 4. Raise a change in New Change. Beadle-GUI raises it through Beadle-ProTech, whose demo ProTech moves it through the
    approvals every two minutes and calls Beadle-GUI back each time; the change page follows, and Action History shows
    `Change raised` by you, then `ProTech callback` rows by `system:protech` that carry the correlation id of the last
-   action on the change (the raise, or the latest time it was opened), which the logs of the three services carry
-   too. Creating the secure coding ticket goes through Beadle-Internal the same
-   way, and its callback arrives as `system:internal` once the demo CyberTrack moves the ticket.
+   action on the change (the raise, or the latest time it was opened), the id under which the call log of
+   Beadle-ProTech files the calls of that action too (`GET /api/protech/call-log?correlationId=`). Creating the secure
+   coding ticket goes through Beadle-Internal the same way, and its callback arrives as `system:internal` once the
+   demo CyberTrack moves the ticket.
 
 The services can start in any order and restart on their own: Beadle-GUI asks them again on the next request, and
 they send a callback Beadle-GUI did not take again on their next tick. Beadle-GUI reaches the two others at
@@ -211,8 +212,8 @@ under the prefix `beadle.` its own settings, one document per profile.
 `beadle.gui.pages` (`changes, new-change, admin, action-history`) names the pages of the interface the service forwards to
 `index.html` at any depth; every other `GET` of an address outside `/api`, `/actuator`, `/error` and the sign-in whose
 last segment has no file extension is forwarded there too (`SinglePageAppForwarding`), so an unknown address reaches the
-wildcard route of the app, which shows Changes, and a missing file stays a `404`. The log lines carry the correlation id of the request they belong to (`[%X{correlationId}]`, set by
-`logging.pattern.correlation`).
+wildcard route of the app, which shows Changes, and a missing file stays a `404`. The log lines carry the correlation
+id of the request they belong to (`[%X{correlationId}]`, set by `logging.pattern.correlation`).
 Liquibase runs on every start, on H2 and on Oracle. Secrets come from environment variables that OpenShift fills from
 secrets; none is written to the repository, a log or a test fixture.
 
@@ -681,17 +682,19 @@ to connect and 30 seconds to answer and the headers of the contract.
 |--------|------------------------------------------------------------------|----------------------------------|
 | `Authorization` | `Bearer <BEADLE_SERVICE_TOKEN>`; the two services answer `401` without it or with another one, which Beadle-GUI answers `503` ("Beadle-ProTech refused the service token of Beadle-GUI when asked to ...") | `Bearer <BEADLE_SERVICE_TOKEN>`, checked by `ServiceTokenFilter` in a filter chain of its own, without a session or a CSRF token; `401` without it, with another token, or while Beadle-GUI has none |
 | `X-Beadle-User` | who caused the call (`CallerHeaders`): the name of the signed-in user as Ping gives it (or `beadle.signed-in-user` in mode `local`), percent-encoded in UTF-8 as `URLEncoder` writes it because a header carries ASCII only (`Łukasz Wójcik` travels as `%C5%81ukasz+W%C3%B3jcik`, and the two services decode it); `system` while Beadle acts for a system, that is for a callback or for the demo data it stores when it starts. The services only log it; Jira, CyberTrack and ProTech see Beadle's service accounts | `system`; Beadle-GUI records the callback as `system:protech` or `system:internal` whatever it says |
-| `X-Correlation-Id` | the correlation id of the user action, so one action reads the same in the logs of all three services | the correlation id of the user action the callback reports on (also in its body), which Beadle-GUI takes over for what the callback causes |
+| `X-Correlation-Id` | the correlation id of the user action, so one action reads the same in Action History, in the call logs of Beadle-Internal and Beadle-ProTech and on the log lines Beadle-GUI writes for it, such as the warning of a failure | the correlation id of the user action the callback reports on (also in its body), which Beadle-GUI takes over for what the callback causes |
 
 `CorrelationIdFilter` (`config`) gives every request to Beadle-GUI its correlation id: a callback
 (`/api/callbacks/**`, which needs the service token) keeps the `X-Correlation-Id` it brings when it is a UUID, and
 every other request gets a new UUID whatever it sends, since Beadle-GUI mints the id of each user action and a user
 must not file an action under the id of another. It binds the id
 to the request for the calls Beadle makes on its behalf, puts it into the log context (`[%X{correlationId}]` on every
-log line) and the audit row of the action, and answers it in the `X-Correlation-Id` response header, so a user who
-reports an error can quote it and an operator finds the action in Action History and in the logs of all three
-services. The browser sends none of these headers: it signs in with Ping and carries its session cookie and the CSRF
-token (see [Signing in](#signing-in)).
+log line Beadle-GUI writes for the request, such as the warning of a failure) and the audit row of the action, and
+answers it in the `X-Correlation-Id` response header, so a user who reports an error can quote it and an operator finds
+the action in Action History, the calls it caused in the call logs of Beadle-Internal and Beadle-ProTech
+(`GET /api/internal/call-log?correlationId=`, `GET /api/protech/call-log?correlationId=`) and the log lines of
+Beadle-GUI about it. The browser sends none of these headers: it signs in with Ping and carries its session cookie and
+the CSRF token (see [Signing in](#signing-in)).
 
 The changes and change tasks travel as the JSON of `ProductionChange` and `ChangeTask`. A service that cannot be
 reached or answers `5xx`, and a call the HTTP client cannot even send, fail the call with a message that names the
@@ -812,9 +815,9 @@ failure and the request as JSON, with its secrets masked. It answers the usual q
 - what someone did on a day: their name, and the day as first and last day;
 - what went wrong: outcome Failure; the message says why ("Beadle-ProTech did not answer ...", the field problems of a
   refusal) and the request shows what was sent;
-- what one click caused further on: its correlation id in the logs of the three services and in the call logs of
-  Beadle-Internal and Beadle-ProTech (`GET /api/internal/call-log?correlationId=`,
-  `GET /api/protech/call-log?correlationId=`).
+- what one click caused further on: its correlation id in the call logs of Beadle-Internal and Beadle-ProTech
+  (`GET /api/internal/call-log?correlationId=`, `GET /api/protech/call-log?correlationId=`), in the callbacks they sent
+  about it here, and on the log lines Beadle-GUI wrote for it, such as the warning of a failure.
 
 On Oracle the table can also be read directly, for example
 `SELECT AT, USER_NAME, ACTION, OBJECT_KEY, OUTCOME, MESSAGE FROM BEADLE_ACTION_HISTORY WHERE CORRELATION_ID = '...'`.
