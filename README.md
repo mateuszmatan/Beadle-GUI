@@ -757,7 +757,7 @@ the installation; a change without change tasks stays in CTask approval, and a t
 assignment group after it sends the change back there. Closed when the post-install validation ends. Its tasks are Work in progress while a change In Progress is
 being installed and Closed once the change is. It records every reminder and answers with the people it reminded, and
 sends nothing. It applies an update
-`dso.demo.protech-apply-delay` (default `PT3S`) after it was published, except a schedule change once the installation
+`beadle.demo.protech-apply-delay` (default `PT3S`) after it was published, except a schedule change once the installation
 has started, and refuses to change a closed change. A new schedule keeps the stages a change has reached; the next ones
 follow the rule above for the new schedule, but never before the moment the schedule was applied. After a restart it
 takes Beadle's copy of each change it is asked for. Connecting the real systems needs:
@@ -790,7 +790,7 @@ takes Beadle's copy of each change it is asked for. Connecting the real systems 
 
 ### Beadle demo data
 
-With `dso.demo-data` on (`BEADLE_DEMO_DATA`, `true` in the `local` profile) Beadle fills an empty database with ten
+With `beadle.demo-data` on (`BEADLE_DEMO_DATA`, `true` in the `local` profile) Beadle fills an empty database with ten
 products in the five departments (`adapter/in/startup/DemoProducts.java`: DocSense and Advisor Assistant in AI Lab,
 DealFlow and LP Portal in Capital Partners, Access Hub and CertScanner in Corporate Technology, Safekeeping Ledger and
 Corporate Actions in Custody, Payments Hub and NAV Calculator in Fund Services) and does nothing once the database
@@ -877,13 +877,13 @@ flowchart LR
 ```
 
 The two services never talk to each other and share no database; what they share is code, through `common-backend`
-and `common-gui`. Each backend module (`<module>/src/main/java/com/bbh/itss/dso/portal`) is hexagonal:
+and `common-gui`. Each backend module (`<module>/src/main/java/com/bbh/itss/beadle`) is hexagonal:
 
 | Package | Holds |
 |---------|-------|
 | `domain` | plain Java: in `common-backend` the departments and the shared value rules; in `dso-backend` products, services and their settings, pipelines and keys, the library defaults, the service template, the rendered configuration and DORA metrics; in `beadle-backend` the change templates and the ProTech changes with their tasks, sync and update rules; every business rule lives here |
 | `application` | the use cases behind ports, per area (`catalog` in every module, `dsoconfig`, `monitoring`, `pipeline` and `settings` in the portal, `change` and `user` in Beadle), each with its `port.in` and `port.out` packages; `@UseCase` classes become transactional beans, without Spring in the code |
-| `adapter.in` | Spring MVC controllers with the request and response records (`web`), the forwarding of the GUI pages to `index.html` (`SinglePageAppForwarding`, which reads the pages of the application from `dso.gui.pages`), and the start-up tasks (`startup`) |
+| `adapter.in` | Spring MVC controllers with the request and response records (`web`), the forwarding of the GUI pages to `index.html` (`SinglePageAppForwarding`, which reads the pages of the application from `beadle.gui.pages`), and the start-up tasks (`startup`) |
 | `adapter.out` | JPA entities and Spring Data repositories (`persistence`); in the portal the InfluxDB client (`influx`), the Grafana links (`grafana`) and the key generator (`key`); in Beadle the demo Jira, ProTech, lookup and CyberTrack adapters with the demo changes (`jira`, `servicenow`) and the signed-in user (`user`) |
 | `config` | the wiring of use cases, transactions and the clock, in `common-backend` |
 

@@ -4,7 +4,7 @@ labels:
   - includeSelectors: true
     pairs:
       app.kubernetes.io/name: beadle
-      app.kubernetes.io/part-of: bbh-devsecops
+      app.kubernetes.io/part-of: beadle
 resources:
   - deployment.yaml
   - service.yaml

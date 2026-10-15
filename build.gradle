@@ -21,7 +21,7 @@ def performanceFactor = providers.systemProperty('performance.factor')
   .getOrElse('2.0')
 
 allprojects {
-    group = 'com.bbh.itss.dso'
+    group = 'com.bbh.itss.beadle'
     version = findProperty('artifactVersion') ?: '0.1.0-SNAPSHOT'
 }
 
