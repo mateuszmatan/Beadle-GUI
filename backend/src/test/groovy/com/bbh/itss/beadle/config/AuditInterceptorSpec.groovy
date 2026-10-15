@@ -12,8 +12,10 @@ import com.bbh.itss.beadle.application.catalog.port.in.ProductsUseCase
 import com.bbh.itss.beadle.application.catalog.port.out.DepartmentRepositoryPort
 import com.bbh.itss.beadle.application.catalog.port.out.DepartmentUsagePort
 import com.bbh.itss.beadle.application.catalog.port.out.ProductRepositoryPort
+import com.bbh.itss.beadle.application.change.port.in.ChangeEditCommand
 import com.bbh.itss.beadle.application.change.port.in.ChangeTasksCommand
 import com.bbh.itss.beadle.application.change.port.in.ProductionChangesUseCase
+import com.bbh.itss.beadle.application.change.port.in.ReminderCommand
 import com.bbh.itss.beadle.application.change.port.out.ChangeProductsPort
 import com.bbh.itss.beadle.application.change.port.out.ChangeProfileRepositoryPort
 import com.bbh.itss.beadle.application.change.port.out.CyberTrackPort
@@ -29,6 +31,7 @@ import com.bbh.itss.beadle.domain.callback.ProTechCallback
 import com.bbh.itss.beadle.domain.catalog.Department
 import com.bbh.itss.beadle.domain.catalog.DepartmentUsage
 import com.bbh.itss.beadle.domain.change.ChangeTask
+import com.bbh.itss.beadle.domain.change.ProductionChange
 import com.bbh.itss.beadle.domain.change.WorkflowStep
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException
 import com.bbh.itss.beadle.support.ChangeFixtures
@@ -51,11 +54,13 @@ import java.util.function.Supplier
 
 import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_INTERNAL
 import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_PROTECH
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_EDITED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_SYNCED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_TASKS_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_DELETED
 import static com.bbh.itss.beadle.domain.audit.Action.PRODUCT_CREATED
+import static com.bbh.itss.beadle.domain.audit.Action.REMINDER_SENT
 import static com.bbh.itss.beadle.domain.audit.Action.USER_SIGNED_IN
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.SUCCESS
@@ -66,7 +71,9 @@ import static com.bbh.itss.beadle.domain.audit.ObjectType.TICKET
 import static com.bbh.itss.beadle.domain.audit.ObjectType.USER
 import static com.bbh.itss.beadle.domain.callback.InternalSystem.CYBERTRACK
 import static com.bbh.itss.beadle.domain.callback.ProTechEvent.STATE_CHANGED
+import static com.bbh.itss.beadle.domain.change.ApprovalRole.BUSINESS
 import static com.bbh.itss.beadle.domain.change.ChangeState.BUSINESS_APPROVAL
+import static com.bbh.itss.beadle.domain.change.ChangeState.CLOSED
 import static com.bbh.itss.beadle.domain.change.ChangeState.DRAFT
 import static com.bbh.itss.beadle.support.ChangeFixtures.RAISED
 import static com.bbh.itss.beadle.support.ChangeFixtures.raised
@@ -347,6 +354,67 @@ class AuditInterceptorSpec extends Specification {
                 [CHANGE_SYNCED, 'CHG0031002', FAILURE, 'The database is full']]
     }
 
+    def "#refusal after storing the newer state ProTech holds records that state as synced before its FAILURE row"() {
+        given:
+        keys.keyOf(CHANGE, 7L) >> Optional.of('CHG0031001')
+        changes.load(7L) >> Optional.of(raised())
+        changes.save(_) >> { ProductionChange it -> it.toBuilder().version(1L).build() }
+        proTech.read(_) >> [CHG0031001: remote]
+
+        when:
+        use(ProductionChangesUseCase, call)
+
+        then:
+        thrown(RuntimeException)
+        rows.collect { [it.action(), it.objectType(), it.objectId(), it.objectKey(), it.outcome(), it.message()] } == [
+                [CHANGE_SYNCED, CHANGE, 7L, 'CHG0031001', SUCCESS, null],
+                [action, CHANGE, 7L, 'CHG0031001', FAILURE, message]]
+        rows*.details().every { it.startsWith(details) }
+        rows[0].details() == rows[1].details()
+        rows[0].correlationId() != null
+        rows[0].correlationId() == rows[1].correlationId()
+        transactions.log == ['begin read-write', 'audit row read-write', 'commit'] * 2
+        0 * proTech.remind(*_)
+        0 * proTech.update(_)
+
+        where:
+        refusal                                     | remote                | call                                                             || action        | message                                                                  | details
+        'a reminder of a change ProTech closed'     | raised(state: CLOSED) | { it.remind(7L, new ReminderCommand(3L, BUSINESS, null)) }       || REMINDER_SENT | 'CHG0031001 is closed in ProTech, so nobody is reminded to approve it'   | '{"id":7,"command":{"departmentId":3,"approval":"BUSINESS","task":null}}'
+        'a reminder of a task the change lacks'     | moved()               | { it.remind(7L, new ReminderCommand(3L, null, 'CTASK0049999')) } || REMINDER_SENT | 'task CTASK0049999 is not a change task of CHG0031001'                   | '{"id":7,"command":{"departmentId":3,"approval":null,"task":"CTASK0049999"}}'
+        'an edit of a change ProTech closed'        | raised(state: CLOSED) | { it.update(7L, unchangedEdit()) }                               || CHANGE_EDITED | 'CHG0031001 is closed in ProTech and can no longer be changed'           | '{"id":7,"command":{"version":0,"departmentId":3,"shortDescription":'
+        'change tasks for a change ProTech closed'  | raised(state: CLOSED) | { it.createTasks(7L, new ChangeTasksCommand(0L, 3L, [releaseTask([:], null)])) } || CHANGE_TASKS_CREATED | 'CHG0031001 is closed in ProTech and can no longer be changed' | '{"id":7,"command":{"version":0,"departmentId":3,"tasks":['
+    }
+
+    def "a reminder refused before ProTech is read leaves only its FAILURE row and the change as it was"() {
+        given:
+        keys.keyOf(CHANGE, 7L) >> Optional.of('CHG0031001')
+        changes.load(7L) >> Optional.of(raised())
+
+        when:
+        use(ProductionChangesUseCase) { it.remind(7L, new ReminderCommand(3L, BUSINESS, 'CTASK0041002')) }
+
+        then:
+        thrown(InvalidRequestException)
+        rows.collect { [it.action(), it.objectKey(), it.outcome(), it.message()] } == [
+                [REMINDER_SENT, 'CHG0031001', FAILURE, 'task Remind the approvers of either the change or one change task']]
+        0 * proTech._
+        0 * changes.save(_)
+    }
+
+    def "an action that succeeds records only its own row, also when it stored the newer state on its way"() {
+        given:
+        changes.load(7L) >> Optional.of(raised())
+        changes.save(_) >> { ProductionChange it -> it.toBuilder().version(it.version() + 1).build() }
+        proTech.read(_) >> [CHG0031001: moved()]
+        proTech.remind('CHG0031001', _) >> ['Olivia Bennett']
+
+        when:
+        use(ProductionChangesUseCase) { it.remind(7L, new ReminderCommand(3L, BUSINESS, null)) }
+
+        then:
+        rows.collect { [it.action(), it.objectKey(), it.outcome()] } == [[REMINDER_SENT, 'CHG0031001', SUCCESS]]
+    }
+
     def "an invalid request is recorded with its problems, its object named by the arguments and its long details trimmed"() {
         given:
         def name = 'N' * 40_000
@@ -471,6 +539,19 @@ class AuditInterceptorSpec extends Specification {
                 '{"name":"CertScanner","serviceToken":"*****","nested":{"clientSecret":"*****","password":null,' +
                 '"list":[{"Authorization":"*****","apiKey":"*****","keep":"visible"}]}}'
         mapper.writeValueAsString(Secrets.masked('token', mapper.readTree('"plain"'))) == '"*****"'
+    }
+
+    /** The raised change as ProTech moved it on to Business Approval. */
+    private static ProductionChange moved() {
+        raised(state: BUSINESS_APPROVAL,
+                workflow: [new WorkflowStep(DRAFT, RAISED), new WorkflowStep(BUSINESS_APPROVAL, NOW)])
+    }
+
+    /** An edit of the raised change that sends it as it is. */
+    private static ChangeEditCommand unchangedEdit() {
+        def change = raised()
+        new ChangeEditCommand(0L, 3L, change.shortDescription(), change.description(), change.schedule(),
+                change.template(), change.tasks())
     }
 
     private <T, R> R use(Class<T> useCase, Closure<R> work) {

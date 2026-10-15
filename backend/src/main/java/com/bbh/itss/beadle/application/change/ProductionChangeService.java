@@ -57,6 +57,7 @@ import static com.bbh.itss.beadle.domain.change.JiraVersion.UNRELEASED_NEWEST_FI
 import static com.bbh.itss.beadle.domain.change.ProductionChange.DESCRIPTION_MAX;
 import static com.bbh.itss.beadle.domain.change.ProductionChange.FIX_VERSION_MAX;
 import static com.bbh.itss.beadle.domain.change.ProductionChange.SHORT_DESCRIPTION_MAX;
+import static com.bbh.itss.beadle.domain.change.ProductionChange.checkReminder;
 import static com.bbh.itss.beadle.domain.change.ProductionChange.checkTemplate;
 import static com.bbh.itss.beadle.domain.change.ProductionChange.checkTemplateAndSchedule;
 import static com.bbh.itss.beadle.domain.shared.Failures.notFound;
@@ -230,6 +231,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     public ProductionChange remind(long id, ReminderCommand command) {
         ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
         requireDepartment(stored, command.departmentId(), "remind the approvers of");
+        checkReminder(command.approval(), command.task());
         ProductionChange current = synced(stored);
         if (current.syncProblem() != null) {
             throw new IllegalStateException(current.syncProblem());
@@ -374,13 +376,22 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         return synced;
     }
 
+    /**
+     * Stores the newer state read from ProTech: the action of opening or listing the change, which records it as
+     * {@code CHANGE_SYNCED}, or a step on the way to another action, which records it so only when that action then
+     * fails, as its own row stands for what it stored when it succeeds. A change someone stored meanwhile is taken as
+     * they stored it.
+     */
     private ProductionChange saved(ProductionChange synced, ProductionChange stored) {
         AuditNotes.tookPlace(stored);
+        ProductionChange saved;
         try {
-            return changes.save(synced);
+            saved = changes.save(synced);
         } catch (IllegalStateException stale) {
             return changes.load(stored.id()).orElseThrow(() -> stale);
         }
+        AuditNotes.storedOnTheWay(CHANGE_SYNCED, saved);
+        return saved;
     }
 
     private void publish(ProductionChange claimed, ProductionChange current) {

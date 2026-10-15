@@ -1,5 +1,6 @@
 package com.bbh.itss.beadle.regression
 
+import com.bbh.itss.beadle.support.PortalClient
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 
@@ -59,6 +60,56 @@ class ProTechApplyRegressionSpec extends ChangeRegressionSpecification {
                 WHERE OBJECT_KEY = ? AND ACTION = 'CHANGE_SYNCED' ORDER BY ID''', raised.number).any { row ->
             row.USER_NAME == SIGNED_IN && row.OBJECT_TYPE == 'CHANGE' && row.OBJECT_ID as long == raised.id &&
                     row.OUTCOME == 'SUCCESS' && row.DETAILS == "{\"departmentId\":$raised.departmentId}".toString()
+        }
+    }
+
+    def "a reminder refused after ProTech applied an update records the applied state it stored as synced"() {
+        given:
+        def raised = raise(createProduct(product(code: uniqueCode(), name: "Reminded ${uniqueCode()}")))
+        def updated = api.put("/api/changes/$raised.id", editOf(raised, [shortDescription: 'Reminded release'])).json
+
+        when:
+        def both = api.post("/api/changes/$raised.id/reminders", [departmentId: raised.departmentId,
+                                                                  approval: 'BUSINESS', task: raised.tasks[0].number])
+        Map before = stored(raised.id as long)
+        def refused = remindOnceApplied(raised.id as long, raised.departmentId as long)
+
+        then:
+        updated.update.status == 'PENDING'
+        both.status == 400
+        rowsOf(both) == [[ACTION: 'REMINDER_SENT', OBJECT_ID: raised.id as Long, OUTCOME: 'FAILURE']]
+        before == [VERSION: updated.version as Long, UPDATE_STATUS: 'PENDING']
+        refused.json.problems == [[field: 'task', message: "CTASK0000000 is not a change task of $raised.number".toString()]]
+        stored(raised.id as long).UPDATE_STATUS == 'APPLIED'
+        rowsOf(refused) == [[ACTION: 'CHANGE_SYNCED', OBJECT_ID: raised.id as Long, OUTCOME: 'SUCCESS'],
+                            [ACTION: 'REMINDER_SENT', OBJECT_ID: raised.id as Long, OUTCOME: 'FAILURE']]
+    }
+
+    /**
+     * Asks for a reminder of a task the change does not have, which Beadle refuses only once it read the change from
+     * ProTech, until the refusal is the one that stored the update ProTech applied meanwhile.
+     */
+    private PortalClient.Response remindOnceApplied(long id, long departmentId) {
+        for (int attempt = 0; attempt < 40; attempt++) {
+            def refused = api.post("/api/changes/$id/reminders", [departmentId: departmentId, task: 'CTASK0000000'])
+            assert refused.status == 400: refused
+            if (stored(id).UPDATE_STATUS != 'PENDING') {
+                return refused
+            }
+            sleep(250)
+        }
+        throw new AssertionError("ProTech has not applied the update of change $id")
+    }
+
+    private Map stored(long id) {
+        jdbc.queryForMap('SELECT VERSION, UPDATE_STATUS FROM DSO_PRODUCTION_CHANGE WHERE ID = ?', id)
+                .collectEntries { name, value -> [name, value instanceof Number ? value as Long : value] }
+    }
+
+    private List<Map> rowsOf(PortalClient.Response response) {
+        jdbc.queryForList('''SELECT ACTION, OBJECT_ID, OUTCOME FROM BEADLE_ACTION_HISTORY WHERE CORRELATION_ID = ?
+                AND ACTION <> 'USER_SIGNED_IN' ORDER BY ID''', response.header('X-Correlation-Id')).collect { row ->
+            row.collectEntries { name, value -> [name, value instanceof Number ? value as Long : value] }
         }
     }
 

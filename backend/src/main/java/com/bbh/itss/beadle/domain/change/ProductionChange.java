@@ -220,13 +220,21 @@ public record ProductionChange(Long id, String number, Long productId, String pr
         return !active.isEmpty() && active.stream().noneMatch(ChangeTask::awaited);
     }
 
+    /**
+     * A reminder goes to the approvers of the change or of one change task, not both; a rule of the request alone, so
+     * Beadle checks it before it reads the change from ProTech.
+     */
+    public static void checkReminder(ApprovalRole role, String task) {
+        if (role != null && task != null) {
+            throw InvalidRequestException.of("task", "Remind the approvers of either the change or one change task");
+        }
+    }
+
     public List<ApprovalRef> toRemind(ApprovalRole role, String task) {
         if (!state.isOpen()) {
             throw new IllegalStateException(number + " is closed in ProTech, so nobody is reminded to approve it");
         }
-        if (role != null && task != null) {
-            throw InvalidRequestException.of("task", "Remind the approvers of either the change or one change task");
-        }
+        checkReminder(role, task);
         if (role != null) {
             return List.of(remindable(approvalOf(role)));
         }

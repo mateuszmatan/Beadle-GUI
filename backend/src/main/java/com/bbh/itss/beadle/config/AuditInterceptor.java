@@ -3,6 +3,7 @@ package com.bbh.itss.beadle.config;
 import com.bbh.itss.beadle.adapter.Secrets;
 import com.bbh.itss.beadle.application.AuditNotes;
 import com.bbh.itss.beadle.application.AuditNotes.Listening;
+import com.bbh.itss.beadle.application.AuditNotes.Stored;
 import com.bbh.itss.beadle.application.Audited;
 import com.bbh.itss.beadle.application.AuditedKey;
 import com.bbh.itss.beadle.application.CallContext;
@@ -69,7 +70,9 @@ import static org.springframework.transaction.support.TransactionSynchronization
  * <p>
  * {@code DETAILS} holds the arguments by parameter name and, last, what the use case noted with {@link AuditNotes}:
  * {@code "result": {"reminded": [...], "created": ["CTASK0041003", ...]}}, kept whole when long arguments are trimmed
- * to {@link ActionRecord#DETAILS_MAX}.
+ * to {@link ActionRecord#DETAILS_MAX}. A call that fails also records what it noted it had
+ * {@link AuditNotes#storedOnTheWay stored on its way}, each in a {@code SUCCESS} row of its own before its
+ * {@code FAILURE} row.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -116,6 +119,8 @@ class AuditInterceptor implements MethodInterceptor {
                 if (audited.onlyWhenNoted()) {
                     failedOnNoted(row.build(), notes.noted(), failure);
                 } else {
+                    storedOnTheWay(row.build().toBuilder().details(argumentDetails).outcome(SUCCESS).build(),
+                            notes.storedOnTheWay());
                     inOwnTransaction(row.outcome(FAILURE).message(messageOf(failure)),
                             () -> removed != null ? removed : fromArguments(action, method, arguments));
                 }
@@ -144,6 +149,15 @@ class AuditInterceptor implements MethodInterceptor {
                     : row.toBuilder().outcome(FAILURE).message(messageOf(failure));
             inOwnTransaction(each, () -> object);
         }
+    }
+
+    /**
+     * The rows of what a failed call stored on its way to its own action, such as the newer state of a change it read
+     * from ProTech before it was refused: a {@code SUCCESS} row of the action noted for each, with the arguments of the
+     * call but not its result, which belongs to the {@code FAILURE} row that follows.
+     */
+    private void storedOnTheWay(ActionRecord row, List<Stored> stored) {
+        stored.forEach(each -> inOwnTransaction(row.toBuilder().action(each.action()), each::object));
     }
 
     private void succeeded(ActionRecordBuilder row, Supplier<ActionObject> object) {

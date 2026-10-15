@@ -585,9 +585,9 @@ the change tasks not approved yet. Beadle reads the change from ProTech first, a
 under Last reminder ("James Carter, 2 minutes ago"); a message names everyone it reached. Only the department of the
 change can remind its approvers (403 otherwise, and the buttons say why while they are disabled); a closed change, an
 approval already approved or one without anybody named is refused with 409 and the reason, both an approval and a
-change task, or a change task the change does not have, with 400, and an unreachable ProTech with 503. When ProTech
-refuses a reminder after others went out, those sent are kept. A reminder changes no approval and does not make an
-editor's version stale.
+change task (before ProTech is read), or a change task the change does not have, with 400, and an unreachable ProTech
+with 503. When ProTech refuses a reminder after others went out, those sent are kept. A reminder changes no approval
+and does not make an editor's version stale.
 
 ### Secure coding ticket
 
@@ -769,13 +769,21 @@ that changes something or calls another system writes one row of `BEADLE_ACTION_
 | `CHANGE_TASKS_CREATED` | `POST /api/changes/{id}/tasks` | the change |
 | `SECURE_CODING_TICKET_CREATED` | `POST /api/changes/{id}/secure-coding` | the change |
 | `REMINDER_SENT` | `POST /api/changes/{id}/reminders` | the change |
-| `CHANGE_SYNCED` | `GET /api/changes/{id}` and `GET /api/changes`, only when opening or listing stored a newer state read from ProTech: one row for each change stored, with the arguments of the call (`{"id": 7}` or `{"departmentId": 3}`) | the change |
+| `CHANGE_SYNCED` | `GET /api/changes/{id}` and `GET /api/changes`, only when opening or listing stored a newer state read from ProTech: one row for each change stored, with the arguments of the call (`{"id": 7}` or `{"departmentId": 3}`); also an edit, change tasks, a secure coding ticket or a reminder that stored the newer state it read from ProTech first and then failed, in a row of its own before the `FAILURE` row of the action, with the same arguments | the change |
 | `PRODUCT_CREATED`, `PRODUCT_UPDATED`, `PRODUCT_DELETED` | `POST /api/products`, `PUT` and `DELETE /api/products/{id}` | the product |
 | `CHANGE_PROFILE_UPDATED` | `PUT /api/products/{id}/change-profile` | the change template of the product |
 | `DEPARTMENT_CREATED`, `DEPARTMENT_RENAMED`, `DEPARTMENT_DELETED` | `POST /api/departments`, `PUT` and `DELETE /api/departments/{id}` | the department |
 | `USER_SIGNED_IN` | the first authenticated API call of a session (`SignInRecorder`) | the user |
 | `CALLBACK_PROTECH` | `POST /api/callbacks/protech` | the change (its number when Beadle did not raise it) |
 | `CALLBACK_INTERNAL` | `POST /api/callbacks/internal` | the ticket |
+
+An action on a change reads the change from ProTech first and stores the newer state it finds before it acts. When
+the action succeeds, its row stands for everything it stored. When it fails afterwards (ProTech closed the change, the
+approver already approved, a change task is not the change's, ProTech refused the update), its `FAILURE` row does not
+tell that a newer state was stored, so a `CHANGE_SYNCED` row for that state comes first, with the user, the correlation
+id and the arguments of the action: the use case notes it with `AuditNotes.storedOnTheWay` once the state is stored,
+and `AuditInterceptor` writes it only for a call that fails. A request that is wrong in itself, such as a reminder to
+both an approval and a change task, is refused before ProTech is read and stores nothing.
 
 The row of a call that returns joins the use case's read-write transaction, so it commits together with what the use
 case stored; should that transaction not commit after all, a `FAILURE` row ("The action ended, but its transaction
@@ -807,9 +815,10 @@ finds the row of the action that created it), outcome and time, in pages of at m
 
 In short, the trail answers who did what, to which object, when, with what outcome and as part of which user action:
 every change to a department, a product or a change template, every draft, raise, edit, change task, secure coding
-ticket and reminder sent to ProTech or CyberTrack, every newer state of a change Beadle stored when it was opened or listed,
-every callback of Beadle-ProTech and Beadle-Internal, and the first API call of every session. Reads (the lists, the
-pages, the lookups, the Jira versions and issues, the trail itself) write nothing.
+ticket and reminder sent to ProTech or CyberTrack, every newer state of a change Beadle stored when it was opened or
+listed or before an action on it that then failed, every callback of Beadle-ProTech and Beadle-Internal, and the first
+API call of every session. Reads (the lists, the pages, the lookups, the Jira versions and issues, the trail itself)
+write nothing.
 
 #### The Action History page
 

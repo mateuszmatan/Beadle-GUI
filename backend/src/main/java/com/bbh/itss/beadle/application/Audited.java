@@ -14,7 +14,8 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
  * Records every call of a use-case method as one row of the audit trail: who, the correlation id, the object (taken
  * from the result or the arguments), the arguments as JSON without secrets, the outcome and the duration. The row
  * joins the use case's read-write transaction; a failure, and every call of a {@link WithoutTransaction} method, is
- * written in a transaction of its own so that it stays when the use case rolls back.
+ * written in a transaction of its own so that it stays when the use case rolls back. A call that fails is preceded by
+ * a row for each object it noted it had {@link AuditNotes#storedOnTheWay stored on its way}.
  */
 @Documented
 @Target(METHOD)

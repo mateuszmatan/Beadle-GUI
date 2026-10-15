@@ -1,6 +1,7 @@
 package com.bbh.itss.beadle.application.change
 
 import com.bbh.itss.beadle.application.AuditNotes
+import com.bbh.itss.beadle.application.AuditNotes.Stored
 import com.bbh.itss.beadle.application.change.port.in.ChangeCommand
 import com.bbh.itss.beadle.application.change.port.in.ChangeEditCommand
 import com.bbh.itss.beadle.application.change.port.in.ChangeIntegrations
@@ -15,6 +16,7 @@ import com.bbh.itss.beadle.application.change.port.out.ProTechPort
 import com.bbh.itss.beadle.application.change.port.out.ProTechPort.RaisedChange
 import com.bbh.itss.beadle.application.user.port.in.SignedInUser
 import com.bbh.itss.beadle.application.user.port.in.SignedInUserUseCase
+import com.bbh.itss.beadle.domain.audit.ActionObject
 import com.bbh.itss.beadle.domain.change.ApprovalRef
 import com.bbh.itss.beadle.domain.change.ChangeApproval
 import com.bbh.itss.beadle.domain.change.ChangeSchedule
@@ -36,6 +38,8 @@ import spock.lang.Specification
 import java.time.Instant
 import java.time.LocalDate
 
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_SYNCED
+import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE
 import static com.bbh.itss.beadle.domain.change.ApprovalRole.BUSINESS
 import static com.bbh.itss.beadle.domain.change.ApprovalRole.SUPPORT
 import static com.bbh.itss.beadle.domain.change.ApprovalState.APPROVED
@@ -1206,6 +1210,74 @@ class ProductionChangeServiceSpec extends Specification {
         'ProTech cannot be read'       | 7L | raised()                                       | new ReminderCommand(3L, null, null)         | { throw new UncheckedIOException('Read timed out', new IOException()) } || UncheckedIOException | 'Read timed out'
         'ProTech closed it'            | 7L | raised()                                       | new ReminderCommand(3L, null, null)         | { [CHG0031001: raised(state: CLOSED)] } || IllegalStateException | 'CHG0031001 is closed in ProTech, so nobody is reminded to approve it'
         'the approver already approved' | 7L | raised()                                      | new ReminderCommand(3L, BUSINESS, null)     | { [CHG0031001: awaiting()] }        || IllegalStateException   | 'The business approver already approved CHG0031001'
+    }
+
+    def "a reminder to both the change and one of its tasks is refused before ProTech is read"() {
+        given:
+        changes.load(7L) >> Optional.of(awaiting())
+
+        when:
+        service.remind(7L, new ReminderCommand(3L, BUSINESS, 'CTASK0041002'))
+
+        then:
+        def refused = thrown(InvalidRequestException)
+        refused.problems() == [new FieldProblem('task', 'Remind the approvers of either the change or one change task')]
+        0 * proTech._
+        0 * changes.save(_)
+    }
+
+    def "the newer state #action stored on its way is noted for the audit trail as synced"() {
+        given:
+        changes.load(7L) >> Optional.of(raised(syncedAt: NOW))
+        proTech.read(_) >> [CHG0031001: remote]
+
+        when:
+        def notes = AuditNotes.listen()
+        try {
+            call(service)
+        } finally {
+            notes.close()
+        }
+
+        then:
+        def refused = thrown(RuntimeException)
+        refused.message == message
+        1 * changes.save({ ProductionChange it -> it.version() == 0L && it.state() == remote.state() }) >>
+                { ProductionChange it -> it.toBuilder().version(1L).build() }
+        0 * proTech.remind(*_)
+        0 * proTech.update(_)
+        notes.storedOnTheWay() == [new Stored(CHANGE_SYNCED, new ActionObject(CHANGE, 7L, 'CHG0031001'))]
+
+        where:
+        action                          | remote                       | call                                                             || message
+        'a refused reminder'            | awaiting()                   | { it.remind(7L, new ReminderCommand(3L, BUSINESS, null)) }       || 'The business approver already approved CHG0031001'
+        'a reminder of an unknown task' | awaiting()                   | { it.remind(7L, new ReminderCommand(3L, null, 'CTASK0049999')) } || 'CTASK0049999 is not a change task of CHG0031001'
+        'a refused edit'                | raised(state: CLOSED)        | { it.update(7L, edit(shortDescription: 'Renamed')) }             || 'CHG0031001 is closed in ProTech and can no longer be changed'
+    }
+
+    def "nothing is noted as synced when #problem"() {
+        given:
+        changes.load(7L) >>> [Optional.of(raised(syncedAt: NOW)), Optional.of(awaiting().toBuilder().version(1L).build())]
+        proTech.read(_) >> [CHG0031001: awaiting()]
+        changes.save(_) >> { throw failure }
+
+        when:
+        def notes = AuditNotes.listen()
+        try {
+            service.remind(7L, new ReminderCommand(3L, BUSINESS, null))
+        } finally {
+            notes.close()
+        }
+
+        then:
+        def refused = thrown(RuntimeException)
+        refused.message == message
+        notes.storedOnTheWay() == []
+
+        where:
+        problem                                    | failure                                              || message
+        'the newer state could not be stored'      | new IllegalArgumentException('The database is full') || 'The database is full'
+        'someone else stored the change meanwhile' | new IllegalStateException(STALE_VERSION)             || 'The business approver already approved CHG0031001'
     }
 
     def "the reminders ProTech sent before it refused one are stored and the refusal is passed on"() {
