@@ -29,8 +29,8 @@ docs/CONTRACTS.md               the contract between Beadle-GUI, Beadle-Internal
 
 | Module | Holds |
 |--------|-------|
-| `backend` | the departments, the products with their change templates, the ProTech changes with their change tasks and secure coding tickets, the lookups, the signed-in user, the problem detail error handling, the `@UseCase` transaction wiring, the clock, the forwarding of the GUI pages to `index.html`, the REST clients of Beadle-Internal and Beadle-ProTech and the callbacks they send, the Beadle demo data, the Liquibase history and the test support of every suite, with the in-process stand-ins of the two services |
-| `frontend` | the application shell (header, menu, footer, titles), the UI kit (form fields, grid, dialogs, toasts), the departments pages and dialogs, the Admin page with its tabs, Changes, New Change, Beadle Admin (Departments, Products with their change templates) and Action History, the API error texts and the browser test support; see [frontend/README.md](frontend/README.md) |
+| `backend` | the departments, the products with their change templates, the ProTech changes with their change tasks and secure coding tickets, the lookups, signing in with Ping and the signed-in user, the problem detail error handling, the `@UseCase` transaction wiring, the clock, the forwarding of the GUI pages to `index.html`, the REST clients of Beadle-Internal and Beadle-ProTech and the callbacks they send, the Beadle demo data, the Liquibase history and the test support of every suite, with the in-process stand-ins of the two services |
+| `frontend` | the application shell (header, menu, signed-in user with Sign out, footer, titles), the sign-in interceptor, the UI kit (form fields, grid, dialogs, toasts), the departments pages and dialogs, the Admin page with its tabs, Changes, New Change, Beadle Admin (Departments, Products with their change templates) and Action History, the API error texts and the browser test support; see [frontend/README.md](frontend/README.md) |
 
 ## Build
 
@@ -128,7 +128,8 @@ java -jar backend/build/libs/beadle-0.1.0-SNAPSHOT.jar
 Beadle starts with the `local` profile: an embedded H2 in Oracle mode in `~/bbh-devsecops/beadle/beadle.mv.db`
 (`BEADLE_DATA_DIR` moves the folder) and demo data, so the ProTech workflow can be tried at once; `BEADLE_DEMO_DATA=false`
 starts it empty but for the five BBH departments (AI Lab, Capital Partners, Corporate Technology, Custody and Fund
-Services). Liquibase creates the schema on the first start and updates it in place when a new version adds to it;
+Services). Everybody is signed in as `Mateusz Matan` (`BEADLE_SIGNED_IN_USER`), without Ping: the `local` profile
+sets `beadle.auth.mode` to `local` (see [Signing in](#signing-in)). Liquibase creates the schema on the first start and updates it in place when a new version adds to it;
 every later start finds the data where it was left. Jira, ProTech and CyberTrack are whatever Beadle-Internal and
 Beadle-ProTech connect them to: their demo adapters until their URLs are set there, and the pages say so with a "Demo
 mode" banner (see [Beadle-Internal and Beadle-ProTech](#beadle-internal-and-beadle-protech)).
@@ -137,12 +138,17 @@ On `rd`, `qc` and `prod` Beadle runs on Oracle:
 
 ```bash
 SPRING_PROFILES_ACTIVE=qc DB_URL=jdbc:oracle:thin:@//<host>:1521/<service> DB_USERNAME=BEADLE DB_PASSWORD=... \
+  PING_ISSUER_URI=https://<ping>/as PING_CLIENT_ID=... PING_CLIENT_SECRET=... \
   java -jar backend/build/libs/beadle-0.1.0-SNAPSHOT.jar
 ```
 
 Each of the three profiles belongs to the group `oracle` (the data source from `DB_URL`, `DB_USERNAME` and
-`DB_PASSWORD`, `ddl-auto: validate`, no demo data); `rd` logs at DEBUG and shows the health details, `prod` hides
-them. A profile without `DB_URL`, `BEADLE_INTERNAL_URL` or `BEADLE_PROTECH_URL` does not start.
+`DB_PASSWORD`, `ddl-auto: validate`, no demo data) and signs users in with Ping; `rd` logs at DEBUG and shows the
+health details, `prod` hides them. A profile without `DB_URL`, `BEADLE_INTERNAL_URL`, `BEADLE_PROTECH_URL`,
+`PING_CLIENT_ID`, `PING_CLIENT_SECRET` or `PING_ISSUER_URI` does not start, and Beadle reads the Ping configuration
+from the issuer when it starts, so the issuer has to answer then. Behind a proxy or the OpenShift route they take the
+scheme and host of their own address from its `X-Forwarded-*` headers (`server.forward-headers-strategy: native`), so
+the address Ping sends the browser back to is the `https` one of the route.
 
 For GUI work, the Angular development server rebuilds on every change and proxies `/api` to the service:
 `npm start` serves the GUI on http://localhost:4201 against port 8081; `npm run start:public` does the same without the
@@ -161,7 +167,10 @@ under the prefix `beadle.` its own settings, one document per profile.
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | H2 with `local`; required with `rd`, `qc`, `prod` | the database of the active profile |
 | `DB_POOL_SIZE` | 5, 10, 20 in `rd`, `qc`, `prod` | Oracle connection pool size |
 | `BEADLE_DEMO_DATA` | `true` with `local`, `false` otherwise | the demo products with their change templates and the demo changes; see [Beadle demo data](#beadle-demo-data) |
-| `BEADLE_SIGNED_IN_USER` | `Mateusz Matan` | the signed-in user (`beadle.signed-in-user`: `GET /api/me`, Opened by of a new change and the default requester and assignee) until the Ping sign-in of the contract exists |
+| `BEADLE_AUTH_MODE` | `local` with `local`, `oidc` otherwise | how users sign in (`beadle.auth.mode`): `oidc` with Ping, `local` as `BEADLE_SIGNED_IN_USER` without a sign-in; see [Signing in](#signing-in) |
+| `BEADLE_SIGNED_IN_USER` | `Mateusz Matan` | the user everybody is signed in as when `BEADLE_AUTH_MODE` is `local` (`beadle.signed-in-user`) |
+| `PING_ISSUER_URI` | none; required with `rd`, `qc`, `prod` | the Ping issuer (`spring.security.oauth2.client.provider.ping.issuer-uri`), whose OpenID configuration Beadle reads when it starts |
+| `PING_CLIENT_ID`, `PING_CLIENT_SECRET` | none; required with `rd`, `qc`, `prod` | the OpenID Connect client of Beadle at Ping (registration `ping`) |
 | `BEADLE_INTERNAL_URL` | `http://localhost:8082` with `local`; required with `rd`, `qc`, `prod` | where Beadle-Internal answers (`beadle.services.internal.url`): Jira and CyberTrack |
 | `BEADLE_PROTECH_URL` | `http://localhost:8083` with `local`; required with `rd`, `qc`, `prod` | where Beadle-ProTech answers (`beadle.services.protech.url`): ProTech and its lookups |
 | `BEADLE_SERVICE_TOKEN` | empty: every callback is refused | the token the three Beadle services share (`beadle.services.token`): sent as `Authorization: Bearer` with every call to Beadle-Internal and Beadle-ProTech and required of their callbacks |
@@ -217,6 +226,18 @@ same name:
    oc create secret generic beadle-services --from-literal=BEADLE_SERVICE_TOKEN='<token>'
    ```
 
+   The OpenID Connect client Ping registered for Beadle in this environment goes into `beadle-oidc`, and its issuer
+   into the overlay's ConfigMap (the base leaves `PING_ISSUER_URI` empty, so an overlay without it does not start);
+   Ping has to know `https://<route>/login/oauth2/code/ping` as a redirect URI of the client:
+
+   ```bash
+   oc create secret generic beadle-oidc \
+     --from-literal=PING_CLIENT_ID='<client id>' \
+     --from-literal=PING_CLIENT_SECRET='<client secret>'
+   cd deploy/openshift/beadle/overlays/rd
+   kustomize edit add configmap beadle-config --behavior=merge --from-literal=PING_ISSUER_URI='https://<ping>/as'
+   ```
+
 3. Beadle-Internal and Beadle-ProTech run in the same project as the Services `beadle-internal` (port 8082) and
    `beadle-protech` (port 8083); `BEADLE_INTERNAL_URL` and `BEADLE_PROTECH_URL` in the overlay's
    `configMapGenerator` name them (`http://beadle-internal:8082`, `http://beadle-protech:8083`), and they call Beadle-GUI
@@ -228,8 +249,10 @@ same name:
    oc get route beadle
    ```
 
-Liquibase updates the Oracle schema when the pod starts. Beadle keeps no file of its own, so its Deployment rolls out
-with `RollingUpdate` and no downtime. The startup probe allows three minutes for Liquibase, and the liveness and
+Liquibase updates the Oracle schema when the pod starts. Beadle keeps no file of its own and the sessions live in the
+pod, so its Deployment rolls out with `RollingUpdate` and no downtime, and a user whose pod went away is sent through
+Ping again, which signs a known browser back in at once (with more than one replica the Route needs its default
+sticky sessions). The startup probe allows three minutes for Liquibase, and the liveness and
 readiness probes use `/actuator/health/liveness` and `/actuator/health/readiness`. The route terminates TLS at the
 edge and redirects plain HTTP. Memory is limited to 1 GiB per pod with the heap at 75% of it; change `resources` in an
 overlay patch if an environment needs more.
@@ -239,7 +262,9 @@ overlay patch if an environment needs more.
 | `SPRING_PROFILES_ACTIVE` | ConfigMap `beadle-config` | `rd`, `qc` or `prod`; each runs on Oracle |
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Secret `beadle-db` | Oracle connection |
 | `DB_POOL_SIZE` | ConfigMap (optional) | Connection pool size, defaults per profile |
-| `BEADLE_SIGNED_IN_USER` | ConfigMap (optional) | The name Beadle shows as the signed-in user until the Ping sign-in exists |
+| `BEADLE_AUTH_MODE` | ConfigMap `beadle-config` | `oidc`: users sign in with Ping |
+| `PING_ISSUER_URI` | ConfigMap `beadle-config`, set per overlay | The Ping issuer of the environment |
+| `PING_CLIENT_ID`, `PING_CLIENT_SECRET` | Secret `beadle-oidc` | The OpenID Connect client of Beadle at Ping |
 | `BEADLE_INTERNAL_URL`, `BEADLE_PROTECH_URL` | ConfigMap `beadle-config` | Where Beadle-Internal and Beadle-ProTech answer, `http://beadle-internal:8082` and `http://beadle-protech:8083` |
 | `BEADLE_SERVICE_TOKEN` | Secret `beadle-services` | The token the three Beadle services share; Jira, CyberTrack and ProTech are configured in Beadle-Internal and Beadle-ProTech |
 
@@ -385,12 +410,38 @@ in their `value` (what fills the field) or their `detail` (an e-mail address, a 
 product code, the business service or a short description); an empty text lists the first 20. Beadle-ProTech
 answers them (`GET /api/protech/lookups/{kind}?q=&limit=20`), from ProTech or from its demo lookups.
 
-### Signed-in user
+### Signing in
 
-Until BBH single sign-on exists, the signed-in user is the name in `beadle.signed-in-user` (`BEADLE_SIGNED_IN_USER`,
-`Mateusz Matan` by default), behind the out port `SignedInUserPort` and served at `GET /api/me`. The wizard shows it
-as Opened by, raising a change stores it as the change's `openedBy`, and it fills an empty requested for, requested
-by and assigned to of the template; an empty department becomes the product's department.
+Users sign in to Beadle with Ping, BBH's OpenID Connect provider, through Spring Security's OAuth2 login
+(`config/SecurityConfiguration`); `beadle.auth.mode` (`BEADLE_AUTH_MODE`) picks one of two modes:
+
+- `oidc`, the default and the mode of `rd`, `qc` and `prod`: the registration `ping` with the client of
+  `PING_CLIENT_ID` and `PING_CLIENT_SECRET`, the issuer of `PING_ISSUER_URI` and the scopes `openid profile email`.
+  A browser without a session opens the interface as usual (the pages and static files are public), its first API call
+  answers `401` and the interface sends it to `/oauth2/authorization/ping`; Ping signs it in (at once when it knows
+  the browser) and sends it back through `/login/oauth2/code/ping` to `/`, and the interface opens the page it was on
+  (kept in the tab's session storage while the browser is away). `/api/**` needs the session; an API call without one
+  always answers `401`, never a redirect, while any other protected address such as `/actuator/info` redirects a
+  browser to Ping. Every change (`POST`, `PUT`, `DELETE`) carries the CSRF token of the session: Beadle sets it in the
+  cookie `XSRF-TOKEN`, which the interface reads, and the interface sends it back as `X-XSRF-TOKEN`; a change without
+  it is refused with `403`.
+- `local`, the mode of the `local` profile and of the tests: no Ping and no CSRF token; every request is signed in as
+  `beadle.signed-in-user` (`BEADLE_SIGNED_IN_USER`, `Mateusz Matan` by default).
+
+`/api/callbacks/**` and `/actuator/health/**` take no session in either mode: the callbacks of Beadle-Internal and
+Beadle-ProTech carry the service token instead (see [Callbacks](#callbacks)), and the health probes of OpenShift are
+open. `POST /logout` ends the session at Beadle and answers `204`; the header's **Sign out** sends it and then opens
+`/`, which goes through Ping again (Ping's own session is Ping's, so a browser Ping knows comes straight back).
+
+The signed-in user sits behind the out port `SignedInUserPort` (`adapter/out/user/AuthenticatedUserAdapter`): the
+claim `name` of the ID token, else `preferred_username`, else `sub`, and the claim `email`; the name of the local
+user in mode `local`. `GET /api/me` answers `{"name": "...", "email": "..." or null}`, and the header shows the name
+next to the sections, with the email address as its tooltip. The first authenticated API call of every session
+records `USER_SIGNED_IN` in the audit trail (`SignInRecorder`, once per session; signing out and in again records it
+again). The name goes into every audit row and into the `X-Beadle-User` header of every call to Beadle-Internal and
+Beadle-ProTech, which only log it: Jira, CyberTrack and ProTech see the service accounts of Beadle. The wizard shows it
+as Opened by, raising a change stores it as the change's `openedBy`, and it fills an empty requested for, requested by
+and assigned to of the template; an empty department becomes the product's department.
 
 ### Raising a change
 
@@ -635,7 +686,7 @@ that changes something or calls another system writes one row of `BEADLE_ACTION_
 | `PRODUCT_CREATED`, `PRODUCT_UPDATED`, `PRODUCT_DELETED` | `POST /api/products`, `PUT` and `DELETE /api/products/{id}` | the product |
 | `CHANGE_PROFILE_UPDATED` | `PUT /api/products/{id}/change-profile` | the change template of the product |
 | `DEPARTMENT_CREATED`, `DEPARTMENT_RENAMED`, `DEPARTMENT_DELETED` | `POST /api/departments`, `PUT` and `DELETE /api/departments/{id}` | the department |
-| `USER_SIGNED_IN` | `SignedInUserUseCase.signIn()`, once per session | the user |
+| `USER_SIGNED_IN` | the first authenticated API call of a session (`SignInRecorder`) | the user |
 | `CALLBACK_PROTECH` | `POST /api/callbacks/protech` | the change (its number when Beadle did not raise it) |
 | `CALLBACK_INTERNAL` | `POST /api/callbacks/internal` | the ticket |
 
@@ -694,7 +745,8 @@ departments.
 | `GET`/`PUT /api/products/{id}/change-profile` | the change template of a product: `template` with the ProTech fields (among them `approvers` with `businessApprover`, `l1Manager`, `l2Manager` and `supportApprover`, `requestedFor`, `requestedBy`, `department`, `assignedTo`, `directBusinessService`, `usersAffected`, `secureCoding` with `apoNumber`, `bitbucketUrl`, `artifactLink` and `qcApplicationLink`, `riskAssessment` with the nine answers and `risk`, which is computed and ignored when sent) and `tasks`, its default change tasks (the `details` fields of `POST /api/changes/{id}/tasks`; one to fifty); `version` is `null` until it is saved (it then holds the suggestion), and `PUT` carries `version`, `template` and `tasks` |
 | `GET /api/change-profiles` | the products with a saved change template: `productId`, `productName`, `version`, `updatedAt` |
 | `GET /api/products/{id}/jira/versions`, `/jira/epics?fixVersion=`, `/jira/stories?fixVersion=&epics=` | the FixVersions of the product's Jira project (unreleased first), the epics of a FixVersion and the stories of the chosen epics that carry it; `project=` names another Jira project key |
-| `GET /api/me` | the signed-in user, `{name}`; `beadle.signed-in-user` until BBH single sign-on |
+| `GET /api/me` | the signed-in user, `{name, email}` (`email` is `null` when Ping gives none, and in mode `local`) |
+| `POST /logout` | ends the session; `204`, with the CSRF token in mode `oidc` (see [Signing in](#signing-in)) |
 | `GET /api/changes/options` | the lists of the wizard: `categories`, `types` (each `value` and `label`), `risk`, the answers of each of the nine risk questions, the `platforms` and `importances` of change tasks and `releaseManagement`, the group name that makes a release task |
 | `GET /api/lookups/{kind}?q=` | at most 20 ProTech entries (`value`, `detail`) that contain `q` in either, ignoring case, for `users`, `departments`, `assignment-groups`, `releases`, `configuration-items`, `incidents`, `problems` or `clients`; 404 for any other kind |
 | `POST /api/changes/preview`, `POST /api/changes` | draft a production change, or raise it in ProTech without change tasks (`productId`, `fixVersion`, `epicKeys`, `storyKeys`, `schedule` with `installationStart`, `installationEnd`, `validationStart`, `validationEnd`, `firstUsage` and, only with `template.downtime`, `downtimeStart` and `downtimeEnd`, the ProTech fields as `template`, and optionally the edited `shortDescription` and `description`) |
@@ -740,8 +792,8 @@ The service (`backend/src/main/java/com/bbh/itss/beadle`) is hexagonal:
 | `domain` | plain Java: the departments and the shared value rules (`catalog`, `shared`), the change templates and the ProTech changes with their tasks, approvals, sync and update rules (`change`); every business rule lives here |
 | `application` | the use cases behind ports, per area (`catalog`, `change`, `callback` and `user`), each with its `port.in` and `port.out` packages; `@UseCase` classes become transactional beans, without Spring in the code; `CallContext` carries the correlation id of the user action and the system a callback acts for |
 | `adapter.in` | Spring MVC controllers with the request and response records (`web`), the forwarding of the GUI pages to `index.html` (`SinglePageAppForwarding`, which reads the pages from `beadle.gui.pages`), and the start-up tasks that seed the demo data (`startup`) |
-| `adapter.out` | JPA entities and Spring Data repositories (`persistence`), the REST clients of Beadle-Internal with the Jira and CyberTrack adapters (`internal`) and of Beadle-ProTech with the ProTech adapter (`protech`), what every call to the two services carries (`http`) and the signed-in user (`user`) |
-| `config` | the wiring of use cases, transactions and the clock, the addresses of the two services and the token they share, the correlation id filter and the service token filter of the callbacks |
+| `adapter.out` | JPA entities and Spring Data repositories (`persistence`), the REST clients of Beadle-Internal with the Jira and CyberTrack adapters (`internal`) and of Beadle-ProTech with the ProTech adapter (`protech`), what every call to the two services carries (`http`) and the signed-in user read from the session (`user`) |
+| `config` | the wiring of use cases, transactions and the clock, the addresses of the two services and the token they share, the correlation id filter, Spring Security with the Ping sign-in, the local user, the CSRF cookie and the service token filter of the callbacks |
 
 ```mermaid
 flowchart LR
@@ -901,11 +953,11 @@ runs the suites of one module, `./gradlew :backend:regressionTest` one suite.
 
 | Module | Suite | What |
 |--------|-------|------|
-| `backend` | unit (`src/test`, `./gradlew :backend:test`) | domain rules, use cases, adapters (the REST clients against a local HTTP server that records the headers and answers what each spec sets, also an unreachable or failing service), the audit interceptor with the transactions it joins or opens, the Liquibase migrations and the architecture rules; JaCoCo fails below 60% line coverage (`-Pcoverage.minimum=`) |
-| `backend` | regression (`src/regressionTest`) | the API end to end on H2 in Oracle mode, with the in-process stand-ins of Beadle-Internal and Beadle-ProTech (profile `stub-services`), the callbacks with and without the service token, and the rows of the audit trail they leave |
-| `backend` | smoke (`src/smokeTest`) | starts the service on a fresh database and checks health, the API, that the API of the DevSecOps Management Portal is absent and that the GUI is served on every page; `-Dsmoke.baseUrl=https://...` checks a deployed application, `-Dsmoke.ui=false` skips the GUI checks |
+| `backend` | unit (`src/test`, `./gradlew :backend:test`) | domain rules, use cases, adapters (the REST clients against a local HTTP server that records the headers and answers what each spec sets, also an unreachable or failing service), the audit interceptor with the transactions it joins or opens, the security configuration in both modes (MockMvc with and without a session, the CSRF cookie, the callbacks with and without the token), the Liquibase migrations and the architecture rules; JaCoCo fails below 60% line coverage (`-Pcoverage.minimum=`) |
+| `backend` | regression (`src/regressionTest`) | the API end to end on H2 in Oracle mode, with the in-process stand-ins of Beadle-Internal and Beadle-ProTech (profile `stub-services`), the callbacks with and without the service token, and the rows of the audit trail they leave, the sign-in of each session among them |
+| `backend` | smoke (`src/smokeTest`) | starts the service on a fresh database and checks health, the API with the signed-in user, that a callback needs the token, that the API of the DevSecOps Management Portal is absent and that the GUI is served on every page; `-Dsmoke.baseUrl=https://...` checks a deployed application (with `-Dsmoke.cookie='JSESSIONID=...; XSRF-TOKEN=...'`, the cookies of a signed-in browser, where users sign in with Ping), `-Dsmoke.ui=false` skips the GUI checks |
 | `frontend` | unit (Vitest, `./gradlew :frontend:testAngular` or `npx ng test frontend --watch=false`) | components and form models; fails below 60% of lines and statements |
-| `frontend` | smoke, regression (`src/smokeTest`, `src/regressionTest`) | Spock and Playwright in Chromium against a stub API: every page, the menu and footer without any trace of the DevSecOps Management Portal, the user journeys with the requests they send |
+| `frontend` | smoke, regression (`src/smokeTest`, `src/regressionTest`) | Spock and Playwright in Chromium against a stub API: every page, the menu, the signed-in user and the footer without any trace of the DevSecOps Management Portal, the user journeys with the requests they send, signing out and the way through a stand-in of Ping when the session ended |
 
 `-Dperformance.factor=2` relaxes the performance limits on a slow machine. The browser suites need the Chromium
 revision Playwright 1.56 asks for; `PLAYWRIGHT_BROWSERS_PATH` points them at a folder that already holds it, and
@@ -913,9 +965,10 @@ revision Playwright 1.56 asks for; `PLAYWRIGHT_BROWSERS_PATH` points them at a f
 
 ## Known gaps
 
-- Beadle-GUI signs everybody in as `beadle.signed-in-user` until the Ping (OpenID Connect) sign-in of the contract
-  exists, "your department" is the department the user last picked (remembered in the browser) and the Admin area
-  is open to every user until an administrator role exists.
+- "Your department" is the department the user last picked (remembered in the browser), and the Admin area and the
+  Action History are open to every signed-in user until Ping's groups give Beadle an administrator role.
+- Sign out ends the session at Beadle only; Ping's single sign-on session stays, so the browser is signed in again
+  at once, until Beadle sends Ping the end-session request of OpenID Connect.
 - Jira, CyberTrack and ProTech are as real as Beadle-Internal and Beadle-ProTech make them; until their URLs and
   service accounts are configured there, both run their demo adapters and the pages show "Demo mode".
 - The category, type and risk answer lists are written into Beadle and change only with a new version of it, until

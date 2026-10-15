@@ -30,7 +30,7 @@ import { ChangeWizard } from './change-wizard';
 import { implementationDateOf } from './secure-coding-model';
 import { LookupItem } from '../core/models';
 
-const ME = { name: 'Mateusz Matan' };
+const ME = { name: 'Mateusz Matan', email: null };
 
 function configure() {
   TestBed.configureTestingModule({

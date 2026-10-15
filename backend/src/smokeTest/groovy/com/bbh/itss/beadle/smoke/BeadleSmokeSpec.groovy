@@ -9,6 +9,8 @@ import spock.lang.Requires
 import spock.lang.Shared
 import spock.lang.Specification
 
+import java.net.CookieManager
+
 import static java.net.URLEncoder.encode
 import static java.nio.charset.StandardCharsets.UTF_8
 
@@ -28,7 +30,7 @@ class BeadleSmokeSpec extends Specification {
                             '--DB_URL=jdbc:h2:mem:beadle-smoke;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1')
             baseUrl = "http://localhost:${started.environment.getProperty('local.server.port')}"
         }
-        api = new PortalClient(baseUrl)
+        api = PortalClient.withCookies(baseUrl, System.getProperty('smoke.cookie'))
     }
 
     def cleanupSpec() {
@@ -143,6 +145,18 @@ class BeadleSmokeSpec extends Specification {
         newest.json.content.size() <= 5
         api.get('/api/action-history/users').status == 200
         api.get('/api/action-history/actions').status == 200
+    }
+
+    def "the API names the signed-in user, takes a callback only with the service token and leaves health open"() {
+        when:
+        def me = api.get('/api/me')
+
+        then:
+        me.status == 200
+        me.json.keySet() == ['name', 'email'] as Set
+        !started || me.json == [name: 'Mateusz Matan', email: null]
+        new PortalClient(api.baseUrl, new CookieManager()).get('/actuator/health').status == 200
+        api.post('/api/callbacks/protech', [number: 'CHG0000001', event: 'STATE_CHANGED']).status == 401
     }
 
     def "the DevSecOps Management portal is not part of this application"() {

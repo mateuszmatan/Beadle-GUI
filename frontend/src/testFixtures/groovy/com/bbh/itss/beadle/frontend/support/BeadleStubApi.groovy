@@ -16,15 +16,39 @@ class BeadleStubApi extends StubApi {
     List<Map> products
     List<Map> actions
     ChangeStubs.ProTech protech
+    /** Whether the browser has a session; without one every API call answers 401, as Beadle does when signing in is oidc. */
+    volatile boolean signedIn
 
     @Override
     void install() {
         installDepartments(changeCount: 0)
         products = new CopyOnWriteArrayList<Map>(fixture('products.json') as List<Map>)
-        get('/api/me') { [name: SIGNED_IN_USER] }
+        installSignIn()
         installProducts()
         installActionHistory()
         protech = ChangeStubs.install(this)
+    }
+
+    /**
+     * Who is signed in, Spring Security's {@code POST /logout} that ends the session, and a stand-in of the Ping sign-in
+     * that signs the browser in at once and sends it back to {@code /}, as Ping does for a browser it knows.
+     */
+    void installSignIn() {
+        signedIn = true
+        get('/api/me') { [name: SIGNED_IN_USER, email: null] }
+        on('POST', '/logout') {
+            signedIn = false
+            empty()
+        }
+        get('/oauth2/authorization/ping') {
+            signedIn = true
+            StubResponse.redirect('/')
+        }
+    }
+
+    @Override
+    protected StubResponse refuse(RecordedRequest request) {
+        !signedIn && request.path.startsWith('/api/') ? problem(401, 'Unauthorized', 'Sign in first') : null
     }
 
     /** The audit trail of {@code action-history.json}, filtered and paged like {@code GET /api/action-history}. */

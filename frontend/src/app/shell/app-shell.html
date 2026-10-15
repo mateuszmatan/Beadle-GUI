@@ -15,6 +15,20 @@
           >
         }
       </nav>
+      @if (user(); as user) {
+        <div class="account">
+          <span class="user-name" [attr.title]="user.email">{{ user.name }}</span>
+          <button
+            type="button"
+            class="sign-out"
+            [disabled]="signingOut()"
+            [attr.aria-busy]="signingOut() || null"
+            (click)="signOut()"
+          >
+            Sign out
+          </button>
+        </div>
+      }
     </div>
   </header>
 

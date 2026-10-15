@@ -10,6 +10,8 @@ class StubResponse {
     int status
     String contentType
     String body
+    /** Further response headers, such as the {@code Location} of a redirect. */
+    Map<String, String> headers
 
     static StubResponse json(Object value, int status = 200) {
         new StubResponse(status: status, contentType: 'application/json', body: toJson(value))
@@ -26,5 +28,9 @@ class StubResponse {
 
     static StubResponse empty(int status = 204) {
         new StubResponse(status: status, contentType: 'application/json', body: '')
+    }
+
+    static StubResponse redirect(String location) {
+        new StubResponse(status: 302, contentType: 'text/plain', body: '', headers: [Location: location])
     }
 }

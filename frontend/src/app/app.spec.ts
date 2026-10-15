@@ -1,7 +1,10 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { APP_NAME } from './core/app-name';
+import { BROWSER_NAVIGATION } from './core/auth';
 import { text } from './testing/dom';
 import { App } from './app';
 import { SECTIONS } from './core/sections';
@@ -11,18 +14,27 @@ class Blank {}
 
 describe('App', () => {
   let fixture: ComponentFixture<App>;
+  let http: HttpTestingController;
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
       imports: [App],
       providers: [
         provideRouter([{ path: '**', component: Blank }]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
         { provide: APP_NAME, useValue: 'Beadle' },
+        { provide: BROWSER_NAVIGATION, useValue: vi.fn() },
       ],
     });
+    http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    http.expectOne('/api/me').flush({ name: 'Mateusz Matan', email: null });
     await fixture.whenStable();
   });
+
+  afterEach(() => http.verify());
 
   const page = () => fixture.nativeElement as HTMLElement;
   const links = () => [...page().querySelectorAll<HTMLAnchorElement>('nav.menu a')];
@@ -41,6 +53,10 @@ describe('App', () => {
       '/action-history',
     ]);
     expect(text(page())).not.toContain('DevSecOps');
+  });
+
+  it('shows who is signed in next to the sections', () => {
+    expect(text(page().querySelector('header .account'))).toBe('Mateusz Matan Sign out');
   });
 
   it('gives the sections their ProTech headings', () => {

@@ -87,9 +87,13 @@ abstract class StubApi {
         this
     }
 
-    StubResponse handle(String method, String path, String query, String body) {
-        def request = new RecordedRequest(method, path, query, body)
+    StubResponse handle(String method, String path, String query, String body, Map<String, String> headers = [:]) {
+        def request = new RecordedRequest(method: method, path: path, query: query, body: body, headers: headers)
         recorded << request
+        def refused = refuse(request)
+        if (refused) {
+            return refused
+        }
         for (route in routes) {
             def matcher = route.match(method, path)
             if (matcher != null) {
@@ -101,6 +105,11 @@ abstract class StubApi {
             }
         }
         problem(404, 'Not found', "No stub for $method $path")
+    }
+
+    /** An answer that comes before the routes, such as the 401 of a browser without a session; null lets the routes answer. */
+    protected StubResponse refuse(RecordedRequest request) {
+        null
     }
 
     List<RecordedRequest> requests() {

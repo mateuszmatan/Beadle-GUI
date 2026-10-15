@@ -5,9 +5,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -25,11 +22,10 @@ import static org.springframework.http.MediaType.APPLICATION_PROBLEM_JSON_VALUE;
 /**
  * Lets only Beadle-Internal and Beadle-ProTech call back: every request to {@code /api/callbacks/} must carry the
  * service token the three Beadle services share as {@code Authorization: Bearer <token>}, or it is answered
- * {@code 401}. A blank token refuses every callback.
+ * {@code 401}. A blank token refuses every callback. {@link SecurityConfiguration} puts it in the stateless filter
+ * chain of the services.
  */
 @Slf4j
-@Component
-@Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class ServiceTokenFilter extends OncePerRequestFilter {
 
     public static final String CALLBACKS = "/api/callbacks/";

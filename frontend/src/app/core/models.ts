@@ -34,6 +34,7 @@ export type LookupKind =
 
 export interface SignedInUser {
   name: string;
+  email: string | null;
 }
 
 export interface BeadleDepartment extends Department {

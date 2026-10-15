@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { pageBeforeSignIn } from './core/auth';
 import { unsavedChangesGuard } from './core/unsaved-changes';
 import { DEPARTMENT_USAGE } from './beadle/department-usage';
 import {
@@ -12,7 +13,7 @@ import {
 } from './core/sections';
 
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'changes' },
+  { path: '', pathMatch: 'full', redirectTo: () => pageBeforeSignIn() ?? 'changes' },
   {
     path: 'changes',
     title: CHANGES.heading,

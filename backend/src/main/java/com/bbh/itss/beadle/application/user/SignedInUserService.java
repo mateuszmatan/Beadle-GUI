@@ -19,7 +19,7 @@ public class SignedInUserService implements SignedInUserUseCase {
     @Override
     @WithoutTransaction
     public SignedInUser signedInUser() {
-        return new SignedInUser(user.name());
+        return new SignedInUser(user.name(), user.email().orElse(null));
     }
 
     @Override

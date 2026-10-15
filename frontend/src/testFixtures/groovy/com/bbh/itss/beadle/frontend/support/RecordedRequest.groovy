@@ -10,6 +10,12 @@ class RecordedRequest {
     String path
     String query
     String body
+    /** The request headers by lower-case name, the first value of each. */
+    Map<String, String> headers
+
+    String header(String name) {
+        headers?.get(name.toLowerCase(Locale.ROOT))
+    }
 
     Object json() {
         body ? new JsonSlurper().parseText(body) : null

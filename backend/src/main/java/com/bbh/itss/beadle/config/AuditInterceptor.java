@@ -73,7 +73,7 @@ class AuditInterceptor implements MethodInterceptor {
     static final Pattern SECRET = Pattern.compile("token|password|passwd|secret|authorization|credential|api-?key",
             CASE_INSENSITIVE);
     static final String ROLLED_BACK = "The action ended, but its transaction did not commit";
-    static final String UNKNOWN_USER = "unknown";
+    static final String UNKNOWN_USER = SignedInUserPort.UNKNOWN;
 
     private final ObjectProvider<ActionHistoryPort> history;
     private final ObjectProvider<ObjectKeyPort> keys;

@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
+import { SIGN_OUT_PATH } from './auth';
 import {
   Department,
   DepartmentRequest,
@@ -81,5 +82,10 @@ export class UserApi {
 
   me(): Observable<SignedInUser> {
     return this.http.get<SignedInUser>('/api/me');
+  }
+
+  /** Ends the session at Beadle; Spring Security answers 204 and the CSRF interceptor sends the token. */
+  signOut(): Observable<void> {
+    return this.http.post<void>(SIGN_OUT_PATH, null);
   }
 }

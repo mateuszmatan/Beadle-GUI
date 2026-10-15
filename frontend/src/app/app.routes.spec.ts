@@ -13,6 +13,7 @@ import { ChangeEdit } from './changes/change-edit';
 import { ChangeSecureCoding } from './changes/change-secure-coding';
 import { ChangeWizard } from './changes/change-wizard';
 import { ChangesList } from './changes/changes-list';
+import { RETURN_KEY } from './core/auth';
 import { BEADLE_ADMIN } from './core/sections';
 import { department } from './testing/fixtures';
 
@@ -90,6 +91,19 @@ describe('routes', () => {
     await router.navigateByUrl(from);
 
     expect(router.url).toBe(to);
+  });
+
+  it('starts on the page the browser was on before it went to sign in, once', async () => {
+    sessionStorage.setItem(RETURN_KEY, '/action-history?user=Ann#top');
+    TestBed.configureTestingModule({ providers: [provideRouter(stubbed(routes))] });
+    const router = TestBed.inject(Router);
+
+    await router.navigateByUrl('/');
+    expect(router.url).toBe('/action-history?user=Ann#top');
+    expect(sessionStorage.getItem(RETURN_KEY)).toBeNull();
+
+    await router.navigateByUrl('/');
+    expect(router.url).toBe('/changes');
   });
 });
 

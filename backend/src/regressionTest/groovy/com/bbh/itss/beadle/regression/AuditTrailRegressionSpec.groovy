@@ -1,5 +1,8 @@
 package com.bbh.itss.beadle.regression
 
+import com.bbh.itss.beadle.support.PortalClient
+
+import java.net.CookieManager
 import java.time.Instant
 
 class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
@@ -96,8 +99,35 @@ class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
         api.get('/api/action-history?action=CHANGE_VIEWED').status == 400
     }
 
+    def "the first API call of a session records the sign-in, once, and a new session after signing out another"() {
+        given:
+        def browser = new PortalClient(api.baseUrl, new CookieManager())
+        int before = signIns()
+
+        when:
+        def first = browser.get('/api/me')
+        browser.get('/api/products')
+        browser.get('/api/action-history?size=1')
+
+        then:
+        first.status == 200
+        first.json == [name: SIGNED_IN, email: null]
+        signIns() == before + 1
+        lastSignIn() == [USER_NAME: SIGNED_IN, OBJECT_TYPE: 'USER', OBJECT_KEY: SIGNED_IN, OUTCOME: 'SUCCESS',
+                         CORRELATION_ID: first.header('X-Correlation-Id')]
+
+        when:
+        def signedOut = browser.post('/logout')
+        browser.get('/api/me')
+
+        then:
+        signedOut.status == 204
+        signIns() == before + 2
+    }
+
     def "reads leave no row"() {
         given:
+        api.get('/api/me')
         int before = jdbc.queryForObject('SELECT COUNT(*) FROM BEADLE_ACTION_HISTORY', Integer)
 
         when:
@@ -108,6 +138,15 @@ class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
 
         then:
         jdbc.queryForObject('SELECT COUNT(*) FROM BEADLE_ACTION_HISTORY', Integer) == before
+    }
+
+    private int signIns() {
+        jdbc.queryForObject("SELECT COUNT(*) FROM BEADLE_ACTION_HISTORY WHERE ACTION = 'USER_SIGNED_IN'", Integer)
+    }
+
+    private Map lastSignIn() {
+        jdbc.queryForMap('''SELECT USER_NAME, OBJECT_TYPE, OBJECT_KEY, OUTCOME, CORRELATION_ID FROM BEADLE_ACTION_HISTORY
+                WHERE ACTION = 'USER_SIGNED_IN' ORDER BY ID DESC FETCH FIRST 1 ROWS ONLY''')
     }
 
     private List<Map> rowsAbout(String key) {

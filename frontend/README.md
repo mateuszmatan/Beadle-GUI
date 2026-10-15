@@ -23,8 +23,8 @@ itself, as "Inside and outside the BBH network" in the main README describes.
 
 | Folder (`src/app`) | Holds |
 |--------------------|-------|
-| `shell/`       | `AppShell`: the navy header with "BBH Beadle", the flat menu of the sections with the current one underlined, the routed page and the footer |
-| `core/`        | `appConfig(name, routes)`, the `ApplicationConfig` the application starts with (the router with component input binding, the HTTP client, the title strategy "<page> · BBH Beadle", the dialogs); `APP_NAME`; the API clients (departments, products, lookups, the signed-in user); the models mirroring Beadle's DTOs; the four sections of the menu (`sections.ts`) with the tabs of Beadle Admin; `errorMessage()`; the toast notifier; the unsaved-changes guard |
+| `shell/`       | `AppShell`: the navy header with "BBH Beadle", the flat menu of the sections with the current one underlined, the signed-in user of `/api/me` with **Sign out**, the routed page and the footer |
+| `core/`        | `appConfig(name, routes)`, the `ApplicationConfig` the application starts with (the router with component input binding, the HTTP client with `authInterceptor`, the title strategy "<page> · BBH Beadle", the dialogs); `APP_NAME`; the API clients (departments, products, lookups, the signed-in user); the models mirroring Beadle's DTOs; the four sections of the menu (`sections.ts`) with the tabs of Beadle Admin; `errorMessage()`; the toast notifier; the unsaved-changes guard; `auth.ts`, the sign-in: `authInterceptor`, which sends the `XSRF-TOKEN` cookie as `X-XSRF-TOKEN` with every change to Beadle and sends the browser to `/oauth2/authorization/ping` when an API call answers `401`, remembering the page in the tab's session storage, and `pageBeforeSignIn()`, which the route `/` follows back |
 | `ui/`          | the UI kit every page builds on: form field, checkbox, panel, dialog, toast, loading bar, the AG Grid table (`dso-grid`) and the BBH Design System icons (`design-system.ts`, swapped for `design-system.public.ts` outside BBH) |
 | `shared/`      | the field definitions and the `dso-fields` component (`fields.ts`), form controls and byte-counting validators, the field problems of the API mapped onto a form, formatting (counts, relative times), the confirm dialog, the lookup dialog and the wizard styles |
 | `departments/` | the department dialog, the grouping of records by department (`byDepartment`) and "your department" remembered in the browser (`my-department.ts`) |
@@ -37,7 +37,10 @@ itself, as "Inside and outside the BBH network" in the main README describes.
 | `../testFixtures/` | the Groovy support of the browser tests: `GuiServer`, `StubApi` with the departments and the recording of requests, `GuiSpecification` with the Playwright browser, the menu and form helpers and the screenshots, and Beadle's `BeadleSpecification`, `BeadleStubApi` and `ChangeStubs` |
 
 `main.ts` is `appConfig('Beadle', routes)`: the header reads "BBH Beadle", the menu lists Changes, New Change,
-Admin and Action History, and nothing of the DevSecOps Management Portal appears anywhere. "Your department" is the department last
+Admin and Action History, the signed-in user and **Sign out** (`POST /logout`, then `/`) close the header, and nothing
+of the DevSecOps Management Portal appears anywhere. Beadle signs users in with Ping; the interface has no sign-in
+page of its own: an API call without a session answers `401` and the interceptor sends the browser to Ping, which
+sends it back to `/`, and the app opens the page the browser was on (see the README of the repository, "Signing in"). "Your department" is the department last
 picked in Changes or New Change, remembered in the browser (`departments/my-department.ts`).
 
 ## BBH Design System
@@ -65,21 +68,26 @@ icons of `ui/icons.ts` (Material Icons outlines, Apache License 2.0).
 ## Browser tests
 
 The smoke and regression suites are Spock specifications that drive Chromium with Playwright against the production
-build. `GuiServer` (in `src/testFixtures`) serves `dist` and answers `/api` from `BeadleStubApi`
-(`src/testFixtures`), which serves the departments, the products, the signed-in user, the lookups and the action
+build. `GuiServer` (in `src/testFixtures`) serves `dist` and answers `/api`, `/logout` and `/oauth2/` from
+`BeadleStubApi` (`src/testFixtures`), which serves the departments, the products, the signed-in user (a session that
+`POST /logout` ends, after which every API call answers `401`, and a stand-in of the Ping sign-in that signs the
+browser in again and redirects it to `/`), the lookups and the action
 history (filtered and paged like the API) from recorded answers (`src/testFixtures/resources/.../api`), keeps a demo ProTech in memory (`ChangeStubs`) that raises changes,
 creates change tasks and secure coding tickets, names the approvers of each change task, records reminders and moves
 changes through the workflow with their approvals as the tests ask, and records
-every request, so a specification checks both what the page shows and the exact JSON the GUI sends. Every
+every request with its headers, so a specification checks both what the page shows and the exact JSON the GUI sends. Every
 specification extends `BeadleSpecification`, which knows Beadle's menu, the fields of a release task and of any other
 task, and how to use a lookup. Screenshots of the last state of every feature land in
 `build/reports/frontend/screenshots`.
 
-- Smoke (`src/smokeTest`): the title, the four menu entries and the footer without any trace of DevSecOps; every
+- Smoke (`src/smokeTest`): the title, the four menu entries, the signed-in user with Sign out and the footer without
+  any trace of DevSecOps; every
   section and every Admin tab from the menu and from a direct link; the pages that read the API; the pages without
   icons but the magnifiers of the lookups; every page in an 800 and a 600 pixel window without sideways scrolling;
   an unknown address falling back to the changes.
-- Regression (`src/regressionTest`): the action history newest first with the details of an action, its filters
+- Regression (`src/regressionTest`): the signed-in user in the header, signing out with the CSRF token of the cookie
+  and coming back through Ping, a session that ended on the way to another page and a page opened without a session,
+  both coming back to that page after signing in; the action history newest first with the details of an action, its filters
   asking the API again from the first page, a range that ends before it starts, its pager and a history that cannot
   be read; the tabs of Beadle Admin; the departments with the changes they own, and adding,
   renaming and deleting them; the products by department with the state of their change template, searching them,
@@ -97,8 +105,10 @@ task, and how to use a lookup. Screenshots of the last state of every feature la
 
 ## Look and layout
 
-The header holds the name of the application and one flat menu of short labels: Changes, New Change, Admin and Action History; the
-entry of the current page is underlined. A new feature is a `PortalSection` added to `SECTIONS` in
+The header holds the name of the application, one flat menu of short labels: Changes, New Change, Admin and Action
+History, with the entry of the current page underlined, and the name of the signed-in user (the email address as its
+tooltip) with **Sign out**; below 1000px the user stays beside the name of the application and the menu takes a row
+of its own. A new feature is a `PortalSection` added to `SECTIONS` in
 `core/sections.ts`, routed in `app.routes.ts`, and to `MENU` in `BeadleSpecification`. Beadle Admin is an
 `AdminArea` of tabs in `core/sections.ts`, routed as children of the common `AdminPage`; its tabs render without their
 own page heading. Each page starts with the full name of its section as the heading and the section description under

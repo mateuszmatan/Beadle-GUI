@@ -21,13 +21,15 @@ class BeadleSmokeSpec extends BeadleSpecification {
 
     static final String CORPORATE_TECHNOLOGY = "localStorage.setItem('dso.beadle.department', '3')"
 
-    def "Beadle shows its title, only its own sections in the menu and the footer"() {
+    def "Beadle shows its title, only its own sections in the menu, the signed-in user and the footer"() {
         when:
         open('/admin/products')
 
         then:
         assertThat(page.locator('header .brand-name')).hasText('BBH Beadle')
         assertThat(menuLinks()).hasText(MENU as String[])
+        assertThat(page.locator('header .account .user-name')).isVisible()
+        assertThat(buttonIn(page.locator('header .account'), 'Sign out')).isVisible()
         assertThat(activeMenuLink()).hasText('Admin')
         !page.locator('body').textContent().contains('DevSecOps')
         SECTIONS.every { section -> !page.locator('header.topbar').textContent().contains(section.description) }

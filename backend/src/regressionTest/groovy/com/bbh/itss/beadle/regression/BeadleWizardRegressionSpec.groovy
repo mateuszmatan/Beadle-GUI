@@ -10,13 +10,13 @@ class BeadleWizardRegressionSpec extends ChangeRegressionSpecification {
     static final List<String> KINDS = ['users', 'departments', 'assignment-groups', 'releases', 'configuration-items',
                                        'incidents', 'problems', 'clients']
 
-    def "the portal names the signed-in user until single sign-on comes"() {
+    def "the portal names the user signed in locally, without an email address"() {
         when:
         def me = api.get('/api/me')
 
         then:
         me.status == 200
-        me.json == [name: SIGNED_IN]
+        me.json == [name: SIGNED_IN, email: null]
     }
 
     def "the wizard options are the ProTech categories, change types, risk answers and change task choices"() {

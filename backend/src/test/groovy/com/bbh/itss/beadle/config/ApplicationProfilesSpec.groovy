@@ -11,6 +11,8 @@ class ApplicationProfilesSpec extends Specification {
 
     static final Map ORACLE = [DB_URL     : 'jdbc:oracle:thin:@//oracle.bbh.test:1521/BEADLE',
                                DB_USERNAME: 'BEADLE', DB_PASSWORD: 'secret']
+    static final Map PING = [PING_CLIENT_ID : 'beadle-gui', PING_CLIENT_SECRET: 'not-a-secret',
+                             PING_ISSUER_URI: 'https://ping.bbh.test/as']
 
     def "without a profile Beadle runs locally on port 8081 on H2 in the home folder with demo data"() {
         when:
@@ -101,6 +103,45 @@ class ApplicationProfilesSpec extends Specification {
         'rd'    | 'internal' | 'BEADLE_INTERNAL_URL'
         'qc'    | 'protech'  | 'BEADLE_PROTECH_URL'
         'prod'  | 'internal' | 'BEADLE_INTERNAL_URL'
+    }
+
+    def "locally everybody is signed in as BEADLE_SIGNED_IN_USER, without Ping"() {
+        when:
+        def env = environment([], [:])
+
+        then:
+        env.getProperty('beadle.auth.mode') == 'local'
+        env.getProperty('beadle.signed-in-user') == 'Mateusz Matan'
+        env.getProperty('spring.security.oauth2.client.registration.ping.client-id') == null
+        environment([], [BEADLE_SIGNED_IN_USER: 'Ann Lee']).getProperty('beadle.signed-in-user') == 'Ann Lee'
+        environment([], [BEADLE_AUTH_MODE: 'oidc']).getProperty('beadle.auth.mode') == 'oidc'
+    }
+
+    def "the #profile profile signs people in with Ping as the environment says"() {
+        when:
+        def env = environment([profile], ORACLE + PING)
+
+        then:
+        env.getProperty('beadle.auth.mode') == 'oidc'
+        ['client-id', 'client-secret', 'authorization-grant-type', 'scope'].collect {
+            env.getProperty("spring.security.oauth2.client.registration.ping.$it")
+        } == ['beadle-gui', 'not-a-secret', 'authorization_code', 'openid, profile, email']
+        env.getProperty('spring.security.oauth2.client.provider.ping.issuer-uri') == PING.PING_ISSUER_URI
+        env.getProperty('server.forward-headers-strategy') == 'native'
+
+        when:
+        environment([profile], ORACLE + PING.findAll { it.key != variable })
+                .getProperty("spring.security.oauth2.client.${property}")
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains(variable)
+
+        where:
+        profile | variable             | property
+        'rd'    | 'PING_CLIENT_ID'     | 'registration.ping.client-id'
+        'qc'    | 'PING_CLIENT_SECRET' | 'registration.ping.client-secret'
+        'prod'  | 'PING_ISSUER_URI'    | 'provider.ping.issuer-uri'
     }
 
     private static Environment environment(List<String> profiles, Map<String, String> variables) {
