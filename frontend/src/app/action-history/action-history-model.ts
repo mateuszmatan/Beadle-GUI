@@ -152,7 +152,10 @@ export function durationText(milliseconds: number): string {
     : `${(milliseconds / 1000).toFixed(milliseconds < 10_000 ? 1 : 0)} s`;
 }
 
-/** The details pretty-printed when they are JSON, else as recorded (they may have been trimmed to 32 KB). */
+/**
+ * The details pretty-printed when they are JSON, else as recorded: rows written before Beadle
+ * trimmed long details inside the JSON may have been cut at 32 KB.
+ */
 export function detailsText(details: string | null): string {
   if (!details) {
     return '';
