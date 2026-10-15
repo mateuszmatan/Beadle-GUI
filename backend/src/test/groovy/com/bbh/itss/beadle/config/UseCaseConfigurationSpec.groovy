@@ -15,7 +15,7 @@ import com.bbh.itss.beadle.application.change.port.out.CyberTrackPort
 import com.bbh.itss.beadle.application.change.port.out.JiraPort
 import com.bbh.itss.beadle.application.change.port.out.ProTechLookupPort
 import com.bbh.itss.beadle.application.change.port.out.ProductionChangeRepositoryPort
-import com.bbh.itss.beadle.application.change.port.out.ServiceNowPort
+import com.bbh.itss.beadle.application.change.port.out.ProTechPort
 import com.bbh.itss.beadle.application.user.port.out.SignedInUserPort
 import com.bbh.itss.beadle.domain.catalog.Department
 import com.bbh.itss.beadle.domain.catalog.DepartmentUsage
@@ -46,7 +46,7 @@ class UseCaseConfigurationSpec extends Specification {
     DepartmentRepositoryPort departments = Mock()
     DepartmentUsagePort usage = Mock()
     JiraPort jira = Mock()
-    ServiceNowPort serviceNow = Mock()
+    ProTechPort proTech = Mock()
     CyberTrackPort cyberTrack = Mock()
 
     def runner = new ApplicationContextRunner()
@@ -60,7 +60,7 @@ class UseCaseConfigurationSpec extends Specification {
             .withBean(ChangeProfileRepositoryPort, { Mock(ChangeProfileRepositoryPort) } as Supplier<ChangeProfileRepositoryPort>)
             .withBean(ProductionChangeRepositoryPort, { Mock(ProductionChangeRepositoryPort) } as Supplier<ProductionChangeRepositoryPort>)
             .withBean(JiraPort, { jira } as Supplier<JiraPort>)
-            .withBean(ServiceNowPort, { serviceNow } as Supplier<ServiceNowPort>)
+            .withBean(ProTechPort, { proTech } as Supplier<ProTechPort>)
             .withBean(CyberTrackPort, { cyberTrack } as Supplier<CyberTrackPort>)
             .withBean(ProTechLookupPort, { Mock(ProTechLookupPort) } as Supplier<ProTechLookupPort>)
             .withBean(SignedInUserPort, { { -> 'Mateusz Matan' } as SignedInUserPort } as Supplier<SignedInUserPort>)
@@ -150,7 +150,7 @@ class UseCaseConfigurationSpec extends Specification {
         given:
         ChangeIntegrations integrations = null
         jira.connected() >> { calls << 'Jira ' + transactionState(); true }
-        serviceNow.connected() >> { calls << 'ProTech ' + transactionState(); false }
+        proTech.connected() >> { calls << 'ProTech ' + transactionState(); false }
         cyberTrack.connected() >> { calls << 'CyberTrack ' + transactionState(); true }
 
         when:

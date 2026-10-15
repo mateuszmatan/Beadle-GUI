@@ -1,4 +1,4 @@
-package com.bbh.itss.beadle.adapter.out.jira
+package com.bbh.itss.beadle.adapter.out.cybertrack
 
 import com.bbh.itss.beadle.application.change.port.out.CyberTrackPort
 import com.bbh.itss.beadle.domain.change.SecureCodingTicket
@@ -15,8 +15,8 @@ import spock.lang.Specification
 
 import java.util.concurrent.CopyOnWriteArrayList
 
-import static com.bbh.itss.beadle.adapter.out.jira.JiraCyberTrackAdapter.NO_KEY
-import static com.bbh.itss.beadle.adapter.out.jira.JiraCyberTrackAdapter.REFUSED
+import static com.bbh.itss.beadle.adapter.out.cybertrack.JiraCyberTrackAdapter.NO_KEY
+import static com.bbh.itss.beadle.adapter.out.cybertrack.JiraCyberTrackAdapter.REFUSED
 import static com.bbh.itss.beadle.support.ChangeFixtures.secureCoding
 import static java.net.InetAddress.getLoopbackAddress
 import static java.nio.charset.StandardCharsets.UTF_8

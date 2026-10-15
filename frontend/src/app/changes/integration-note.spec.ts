@@ -9,25 +9,25 @@ describe('demoText', () => {
   it('says what demo mode means for each missing connection', () => {
     const connected = { cyberTrackConnected: true };
 
-    expect(demoText({ ...connected, jiraConnected: false, serviceNowConnected: false })).toBe(
+    expect(demoText({ ...connected, jiraConnected: false, proTechConnected: false })).toBe(
       'Jira and ProTech are not connected yet, so the epics and stories are examples and no change reaches the real ProTech. ' +
         demoProTech,
     );
-    expect(demoText({ ...connected, jiraConnected: false, serviceNowConnected: true })).toBe(
+    expect(demoText({ ...connected, jiraConnected: false, proTechConnected: true })).toBe(
       'Jira is not connected yet, so the epics and stories are examples, not your real Jira data.',
     );
-    expect(demoText({ ...connected, jiraConnected: true, serviceNowConnected: false })).toBe(
+    expect(demoText({ ...connected, jiraConnected: true, proTechConnected: false })).toBe(
       `ProTech is not connected yet, so no change reaches the real ProTech. ${demoProTech}`,
     );
-    expect(demoText({ ...connected, jiraConnected: true, serviceNowConnected: true })).toBeNull();
+    expect(demoText({ ...connected, jiraConnected: true, proTechConnected: true })).toBeNull();
   });
 
   it('adds CyberTrack when only the demo creates secure coding tickets', () => {
     expect(
-      demoText({ jiraConnected: true, serviceNowConnected: true, cyberTrackConnected: false }),
+      demoText({ jiraConnected: true, proTechConnected: true, cyberTrackConnected: false }),
     ).toBe(demoCyberTrack);
     expect(
-      demoText({ jiraConnected: true, serviceNowConnected: false, cyberTrackConnected: false }),
+      demoText({ jiraConnected: true, proTechConnected: false, cyberTrackConnected: false }),
     ).toBe(
       `ProTech is not connected yet, so no change reaches the real ProTech. ${demoProTech} ${demoCyberTrack}`,
     );

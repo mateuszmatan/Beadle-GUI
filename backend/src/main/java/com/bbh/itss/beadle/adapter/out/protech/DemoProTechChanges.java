@@ -1,4 +1,4 @@
-package com.bbh.itss.beadle.adapter.out.servicenow;
+package com.bbh.itss.beadle.adapter.out.protech;
 
 import com.bbh.itss.beadle.application.change.port.in.ChangeCommand;
 import com.bbh.itss.beadle.application.change.port.in.ChangeProfileView;
@@ -6,7 +6,7 @@ import com.bbh.itss.beadle.application.change.port.in.ChangeProfilesUseCase;
 import com.bbh.itss.beadle.application.change.port.in.ProductionChangesUseCase;
 import com.bbh.itss.beadle.application.change.port.out.ChangeProductsPort;
 import com.bbh.itss.beadle.application.change.port.out.ProductionChangeRepositoryPort;
-import com.bbh.itss.beadle.application.change.port.out.ServiceNowPort.RaisedChange;
+import com.bbh.itss.beadle.application.change.port.out.ProTechPort.RaisedChange;
 import com.bbh.itss.beadle.domain.change.ChangeProduct;
 import com.bbh.itss.beadle.domain.change.ChangeSchedule;
 import com.bbh.itss.beadle.domain.change.ChangeTask;
@@ -69,7 +69,7 @@ class DemoProTechChanges {
     private final ChangeProfilesUseCase profiles;
     private final ProductionChangesUseCase changes;
     private final ProductionChangeRepositoryPort repository;
-    private final DemoServiceNowAdapter serviceNow;
+    private final DemoProTechAdapter proTech;
     private final Clock clock;
 
     @EventListener(ApplicationReadyEvent.class)
@@ -99,13 +99,13 @@ class DemoProTechChanges {
         ChangeProfileView profile = profiles.get(product.id());
         ProductionChange draft = drafted(product, profile, scene, now).raisedAt(now.minus(scene.raisedAgo()))
                 .withSecureCoding(profile.template().secureCoding(), "SCP-" + (1_000 + product.id()));
-        RaisedChange raised = serviceNow.raise(draft);
+        RaisedChange raised = proTech.raise(draft);
         ProductionChange numbered = draft.numbered(raised.number(), raised.url());
         ProductionChange tasked = numbered.withTasks(numbered.plannedTasks(profile.tasks().stream()
                 .map(ChangeTask::of).toList()).stream()
-                .map(task -> task.numbered(serviceNow.createTask(raised.number(), task, draft.createdAt())))
+                .map(task -> task.numbered(proTech.createTask(raised.number(), task, draft.createdAt())))
                 .toList());
-        ProductionChange synced = tasked.synced(serviceNow.read(List.of(tasked)).get(raised.number()), now);
+        ProductionChange synced = tasked.synced(proTech.read(List.of(tasked)).get(raised.number()), now);
         return synced.toBuilder().update(scene.update() == null ? null : updateOf(scene.update(), synced)).build();
     }
 

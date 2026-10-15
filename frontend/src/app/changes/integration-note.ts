@@ -9,25 +9,25 @@ const DEMO_PROTECH =
 const DEMO_CYBERTRACK =
   'CyberTrack is not connected yet, so a secure coding ticket gets an example number and does not reach the real Jira project SCP.';
 
-function changeText(jiraConnected: boolean, serviceNowConnected: boolean): string | null {
-  if (!jiraConnected && !serviceNowConnected) {
+function changeText(jiraConnected: boolean, proTechConnected: boolean): string | null {
+  if (!jiraConnected && !proTechConnected) {
     return `Jira and ProTech are not connected yet, so the epics and stories are examples and no change reaches the real ProTech. ${DEMO_PROTECH}`;
   }
   if (!jiraConnected) {
     return 'Jira is not connected yet, so the epics and stories are examples, not your real Jira data.';
   }
-  return serviceNowConnected
+  return proTechConnected
     ? null
     : `ProTech is not connected yet, so no change reaches the real ProTech. ${DEMO_PROTECH}`;
 }
 
 export function demoText({
   jiraConnected,
-  serviceNowConnected,
+  proTechConnected,
   cyberTrackConnected,
 }: ChangeIntegrations): string | null {
   const texts = [
-    changeText(jiraConnected, serviceNowConnected),
+    changeText(jiraConnected, proTechConnected),
     cyberTrackConnected ? null : DEMO_CYBERTRACK,
   ].filter(Boolean);
   return texts.length ? texts.join(' ') : null;

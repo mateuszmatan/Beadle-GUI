@@ -1,4 +1,4 @@
-package com.bbh.itss.beadle.adapter.out.jira;
+package com.bbh.itss.beadle.adapter.out.cybertrack;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;

@@ -1,4 +1,4 @@
-package com.bbh.itss.beadle.adapter.out.servicenow
+package com.bbh.itss.beadle.adapter.out.protech
 
 import com.bbh.itss.beadle.application.catalog.port.out.DepartmentRepositoryPort
 import com.bbh.itss.beadle.application.change.port.out.ChangeProductsPort

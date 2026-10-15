@@ -13,8 +13,8 @@ import com.bbh.itss.beadle.application.change.port.out.ChangeProductsPort;
 import com.bbh.itss.beadle.application.change.port.out.CyberTrackPort;
 import com.bbh.itss.beadle.application.change.port.out.JiraPort;
 import com.bbh.itss.beadle.application.change.port.out.ProductionChangeRepositoryPort;
-import com.bbh.itss.beadle.application.change.port.out.ServiceNowPort;
-import com.bbh.itss.beadle.application.change.port.out.ServiceNowPort.RaisedChange;
+import com.bbh.itss.beadle.application.change.port.out.ProTechPort;
+import com.bbh.itss.beadle.application.change.port.out.ProTechPort.RaisedChange;
 import com.bbh.itss.beadle.application.user.port.in.SignedInUserUseCase;
 import com.bbh.itss.beadle.domain.change.ApprovalRef;
 import com.bbh.itss.beadle.domain.change.ChangeProduct;
@@ -71,7 +71,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     private final ChangeProductsPort products;
     private final ProductionChangeRepositoryPort changes;
     private final JiraPort jira;
-    private final ServiceNowPort serviceNow;
+    private final ProTechPort proTech;
     private final CyberTrackPort cyberTrack;
     private final SignedInUserUseCase users;
     private final Clock clock;
@@ -115,7 +115,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @Override
     @WithoutTransaction
     public ChangeIntegrations integrations() {
-        return new ChangeIntegrations(jira.connected(), serviceNow.connected(), cyberTrack.connected());
+        return new ChangeIntegrations(jira.connected(), proTech.connected(), cyberTrack.connected());
     }
 
     @Override
@@ -151,7 +151,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     public ProductionChange raise(ChangeCommand command) {
         Instant now = now(clock);
         ProductionChange draft = draft(command, now).raisedAt(now);
-        RaisedChange raised = serviceNow.raise(draft);
+        RaisedChange raised = proTech.raise(draft);
         return changes.save(draft.numbered(raised.number(), raised.url()));
     }
 
@@ -163,7 +163,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         ProductionChange current = changeable(stored);
         List<ChangeTask> created = new ArrayList<>();
         try {
-            planned.forEach(task -> created.add(task.numbered(serviceNow.createTask(current.number(), task))));
+            planned.forEach(task -> created.add(task.numbered(proTech.createTask(current.number(), task))));
         } catch (RuntimeException refused) {
             if (!created.isEmpty()) {
                 recorded(current.withTasks(created));
@@ -208,7 +208,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         Map<ApprovalRef, Reminder> sent = new LinkedHashMap<>();
         try {
             awaited.forEach(approval -> sent.put(approval,
-                    new Reminder(now, serviceNow.remind(current.number(), approval))));
+                    new Reminder(now, proTech.remind(current.number(), approval))));
         } catch (RuntimeException refused) {
             if (!sent.isEmpty()) {
                 remembered(current, sent);
@@ -295,7 +295,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     private List<ProductionChange> listed(List<ProductionChange> open) {
         Map<String, ProductionChange> remote;
         try {
-            remote = serviceNow.read(open);
+            remote = proTech.read(open);
         } catch (UncheckedIOException e) {
             String problem = unreachable(e);
             return open.stream().map(change -> change.withSyncProblem(problem)).toList();
@@ -304,7 +304,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private ProductionChange synced(ProductionChange stored) {
-        return synced(List.of(stored), serviceNow.read(List.of(stored))).get(0);
+        return synced(List.of(stored), proTech.read(List.of(stored))).get(0);
     }
 
     private List<ProductionChange> synced(List<ProductionChange> open, Map<String, ProductionChange> remote) {
@@ -339,7 +339,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
 
     private void publish(ProductionChange claimed, ProductionChange current) {
         try {
-            serviceNow.update(claimed);
+            proTech.update(claimed);
         } catch (RuntimeException refused) {
             recorded(current.toBuilder().version(claimed.version()).build());
             throw refused;
@@ -357,7 +357,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
 
     private ProductionChange verified(ProductionChange published, ProductionChange current, Instant now) {
         try {
-            ProductionChange remote = serviceNow.read(List.of(published)).get(published.number());
+            ProductionChange remote = proTech.read(List.of(published)).get(published.number());
             return remote == null ? published.unverified(current, missing(published))
                     : published.synced(remote, now);
         } catch (UncheckedIOException e) {

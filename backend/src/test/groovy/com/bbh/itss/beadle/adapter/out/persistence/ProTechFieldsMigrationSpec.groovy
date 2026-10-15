@@ -23,13 +23,13 @@ import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTest
 import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED
 
 @DataJpaTest(properties = [
-        'spring.datasource.url=jdbc:h2:mem:servicenow-fields;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
+        'spring.datasource.url=jdbc:h2:mem:protech-fields;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
         'spring.datasource.username=sa',
         'spring.liquibase.enabled=false'])
 @AutoConfigureTestDatabase(replace = NONE)
 @Transactional(propagation = NOT_SUPPORTED)
 @Import([ChangeProfilePersistenceAdapter, ProductionChangePersistenceAdapter])
-class ServiceNowFieldsMigrationSpec extends BeadleMigrationSpecification {
+class ProTechFieldsMigrationSpec extends BeadleMigrationSpecification {
 
     static final List<String> DROPPED = ['RISK', 'IMPACT', 'RISK_ASSESSMENT', 'APPROVERS', 'TEST_PLAN']
     static final String MIGRATED_VALIDATION_PLAN = 'Run the smoke tests of the DevSecOps pipeline against production' +
@@ -41,7 +41,7 @@ class ServiceNowFieldsMigrationSpec extends BeadleMigrationSpecification {
     @Autowired
     ProductionChangePersistenceAdapter changes
 
-    def "profiles and changes stored before the ServiceNow fields keep their data, roll back and migrate again"() {
+    def "profiles and changes stored before the ProTech fields keep their data, roll back and migrate again"() {
         given:
         liquibase.update('')
         liquibase.rollback(executedSince('014-'), '')

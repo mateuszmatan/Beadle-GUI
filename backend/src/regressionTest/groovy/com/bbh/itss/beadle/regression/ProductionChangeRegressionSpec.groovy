@@ -913,7 +913,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         api.get('/api/changes/99999').status == 404
         api.put('/api/changes/99999', editOf(raised, [:])).status == 404
         api.post('/api/changes/99999/tasks', tasksOf(raised, changeTasksJson(1))).status == 404
-        api.get('/api/changes/integrations').json == [jiraConnected: false, serviceNowConnected: false,
+        api.get('/api/changes/integrations').json == [jiraConnected: false, proTechConnected: false,
                                                       cyberTrackConnected: false]
     }
 

@@ -11,6 +11,6 @@ class ArchitectureSpec extends ArchitectureSpecification {
 
     @Override
     String httpAdapter() {
-        'com.bbh.itss.beadle.adapter.out.jira..'
+        'com.bbh.itss.beadle.adapter.out.cybertrack..'
     }
 }

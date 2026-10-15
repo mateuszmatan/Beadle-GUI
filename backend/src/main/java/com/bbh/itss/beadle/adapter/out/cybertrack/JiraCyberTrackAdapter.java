@@ -1,4 +1,4 @@
-package com.bbh.itss.beadle.adapter.out.jira;
+package com.bbh.itss.beadle.adapter.out.cybertrack;
 
 import com.bbh.itss.beadle.application.change.port.out.CyberTrackPort;
 import com.bbh.itss.beadle.domain.change.SecureCodingTicket;
@@ -14,7 +14,7 @@ import java.io.UncheckedIOException;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.bbh.itss.beadle.adapter.out.jira.CyberTrackProperties.CONFIGURED;
+import static com.bbh.itss.beadle.adapter.out.cybertrack.CyberTrackProperties.CONFIGURED;
 import static java.time.Duration.ofSeconds;
 import static org.apache.commons.lang3.StringUtils.defaultString;
 import static org.apache.commons.lang3.StringUtils.truncate;

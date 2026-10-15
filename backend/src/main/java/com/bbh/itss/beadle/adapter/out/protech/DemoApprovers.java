@@ -1,4 +1,4 @@
-package com.bbh.itss.beadle.adapter.out.servicenow;
+package com.bbh.itss.beadle.adapter.out.protech;
 
 import lombok.NoArgsConstructor;
 
@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import static com.bbh.itss.beadle.adapter.out.servicenow.DemoProTechLookups.USERS;
+import static com.bbh.itss.beadle.adapter.out.protech.DemoProTechLookups.USERS;
 import static com.bbh.itss.beadle.domain.change.TaskDetails.RELEASE_MANAGEMENT;
 import static java.lang.Math.floorMod;
 import static java.lang.String.CASE_INSENSITIVE_ORDER;

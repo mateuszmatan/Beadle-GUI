@@ -1,4 +1,4 @@
-package com.bbh.itss.beadle.adapter.out.servicenow
+package com.bbh.itss.beadle.adapter.out.protech
 
 import com.bbh.itss.beadle.application.change.port.in.ChangeCommand
 import com.bbh.itss.beadle.application.change.port.in.ChangeProfileView
@@ -16,8 +16,8 @@ import spock.lang.Specification
 import java.time.Instant
 import java.time.LocalDate
 
-import static com.bbh.itss.beadle.adapter.out.servicenow.DemoProTechChanges.MOVED_SCHEDULE
-import static com.bbh.itss.beadle.adapter.out.servicenow.DemoProTechChanges.SCENES
+import static com.bbh.itss.beadle.adapter.out.protech.DemoProTechChanges.MOVED_SCHEDULE
+import static com.bbh.itss.beadle.adapter.out.protech.DemoProTechChanges.SCENES
 import static com.bbh.itss.beadle.domain.change.ApprovalState.APPROVED
 import static com.bbh.itss.beadle.domain.change.ApprovalState.NOT_APPROVED
 import static com.bbh.itss.beadle.domain.change.ApprovalState.REQUESTED
@@ -61,7 +61,7 @@ class DemoProTechChangesSpec extends Specification {
     ProductionChangesUseCase changes = Stub()
     ProductionChangeRepositoryPort repository = Mock()
     def clock = fixed(NOW, UTC)
-    def seeder = new DemoProTechChanges(products, profiles, changes, repository, new DemoServiceNowAdapter(clock,
+    def seeder = new DemoProTechChanges(products, profiles, changes, repository, new DemoProTechAdapter(clock,
             new DemoProTechProperties(ofSeconds(3))), clock)
     List<ProductionChange> stored = []
 

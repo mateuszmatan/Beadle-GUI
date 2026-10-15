@@ -741,10 +741,10 @@ change at once, a read shows the copy the other request stored.
 
 ### Demo ProTech and the real adapters
 
-Jira and ProTech sit behind three ports, `JiraPort`, `ServiceNowPort` and `ProTechLookupPort` (see
+Jira and ProTech sit behind three ports, `JiraPort`, `ProTechPort` and `ProTechLookupPort` (see
 [Lookups](#lookups)), and the signed-in user behind `SignedInUserPort`. Beadle ships demo adapters only, and the pages
 say so ("Demo mode"): the Jira one makes up a steady set of epics and stories per project key, and the ProTech one
-(`DemoServiceNowAdapter`) keeps the changes in memory, hands out demo `CHG` and `CTASK` numbers and moves every change
+(`DemoProTechAdapter`) keeps the changes in memory, hands out demo `CHG` and `CTASK` numbers and moves every change
 through the workflow by the clock: Business Approval 2 minutes after it was raised, Primary Approval after 4, Secondary
 Approval after 6, Support Approval after 8 and CTask approval after 10 minutes; each approval of the change is
 Requested in its stage and Approved once the change moved past it. In CTask approval it asks the approvers of every
@@ -838,7 +838,7 @@ departments.
 | `PUT /api/changes/{id}` | update an open change in ProTech: `version`, `departmentId` (the user's department, which must own the change), `shortDescription`, `description`, `schedule`, `template` and `tasks` (each with its `number`, or none for a new task, its `details` and its `start`; the list may be empty); answers the change with `update.status` `PENDING`, `APPLIED` or `NOT_APPLIED`; 403 for another department, 409 when stale or closed, 503 when ProTech cannot be reached |
 | `POST /api/changes/{id}/secure-coding` | create the secure coding ticket of an open change in CyberTrack and publish its number to ProTech: `version`, `departmentId` (which must own the change), `apoNumber`, `implementationDate` (MMDDYYYY), `bitbucketUrl`, `artifactLink` and `qcApplicationLink`, all required; answers the change with `template.secureCodingTicket`; 400 for a missing or wrong input, 403 for another department, 409 when it already has a ticket or is stale, pending or closed, 503 when CyberTrack cannot be reached or refuses the ticket, or ProTech cannot be reached |
 | `POST /api/changes/{id}/reminders` | remind the approvers of an open change who have not approved yet: `departmentId` (which must own the change) and either `approval` (`BUSINESS`, `L1`, `L2` or `SUPPORT`) or `task` (a CTASK number) for one approval, or neither for everyone who has not approved; answers the change with the `reminder` of each approval reminded; 400 for both or a task the change does not have, 403 for another department, 409 when closed, already approved or nobody is named, 503 when ProTech cannot be reached |
-| `GET /api/changes/integrations` | whether Jira, ProTech and CyberTrack are connected (`jiraConnected`, `serviceNowConnected`, `cyberTrackConnected`) |
+| `GET /api/changes/integrations` | whether Jira, ProTech and CyberTrack are connected (`jiraConnected`, `proTechConnected`, `cyberTrackConnected`) |
 
 Errors are RFC 9457 problem details; validation errors name the failing fields, for example `tasks[1].details.start`.
 

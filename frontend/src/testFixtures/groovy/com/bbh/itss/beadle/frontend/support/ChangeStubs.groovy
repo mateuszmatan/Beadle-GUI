@@ -113,7 +113,7 @@ final class ChangeStubs {
             request.params().project ?: (profiles[id as int]?.template ?: suggested(id)).jiraProjectKey
         }
 
-        api.get('/api/changes/integrations') { [jiraConnected: false, serviceNowConnected: false, cyberTrackConnected: false] }
+        api.get('/api/changes/integrations') { [jiraConnected: false, proTechConnected: false, cyberTrackConnected: false] }
         api.get('/api/changes/options') { OPTIONS }
         api.get('/api/lookups/([^/]+)') { RecordedRequest request, List<String> kinds -> lookup(kinds[0], request.params().q) }
         api.get('/api/changes') { RecordedRequest request -> protech.list(request.params().departmentId) }

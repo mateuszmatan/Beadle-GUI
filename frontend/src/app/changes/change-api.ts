@@ -282,7 +282,7 @@ export interface ReminderRequest {
 
 export interface ChangeIntegrations {
   jiraConnected: boolean;
-  serviceNowConnected: boolean;
+  proTechConnected: boolean;
   cyberTrackConnected: boolean;
 }
 

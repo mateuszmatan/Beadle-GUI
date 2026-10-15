@@ -10,8 +10,8 @@ import com.bbh.itss.beadle.application.change.port.out.ChangeProductsPort
 import com.bbh.itss.beadle.application.change.port.out.CyberTrackPort
 import com.bbh.itss.beadle.application.change.port.out.JiraPort
 import com.bbh.itss.beadle.application.change.port.out.ProductionChangeRepositoryPort
-import com.bbh.itss.beadle.application.change.port.out.ServiceNowPort
-import com.bbh.itss.beadle.application.change.port.out.ServiceNowPort.RaisedChange
+import com.bbh.itss.beadle.application.change.port.out.ProTechPort
+import com.bbh.itss.beadle.application.change.port.out.ProTechPort.RaisedChange
 import com.bbh.itss.beadle.application.user.port.in.SignedInUser
 import com.bbh.itss.beadle.application.user.port.in.SignedInUserUseCase
 import com.bbh.itss.beadle.domain.change.ApprovalRef
@@ -83,12 +83,12 @@ class ProductionChangeServiceSpec extends Specification {
     ChangeProductsPort products = Stub()
     ProductionChangeRepositoryPort changes = Mock()
     JiraPort jira = Mock()
-    ServiceNowPort serviceNow = Mock()
+    ProTechPort proTech = Mock()
     CyberTrackPort cyberTrack = Mock()
     SignedInUserUseCase users = Stub() {
         signedInUser() >> new SignedInUser('Mateusz Matan')
     }
-    def service = new ProductionChangeService(products, changes, jira, serviceNow, cyberTrack, users, fixed(NOW, UTC))
+    def service = new ProductionChangeService(products, changes, jira, proTech, cyberTrack, users, fixed(NOW, UTC))
     def certScanner = changeProduct(jiraProjectKey: 'CSCAN')
 
     def setup() {
@@ -121,7 +121,7 @@ class ProductionChangeServiceSpec extends Specification {
         draft.state() == DRAFT
         draft.workflow() == []
         0 * changes._
-        0 * serviceNow._
+        0 * proTech._
     }
 
     def "a product without stored ProTech defaults raises a change from the request in its department"() {
@@ -152,7 +152,7 @@ class ProductionChangeServiceSpec extends Specification {
         def refused = thrown(InvalidRequestException)
         refused.problems() == [new FieldProblem('productId',
                 'the product must be placed in a department in Beadle Admin first')]
-        0 * serviceNow._
+        0 * proTech._
         0 * changes._
 
         where:
@@ -166,10 +166,10 @@ class ProductionChangeServiceSpec extends Specification {
         def raised = service.raise(command(storyKeys: [], shortDescription: 'Mine'))
 
         then:
-        1 * serviceNow.raise({ it.number() == null && it.shortDescription() == 'Mine' && it.createdAt() == NOW }) >>
+        1 * proTech.raise({ it.number() == null && it.shortDescription() == 'Mine' && it.createdAt() == NOW }) >>
                 new RaisedChange('CHG0012345', 'https://bbh.service-now.com/CHG0012345')
         1 * changes.save({ it.number() == 'CHG0012345' }) >> { ProductionChange change -> change }
-        0 * serviceNow._
+        0 * proTech._
         raised.number() == 'CHG0012345'
         raised.tasks() == []
         raised.departmentId() == 3L
@@ -207,7 +207,7 @@ class ProductionChangeServiceSpec extends Specification {
         then:
         def refused = thrown(InvalidRequestException)
         refused.problems() == problems.collect { new FieldProblem(it.key, it.value) }
-        0 * serviceNow._
+        0 * proTech._
         0 * changes._
 
         where:
@@ -281,7 +281,7 @@ class ProductionChangeServiceSpec extends Specification {
         then:
         def refused = thrown(InvalidRequestException)
         refused.problems()*.field().every { it.startsWith('schedule') }
-        0 * serviceNow._
+        0 * proTech._
 
         where:
         planned          | schedule
@@ -361,7 +361,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * jira.connected() >> false
-        1 * serviceNow.connected() >> true
+        1 * proTech.connected() >> true
         1 * cyberTrack.connected() >> false
         integrations == new ChangeIntegrations(false, true, false)
     }
@@ -380,13 +380,13 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.findByDepartment(3L) >> [quiet, moved, unchanged, closed]
-        1 * serviceNow.read([quiet, moved, unchanged]) >> [CHG0031001: unchanged, CHG0031002: progressed,
+        1 * proTech.read([quiet, moved, unchanged]) >> [CHG0031001: unchanged, CHG0031002: progressed,
                                                            CHG0031003: quiet]
         1 * changes.save(progressed.toBuilder().syncedAt(NOW).build()) >>
                 { ProductionChange change -> change.toBuilder().version(1L).build() }
         1 * changes.synced([9L, 7L], NOW)
         0 * changes._
-        0 * serviceNow._
+        0 * proTech._
         listed*.number() == ['CHG0031003', 'CHG0031002', 'CHG0031001', 'CHG0031000']
         listed[0] == quiet.toBuilder().syncedAt(NOW).build()
         listed[1].state() == BUSINESS_APPROVAL
@@ -405,7 +405,7 @@ class ProductionChangeServiceSpec extends Specification {
         then:
         1 * changes.findAll() >> [closed]
         0 * changes._
-        0 * serviceNow._
+        0 * proTech._
         listed == [closed]
     }
 
@@ -419,7 +419,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.findAll() >> [open, closed]
-        1 * serviceNow.read([open]) >> { reply() }
+        1 * proTech.read([open]) >> { reply() }
         0 * changes._
         listed == [open.withSyncProblem(message), closed]
 
@@ -438,7 +438,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(stored)
-        1 * serviceNow.read([stored]) >> [CHG0031001: remote]
+        1 * proTech.read([stored]) >> [CHG0031001: remote]
         saves * changes.save(remote.toBuilder().syncedAt(NOW).build()) >>
                 { ProductionChange change -> change.toBuilder().version(1L).build() }
         (1 - saves) * changes.synced([7L], NOW)
@@ -461,7 +461,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(raised())
-        1 * serviceNow.read(_) >> { reply() }
+        1 * proTech.read(_) >> { reply() }
         0 * changes._
         loaded == raised(syncProblem: message)
 
@@ -481,7 +481,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(requested)
-        1 * serviceNow.read([requested]) >> [CHG0031001: raised(state: BUSINESS_APPROVAL)]
+        1 * proTech.read([requested]) >> [CHG0031001: raised(state: BUSINESS_APPROVAL)]
         1 * changes.save(_) >> { ProductionChange change -> change }
         loaded.update() == new ChangeUpdate(status, NOW.minusSeconds(age), 'Corporate Technology',
                 ['shortDescription'], message, NOW)
@@ -504,7 +504,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(waiting)
-        1 * serviceNow.read([waiting]) >> [CHG0031001: raised()]
+        1 * proTech.read([waiting]) >> [CHG0031001: raised()]
         1 * changes.synced([7L], NOW)
         0 * changes._
         loaded == waiting.toBuilder().syncedAt(NOW).update(new ChangeUpdate(PENDING, NOW.minusSeconds(9),
@@ -520,7 +520,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         thrown(NoSuchElementException)
-        0 * serviceNow._
+        0 * proTech._
 
         where:
         action    | call
@@ -539,7 +539,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(stored)
-        1 * serviceNow.read([stored]) >> [CHG0031001: stored]
+        1 * proTech.read([stored]) >> [CHG0031001: stored]
         1 * changes.synced([7L], NOW)
 
         then:
@@ -549,13 +549,13 @@ class ProductionChangeServiceSpec extends Specification {
         }) >> { ProductionChange change -> change.toBuilder().version(1L).build() }
 
         then:
-        1 * serviceNow.update({ ProductionChange it -> it.version() == 1L && it.shortDescription() == 'Renamed' })
+        1 * proTech.update({ ProductionChange it -> it.version() == 1L && it.shortDescription() == 'Renamed' })
 
         then:
-        1 * serviceNow.read({ it*.update()*.status() == [PENDING] }) >> [CHG0031001: applied]
+        1 * proTech.read({ it*.update()*.status() == [PENDING] }) >> [CHG0031001: applied]
         1 * changes.save({ it.version() == 1L }) >> { ProductionChange change -> change.toBuilder().version(2L).build() }
         0 * changes._
-        0 * serviceNow._
+        0 * proTech._
         updated.shortDescription() == 'Renamed'
         updated.tasks()*.number() == ['CTASK0041001', 'CTASK0041002', 'CTASK0041003']
         updated.state() == BUSINESS_APPROVAL
@@ -569,14 +569,14 @@ class ProductionChangeServiceSpec extends Specification {
         given:
         def stored = raised(state: BUSINESS_APPROVAL, version: 4L, editedVersion: 2L)
         changes.load(7L) >> Optional.of(stored)
-        serviceNow.read(_) >> [CHG0031001: stored]
+        proTech.read(_) >> [CHG0031001: stored]
 
         when:
         def updated = service.update(7L, edit(version: 3L, shortDescription: 'Renamed'))
 
         then:
         1 * changes.save({ it.version() == 4L }) >> { ProductionChange change -> change.toBuilder().version(5L).build() }
-        1 * serviceNow.update({ it.shortDescription() == 'Renamed' })
+        1 * proTech.update({ it.shortDescription() == 'Renamed' })
         1 * changes.save({ it.version() == 5L }) >> { ProductionChange change -> change.toBuilder().version(6L).build() }
         updated.version() == 6L
         updated.update().status() == PENDING
@@ -591,15 +591,15 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(stored)
-        1 * serviceNow.read(_) >> [CHG0031001: stored]
+        1 * proTech.read(_) >> [CHG0031001: stored]
         1 * changes.synced([7L], NOW)
         1 * changes.save({ it.update().fields() == [] }) >> { ProductionChange change -> change }
 
         then:
-        1 * serviceNow.update(_)
+        1 * proTech.update(_)
 
         then:
-        1 * serviceNow.read(_) >> [CHG0031001: raised(state: BUSINESS_APPROVAL)]
+        1 * proTech.read(_) >> [CHG0031001: raised(state: BUSINESS_APPROVAL)]
         1 * changes.save({ it.update().fields() == ['shortDescription'] }) >> { ProductionChange change -> change }
         updated.shortDescription() == 'Renamed'
         updated.state() == BUSINESS_APPROVAL
@@ -615,15 +615,15 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(stored)
-        1 * serviceNow.read(_) >> [CHG0031001: stored]
+        1 * proTech.read(_) >> [CHG0031001: stored]
         1 * changes.synced([7L], NOW)
         1 * changes.save({ ProductionChange it -> it.syncProblem() == null }) >> { ProductionChange change -> change }
 
         then:
-        1 * serviceNow.update(_)
+        1 * proTech.update(_)
 
         then:
-        1 * serviceNow.read(_) >> { reply() }
+        1 * proTech.read(_) >> { reply() }
         1 * changes.save({ ProductionChange it -> it.syncProblem() == message }) >>
                 { ProductionChange change -> change.withSyncProblem(null) }
         updated.shortDescription() == 'Renamed'
@@ -648,7 +648,7 @@ class ProductionChangeServiceSpec extends Specification {
         then:
         def refused = thrown(failure)
         refused.message == message
-        0 * serviceNow._
+        0 * proTech._
         0 * changes.save(_)
 
         where:
@@ -668,10 +668,10 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(raised())
-        1 * serviceNow.read(_) >> { reply() }
+        1 * proTech.read(_) >> { reply() }
         _ * changes.save({ it.update() == null }) >> { ProductionChange change -> change }
         0 * changes.save({ it.update() != null })
-        0 * serviceNow.update(_)
+        0 * proTech.update(_)
         def refused = thrown(failure)
         refused.message == message
 
@@ -694,7 +694,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(waiting)
-        1 * serviceNow.read(_) >> [CHG0031001: raised(shortDescription: 'Renamed')]
+        1 * proTech.read(_) >> [CHG0031001: raised(shortDescription: 'Renamed')]
         1 * changes.save({ it.update().status() == APPLIED }) >>
                 { ProductionChange change -> change.toBuilder().version(1L).build() }
 
@@ -703,10 +703,10 @@ class ProductionChangeServiceSpec extends Specification {
                 { ProductionChange change -> change.toBuilder().version(2L).build() }
 
         then:
-        1 * serviceNow.update({ it.shortDescription() == 'Renamed' && it.description() == 'Edited again' })
+        1 * proTech.update({ it.shortDescription() == 'Renamed' && it.description() == 'Edited again' })
 
         then:
-        1 * serviceNow.read(_) >> [CHG0031001: raised(shortDescription: 'Renamed', description: 'Edited again')]
+        1 * proTech.read(_) >> [CHG0031001: raised(shortDescription: 'Renamed', description: 'Edited again')]
         1 * changes.save({ it.version() == 2L }) >> { ProductionChange change -> change.toBuilder().version(3L).build() }
         updated.update() == new ChangeUpdate(APPLIED, NOW, 'Corporate Technology', [], null, NOW)
         updated.version() == 3L
@@ -722,10 +722,10 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(waiting)
-        1 * serviceNow.read(_) >> [CHG0031001: raised()]
+        1 * proTech.read(_) >> [CHG0031001: raised()]
         _ * changes.save({ it.update().requestedAt() != NOW }) >> { ProductionChange change -> change }
         0 * changes.save({ it.update().requestedAt() == NOW })
-        0 * serviceNow.update(_)
+        0 * proTech.update(_)
         def refused = thrown(IllegalStateException)
         refused.message == message
 
@@ -739,7 +739,7 @@ class ProductionChangeServiceSpec extends Specification {
         given:
         def stored = raised()
         changes.load(7L) >> Optional.of(stored)
-        serviceNow.read(_) >> { throw new UncheckedIOException('Connection refused', new IOException()) }
+        proTech.read(_) >> { throw new UncheckedIOException('Connection refused', new IOException()) }
 
         when:
         service.update(7L, edit(shortDescription: ' ', schedule: schedule(installationStart: '2026-10-07T09:00:00Z'),
@@ -754,7 +754,7 @@ class ProductionChangeServiceSpec extends Specification {
                                        'Desktop Software, Storage, Facilities, Other, Database'),
                                new FieldProblem('schedule.installationStart', 'must be in the future'),
                                new FieldProblem('tasks[2].details.shortDescription', 'is required')]
-        0 * serviceNow.update(_)
+        0 * proTech.update(_)
         0 * changes.save(_)
     }
 
@@ -768,8 +768,8 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(stored)
-        1 * serviceNow.read(_) >> [CHG0031001: stored]
-        0 * serviceNow.update(_)
+        1 * proTech.read(_) >> [CHG0031001: stored]
+        0 * proTech.update(_)
         0 * changes.save(_)
         def refused = thrown(InvalidRequestException)
         refused.problems() == [new FieldProblem('tasks[1].number', 'is listed more than once'),
@@ -782,11 +782,11 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(raised())
-        1 * serviceNow.read(_) >> [CHG0031001: raised()]
+        1 * proTech.read(_) >> [CHG0031001: raised()]
         1 * changes.synced([7L], NOW)
         1 * changes.save({ it.version() == 0L && it.update().pending() }) >> { throw staleVersion() }
         0 * changes._
-        0 * serviceNow.update(_)
+        0 * proTech.update(_)
         def refused = thrown(IllegalStateException)
         refused.message == STALE_VERSION
     }
@@ -800,7 +800,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(raised())
-        1 * serviceNow.read(_) >> [CHG0031001: raised(shortDescription: 'Renamed in ProTech')]
+        1 * proTech.read(_) >> [CHG0031001: raised(shortDescription: 'Renamed in ProTech')]
         1 * changes.save(_) >> { throw staleVersion() }
 
         then:
@@ -815,15 +815,15 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(raised())
-        1 * serviceNow.read(_) >> [CHG0031001: raised()]
+        1 * proTech.read(_) >> [CHG0031001: raised()]
         1 * changes.synced([7L], NOW)
         1 * changes.save({ it.version() == 0L }) >> { ProductionChange change -> change.toBuilder().version(1L).build() }
 
         then:
-        1 * serviceNow.update(_)
+        1 * proTech.update(_)
 
         then:
-        1 * serviceNow.read(_) >> [CHG0031001: raised(shortDescription: 'Renamed')]
+        1 * proTech.read(_) >> [CHG0031001: raised(shortDescription: 'Renamed')]
         1 * changes.save({ it.version() == 1L }) >> { throw staleVersion() }
 
         then:
@@ -847,14 +847,14 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(stored)
-        1 * serviceNow.read([stored]) >> [CHG0031001: stored]
+        1 * proTech.read([stored]) >> [CHG0031001: stored]
         1 * changes.synced([7L], NOW)
 
         then:
-        1 * serviceNow.createTask('CHG0031001', releaseTask([configurationItem: 'CertScanner'])) >> 'CTASK0050001'
+        1 * proTech.createTask('CHG0031001', releaseTask([configurationItem: 'CertScanner'])) >> 'CTASK0050001'
 
         then:
-        1 * serviceNow.createTask('CHG0031001', ChangeTask.of(details(2, [configurationItem: 'CertScanner']))) >>
+        1 * proTech.createTask('CHG0031001', ChangeTask.of(details(2, [configurationItem: 'CertScanner']))) >>
                 'CTASK0050002'
 
         then:
@@ -862,13 +862,13 @@ class ProductionChangeServiceSpec extends Specification {
                 { ProductionChange saved -> recorded = saved.toBuilder().version(1L).build() }
 
         then:
-        1 * serviceNow.read({ it*.version() == [1L] }) >> { [CHG0031001: recorded.toBuilder().tasks(
+        1 * proTech.read({ it*.version() == [1L] }) >> { [CHG0031001: recorded.toBuilder().tasks(
                 recorded.tasks().collect { it.withApproval(NOT_APPROVED, ['Rebecca Lawson', 'Thomas Ashby']) })
                 .build()] }
         1 * changes.save({ ProductionChange it -> it.tasks()*.approvers().every { it == ['Rebecca Lawson', 'Thomas Ashby'] } }) >>
                 { ProductionChange saved -> saved.toBuilder().version(2L).build() }
         0 * changes._
-        0 * serviceNow._
+        0 * proTech._
         change.tasks()*.number() == ['CTASK0050001', 'CTASK0050002']
         change.tasks()[0].start() == Instant.parse('2026-10-10T06:01:00Z')
         change.tasks()*.approval() == [NOT_APPROVED] * 2
@@ -884,12 +884,12 @@ class ProductionChangeServiceSpec extends Specification {
         def change = service.createTasks(7L, created())
 
         then:
-        1 * serviceNow.read(_) >> [CHG0031001: raised(tasks: [])]
-        2 * serviceNow.createTask('CHG0031001', _) >>> ['CTASK0050001', 'CTASK0050002']
+        1 * proTech.read(_) >> [CHG0031001: raised(tasks: [])]
+        2 * proTech.createTask('CHG0031001', _) >>> ['CTASK0050001', 'CTASK0050002']
         1 * changes.save(_) >> { ProductionChange saved -> saved.toBuilder().version(1L).build() }
 
         then:
-        1 * serviceNow.read(_) >> { throw new UncheckedIOException('Read timed out', new IOException()) }
+        1 * proTech.read(_) >> { throw new UncheckedIOException('Read timed out', new IOException()) }
         0 * changes.save(_)
         change.tasks()*.number() == ['CTASK0050001', 'CTASK0050002']
         change.version() == 1L
@@ -900,7 +900,7 @@ class ProductionChangeServiceSpec extends Specification {
         given:
         changes.load(7L) >> Optional.of(raised(tasks: []))
         changes.save(_) >> { ProductionChange it -> it }
-        serviceNow.read(_) >> [CHG0031001: remote]
+        proTech.read(_) >> [CHG0031001: remote]
 
         when:
         service.createTasks(7L, command)
@@ -908,7 +908,7 @@ class ProductionChangeServiceSpec extends Specification {
         then:
         def refused = thrown(type)
         refused.message == message
-        0 * serviceNow.createTask(*_)
+        0 * proTech.createTask(*_)
 
         where:
         problem                          | command                                           | remote                          || type                    | message
@@ -921,16 +921,16 @@ class ProductionChangeServiceSpec extends Specification {
     def "the tasks ProTech created before it refused one are stored and the refusal is passed on"() {
         given:
         changes.load(7L) >> Optional.of(raised(tasks: []))
-        serviceNow.read(_) >> [CHG0031001: raised(tasks: [])]
+        proTech.read(_) >> [CHG0031001: raised(tasks: [])]
 
         when:
         service.createTasks(7L, created())
 
         then:
-        1 * serviceNow.createTask('CHG0031001', _) >> 'CTASK0050001'
+        1 * proTech.createTask('CHG0031001', _) >> 'CTASK0050001'
 
         then:
-        1 * serviceNow.createTask('CHG0031001', _) >> { throw new IllegalStateException(CLOSED_REFUSAL) }
+        1 * proTech.createTask('CHG0031001', _) >> { throw new IllegalStateException(CLOSED_REFUSAL) }
 
         then:
         1 * changes.save({ ProductionChange it -> it.tasks()*.number() == ['CTASK0050001'] }) >> { it[0] }
@@ -944,13 +944,13 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(raised())
-        1 * serviceNow.read(_) >> [CHG0031001: raised()]
+        1 * proTech.read(_) >> [CHG0031001: raised()]
         1 * changes.synced([7L], NOW)
         1 * changes.save({ it.shortDescription() == 'Renamed' && it.update().pending() }) >>
                 { ProductionChange change -> change.toBuilder().version(1L).build() }
 
         then:
-        1 * serviceNow.update(_) >> { throw new IllegalStateException('ProTech does not change a closed change') }
+        1 * proTech.update(_) >> { throw new IllegalStateException('ProTech does not change a closed change') }
 
         then:
         1 * changes.save(raised(version: 1L, syncedAt: NOW)) >> { ProductionChange change -> change.toBuilder().version(2L).build() }
@@ -969,7 +969,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(stored)
-        1 * serviceNow.read([stored]) >> [CHG0031001: stored]
+        1 * proTech.read([stored]) >> [CHG0031001: stored]
         1 * changes.synced([7L], NOW)
 
         then:
@@ -982,13 +982,13 @@ class ProductionChangeServiceSpec extends Specification {
         }) >> { ProductionChange saved -> saved.toBuilder().version(1L).build() }
 
         then:
-        1 * serviceNow.update({ ProductionChange it -> it.template().secureCodingTicket() == 'SCP-1001' })
+        1 * proTech.update({ ProductionChange it -> it.template().secureCodingTicket() == 'SCP-1001' })
 
         then:
-        1 * serviceNow.read(_) >> [CHG0031001: ticketed]
+        1 * proTech.read(_) >> [CHG0031001: ticketed]
         1 * changes.save({ it.version() == 1L }) >> { ProductionChange saved -> saved.toBuilder().version(2L).build() }
         0 * changes._
-        0 * serviceNow._
+        0 * proTech._
         0 * cyberTrack._
         change.template().secureCodingTicket() == 'SCP-1001'
         change.template().secureCoding() == secureCoding()
@@ -1000,7 +1000,7 @@ class ProductionChangeServiceSpec extends Specification {
         given:
         changes.load(7L) >> Optional.of(stored)
         changes.save(_) >> { ProductionChange it -> it }
-        serviceNow.read(_) >> [CHG0031001: stored]
+        proTech.read(_) >> [CHG0031001: stored]
 
         when:
         service.createSecureCodingTicket(7L, command)
@@ -1009,7 +1009,7 @@ class ProductionChangeServiceSpec extends Specification {
         def refused = thrown(type)
         refused.message == message
         0 * cyberTrack.create(_)
-        0 * serviceNow.update(_)
+        0 * proTech.update(_)
 
         where:
         problem                          | stored                                         | command                               || type                    | message
@@ -1035,7 +1035,7 @@ class ProductionChangeServiceSpec extends Specification {
                                new FieldProblem('bitbucketUrl', SecureCoding.LINK_MESSAGE),
                                new FieldProblem('qcApplicationLink', SecureCoding.LINK_MESSAGE),
                                new FieldProblem('implementationDate', SecureCodingTicket.DATE_MESSAGE)]
-        0 * serviceNow._
+        0 * proTech._
         0 * cyberTrack._
     }
 
@@ -1043,14 +1043,14 @@ class ProductionChangeServiceSpec extends Specification {
         given:
         changes.load(7L) >> Optional.of(raised())
         changes.save(_) >> { ProductionChange it -> it }
-        serviceNow.read(_) >> [CHG0031001: raised()]
+        proTech.read(_) >> [CHG0031001: raised()]
         cyberTrack.create(_) >> 'SCP-1002'
 
         when:
         service.createSecureCodingTicket(7L, ticket())
 
         then:
-        1 * serviceNow.update(_) >> { throw new IllegalStateException(CLOSED_REFUSAL) }
+        1 * proTech.update(_) >> { throw new IllegalStateException(CLOSED_REFUSAL) }
         def refused = thrown(IllegalStateException)
         refused.message == 'SCP-1002 was created in CyberTrack, but CHG0031001 could not take it: ' + CLOSED_REFUSAL +
                 ' Enter SCP-1002 as the secure coding ticket with Edit the change.'
@@ -1060,7 +1060,7 @@ class ProductionChangeServiceSpec extends Specification {
     def "a CyberTrack failure is passed on and leaves the change as it was"() {
         given:
         changes.load(7L) >> Optional.of(raised())
-        serviceNow.read(_) >> [CHG0031001: raised()]
+        proTech.read(_) >> [CHG0031001: raised()]
 
         when:
         service.createSecureCodingTicket(7L, ticket())
@@ -1068,7 +1068,7 @@ class ProductionChangeServiceSpec extends Specification {
         then:
         1 * cyberTrack.create(_) >> { throw new UncheckedIOException('CyberTrack is down', new IOException()) }
         0 * changes.save(_)
-        0 * serviceNow.update(_)
+        0 * proTech.update(_)
         def refused = thrown(UncheckedIOException)
         refused.message == 'CyberTrack is down'
     }
@@ -1087,19 +1087,19 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(raised())
-        1 * serviceNow.read(_) >> [CHG0031001: awaiting()]
+        1 * proTech.read(_) >> [CHG0031001: awaiting()]
         1 * changes.save({ ProductionChange it -> it.state() == SUPPORT_APPROVAL && it.syncedAt() == NOW }) >>
                 { ProductionChange it -> it.toBuilder().version(1L).build() }
 
         then:
-        1 * serviceNow.remind('CHG0031001', ApprovalRef.of(SUPPORT)) >> ['Jane Smith']
-        1 * serviceNow.remind('CHG0031001', ApprovalRef.ofTask('CTASK0041002')) >> ['Ann Lee', 'Grace Turner']
+        1 * proTech.remind('CHG0031001', ApprovalRef.of(SUPPORT)) >> ['Jane Smith']
+        1 * proTech.remind('CHG0031001', ApprovalRef.ofTask('CTASK0041002')) >> ['Ann Lee', 'Grace Turner']
 
         then:
         1 * changes.save({ ProductionChange it -> it.version() == 1L }) >>
                 { ProductionChange it -> it.toBuilder().version(2L).build() }
         0 * changes._
-        0 * serviceNow._
+        0 * proTech._
         reminded.version() == 2L
         reminded.approvals()*.reminder() == [null, null, null, new Reminder(NOW, ['Jane Smith'])]
         reminded.tasks()*.reminder() == [null, new Reminder(NOW, ['Ann Lee', 'Grace Turner'])]
@@ -1116,12 +1116,12 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * changes.load(7L) >> Optional.of(stored)
-        1 * serviceNow.read(_) >> [CHG0031001: awaiting()]
-        1 * serviceNow.remind('CHG0031001', ApprovalRef.ofTask('CTASK0041002')) >> ['Ann Lee', 'Grace Turner']
+        1 * proTech.read(_) >> [CHG0031001: awaiting()]
+        1 * proTech.remind('CHG0031001', ApprovalRef.ofTask('CTASK0041002')) >> ['Ann Lee', 'Grace Turner']
         1 * changes.save(_) >> { ProductionChange it -> it }
         1 * changes.synced([7L], NOW)
         0 * changes._
-        0 * serviceNow._
+        0 * proTech._
         reminded.approvals()*.reminder() == [null, null, null, earlier]
         reminded.tasks()*.reminder() == [null, new Reminder(NOW, ['Ann Lee', 'Grace Turner'])]
         reminded.editedVersion() == stored.editedVersion()
@@ -1132,7 +1132,7 @@ class ProductionChangeServiceSpec extends Specification {
         changes.load(7L) >> Optional.of(stored)
         changes.load(8L) >> Optional.empty()
         changes.save(_) >> { ProductionChange it -> it }
-        serviceNow.read(_) >> { reply() }
+        proTech.read(_) >> { reply() }
 
         when:
         service.remind(id, command)
@@ -1140,7 +1140,7 @@ class ProductionChangeServiceSpec extends Specification {
         then:
         def refused = thrown(type)
         refused.message == message
-        0 * serviceNow.remind(*_)
+        0 * proTech.remind(*_)
 
         where:
         problem                        | id | stored                                         | command                                     | reply                               || type                    | message
@@ -1156,16 +1156,16 @@ class ProductionChangeServiceSpec extends Specification {
     def "the reminders ProTech sent before it refused one are stored and the refusal is passed on"() {
         given:
         changes.load(7L) >> Optional.of(awaiting())
-        serviceNow.read(_) >> [CHG0031001: awaiting()]
+        proTech.read(_) >> [CHG0031001: awaiting()]
 
         when:
         service.remind(7L, new ReminderCommand(3L, null, null))
 
         then:
-        1 * serviceNow.remind('CHG0031001', ApprovalRef.of(SUPPORT)) >> ['Jane Smith']
+        1 * proTech.remind('CHG0031001', ApprovalRef.of(SUPPORT)) >> ['Jane Smith']
 
         then:
-        1 * serviceNow.remind('CHG0031001', ApprovalRef.ofTask('CTASK0041002')) >>
+        1 * proTech.remind('CHG0031001', ApprovalRef.ofTask('CTASK0041002')) >>
                 { throw new IllegalStateException('ProTech has nobody to remind on CHG0031001') }
 
         then:
@@ -1179,8 +1179,8 @@ class ProductionChangeServiceSpec extends Specification {
         given:
         def latest = awaiting().toBuilder().shortDescription('Renamed meanwhile').version(3L).build()
         changes.load(7L) >>> [Optional.of(awaiting()), Optional.of(latest)]
-        serviceNow.read(_) >> [CHG0031001: awaiting()]
-        serviceNow.remind('CHG0031001', ApprovalRef.of(SUPPORT)) >> ['Jane Smith']
+        proTech.read(_) >> [CHG0031001: awaiting()]
+        proTech.remind('CHG0031001', ApprovalRef.of(SUPPORT)) >> ['Jane Smith']
 
         when:
         def reminded = service.remind(7L, new ReminderCommand(3L, SUPPORT, null))

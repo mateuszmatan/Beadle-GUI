@@ -1,4 +1,4 @@
-package com.bbh.itss.beadle.adapter.out.jira;
+package com.bbh.itss.beadle.adapter.out.cybertrack;
 
 import com.bbh.itss.beadle.application.change.port.out.CyberTrackPort;
 import com.bbh.itss.beadle.domain.change.SecureCodingTicket;
@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import java.security.SecureRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.bbh.itss.beadle.adapter.out.jira.CyberTrackProperties.NOT_CONFIGURED;
+import static com.bbh.itss.beadle.adapter.out.cybertrack.CyberTrackProperties.NOT_CONFIGURED;
 
 @Component
 @ConditionalOnExpression(NOT_CONFIGURED)
