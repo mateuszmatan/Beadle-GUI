@@ -173,8 +173,9 @@ SPRING_PROFILES_ACTIVE=qc DB_URL=jdbc:oracle:thin:@//<host>:1521/<service> DB_US
 ```
 
 Each of the three profiles belongs to the group `oracle` (the data source from `DB_URL`, `DB_USERNAME` and
-`DB_PASSWORD`, `ddl-auto: validate`, no demo data) and signs users in with Ping; `rd` logs at DEBUG and shows the
-health details, `prod` hides them. A profile without `DB_URL`, `BEADLE_INTERNAL_URL`, `BEADLE_PROTECH_URL`,
+`DB_PASSWORD`, `ddl-auto: validate`, no demo data) and signs users in with Ping; `rd` logs at DEBUG. None of them
+shows the health details (`show-details: never`): `/actuator/health` is open to anyone who reaches the route, so it
+answers only `UP` or `DOWN`, and only the `local` profile shows the database and disk details. A profile without `DB_URL`, `BEADLE_INTERNAL_URL`, `BEADLE_PROTECH_URL`,
 `PING_CLIENT_ID`, `PING_CLIENT_SECRET` or `PING_ISSUER_URI` does not start, and Beadle reads the Ping configuration
 from the issuer when it starts, so the issuer has to answer then. Behind a proxy or the OpenShift route they take the
 scheme and host of their own address from its `X-Forwarded-*` headers (`server.forward-headers-strategy: native`), so
