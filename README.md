@@ -747,7 +747,9 @@ did not commit") follows. The row of a call that throws, and every row of a use 
 (the change use cases, which call Beadle-ProTech and Beadle-Internal, and the callbacks), is written in a
 `REQUIRES_NEW` transaction of its own, so a refused or rolled-back action still leaves its trace; a row that cannot
 be written there is logged and does not change the answer. Reads write nothing. Beadle only inserts rows:
-`ActionHistoryEntity` is immutable and `ActionHistoryJpaRepository` has neither update nor delete.
+`ActionHistoryEntity` is immutable, and `ActionHistoryJpaRepository` extends only Spring Data's `Repository` and
+declares `save`, the filtered `findAll(Specification, Pageable)` and the two filter lists, so it has neither update nor
+delete (not even the `update` and `delete` by specification `JpaSpecificationExecutor` would bring).
 `ActionHistoryUseCase` reads the trail newest first, filtered by user, action, object type, object key (its
 beginning, in any case), outcome and time, in pages of at most 200 rows; `GET /api/action-history` serves it to the
 Action History page.

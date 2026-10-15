@@ -142,6 +142,12 @@ class ActionHistoryPersistenceAdapterSpec extends Specification {
                 [USER_NAME: 'Mateusz Matan', OUTCOME: 'SUCCESS']
     }
 
+    def "the repository of the audit trail can insert and read, but neither update nor delete"() {
+        expect:
+        ActionHistoryJpaRepository.interfaces as List == [org.springframework.data.repository.Repository]
+        ActionHistoryJpaRepository.methods*.name.toSet() == ['save', 'findAll', 'findUserNames', 'findActions'] as Set
+    }
+
     def "a query asks for at most 200 rows from a range that is not empty"() {
         when:
         ActionHistoryQuery.of(null, null, null, null, null, Instant.parse(from), Instant.parse(to), page, size)
