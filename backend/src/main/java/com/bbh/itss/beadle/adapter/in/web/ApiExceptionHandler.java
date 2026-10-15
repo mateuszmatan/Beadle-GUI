@@ -19,6 +19,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.io.UncheckedIOException;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 import static com.bbh.itss.beadle.domain.shared.Failures.STALE_VERSION;
@@ -104,11 +105,21 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(e, detail, headers, BAD_REQUEST, request);
     }
 
+    /**
+     * A path or query value that cannot be converted, such as {@code action=FOO} on the audit trail: answered with the
+     * parameter under {@code problems}, as a body value that cannot be read is.
+     */
     @Override
     protected ResponseEntity<Object> handleTypeMismatch(TypeMismatchException e, HttpHeaders headers,
                                                         HttpStatusCode status, WebRequest request) {
+        String name = nameOf(e);
+        String given = name == null ? "a value of this request" : "'" + name + "'";
         ProblemDetail detail = problem(BAD_REQUEST, "Malformed request",
-                "The value given for " + nameOf(e) + " is not one this endpoint can read.");
+                "The value given for " + given + " is not one this endpoint can read.");
+        if (name != null) {
+            detail.setProperty(PROBLEMS,
+                    List.of(new FieldProblem(name, MalformedBody.reasonFor(e.getRequiredType()))));
+        }
         return handleExceptionInternal(e, detail, headers, BAD_REQUEST, request);
     }
 
@@ -124,9 +135,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     private static String nameOf(TypeMismatchException e) {
-        String name = e instanceof MethodArgumentTypeMismatchException mismatch ? mismatch.getName()
-                : e.getPropertyName();
-        return name == null ? "a value of this request" : "'" + name + "'";
+        return e instanceof MethodArgumentTypeMismatchException mismatch ? mismatch.getName() : e.getPropertyName();
     }
 
     static ProblemDetail problem(HttpStatus status, String title, String message) {

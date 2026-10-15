@@ -1,9 +1,11 @@
 package com.bbh.itss.beadle.adapter.in.web
 
 import com.bbh.itss.beadle.application.audit.port.in.ActionHistoryUseCase
+import com.bbh.itss.beadle.domain.audit.Action
 import com.bbh.itss.beadle.domain.audit.ActionHistoryPage
 import com.bbh.itss.beadle.domain.audit.ActionHistoryQuery
 import com.bbh.itss.beadle.domain.audit.ActionRecord
+import com.bbh.itss.beadle.domain.audit.ObjectType
 import org.springframework.test.web.servlet.MockMvc
 import spock.lang.Specification
 
@@ -76,20 +78,25 @@ class ActionHistoryControllerSpec extends Specification {
         '/api/action-history?from=2026-10-15T00:00:00Z&to=2026-10-14T00:00:00Z'                || ['from']
     }
 
-    def "an unknown action, outcome or time is refused with 400"() {
+    def "an unknown action, object type, outcome or time is refused with 400 and the parameter under problems"() {
         when:
         def response = call(path)
 
         then:
         0 * history._
         response.status == 400
-        parse(response.contentAsString).detail == "The value given for '$parameter' is not one this endpoint can read."
+        with(parse(response.contentAsString)) {
+            detail == "The value given for '$parameter' is not one this endpoint can read."
+            problems == [[field: parameter, message: message]]
+        }
 
         where:
-        path                                         || parameter
-        '/api/action-history?action=CHANGE_VIEWED'   || 'action'
-        '/api/action-history?outcome=MAYBE'          || 'outcome'
-        '/api/action-history?from=yesterday'         || 'from'
+        path                                         || parameter    | message
+        '/api/action-history?action=CHANGE_VIEWED'   || 'action'     | 'must be one of ' + Action.values().join(', ')
+        '/api/action-history?objectType=FOO'         || 'objectType' | 'must be one of ' + ObjectType.values().join(', ')
+        '/api/action-history?outcome=MAYBE'          || 'outcome'    | 'must be one of SUCCESS, FAILURE'
+        '/api/action-history?from=yesterday'         || 'from'       | 'must be an instant in UTC, such as 2026-10-15T09:00:00Z'
+        '/api/action-history?page=first'             || 'page'       | 'must be a whole number'
     }
 
     def "the filter lists answer the users and the actions the trail holds"() {

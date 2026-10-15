@@ -14,6 +14,9 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import spock.lang.Specification
 
+import java.time.DayOfWeek
+import java.time.Instant
+
 import static com.bbh.itss.beadle.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.beadle.domain.shared.Failures.notFound
 import static com.bbh.itss.beadle.support.Json.parse
@@ -28,6 +31,7 @@ class ApiExceptionHandlerSpec extends Specification {
 
     static final FieldProblem PROBLEM = new FieldProblem('services[0].build.javaPath', 'is required')
     static final String UNEXPECTED = "The portal could not handle the request. The failure is in the portal's log."
+    static final String DAYS = 'must be one of MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY'
 
     def handler = new ApiExceptionHandler()
 
@@ -96,20 +100,22 @@ class ApiExceptionHandlerSpec extends Specification {
         with(parse(response.contentAsString)) {
             it.title == title
             it.detail == detail
-            problems == null
+            it.problems == problems
         }
 
         where:
-        request                  | builder                                           || status | title                    | detail
-        'a failing controller'   | get('/api/samples/7')                             || 500    | 'Request failed'         | UNEXPECTED
-        'no body'                | json('')                                          || 400    | 'Malformed request'      | 'The request body is missing.'
-        'a body that is no JSON' | json('{"type":')                                  || 400    | 'Malformed request'      | 'The request body is not valid JSON.'
-        'a body of another shape'| json('["FRIDAY"]')                                  || 400    | 'Malformed request'      | 'The request body does not have the shape this endpoint expects.'
-        'a path value'           | get('/api/samples/undefined')                     || 400    | 'Malformed request'      | "The value given for 'id' is not one this endpoint can read."
-        'a query value'          | get('/api/samples').param('size', 'big')          || 400    | 'Malformed request'      | "The value given for 'size' is not one this endpoint can read."
-        'no query value'         | get('/api/samples')                               || 400    | 'Bad Request'            | "Required parameter 'size' is not present."
-        'another method'         | post('/api/samples/7')                            || 405    | 'Method Not Allowed'     | "Method 'POST' is not supported."
-        'another content type'   | post('/api/samples').contentType(TEXT_PLAIN).content('FRIDAY') || 415 | 'Unsupported Media Type' | "Content-Type 'text/plain' is not supported."
+        request                  | builder                                           || status | title                    | detail | problems
+        'a failing controller'   | get('/api/samples/7')                             || 500    | 'Request failed'         | UNEXPECTED | null
+        'no body'                | json('')                                          || 400    | 'Malformed request'      | 'The request body is missing.' | null
+        'a body that is no JSON' | json('{"type":')                                  || 400    | 'Malformed request'      | 'The request body is not valid JSON.' | null
+        'a body of another shape'| json('["FRIDAY"]')                                  || 400    | 'Malformed request'      | 'The request body does not have the shape this endpoint expects.' | null
+        'a path value'           | get('/api/samples/undefined')                     || 400    | 'Malformed request'      | "The value given for 'id' is not one this endpoint can read." | [[field: 'id', message: 'must be a whole number']]
+        'a query value'          | get('/api/samples').param('size', 'big')          || 400    | 'Malformed request'      | "The value given for 'size' is not one this endpoint can read." | [[field: 'size', message: 'must be a whole number']]
+        'a query enum'           | get('/api/samples/days').param('day', 'FUNDAY')   || 400    | 'Malformed request'      | "The value given for 'day' is not one this endpoint can read." | [[field: 'day', message: DAYS]]
+        'a query instant'        | get('/api/samples/days').param('from', 'yesterday') || 400  | 'Malformed request'      | "The value given for 'from' is not one this endpoint can read." | [[field: 'from', message: 'must be an instant in UTC, such as 2026-10-15T09:00:00Z']]
+        'no query value'         | get('/api/samples')                               || 400    | 'Bad Request'            | "Required parameter 'size' is not present." | null
+        'another method'         | post('/api/samples/7')                            || 405    | 'Method Not Allowed'     | "Method 'POST' is not supported." | null
+        'another content type'   | post('/api/samples').contentType(TEXT_PLAIN).content('FRIDAY') || 415 | 'Unsupported Media Type' | "Content-Type 'text/plain' is not supported." | null
     }
 
     def "a value of the body that cannot be read is listed under problems with its field"() {
@@ -120,13 +126,11 @@ class ApiExceptionHandlerSpec extends Specification {
         response.status == 400
         with(parse(response.contentAsString)) {
             title == 'Malformed request'
-            it.detail == "day $DAYS".toString()
-            problems == [[field: 'day', message: DAYS]]
+            it.detail == "day $ApiExceptionHandlerSpec.DAYS".toString()
+            problems == [[field: 'day', message: ApiExceptionHandlerSpec.DAYS]]
             it.errors == null
         }
 
-        where:
-        DAYS = 'must be one of MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY'
     }
 
     private static MockHttpServletRequestBuilder json(String body) {
@@ -144,6 +148,12 @@ class ApiExceptionHandlerSpec extends Specification {
         @GetMapping('/api/samples')
         String list(@RequestParam('size') int size) {
             "$size samples"
+        }
+
+        @GetMapping('/api/samples/days')
+        String days(@RequestParam(name = 'day', required = false) DayOfWeek day,
+                    @RequestParam(name = 'from', required = false) Instant from) {
+            "$day from $from"
         }
 
         @PostMapping('/api/samples')
