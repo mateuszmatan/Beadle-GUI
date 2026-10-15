@@ -181,9 +181,11 @@ from the issuer when it starts, so the issuer has to answer then. Behind a proxy
 scheme and host of their own address from its `X-Forwarded-*` headers (`server.forward-headers-strategy: native`), so
 the address Ping sends the browser back to is the `https` one of the route.
 
-For GUI work, the Angular development server rebuilds on every change and proxies `/api` to the service:
-`npm start` serves the GUI on http://localhost:4201 against port 8081; `npm run start:public` does the same without the
-BBH Design System.
+For GUI work, the Angular development server rebuilds on every change and proxies `/api`, `/logout`, `/oauth2` and
+`/login` to the service (`frontend/proxy.conf.json`), so signing out works there, and so does signing in with Ping when
+the service runs in mode `oidc` and Ping knows `http://localhost:4201/login/oauth2/code/ping`: the proxy keeps the
+`Host` of the development server, so the service builds its addresses on port 4201. `npm start` serves the GUI on
+http://localhost:4201 against port 8081; `npm run start:public` does the same without the BBH Design System.
 
 ### Configuration
 

@@ -11,7 +11,7 @@ The Angular interface of BBH Beadle, the one project (`frontend`) of the Angular
 ./gradlew :frontend:smokeTest         # Spock and Playwright: every page in a browser against a stub API
 ./gradlew :frontend:regressionTest    # Spock and Playwright: user journeys against a stub API, with the requests they send
 ./gradlew :frontend:check             # all of the above
-npm start                             # http://localhost:4201, /api is proxied to the Beadle service on port 8081
+npm start                             # http://localhost:4201, /api, /logout, /oauth2 and /login proxied to port 8081
 npm run start:public                  # the same without the BBH Design System, for a machine outside BBH
 npx ng test frontend --watch=false    # the unit tests by hand
 ```
