@@ -209,7 +209,9 @@ under the prefix `beadle.` its own settings, one document per profile.
 | `BEADLE_SERVICE_TOKEN` | empty: every callback is refused | the token the three Beadle services share (`beadle.services.token`): sent as `Authorization: Bearer` with every call to Beadle-Internal and Beadle-ProTech and required of their callbacks; trimmed, as the two others trim theirs, so the newline a secret made with `--from-file` keeps does no harm |
 
 `beadle.gui.pages` (`changes, new-change, admin, action-history`) names the pages of the interface the service forwards to
-`index.html`. The log lines carry the correlation id of the request they belong to (`[%X{correlationId}]`, set by
+`index.html` at any depth; every other `GET` of an address outside `/api`, `/actuator`, `/error` and the sign-in whose
+last segment has no file extension is forwarded there too (`SinglePageAppForwarding`), so an unknown address reaches the
+wildcard route of the app, which shows Changes, and a missing file stays a `404`. The log lines carry the correlation id of the request they belong to (`[%X{correlationId}]`, set by
 `logging.pattern.correlation`).
 Liquibase runs on every start, on H2 and on Oracle. Secrets come from environment variables that OpenShift fills from
 secrets; none is written to the repository, a log or a test fixture.
@@ -1076,7 +1078,7 @@ runs the suites of one module, `./gradlew :backend:regressionTest` one suite.
 | `backend` | regression (`src/regressionTest`) | the API end to end on H2 in Oracle mode, with the in-process stand-ins of Beadle-Internal and Beadle-ProTech (profile `stub-services`), the callbacks with and without the service token, and the rows of the audit trail they leave, the sign-in of each session among them |
 | `backend` | smoke (`src/smokeTest`) | starts the service on a fresh database and checks health, the API with the signed-in user, that a callback needs the token, that the API of the DevSecOps Management Portal is absent and that the GUI is served on every page; `-Dsmoke.baseUrl=https://...` checks a deployed application (with `-Dsmoke.cookie='JSESSIONID=...; XSRF-TOKEN=...'`, the cookies of a signed-in browser, where users sign in with Ping), `-Dsmoke.ui=false` skips the GUI checks |
 | `frontend` | unit (Vitest, `./gradlew :frontend:testAngular` or `npx ng test frontend --watch=false`) | components and form models; fails below 60% of lines and statements |
-| `frontend` | smoke, regression (`src/smokeTest`, `src/regressionTest`) | Spock and Playwright in Chromium against a stub API: every page, the menu, the signed-in user and the footer without any trace of the DevSecOps Management Portal, the user journeys with the requests they send, signing out and the way through a stand-in of Ping when the session ended |
+| `frontend` | smoke, regression (`src/smokeTest`, `src/regressionTest`) | Spock and Playwright in Chromium against a stub API: every page, the menu, the signed-in user and the footer without any trace of the DevSecOps Management Portal, an unknown address falling back to Changes, the user journeys with the requests they send, signing out and the way through a stand-in of Ping when the session ended; `-Dsmoke.baseUrl=http://localhost:8081` runs the smoke suite against a running Beadle-GUI instead (one in mode `local`, since the browser does not sign in with Ping), without the three features that need the data of the stub API |
 
 `-Dperformance.factor=2` relaxes the performance limits on a slow machine. The browser suites need the Chromium
 revision Playwright 1.56 asks for; `PLAYWRIGHT_BROWSERS_PATH` points them at a folder that already holds it, and

@@ -168,15 +168,17 @@ class BeadleSmokeSpec extends Specification {
     }
 
     @Requires({ BeadleSmokeSpec.uiExpected() })
-    def "the web UI is served, also for links into the app"() {
+    def "the web UI is served, also for links into the app and for unknown addresses, which the app sends to Changes"() {
         expect:
-        ['/', '/changes', '/new-change', '/admin/products', '/admin/departments', '/action-history'].every { path ->
+        ['/', '/changes', '/new-change', '/admin/products', '/admin/departments', '/action-history',
+         '/no-such-page', '/no/such/page'].every { path ->
             def page = api.get(path)
             assert page.status == 200: "$path: $page.status"
             assert page.header('Content-Type').startsWith('text/html')
             assert page.body.contains('<beadle-root')
             true
         }
+        ['/no-such-file.js', '/api/no-such-endpoint'].every { path -> api.get(path).status == 404 }
     }
 
     static boolean uiExpected() {

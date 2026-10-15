@@ -29,12 +29,41 @@ class SinglePageAppForwardingSpec extends Specification {
         path << ['/pipelines', '/pipelines/7', '/admin', '/admin/products/12/edit']
     }
 
-    def "#path is left to the API, the static resources and the pages of the other application"() {
-        expect:
-        mvc.perform(get(path)).andReturn().response.status == 404
+    def "an unknown address #path is served by the index page too, so that the app's wildcard route takes it"() {
+        when:
+        def response = mvc.perform(get(path)).andReturn().response
+
+        then:
+        response.forwardedUrl == '/index.html'
 
         where:
-        path << ['/api/unknown', '/favicon.ico', '/index.htm', '/changes', '/new-change/product']
+        path << ['/no-such-page', '/changes', '/new-change/product', '/a/b/c', '/pipelines.old/7', '/apis']
+    }
+
+    def "#path is left to the API, the actuator, the sign-in and the static resources"() {
+        when:
+        def response = mvc.perform(get(path)).andReturn().response
+
+        then:
+        response.forwardedUrl == null
+        response.status == 404
+
+        where:
+        path << ['/api', '/api/unknown', '/actuator/unknown', '/error', '/oauth2/unknown', '/login/oauth2/code/x',
+                 '/favicon.ico', '/index.htm', '/assets/logo.svg', '/no-such-page/main.js', '/']
+    }
+
+    def "only a GET or a HEAD of an address is the app's"() {
+        expect:
+        SinglePageAppForwarding.isAppAddress(method, '/no-such-page') == expected
+
+        where:
+        method   || expected
+        'GET'    || true
+        'HEAD'   || true
+        'POST'   || false
+        'PUT'    || false
+        'DELETE' || false
     }
 
     private static MockMvc mvcWithPages(String pages) {

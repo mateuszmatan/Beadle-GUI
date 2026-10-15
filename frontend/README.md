@@ -9,6 +9,7 @@ The Angular interface of BBH Beadle, the one project (`frontend`) of the Angular
 ./gradlew :frontend:buildAngular      # production bundle in frontend/dist, checked against the angular.json budgets
 ./gradlew :frontend:testAngular       # Vitest unit tests with coverage in coverage/frontend, thresholds in angular.json
 ./gradlew :frontend:smokeTest         # Spock and Playwright: every page in a browser against a stub API
+./gradlew :frontend:smokeTest -Dsmoke.baseUrl=http://localhost:8081   # the same against a running Beadle-GUI
 ./gradlew :frontend:regressionTest    # Spock and Playwright: user journeys against a stub API, with the requests they send
 ./gradlew :frontend:check             # all of the above
 npm start                             # http://localhost:4201, /api, /logout, /oauth2 and /login proxied to port 8081
@@ -86,7 +87,10 @@ task, and how to use a lookup. Screenshots of the last state of every feature la
   any trace of DevSecOps; every
   section and every Admin tab from the menu and from a direct link; the pages that read the API; the pages without
   icons but the magnifiers of the lookups; every page in an 800 and a 600 pixel window without sideways scrolling;
-  an unknown address falling back to the changes.
+  an unknown address falling back to the changes. `-Dsmoke.baseUrl=http://localhost:8081` runs it against a running
+  Beadle-GUI instead of `GuiServer` (one in mode `local`: the browser does not sign in with Ping), without the three
+  features that need the data of the stub API (the pages that read the API, the icons and the window widths); the
+  service forwards every address of the app, an unknown one too, to `index.html`, as `GuiServer` does.
 - Regression (`src/regressionTest`): the signed-in user in the header, signing out with the CSRF token of the cookie
   and coming back through Ping, a session that ended on the way to another page and a page opened without a session,
   both coming back to that page after signing in; the action history newest first with the details of an action, its filters
