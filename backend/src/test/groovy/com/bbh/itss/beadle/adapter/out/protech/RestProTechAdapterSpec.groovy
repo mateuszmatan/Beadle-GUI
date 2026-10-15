@@ -205,6 +205,36 @@ class RestProTechAdapterSpec extends ServiceClientSpecification {
         failed.message.startsWith('Beadle-ProTech did not answer when asked to read the changes: ')
     }
 
+    def "a token with the newline of a secret file is sent trimmed, as the three services compare it"() {
+        given:
+        context.close()
+        context = start(service.url, " $TOKEN\n")
+        service.answer('POST', '/api/protech/changes/read', 200, [:])
+
+        when:
+        def read = proTech.read([raised()])
+
+        then:
+        read == [:]
+        service.last.header('Authorization') == "Bearer $TOKEN"
+    }
+
+    def "a call the HTTP layer cannot send fails as a service that did not answer, without quoting the token"() {
+        given:
+        context.close()
+        context = start(service.url, 'spec-service\ntoken')
+
+        when:
+        proTech.read([raised()])
+
+        then:
+        def failed = thrown(UncheckedIOException)
+        failed.message.startsWith('Beadle-ProTech did not answer when asked to read the changes: the call could not be sent: ')
+        failed.message.contains('Bearer *****')
+        !failed.message.contains('token')
+        service.requests.empty
+    }
+
     def "an answer #status of Beadle-ProTech fails the call with #type.simpleName"() {
         given:
         service.answer('POST', '/api/protech/changes/CHG0031001/reminders', status, body, 'application/problem+json')

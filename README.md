@@ -206,7 +206,7 @@ under the prefix `beadle.` its own settings, one document per profile.
 | `PING_CLIENT_ID`, `PING_CLIENT_SECRET` | none; required with `rd`, `qc`, `prod` | the OpenID Connect client of Beadle at Ping (registration `ping`) |
 | `BEADLE_INTERNAL_URL` | `http://localhost:8082` with `local`; required with `rd`, `qc`, `prod` | where Beadle-Internal answers (`beadle.services.internal.url`): Jira and CyberTrack |
 | `BEADLE_PROTECH_URL` | `http://localhost:8083` with `local`; required with `rd`, `qc`, `prod` | where Beadle-ProTech answers (`beadle.services.protech.url`): ProTech and its lookups |
-| `BEADLE_SERVICE_TOKEN` | empty: every callback is refused | the token the three Beadle services share (`beadle.services.token`): sent as `Authorization: Bearer` with every call to Beadle-Internal and Beadle-ProTech and required of their callbacks |
+| `BEADLE_SERVICE_TOKEN` | empty: every callback is refused | the token the three Beadle services share (`beadle.services.token`): sent as `Authorization: Bearer` with every call to Beadle-Internal and Beadle-ProTech and required of their callbacks; trimmed, as the two others trim theirs, so the newline a secret made with `--from-file` keeps does no harm |
 
 `beadle.gui.pages` (`changes, new-change, admin, action-history`) names the pages of the interface the service forwards to
 `index.html`. The log lines carry the correlation id of the request they belong to (`[%X{correlationId}]`, set by
@@ -692,8 +692,9 @@ services. The browser sends none of these headers: it signs in with Ping and car
 token (see [Signing in](#signing-in)).
 
 The changes and change tasks travel as the JSON of `ProductionChange` and `ChangeTask`. A service that cannot be
-reached or answers `5xx` fails the call with a message that names it, which the API answers `503` ("Beadle-ProTech did
-not answer when asked to read the changes: Connection refused", "Beadle-ProTech failed to raise the change: 502 ...");
+reached or answers `5xx`, and a call the HTTP client cannot even send, fail the call with a message that names the
+service (and never quotes the token), which the API answers `503` ("Beadle-ProTech did not answer when asked to read
+the changes: Connection refused", "Beadle-ProTech failed to raise the change: 502 ...");
 `401` or `403` mean the services do not share the token and answer `503` too; a refusal keeps its meaning (`400` with
 its field problems, `404` not found, `409` and every other `4xx` a conflict with the service's own message, such as
 "ProTech does not change a closed change"). Reading the list or a change still shows what Beadle stored last, with

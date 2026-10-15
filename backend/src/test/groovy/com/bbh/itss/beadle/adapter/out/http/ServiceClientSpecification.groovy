@@ -55,10 +55,10 @@ abstract class ServiceClientSpecification extends Specification {
         service.close()
     }
 
-    ConfigurableApplicationContext start(String url) {
+    ConfigurableApplicationContext start(String url, String token = TOKEN) {
         new SpringApplicationBuilder(Clients).web(WebApplicationType.NONE).logStartupInfo(false)
                 .initializers({ it.beanFactory.registerSingleton('clock', clock) })
-                .run("--beadle.services.token=$TOKEN", "--beadle.services.internal.url=$url",
+                .run("--beadle.services.token=$token", "--beadle.services.internal.url=$url",
                         "--beadle.services.protech.url=$url/", '--spring.main.banner-mode=off')
     }
 

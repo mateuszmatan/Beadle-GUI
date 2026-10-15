@@ -18,8 +18,8 @@ import java.util.function.Function;
 import static java.time.Duration.ofSeconds;
 import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
-import static org.apache.commons.lang3.StringUtils.defaultString;
 import static org.apache.commons.lang3.StringUtils.removeEnd;
+import static org.apache.commons.lang3.StringUtils.replace;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 import static org.apache.commons.lang3.StringUtils.truncate;
 import static org.apache.commons.lang3.exception.ExceptionUtils.getRootCause;
@@ -31,8 +31,10 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  * A client of Beadle-Internal or Beadle-ProTech that calls the way docs/CONTRACTS.md has it: the service token in
  * {@code Authorization}, the caller in {@code X-Beadle-User} and {@code X-Correlation-Id} ({@link CallerHeaders}),
  * 5 seconds to connect and 30 to answer. A service that cannot be reached or answers {@code 5xx} fails the call with
- * an {@link UncheckedIOException} naming the service, which the API answers {@code 503}; a refusal ({@code 4xx}) keeps
- * its meaning: the field problems of a {@code 400}, not found for {@code 404}, a conflict otherwise.
+ * an {@link UncheckedIOException} naming the service, which the API answers {@code 503}, and so does a call the HTTP
+ * layer could not even send (an {@link IllegalArgumentException} for a header value it refuses, for example); a
+ * refusal ({@code 4xx}) keeps its meaning: the field problems of a {@code 400}, not found for {@code 404}, a conflict
+ * otherwise. The token is sent trimmed, as the three services compare it, and never appears in a message.
  */
 public class BeadleServiceClient {
 
@@ -41,7 +43,10 @@ public class BeadleServiceClient {
     public static final Duration STATUS_LIFETIME = ofSeconds(30);
     public static final int MAX_REASON = 300;
 
+    static final String MASK = "*****";
+
     private final String service;
+    private final String token;
     private final RestClient client;
 
     protected BeadleServiceClient(String service, String url, String token, RestClient.Builder builder,
@@ -50,8 +55,9 @@ public class BeadleServiceClient {
         requestFactory.setConnectTimeout(CONNECT_TIMEOUT);
         requestFactory.setReadTimeout(READ_TIMEOUT);
         this.service = service;
+        this.token = trimToEmpty(token);
         this.client = builder.baseUrl(removeEnd(trimToEmpty(url), "/")).requestFactory(requestFactory)
-                .defaultHeader(AUTHORIZATION, "Bearer " + defaultString(token))
+                .defaultHeader(AUTHORIZATION, "Bearer " + this.token)
                 .defaultHeader(ACCEPT, APPLICATION_JSON_VALUE)
                 .requestInterceptor(caller).build();
     }
@@ -68,6 +74,9 @@ public class BeadleServiceClient {
             throw refusal(operation, e);
         } catch (RestClientException e) {
             throw unavailable(service + " did not answer when asked to " + operation, reasonOf(e), e);
+        } catch (RuntimeException e) {
+            throw unavailable(service + " did not answer when asked to " + operation,
+                    "the call could not be sent: " + reasonOf(e), e);
         }
     }
 
@@ -98,14 +107,19 @@ public class BeadleServiceClient {
         }
     }
 
-    private static UncheckedIOException unavailable(String what, String reason, RestClientException cause) {
-        return new UncheckedIOException(what + ": " + truncate(reason, MAX_REASON), new IOException(cause));
+    private UncheckedIOException unavailable(String what, String reason, RuntimeException cause) {
+        return new UncheckedIOException(what + ": " + truncate(masked(reason), MAX_REASON), new IOException(cause));
     }
 
-    private static String reasonOf(RestClientException e) {
+    private static String reasonOf(RuntimeException e) {
         Throwable root = getRootCause(e);
         Throwable reason = root == null ? e : root;
         return defaultIfBlank(reason.getMessage(), reason.getClass().getSimpleName());
+    }
+
+    /** The reason without the service token, which a refused header value, for example, would quote. */
+    private String masked(String reason) {
+        return token.isEmpty() ? reason : replace(reason, token, MASK);
     }
 
     /** The {@code application/problem+json} answer of a refusal, with the field problems of a {@code 400}. */
