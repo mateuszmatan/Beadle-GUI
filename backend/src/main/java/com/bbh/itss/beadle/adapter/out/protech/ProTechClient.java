@@ -38,6 +38,7 @@ public class ProTechClient extends BeadleServiceClient {
     };
     private static final ParameterizedTypeReference<List<Lookup>> LOOKUPS = new ParameterizedTypeReference<>() {
     };
+    private static final String LOOKUPS_PATH = "/api/protech/lookups/{kind}";
 
     private final CachedAnswer<Optional<Status>> status;
 
@@ -90,10 +91,16 @@ public class ProTechClient extends BeadleServiceClient {
         return reminded == null ? List.of() : reminded;
     }
 
+    /**
+     * The text the user typed travels as a URI variable, never as part of the template, so that braces, {@code &}
+     * and {@code +} reach Beadle-ProTech encoded and as typed.
+     */
     public List<Lookup> lookups(String kind, String query, int limit) {
         List<Lookup> found = call("look up " + kind, client -> client.get()
-                .uri(uri -> uri.path("/api/protech/lookups/{kind}")
-                        .queryParamIfPresent("q", Optional.ofNullable(query)).queryParam("limit", limit).build(kind))
+                .uri(uri -> query == null
+                        ? uri.path(LOOKUPS_PATH).queryParam("limit", "{limit}").build(kind, limit)
+                        : uri.path(LOOKUPS_PATH).queryParam("q", "{q}").queryParam("limit", "{limit}")
+                        .build(kind, query, limit))
                 .retrieve().body(LOOKUPS));
         return found == null ? List.of() : found;
     }

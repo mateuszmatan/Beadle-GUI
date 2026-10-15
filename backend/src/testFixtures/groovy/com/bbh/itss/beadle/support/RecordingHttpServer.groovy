@@ -92,5 +92,13 @@ class RecordingHttpServer implements AutoCloseable {
         String getDecodedQuery() {
             query == null ? null : URLDecoder.decode(query, UTF_8)
         }
+
+        /** The query parameters as a server reads them: split on {@code &} first, then each name and value decoded. */
+        Map<String, String> getParams() {
+            query ? query.split('&').collectEntries { pair ->
+                def parts = pair.split('=', 2)
+                [(URLDecoder.decode(parts[0], UTF_8)): parts.length > 1 ? URLDecoder.decode(parts[1], UTF_8) : '']
+            } as Map<String, String> : [:]
+        }
     }
 }

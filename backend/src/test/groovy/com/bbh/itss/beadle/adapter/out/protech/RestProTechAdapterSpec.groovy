@@ -6,6 +6,7 @@ import com.bbh.itss.beadle.application.change.port.out.ProTechLookupPort
 import com.bbh.itss.beadle.application.change.port.out.ProTechPort
 import com.bbh.itss.beadle.domain.change.ApprovalRef
 import com.bbh.itss.beadle.domain.change.Lookup
+import com.bbh.itss.beadle.domain.change.LookupKind
 import com.bbh.itss.beadle.domain.change.ProductionChange
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException.FieldProblem
@@ -113,6 +114,31 @@ class RestProTechAdapterSpec extends ServiceClientSpecification {
         then:
         found == [new Lookup('Release Management', 'ITSM')]
         service.last.decodedQuery == 'q=Release & co&limit=20'
+    }
+
+    def "the text of a lookup reaches Beadle-ProTech as typed, whatever characters it holds"() {
+        given:
+        service.answer('GET', '/api/protech/lookups/clients', 200, [])
+
+        when:
+        bean(ProTechLookupPort).find(LookupKind.CLIENTS, text, 20)
+
+        then:
+        service.last.params == [q: text, limit: '20']
+
+        where:
+        text << ['{x}', 'C++ team', 'R&D = 1', '50% {done} & C++']
+    }
+
+    def "a lookup without text sends only the limit"() {
+        given:
+        service.answer('GET', '/api/protech/lookups/clients', 200, [])
+
+        when:
+        bean(ProTechLookupPort).find(LookupKind.CLIENTS, null, 20)
+
+        then:
+        service.last.query == 'limit=20'
     }
 
     def "ProTech counts as connected while Beadle-ProTech answers live, asked at most every 30 seconds"() {
