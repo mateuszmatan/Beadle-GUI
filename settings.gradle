@@ -72,6 +72,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = 'bbh-devsecops'
+rootProject.name = 'beadle'
 
-include 'backend', 'common-gui', 'beadle-gui'
+include 'backend', 'frontend'

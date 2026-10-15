@@ -64,27 +64,27 @@
         }
       }
     },
-    "beadle-gui": {
+    "frontend": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
           "style": "scss"
         }
       },
-      "root": "beadle-gui",
-      "sourceRoot": "beadle-gui/src",
+      "root": "frontend",
+      "sourceRoot": "frontend/src",
       "prefix": "dso",
       "architect": {
         "build": {
           "builder": "@angular/build:application",
           "options": {
             "outputPath": {
-              "base": "beadle-gui/dist",
+              "base": "frontend/dist",
               "browser": ""
             },
-            "browser": "beadle-gui/src/main.ts",
-            "index": "beadle-gui/src/index.html",
-            "tsConfig": "beadle-gui/tsconfig.app.json",
+            "browser": "frontend/src/main.ts",
+            "index": "frontend/src/index.html",
+            "tsConfig": "frontend/tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": [
               {
@@ -173,42 +173,42 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "beadle-gui:build:production"
+              "buildTarget": "frontend:build:production"
             },
             "development": {
-              "buildTarget": "beadle-gui:build:development"
+              "buildTarget": "frontend:build:development"
             },
             "public": {
-              "buildTarget": "beadle-gui:build:development,public"
+              "buildTarget": "frontend:build:development,public"
             }
           },
           "defaultConfiguration": "development",
           "options": {
-            "proxyConfig": "beadle-gui/proxy.conf.json",
+            "proxyConfig": "frontend/proxy.conf.json",
             "port": 4201
           }
         },
         "test": {
           "builder": "@angular/build:unit-test",
           "options": {
-            "tsConfig": "beadle-gui/tsconfig.spec.json",
+            "tsConfig": "frontend/tsconfig.spec.json",
             "coverageReporters": [
               "text-summary",
               "html",
               "lcov"
             ],
             "coverageExclude": [
-              "beadle-gui/src/app/**/*.spec.ts",
-              "beadle-gui/src/app/testing/**"
+              "frontend/src/app/**/*.spec.ts",
+              "frontend/src/app/testing/**"
             ],
             "coverageThresholds": {
               "statements": 60,
               "lines": 60
             },
             "coverageInclude": [
-              "beadle-gui/src/app/**"
+              "frontend/src/app/**"
             ],
-            "buildTarget": "beadle-gui:build:development,public",
+            "buildTarget": "frontend:build:development,public",
             "providersFile": "common-gui/src/test-providers.ts"
           }
         }
