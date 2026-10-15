@@ -88,6 +88,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
 
     @Override
     @WithoutTransaction
+    @Audited(value = CHANGE_SYNCED, onlyWhenNoted = true)
     public List<ProductionChange> list(Long departmentId) {
         List<ProductionChange> stored = departmentId == null ? changes.findAll()
                 : changes.findByDepartment(departmentId);
@@ -373,7 +374,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private ProductionChange saved(ProductionChange synced, ProductionChange stored) {
-        AuditNotes.tookPlace();
+        AuditNotes.tookPlace(stored);
         try {
             return changes.save(synced);
         } catch (IllegalStateException stale) {

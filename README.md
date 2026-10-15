@@ -734,7 +734,7 @@ that changes something or calls another system writes one row of `BEADLE_ACTION_
 | `CHANGE_TASKS_CREATED` | `POST /api/changes/{id}/tasks` | the change |
 | `SECURE_CODING_TICKET_CREATED` | `POST /api/changes/{id}/secure-coding` | the change |
 | `REMINDER_SENT` | `POST /api/changes/{id}/reminders` | the change |
-| `CHANGE_SYNCED` | `GET /api/changes/{id}`, only when opening the change stored a newer state read from ProTech | the change |
+| `CHANGE_SYNCED` | `GET /api/changes/{id}` and `GET /api/changes`, only when opening or listing stored a newer state read from ProTech: one row for each change stored, with the arguments of the call (`{"id": 7}` or `{"departmentId": 3}`) | the change |
 | `PRODUCT_CREATED`, `PRODUCT_UPDATED`, `PRODUCT_DELETED` | `POST /api/products`, `PUT` and `DELETE /api/products/{id}` | the product |
 | `CHANGE_PROFILE_UPDATED` | `PUT /api/products/{id}/change-profile` | the change template of the product |
 | `DEPARTMENT_CREATED`, `DEPARTMENT_RENAMED`, `DEPARTMENT_DELETED` | `POST /api/departments`, `PUT` and `DELETE /api/departments/{id}` | the department |
@@ -758,7 +758,7 @@ finds the row of the action that created it), outcome and time, in pages of at m
 
 In short, the trail answers who did what, to which object, when, with what outcome and as part of which user action:
 every change to a department, a product or a change template, every draft, raise, edit, change task, secure coding
-ticket and reminder sent to ProTech or CyberTrack, every newer state of a change Beadle stored when it was opened,
+ticket and reminder sent to ProTech or CyberTrack, every newer state of a change Beadle stored when it was opened or listed,
 every callback of Beadle-ProTech and Beadle-Internal, and the first API call of every session. Reads (the lists, the
 pages, the lookups, the Jira versions and issues, the trail itself) write nothing.
 

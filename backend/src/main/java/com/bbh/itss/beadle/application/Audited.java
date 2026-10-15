@@ -1,6 +1,7 @@
 package com.bbh.itss.beadle.application;
 
 import com.bbh.itss.beadle.domain.audit.Action;
+import com.bbh.itss.beadle.domain.audit.AuditedObject;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
@@ -23,8 +24,9 @@ public @interface Audited {
     Action value();
 
     /**
-     * Records the call only when the use case calls {@link AuditNotes#tookPlace()}, for a read that is an action
-     * only sometimes (opening a change that pulled a newer state from ProTech).
+     * Records the call only when the use case calls {@link AuditNotes#tookPlace(AuditedObject)}, for a read that is an
+     * action only sometimes (opening or listing changes that pulled a newer state from ProTech), with one row for each
+     * object noted. When the call fails, the object noted last, the one it was busy with, gets the {@code FAILURE} row.
      */
     boolean onlyWhenNoted() default false;
 }

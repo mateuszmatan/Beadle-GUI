@@ -184,10 +184,10 @@ class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
         signIns() == before + 2
     }
 
-    def "reads leave no row"() {
+    def "reads leave no row, but for the newer state of a change from ProTech they store"() {
         given:
         api.get('/api/me')
-        int before = jdbc.queryForObject('SELECT COUNT(*) FROM BEADLE_ACTION_HISTORY', Integer)
+        int before = rowsBut('CHANGE_SYNCED')
 
         when:
         api.get('/api/products')
@@ -196,7 +196,12 @@ class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
         api.get('/api/action-history')
 
         then:
-        jdbc.queryForObject('SELECT COUNT(*) FROM BEADLE_ACTION_HISTORY', Integer) == before
+        rowsBut('CHANGE_SYNCED') == before
+    }
+
+    /** The rows of every action but the one given; the demo ProTech moves changes on with its clock at any time. */
+    private int rowsBut(String action) {
+        jdbc.queryForObject('SELECT COUNT(*) FROM BEADLE_ACTION_HISTORY WHERE ACTION <> ?', Integer, action)
     }
 
     private int signIns() {

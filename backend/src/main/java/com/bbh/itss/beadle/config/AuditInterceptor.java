@@ -118,19 +118,38 @@ class AuditInterceptor implements MethodInterceptor {
             try {
                 result = invocation.proceed();
             } catch (Throwable failure) {
-                if (!audited.onlyWhenNoted() || notes.tookPlace()) {
-                    row.durationMs(NANOSECONDS.toMillis(System.nanoTime() - started)).outcome(FAILURE)
-                            .message(messageOf(failure)).details(withResult(argumentDetails, notes));
-                    inOwnTransaction(row, () -> removed != null ? removed : fromArguments(action, method, arguments));
+                row.durationMs(NANOSECONDS.toMillis(System.nanoTime() - started))
+                        .details(withResult(argumentDetails, notes));
+                if (audited.onlyWhenNoted()) {
+                    failedOnNoted(row.build(), notes.noted(), failure);
+                } else {
+                    inOwnTransaction(row.outcome(FAILURE).message(messageOf(failure)),
+                            () -> removed != null ? removed : fromArguments(action, method, arguments));
                 }
                 throw failure;
             }
-            if (!audited.onlyWhenNoted() || notes.tookPlace()) {
-                row.durationMs(NANOSECONDS.toMillis(System.nanoTime() - started)).outcome(SUCCESS)
-                        .details(withResult(argumentDetails, notes));
+            row.durationMs(NANOSECONDS.toMillis(System.nanoTime() - started)).outcome(SUCCESS)
+                    .details(withResult(argumentDetails, notes));
+            if (audited.onlyWhenNoted()) {
+                ActionRecord each = row.build();
+                notes.noted().forEach(object -> succeeded(each.toBuilder(), () -> object));
+            } else {
                 succeeded(row, () -> removed != null ? removed : objectOf(action, method, arguments, result));
             }
             return result;
+        }
+    }
+
+    /**
+     * The rows of a conditional action that failed: {@code SUCCESS} for every object it was done with, and
+     * {@code FAILURE} for the one noted last, which it was busy with; none when it took place on nothing.
+     */
+    private void failedOnNoted(ActionRecord row, List<ActionObject> noted, Throwable failure) {
+        for (int index = 0; index < noted.size(); index++) {
+            ActionObject object = noted.get(index);
+            ActionRecordBuilder each = index < noted.size() - 1 ? row.toBuilder().outcome(SUCCESS)
+                    : row.toBuilder().outcome(FAILURE).message(messageOf(failure));
+            inOwnTransaction(each, () -> object);
         }
     }
 

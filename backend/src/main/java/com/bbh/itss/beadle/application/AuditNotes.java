@@ -1,7 +1,10 @@
 package com.bbh.itss.beadle.application;
 
+import com.bbh.itss.beadle.domain.audit.ActionObject;
+import com.bbh.itss.beadle.domain.audit.AuditedObject;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -14,7 +17,8 @@ import static lombok.AccessLevel.PRIVATE;
  * What a running {@link Audited} use case tells the audit trail besides its arguments and its result: what it created
  * in another system ({@link #created(String)}: the CHG and CTASK numbers ProTech handed out, the key of a CyberTrack
  * ticket), what else came of it ({@link #result(String, Object)}: the people reminded), and, for a use case audited
- * {@link Audited#onlyWhenNoted() only when noted}, that its action took place ({@link #tookPlace()}). The notes go to
+ * {@link Audited#onlyWhenNoted() only when noted}, on which objects its action took place
+ * ({@link #tookPlace(AuditedObject)}). The notes go to
  * the row of the innermost audited call running on the thread; outside one a note has no effect. A use case notes as
  * it goes, so that a call that fails half-way still records what it had done in the other systems.
  */
@@ -23,11 +27,14 @@ public final class AuditNotes {
 
     private static final ThreadLocal<Listening> LISTENING = new ThreadLocal<>();
 
-    /** Tells the audit trail that the conditional action of the running use case took place. */
-    public static void tookPlace() {
+    /**
+     * Tells the audit trail that the conditional action of the running use case takes place on {@code about}, such as
+     * a change whose newer state from ProTech is about to be stored; each object noted gets a row of its own.
+     */
+    public static void tookPlace(AuditedObject about) {
         Listening listening = LISTENING.get();
-        if (listening != null) {
-            listening.tookPlace = true;
+        if (listening != null && about != null) {
+            listening.noted.add(about.auditedObject());
         }
     }
 
@@ -64,14 +71,19 @@ public final class AuditNotes {
         private final Listening enclosing;
         private final Set<String> created = new LinkedHashSet<>();
         private final Map<String, Object> results = new LinkedHashMap<>();
-        private boolean tookPlace;
+        private final List<ActionObject> noted = new ArrayList<>();
 
         private Listening(Listening enclosing) {
             this.enclosing = enclosing;
         }
 
         public boolean tookPlace() {
-            return tookPlace;
+            return !noted.isEmpty();
+        }
+
+        /** The objects the conditional action took place on, in the order noted, each once. */
+        public List<ActionObject> noted() {
+            return noted.stream().distinct().toList();
         }
 
         /** The keys of what the action created in other systems, in the order noted, each once. */

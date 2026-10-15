@@ -298,6 +298,54 @@ class AuditInterceptorSpec extends Specification {
                 [[CHANGE_SYNCED, CHANGE, 7L, 'CHG0031001', '{"id":7}']]
     }
 
+    def "listing the changes records a CHANGE_SYNCED row for each change whose newer state it stored, and none for the rest"() {
+        given:
+        def moved = [state: BUSINESS_APPROVAL,
+                     workflow: [new WorkflowStep(DRAFT, RAISED), new WorkflowStep(BUSINESS_APPROVAL, NOW)]]
+        changes.findByDepartment(3L) >> [raised(), raised(id: 8L, number: 'CHG0031002'),
+                                         raised(id: 9L, number: 'CHG0031003')]
+        changes.save(_) >> { it[0] }
+
+        when:
+        use(ProductionChangesUseCase) { it.list(3L) }
+
+        then:
+        1 * proTech.read(_) >> [CHG0031001: raised(moved), CHG0031002: raised(id: 8L, number: 'CHG0031002'),
+                                CHG0031003: raised(moved + [id: 9L, number: 'CHG0031003'])]
+        rows.collect { [it.action(), it.objectType(), it.objectId(), it.objectKey(), it.outcome(), it.details()] } == [
+                [CHANGE_SYNCED, CHANGE, 7L, 'CHG0031001', SUCCESS, '{"departmentId":3}'],
+                [CHANGE_SYNCED, CHANGE, 9L, 'CHG0031003', SUCCESS, '{"departmentId":3}']]
+        rows*.user() == ['Mateusz Matan', 'Mateusz Matan']
+        transactions.log == ['begin read-write', 'audit row read-write', 'commit'] * 2
+
+        when:
+        rows.clear()
+        use(ProductionChangesUseCase) { it.list(3L) }
+
+        then:
+        1 * proTech.read(_) >> [CHG0031001: raised(), CHG0031002: raised(id: 8L, number: 'CHG0031002'),
+                                CHG0031003: raised(id: 9L, number: 'CHG0031003')]
+        rows == []
+    }
+
+    def "a list that fails while storing a newer state records the changes it stored and the one it failed on"() {
+        given:
+        def moved = [state: BUSINESS_APPROVAL,
+                     workflow: [new WorkflowStep(DRAFT, RAISED), new WorkflowStep(BUSINESS_APPROVAL, NOW)]]
+        changes.findAll() >> [raised(), raised(id: 8L, number: 'CHG0031002')]
+        proTech.read(_) >> [CHG0031001: raised(moved), CHG0031002: raised(moved + [id: 8L, number: 'CHG0031002'])]
+        changes.save(_) >> { it[0] } >> { throw new IllegalArgumentException('The database is full') }
+
+        when:
+        use(ProductionChangesUseCase) { it.list(null) }
+
+        then:
+        thrown(IllegalArgumentException)
+        rows.collect { [it.action(), it.objectKey(), it.outcome(), it.message()] } == [
+                [CHANGE_SYNCED, 'CHG0031001', SUCCESS, null],
+                [CHANGE_SYNCED, 'CHG0031002', FAILURE, 'The database is full']]
+    }
+
     def "an invalid request is recorded with its problems, its object named by the arguments and its long details trimmed"() {
         given:
         def name = 'N' * 40_000

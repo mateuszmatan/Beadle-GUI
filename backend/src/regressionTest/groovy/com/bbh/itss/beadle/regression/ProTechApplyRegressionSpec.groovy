@@ -44,6 +44,35 @@ class ProTechApplyRegressionSpec extends ChangeRegressionSpecification {
                 raised.id) == 3
     }
 
+    def "listing the changes stores the update ProTech applied meanwhile and records it as synced by the user"() {
+        given:
+        def raised = raise(createProduct(product(code: uniqueCode(), name: "Listed ${uniqueCode()}")))
+        def updated = api.put("/api/changes/$raised.id", editOf(raised, [shortDescription: 'Listed release'])).json
+
+        when:
+        Map listed = listOnceApplied(raised.id as long, raised.departmentId as long)
+
+        then:
+        updated.update.status == 'PENDING'
+        listed.update.status == 'APPLIED'
+        jdbc.queryForList('''SELECT USER_NAME, OBJECT_TYPE, OBJECT_ID, OUTCOME, DETAILS FROM BEADLE_ACTION_HISTORY
+                WHERE OBJECT_KEY = ? AND ACTION = 'CHANGE_SYNCED' ORDER BY ID''', raised.number).any { row ->
+            row.USER_NAME == SIGNED_IN && row.OBJECT_TYPE == 'CHANGE' && row.OBJECT_ID as long == raised.id &&
+                    row.OUTCOME == 'SUCCESS' && row.DETAILS == "{\"departmentId\":$raised.departmentId}".toString()
+        }
+    }
+
+    private Map listOnceApplied(long id, long departmentId) {
+        for (int attempt = 0; attempt < 40; attempt++) {
+            Map listed = (api.get("/api/changes?departmentId=$departmentId").json as List<Map>).find { it.id == id }
+            if (listed.update.status != 'PENDING') {
+                return listed
+            }
+            sleep(250)
+        }
+        throw new AssertionError("ProTech has not applied the update of change $id")
+    }
+
     private Map readOnceApplied(long id) {
         for (int attempt = 0; attempt < 40; attempt++) {
             Map read = api.get("/api/changes/$id").json as Map
