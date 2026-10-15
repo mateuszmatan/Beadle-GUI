@@ -7,6 +7,7 @@ import { BROWSER_NAVIGATION, afterSignOut } from '../core/auth';
 import { errorMessage } from '../core/errors';
 import { Notifier } from '../core/notifier';
 import { PortalSection } from '../core/sections';
+import { SessionEnd } from '../core/session-end';
 
 @Component({
   selector: 'dso-app-shell',
@@ -23,6 +24,8 @@ export class AppShell {
   private readonly users = inject(UserApi);
   private readonly navigate = inject(BROWSER_NAVIGATION);
   private readonly notifier = inject(Notifier);
+  /** Told which page is open, so that the end of the session does not throw away its unsaved changes. */
+  protected readonly sessionEnd = inject(SessionEnd);
 
   private readonly me = rxResource({ stream: () => this.users.me() });
   /** The signed-in user once Beadle has named them; a 401 sends the browser to sign in instead. */

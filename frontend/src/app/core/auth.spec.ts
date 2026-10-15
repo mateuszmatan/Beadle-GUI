@@ -8,8 +8,9 @@ import {
 } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { provideRouter } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { Subject, firstValueFrom } from 'rxjs';
 import {
   BROWSER_NAVIGATION,
   RETURN_KEY,
@@ -19,6 +20,7 @@ import {
   authInterceptor,
   pageBeforeSignIn,
 } from './auth';
+import { DRAFT_KEY, SESSION_ENDED, SessionEnd } from './session-end';
 
 const COOKIE = 'XSRF-TOKEN';
 
@@ -94,6 +96,39 @@ describe('authInterceptor', () => {
     await expect(answer).rejects.toBeInstanceOf(HttpErrorResponse);
     expect(navigate).toHaveBeenCalledExactlyOnceWith(SIGN_IN_PATH);
     expect(sessionStorage.getItem(RETURN_KEY)).toBe('/changes/42?tab=tasks#approvals');
+  });
+
+  it('asks first when the open page has unsaved changes, keeping its draft until the user signs in again', async () => {
+    history.replaceState(null, '', '/new-change');
+    const answers = new Subject<boolean>();
+    const open = vi
+      .spyOn(TestBed.inject(Dialog), 'open')
+      .mockReturnValue({ closed: answers } as unknown as DialogRef<unknown>);
+    TestBed.inject(SessionEnd).shown({
+      hasUnsavedChanges: () => true,
+      draftName: 'new-change',
+      draft: () => ({ step: 3 }),
+    });
+    const answer = firstValueFrom(http.get('/api/changes/preview'));
+
+    server
+      .expectOne('/api/changes/preview')
+      .flush(null, { status: 401, statusText: 'Unauthorized' });
+
+    await expect(answer).rejects.toBeInstanceOf(HttpErrorResponse);
+    expect(open).toHaveBeenCalledWith(expect.anything(), {
+      data: expect.objectContaining({ title: SESSION_ENDED }),
+    });
+    expect(navigate).not.toHaveBeenCalled();
+    expect(JSON.parse(sessionStorage.getItem(DRAFT_KEY)!)).toEqual({
+      page: 'new-change',
+      draft: { step: 3 },
+    });
+
+    answers.next(true);
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(SIGN_IN_PATH);
+    expect(sessionStorage.getItem(RETURN_KEY)).toBe('/new-change');
+    vi.restoreAllMocks();
   });
 
   it('remembers no page when the browser is at the start anyway', async () => {

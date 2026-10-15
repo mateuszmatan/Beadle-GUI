@@ -500,8 +500,15 @@ that carries `name` (or at least `preferred_username`) and `email`. Beadle reads
 when it starts, so a wrong `PING_ISSUER_URI` stops the start, as does a missing Ping variable on `rd`, `qc` and `prod`;
 mode `oidc` without the registration (the `local` profile with `BEADLE_AUTH_MODE=oidc`) stops it with
 "beadle.auth.mode=oidc needs the Ping registration ...", since the registration lives in those three profiles only. The session is Beadle's
-own HTTP session, ended by Sign out or after 30 minutes without a request (`server.servlet.session.timeout`); the
-next API call then goes through Ping again and comes back to the page it was on. The tests run in mode `local`,
+own HTTP session, ended by Sign out, after 30 minutes without a request (`server.servlet.session.timeout`) or when the
+pod that held it goes away; the next API call then goes through Ping again and comes back to the page it was on. A
+page with unsaved changes (New Change, Edit the change, the secure coding ticket of a change, the change template of a
+product) does not leave at once: a "Your session ended" dialog offers **Sign in again** and **Stay on this page**, to
+copy what was typed first (`core/session-end.ts`). New Change keeps its entries in the tab's session storage
+(`beadle.signIn.draft`) and opens again on the same step with them after the sign-in: the department, the product and
+its template as edited, the FixVersion with the chosen epics and stories, the schedule and the texts the user wrote,
+and once the change is raised, the change tasks and the secure coding ticket of that change, which it does not raise
+again. The other three pages say that their changes are lost with the new sign-in. The tests run in mode `local`,
 except `SecurityConfigurationSpec`, which checks both modes against a made-up Ping whose OpenID configuration is read
 from a local server, and `PingSignOutSpec`, which checks the end-session addresses.
 

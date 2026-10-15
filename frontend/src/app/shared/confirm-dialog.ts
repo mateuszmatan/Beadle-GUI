@@ -6,6 +6,8 @@ export interface ConfirmDialogData {
   title: string;
   message: string;
   confirmLabel: string;
+  /** The label of the button that closes the dialog without the action, Cancel unless named. */
+  cancelLabel?: string;
   danger?: boolean;
 }
 
@@ -21,7 +23,9 @@ export interface ConfirmDialogData {
       <p class="message">{{ data.message }}</p>
     </div>
     <div class="modal-footer">
-      <button type="button" class="btn btn-link" dsoDialogClose>Cancel</button>
+      <button type="button" class="btn btn-link" dsoDialogClose>
+        {{ data.cancelLabel ?? 'Cancel' }}
+      </button>
       <button
         type="button"
         class="btn"

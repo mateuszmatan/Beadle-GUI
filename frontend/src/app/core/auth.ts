@@ -8,6 +8,7 @@ import {
 import { InjectionToken, inject } from '@angular/core';
 import { Router, UrlTree } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
+import { SessionEnd } from './session-end';
 
 /** Where the browser signs in with Ping: Spring Security's OAuth2 login of the registration `ping`. */
 export const SIGN_IN_PATH = '/oauth2/authorization/ping';
@@ -35,12 +36,13 @@ const api = (url: string) => ownAddress(url) && /^\/?api\//.test(url);
 /**
  * Sends the CSRF token Beadle keeps in the `XSRF-TOKEN` cookie as `X-XSRF-TOKEN` with every change to Beadle, and
  * sends the browser to the Ping sign-in when an API call answers 401 (no session, or one that ended), remembering the
- * page to come back to.
+ * page to come back to; a page with unsaved changes asks first and keeps its draft, see {@link SessionEnd}.
  */
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const token = inject(HttpXsrfTokenExtractor).getToken();
   const navigate = inject(BROWSER_NAVIGATION);
   const document = inject(DOCUMENT);
+  const sessionEnd = inject(SessionEnd);
   const sent =
     token && changes(request) && ownAddress(request.url) && !request.headers.has(XSRF_HEADER)
       ? request.clone({ setHeaders: { [XSRF_HEADER]: token } })
@@ -48,8 +50,10 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   return next(sent).pipe(
     catchError((error: unknown) => {
       if (error instanceof HttpErrorResponse && error.status === 401 && api(request.url)) {
-        rememberPage(document);
-        navigate(SIGN_IN_PATH);
+        sessionEnd.ended(() => {
+          rememberPage(document);
+          navigate(SIGN_IN_PATH);
+        });
       }
       return throwError(() => error);
     }),

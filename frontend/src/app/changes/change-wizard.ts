@@ -18,20 +18,24 @@ import { MyDepartment } from '../departments/my-department';
 import { ProductsApi, UserApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
 import { CHANGES, NEW_CHANGE, beadleChange, beadleProduct } from '../core/sections';
+import { KeepsDraft, SessionEnd } from '../core/session-end';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { byDepartment } from '../departments/departments';
-import {
-  applyFieldProblems,
-  applyProblemsAt,
-  byteLength,
-  filled,
-} from '../shared/form-controls';
+import { applyFieldProblems, applyProblemsAt, byteLength, filled } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
 import { DsoCheckbox } from '../ui/checkbox';
 import { FORM_FIELD } from '../ui/form-field';
 import { DsoLoading } from '../ui/loading';
-import { ChangeRequest, ChangesApi, JiraIssue, JiraVersion, ProductionChange } from './change-api';
+import {
+  ChangeRequest,
+  ChangeTemplate,
+  ChangesApi,
+  JiraIssue,
+  JiraVersion,
+  ProductionChange,
+  TaskRequest,
+} from './change-api';
 import {
   approverNames,
   changeRequest,
@@ -47,6 +51,7 @@ import { ChangeScheduleFields } from './change-schedule-fields';
 import {
   SCHEDULE_PREFIX,
   ScheduleForm,
+  ScheduleInput,
   onHours,
   plannedDay,
   plannedInput,
@@ -112,6 +117,34 @@ const LATER_LABELS: Partial<Record<StepKey, string>> = {
 
 const ATTENTION = 'Some fields need your attention.';
 
+/** The name the wizard keeps its draft under while the browser signs in again, see {@link SessionEnd}. */
+export const WIZARD_DRAFT = 'new-change';
+
+/**
+ * What the wizard keeps in the tab when the session ends before the change is raised, or before its change tasks and
+ * its secure coding ticket are created: enough to open it again on the same step with the same entries.
+ */
+export interface WizardDraft {
+  step: number;
+  departmentId: number | null;
+  productId: number | null;
+  template: ChangeTemplate | null;
+  schedule: ScheduleInput | null;
+  fixVersion: string;
+  searched: string | null;
+  epicKeys: string[];
+  storyKeys: string[];
+  seenStories: string[];
+  filledRelease: string | null;
+  filledStart: string | null;
+  /** The texts the user wrote over the generated ones; null keeps the generated text. */
+  shortDescription: string | null;
+  description: string | null;
+  raised: ProductionChange | null;
+  tasks: TaskRequest[] | null;
+  secureCoding: ReturnType<SecureCodingForm['getRawValue']> | null;
+}
+
 @Component({
   selector: 'dso-change-wizard',
   imports: [
@@ -132,7 +165,9 @@ const ATTENTION = 'Some fields need your attention.';
   templateUrl: './change-wizard.html',
   styleUrls: ['../shared/wizard.scss', './change-wizard.scss'],
 })
-export class ChangeWizard implements HasUnsavedChanges {
+export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
+  readonly draftName = WIZARD_DRAFT;
+
   private readonly changesApi = inject(ChangesApi);
   private readonly productsApi = inject(ProductsApi);
   private readonly destroyRef = inject(DestroyRef);
@@ -303,6 +338,8 @@ export class ChangeWizard implements HasUnsavedChanges {
   );
   private filledRelease: string | null = null;
   private filledStart: string | null = null;
+  /** The draft kept before the last sign-in, until the profile of its product is loaded to take it. */
+  private resuming = inject(SessionEnd).takeDraft<WizardDraft>(WIZARD_DRAFT);
 
   protected readonly nextLabel = computed(
     () => NEXT_LABELS[this.stepKey()] ?? `Next: ${STEPS[this.step() + 1]}`,
@@ -335,12 +372,18 @@ export class ChangeWizard implements HasUnsavedChanges {
       const openedBy = this.openedBy();
       untracked(() => {
         const ready = profile !== null && openedBy !== undefined;
+        const draft = ready ? this.takeResumed() : null;
         const details = ready
-          ? templateForm(withDefaults(profile.template, openedBy, this.productDepartment()))
+          ? templateForm(
+              draft?.template ?? withDefaults(profile.template, openedBy, this.productDepartment()),
+            )
           : null;
         this.details.set(details);
         this.schedule.set(details ? scheduleForm(details.controls.downtime) : null);
         this.filledStart = null;
+        if (details && draft) {
+          this.resume(draft, details);
+        }
       });
     });
     effect(() => {
@@ -361,6 +404,34 @@ export class ChangeWizard implements HasUnsavedChanges {
         }
       });
     });
+    if (this.resuming) {
+      this.reopen(this.resuming);
+    }
+  }
+
+  /** The entries of the wizard as they are, for {@link SessionEnd} to keep while the browser signs in again. */
+  draft(): WizardDraft {
+    const details = this.details();
+    const tasks = this.tasks();
+    return {
+      step: this.step(),
+      departmentId: this.departmentId.value,
+      productId: this.productId.value,
+      template: details ? toTemplate(details) : null,
+      schedule: this.schedule()?.getRawValue() ?? null,
+      fixVersion: this.fixVersion.value,
+      searched: this.searched(),
+      epicKeys: this.epicKeys(),
+      storyKeys: this.storyKeys(),
+      seenStories: [...this.seenStories],
+      filledRelease: this.filledRelease,
+      filledStart: this.filledStart,
+      shortDescription: this.shortDescription.dirty ? this.shortDescription.value : null,
+      description: this.description.dirty ? this.description.value : null,
+      raised: this.raised(),
+      tasks: tasks ? toTaskRequests(tasks) : null,
+      secureCoding: this.secureCoding()?.getRawValue() ?? null,
+    };
   }
 
   hasUnsavedChanges(): boolean {
@@ -548,6 +619,61 @@ export class ChangeWizard implements HasUnsavedChanges {
     this.productId.setValue(null);
     this.checked.set(false);
     this.step.set(0);
+  }
+
+  /** Chooses the department, the product and the Jira scope of the draft; its profile then gives the rest. */
+  private reopen(draft: WizardDraft): void {
+    if (draft.departmentId !== null) {
+      this.departmentId.setValue(draft.departmentId);
+    }
+    this.productId.setValue(draft.productId);
+    this.fixVersion.setValue(draft.fixVersion);
+    this.searched.set(draft.searched);
+    this.epicKeys.set(draft.epicKeys);
+    this.storyKeys.set(draft.storyKeys);
+    this.seenStories = new Set(draft.seenStories);
+    this.filledRelease = draft.filledRelease;
+    this.keepText(this.shortDescription, draft.shortDescription);
+    this.keepText(this.description, draft.description);
+  }
+
+  /** The draft once the profile of its product is loaded, unless another product was chosen meanwhile. */
+  private takeResumed(): WizardDraft | null {
+    const draft = this.resuming;
+    this.resuming = null;
+    return draft && draft.productId === this.chosenProduct() ? draft : null;
+  }
+
+  /** Puts the schedule, the change tasks and the ticket of the draft back and goes to the step it was on. */
+  private resume(draft: WizardDraft, details: TemplateForm): void {
+    details.markAsDirty();
+    if (draft.schedule) {
+      this.schedule()!.patchValue(draft.schedule);
+    }
+    this.filledStart = draft.filledStart;
+    const raised = draft.raised;
+    if (raised) {
+      const ticket = secureCodingForm(raised);
+      if (draft.secureCoding) {
+        ticket.patchValue(draft.secureCoding);
+      }
+      this.raised.set(raised);
+      this.tasks.set(tasksForm(draft.tasks ?? [], taskWindow(raised.number, raised.schedule)));
+      this.secureCoding.set(ticket);
+      this.step.set(Math.min(Math.max(draft.step, TASKS), TICKET));
+      return;
+    }
+    this.step.set(Math.min(Math.max(draft.step, 0), REVIEW));
+    if (this.stepKey() === 'review') {
+      this.loadPreview();
+    }
+  }
+
+  private keepText(control: FormControl<string>, text: string | null): void {
+    if (text !== null) {
+      control.setValue(text);
+      control.markAsDirty();
+    }
   }
 
   private productDepartment(): string | null {

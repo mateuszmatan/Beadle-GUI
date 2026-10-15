@@ -33,7 +33,7 @@
   </header>
 
   <main class="content">
-    <router-outlet />
+    <router-outlet (activate)="sessionEnd.shown($event)" (deactivate)="sessionEnd.hidden($event)" />
   </main>
 
   <footer class="footer">

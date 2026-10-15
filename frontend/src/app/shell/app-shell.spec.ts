@@ -7,6 +7,7 @@ import { APP_NAME } from '../core/app-name';
 import { BROWSER_NAVIGATION } from '../core/auth';
 import { Notifier } from '../core/notifier';
 import { PortalSection } from '../core/sections';
+import { SessionEnd } from '../core/session-end';
 import { text, toast } from '../testing/dom';
 import { AppShell } from './app-shell';
 
@@ -64,6 +65,28 @@ describe('AppShell', () => {
     http.expectOne({ method: 'GET', url: '/api/me' }).flush(user);
     await fixture.whenStable();
   }
+
+  it('tells the end of the session which page is open, so it can keep the unsaved changes of that page', async () => {
+    const sessionEnd = TestBed.inject(SessionEnd);
+    const shown = vi.spyOn(sessionEnd, 'shown');
+    const hidden = vi.spyOn(sessionEnd, 'hidden');
+    await signedIn();
+    TestBed.inject(Router).resetConfig([
+      { path: 'orders', component: Blank },
+      { path: 'admin', component: Blank },
+    ]);
+
+    await TestBed.inject(Router).navigateByUrl('/orders');
+    await fixture.whenStable();
+    const orders = shown.mock.lastCall?.[0];
+    await TestBed.inject(Router).navigateByUrl('/admin');
+    await fixture.whenStable();
+
+    expect(orders).toBeInstanceOf(Blank);
+    expect(hidden).toHaveBeenCalledWith(orders);
+    expect(shown.mock.lastCall?.[0]).toBeInstanceOf(Blank);
+    expect(shown.mock.lastCall?.[0]).not.toBe(orders);
+  });
 
   it('names the app in its header and links every section in order', async () => {
     await signedIn();

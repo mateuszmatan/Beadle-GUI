@@ -26,7 +26,8 @@ import { buttonOf, choose, fieldOf, inputOf, optionsOf, selectOf, text } from '.
 import { department, product } from '../testing/fixtures';
 import { isoDate } from './change-model';
 import { localInput } from './change-schedule-model';
-import { ChangeWizard } from './change-wizard';
+import { ChangeWizard, WIZARD_DRAFT } from './change-wizard';
+import { DRAFT_KEY, DRAFT_KEPT, SessionEnd } from '../core/session-end';
 import { implementationDateOf } from './secure-coding-model';
 import { LookupItem } from '../core/models';
 
@@ -48,15 +49,13 @@ async function settled(fixture: ComponentFixture<ChangeWizard>) {
 }
 
 function flushIntegrations(http: HttpTestingController) {
-  http
-    .expectOne('/api/changes/integrations')
-    .flush({
-      jiraConnected: false,
-      proTechConnected: false,
-      cyberTrackConnected: false,
-      internalReachable: true,
-      proTechReachable: true,
-    });
+  http.expectOne('/api/changes/integrations').flush({
+    jiraConnected: false,
+    proTechConnected: false,
+    cyberTrackConnected: false,
+    internalReachable: true,
+    proTechReachable: true,
+  });
 }
 
 describe('ChangeWizard', () => {
@@ -71,6 +70,11 @@ describe('ChangeWizard', () => {
   beforeEach(async () => {
     localStorage.removeItem(MY_DEPARTMENT_KEY);
     http = configure();
+    await open();
+  });
+
+  /** Opens the wizard, as after a new sign-in in the tests that keep a draft. */
+  async function open() {
     fixture = TestBed.createComponent(ChangeWizard);
     fixture.detectChanges();
     http
@@ -90,9 +94,12 @@ describe('ChangeWizard', () => {
     await settle();
     http.expectOne('/api/me').flush(ME);
     await settle();
-  });
+  }
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    http.verify();
+    sessionStorage.clear();
+  });
 
   const settle = () => settled(fixture);
 
@@ -829,6 +836,110 @@ describe('ChangeWizard', () => {
       'Not created yet: create it on the change page',
     );
     expect(wizard().hasUnsavedChanges()).toBe(false);
+  });
+
+  /** The session ends while the wizard is open: the user chooses to sign in again, and the wizard opens anew. */
+  async function signInAgain() {
+    const dialog = vi.spyOn(TestBed.inject(Dialog), 'open').mockReturnValue({
+      closed: of(true),
+    } as unknown as DialogRef<unknown>);
+    const signIn = vi.fn<() => void>();
+    const sessionEnd = TestBed.inject(SessionEnd);
+    sessionEnd.shown(wizard());
+    sessionEnd.ended(signIn);
+    expect(dialog).toHaveBeenCalledWith(expect.anything(), {
+      data: expect.objectContaining({ message: DRAFT_KEPT }),
+    });
+    expect(signIn).toHaveBeenCalledTimes(1);
+    dialog.mockRestore();
+    fixture.destroy();
+    await open();
+    http.expectOne('/api/products/1/change-profile').flush(changeProfile());
+    await settle();
+    http.match('/api/changes/options').forEach((request) => request.flush(changeOptions()));
+    jira('versions').flush([jiraVersion('CERT 4.2', false, '2030-10-20')]);
+    jira('epics').flush([epic('CERT-1', 'Expiry alerts'), epic('CERT-5', 'Audit trail')]);
+    await settle();
+    jira('stories').flush([
+      story('CERT-2', 'E-mail the owner', 'CERT-1'),
+      story('CERT-3', 'Teams alert', 'CERT-1'),
+    ]);
+    await settle();
+  }
+
+  it('keeps its entries when the session ends and opens on the same step with them after the new sign-in', async () => {
+    await toSchedule();
+    wizard()['toggleStory']('CERT-3', false);
+    details().controls.planning.controls.backoutPlan.setValue('Roll back to CERT 4.1');
+    schedule().controls.installationHours.setValue(3);
+    wizard()['description'].setValue('Mine');
+    wizard()['description'].markAsDirty();
+    await settle();
+    const before = schedule().getRawValue();
+    expect(wizard().draft()).toEqual(
+      expect.objectContaining({
+        step: 3,
+        departmentId: 3,
+        productId: 1,
+        searched: 'CERT 4.2',
+        epicKeys: ['CERT-1'],
+        storyKeys: ['CERT-2'],
+        seenStories: ['CERT-2', 'CERT-3'],
+        shortDescription: null,
+        description: 'Mine',
+        raised: null,
+      }),
+    );
+
+    await signInAgain();
+
+    expect(sessionStorage.getItem(DRAFT_KEY)).toBeNull();
+    expect(wizard()['step']()).toBe(3);
+    expect(text(page().querySelector('h2'))).toBe('Schedule');
+    expect(wizard()['departmentId'].value).toBe(3);
+    expect(wizard()['productId'].value).toBe(1);
+    expect(details().controls.planning.controls.backoutPlan.value).toBe('Roll back to CERT 4.1');
+    expect(schedule().getRawValue()).toEqual(before);
+    expect(wizard()['fixVersion'].value).toBe('CERT 4.2');
+    expect(wizard()['epicKeys']()).toEqual(['CERT-1']);
+    expect(wizard()['storyKeys']()).toEqual(['CERT-2']);
+    expect(wizard()['description'].value).toBe('Mine');
+    expect(wizard()['description'].dirty).toBe(true);
+    expect(wizard().hasUnsavedChanges()).toBe(true);
+
+    wizard()['back']();
+    await next();
+    expect(schedule().getRawValue()).toEqual(before);
+  });
+
+  it('comes back to the change tasks of the change it raised, without raising it again', async () => {
+    await toReview();
+    http.expectOne('/api/changes/preview').flush(productionChange({ id: null, number: null }));
+    await settle();
+    await next();
+    http.expectOne({ method: 'POST', url: '/api/changes' }).flush(productionChange({ tasks: [] }));
+    await settle();
+    const task = () => wizard()['tasks']()!.at(0).controls.details.controls;
+    task().shortDescription.setValue('Deploy CertScanner 4.2 with care');
+    await settle();
+
+    await signInAgain();
+
+    expect(wizard()['step']()).toBe(8);
+    expect(wizard()['raised']()?.number).toBe('CHG0012345');
+    expect(task().shortDescription.value).toBe('Deploy CertScanner 4.2 with care');
+    expect(wizard()['secureCoding']()).not.toBeNull();
+    expect(wizard().hasUnsavedChanges()).toBe(true);
+    expect(sessionStorage.getItem(DRAFT_KEY)).toBeNull();
+  });
+
+  it('takes no draft another page kept', async () => {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ page: 'change-edit', draft: { step: 5 } }));
+    fixture.destroy();
+    await open();
+    expect(wizard()['step']()).toBe(0);
+    expect(sessionStorage.getItem(DRAFT_KEY)).not.toBeNull();
+    expect(WIZARD_DRAFT).toBe('new-change');
   });
 
   it('asks Jira about the project of the product and keeps the epics found until they are found again', async () => {
