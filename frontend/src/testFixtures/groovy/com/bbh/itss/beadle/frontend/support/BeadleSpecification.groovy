@@ -6,7 +6,7 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 
 abstract class BeadleSpecification extends GuiSpecification {
 
-    static final List<String> MENU = ['Changes', 'New Change', 'Admin']
+    static final List<String> MENU = ['Changes', 'New Change', 'Admin', 'Action History']
 
     static final List<String> RELEASE_TASK_FIELDS = ['Number', 'Change number', 'Assignment group', 'Assigned to', 'Approval',
                                                      'Approvers', 'Affected CI', 'Platform', 'Installation start',

@@ -48,7 +48,7 @@ logging:
 
 beadle:
   gui:
-    pages: changes, new-change, admin
+    pages: changes, new-change, admin, action-history
   services:
     token: ${BEADLE_SERVICE_TOKEN:}
     internal:

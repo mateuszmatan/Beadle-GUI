@@ -30,7 +30,7 @@ docs/CONTRACTS.md               the contract between Beadle-GUI, Beadle-Internal
 | Module | Holds |
 |--------|-------|
 | `backend` | the departments, the products with their change templates, the ProTech changes with their change tasks and secure coding tickets, the lookups, the signed-in user, the problem detail error handling, the `@UseCase` transaction wiring, the clock, the forwarding of the GUI pages to `index.html`, the REST clients of Beadle-Internal and Beadle-ProTech and the callbacks they send, the Beadle demo data, the Liquibase history and the test support of every suite, with the in-process stand-ins of the two services |
-| `frontend` | the application shell (header, menu, footer, titles), the UI kit (form fields, grid, dialogs, toasts), the departments pages and dialogs, the Admin page with its tabs, Changes, New Change and Beadle Admin (Departments, Products with their change templates), the API error texts and the browser test support; see [frontend/README.md](frontend/README.md) |
+| `frontend` | the application shell (header, menu, footer, titles), the UI kit (form fields, grid, dialogs, toasts), the departments pages and dialogs, the Admin page with its tabs, Changes, New Change, Beadle Admin (Departments, Products with their change templates) and Action History, the API error texts and the browser test support; see [frontend/README.md](frontend/README.md) |
 
 ## Build
 
@@ -166,7 +166,7 @@ under the prefix `beadle.` its own settings, one document per profile.
 | `BEADLE_PROTECH_URL` | `http://localhost:8083` with `local`; required with `rd`, `qc`, `prod` | where Beadle-ProTech answers (`beadle.services.protech.url`): ProTech and its lookups |
 | `BEADLE_SERVICE_TOKEN` | empty: every callback is refused | the token the three Beadle services share (`beadle.services.token`): sent as `Authorization: Bearer` with every call to Beadle-Internal and Beadle-ProTech and required of their callbacks |
 
-`beadle.gui.pages` (`changes, new-change, admin`) names the pages of the interface the service forwards to
+`beadle.gui.pages` (`changes, new-change, admin, action-history`) names the pages of the interface the service forwards to
 `index.html`. The log lines carry the correlation id of the request they belong to (`[%X{correlationId}]`, set by
 `logging.pattern.correlation`).
 Liquibase runs on every start, on H2 and on Oracle. Secrets come from environment variables that OpenShift fills from
@@ -245,7 +245,7 @@ overlay patch if an environment needs more.
 
 ## Beadle
 
-Beadle's menu has three sections:
+Beadle's menu has four sections:
 
 - **Changes**: the ProTech changes of your department. Pick your department (the browser remembers it) and see its
   changes in a table you can sort and filter in the header: change number, product, FixVersion, the ProTech workflow
@@ -316,6 +316,13 @@ Beadle's menu has three sections:
   with its change template, and its **change template** keeps the ProTech fields in the sections and order of New
   Change and the default change tasks of its changes. Until the template is saved, the new changes of the product
   start with values suggested from its name, code and owner team.
+- **Action History**: the audit trail (see [Audit trail](#audit-trail)), newest first, in pages of 25, 50, 100 or 200
+  rows with **Previous** and **Next**: when (to the second, in your time zone), who, which action, the object (the
+  change number, product code, department, ticket key or user), the outcome and the correlation id. Filter it by user
+  and action (both lists hold the values recorded so far), by the beginning of the object key, by outcome and by the
+  first and last day; every filter asks the API again from the first page, and **Clear filters** shows everything
+  again. A row, or its time, opens the details of the action: the request it was given as JSON (secrets masked) and
+  the message of a failure.
 
 Beadle's products are its own: a product is a name, a code, a department, an owner team and a contact e-mail, enough
 to raise changes for it. ProTech knows no services or pipelines, so Beadle neither stores nor shows them.
@@ -640,7 +647,8 @@ did not commit") follows. The row of a call that throws, and every row of a use 
 be written there is logged and does not change the answer. Reads write nothing. Beadle only inserts rows:
 `ActionHistoryEntity` is immutable and `ActionHistoryJpaRepository` has neither update nor delete.
 `ActionHistoryUseCase` reads the trail newest first, filtered by user, action, object type, object key (its
-beginning, in any case), outcome and time, in pages of at most 200 rows.
+beginning, in any case), outcome and time, in pages of at most 200 rows; `GET /api/action-history` serves it to the
+Action History page.
 
 ### Beadle demo data
 
@@ -697,6 +705,8 @@ departments.
 | `POST /api/changes/{id}/reminders` | remind the approvers of an open change who have not approved yet: `departmentId` (which must own the change) and either `approval` (`BUSINESS`, `L1`, `L2` or `SUPPORT`) or `task` (a CTASK number) for one approval, or neither for everyone who has not approved; answers the change with the `reminder` of each approval reminded; 400 for both or a task the change does not have, 403 for another department, 409 when closed, already approved or nobody is named, 503 when ProTech cannot be reached |
 | `GET /api/changes/integrations` | whether Jira, ProTech and CyberTrack are connected (`jiraConnected`, `proTechConnected`, `cyberTrackConnected`), as Beadle-Internal and Beadle-ProTech report them |
 | `POST /api/callbacks/protech`, `POST /api/callbacks/internal` | the callbacks of Beadle-ProTech and Beadle-Internal, with the service token; `202` (see [Callbacks](#callbacks)) |
+| `GET /api/action-history?user=&action=&objectType=&objectKey=&outcome=&from=&to=&page=0&size=50` | the audit trail, newest first: `{content, page, size, total}`, each row with `id`, `at`, `user`, `action`, `objectType`, `objectId`, `objectKey`, `details` (JSON text), `outcome`, `message`, `correlationId` and `durationMs`; `objectKey` matches the beginning of the key in any case, `from` (inclusive) and `to` (exclusive) are instants (`2026-10-15T00:00:00Z`); 400 for a `page` below 0, a `size` outside 1 to 200, a `from` not before `to`, or an unknown action, object type or outcome |
+| `GET /api/action-history/users`, `GET /api/action-history/actions` | the users and the actions recorded so far, sorted, for the filters of the Action History page |
 
 Errors are RFC 9457 problem details; validation errors name the failing fields, for example `tasks[1].details.start`.
 
@@ -757,7 +767,8 @@ only the clients of Beadle-Internal and Beadle-ProTech (`adapter.out.internal`, 
 The interface (`frontend/src/app`) follows the same cut: `shell/` holds the application shell, `ui/` the UI kit,
 `core/` the API clients, the models, the sections of the menu, the error texts, the titles and the `appConfig` the
 application starts with, `departments/` the departments, `admin/` the Admin page with its tabs, `shared/` the forms,
-field definitions and dialogs, `changes/` Changes and New Change, `beadle/` Beadle Admin, and `testing/` the fixtures
+field definitions and dialogs, `changes/` Changes and New Change, `beadle/` Beadle Admin, `action-history/` Action
+History with its API client and details dialog, and `testing/` the fixtures
 of the unit tests; the Groovy fixtures of the browser tests live in `frontend/src/testFixtures`. `main.ts` is
 `appConfig('Beadle', routes)` with an `AppShell` that lists the sections; [frontend/README.md](frontend/README.md)
 describes the interface.

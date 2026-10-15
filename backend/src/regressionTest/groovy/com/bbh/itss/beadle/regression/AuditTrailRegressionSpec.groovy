@@ -65,6 +65,37 @@ class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
                  CORRELATION_ID: CORRELATION]]
     }
 
+    def "the action history answers the rows newest first, filtered and paged, with the values of its filters"() {
+        given:
+        def code = uniqueCode()
+        def created = createProduct(product(code: code, name: "History ${code}"))
+        api.put("/api/products/$created.id", product(code: code, name: "History renamed ${code}", version: 0))
+
+        when:
+        def page = api.get("/api/action-history?objectKey=${code.toLowerCase()}&size=1")
+
+        then:
+        page.status == 200
+        page.json.page == 0
+        page.json.size == 1
+        page.json.total == 2
+        page.json.content*.action == ['PRODUCT_UPDATED']
+        def row = page.json.content[0] as Map
+        row.subMap(['user', 'objectType', 'objectId', 'objectKey', 'outcome']) ==
+                [user: SIGNED_IN, objectType: 'PRODUCT', objectId: created.id, objectKey: code, outcome: 'SUCCESS']
+        (row.details as String).contains("History renamed ${code}")
+        row.correlationId ==~ /[0-9a-f-]{36}/
+        row.durationMs >= 0
+        api.get("/api/action-history?objectKey=$code&page=1&size=1").json.content*.action == ['PRODUCT_CREATED']
+        api.get("/api/action-history?objectKey=$code&action=PRODUCT_CREATED&outcome=FAILURE").json.total == 0
+        SIGNED_IN in api.get('/api/action-history/users').json
+        api.get('/api/action-history/actions').json.containsAll(['PRODUCT_CREATED', 'PRODUCT_UPDATED'])
+
+        and:
+        api.get('/api/action-history?size=201').status == 400
+        api.get('/api/action-history?action=CHANGE_VIEWED').status == 400
+    }
+
     def "reads leave no row"() {
         given:
         int before = jdbc.queryForObject('SELECT COUNT(*) FROM BEADLE_ACTION_HISTORY', Integer)
@@ -73,6 +104,7 @@ class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
         api.get('/api/products')
         api.get('/api/departments')
         api.get('/api/changes')
+        api.get('/api/action-history')
 
         then:
         jdbc.queryForObject('SELECT COUNT(*) FROM BEADLE_ACTION_HISTORY', Integer) == before

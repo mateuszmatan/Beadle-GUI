@@ -24,19 +24,20 @@ itself, as "Inside and outside the BBH network" in the main README describes.
 | Folder (`src/app`) | Holds |
 |--------------------|-------|
 | `shell/`       | `AppShell`: the navy header with "BBH Beadle", the flat menu of the sections with the current one underlined, the routed page and the footer |
-| `core/`        | `appConfig(name, routes)`, the `ApplicationConfig` the application starts with (the router with component input binding, the HTTP client, the title strategy "<page> · BBH Beadle", the dialogs); `APP_NAME`; the API clients (departments, products, lookups, the signed-in user); the models mirroring Beadle's DTOs; the three sections of the menu (`sections.ts`) with the tabs of Beadle Admin; `errorMessage()`; the toast notifier; the unsaved-changes guard |
+| `core/`        | `appConfig(name, routes)`, the `ApplicationConfig` the application starts with (the router with component input binding, the HTTP client, the title strategy "<page> · BBH Beadle", the dialogs); `APP_NAME`; the API clients (departments, products, lookups, the signed-in user); the models mirroring Beadle's DTOs; the four sections of the menu (`sections.ts`) with the tabs of Beadle Admin; `errorMessage()`; the toast notifier; the unsaved-changes guard |
 | `ui/`          | the UI kit every page builds on: form field, checkbox, panel, dialog, toast, loading bar, the AG Grid table (`dso-grid`) and the BBH Design System icons (`design-system.ts`, swapped for `design-system.public.ts` outside BBH) |
 | `shared/`      | the field definitions and the `dso-fields` component (`fields.ts`), form controls and byte-counting validators, the field problems of the API mapped onto a form, formatting (counts, relative times), the confirm dialog, the lookup dialog and the wizard styles |
 | `departments/` | the department dialog, the grouping of records by department (`byDepartment`) and "your department" remembered in the browser (`my-department.ts`) |
 | `admin/`       | `AdminPage`, the page with the tab bar of an `AdminArea`, and `DepartmentsAdmin`, the Departments tab, completed with Beadle's counts, columns and deletion rule (`DepartmentUsage`) |
 | `changes/`     | Changes and New Change: the ProTech changes of a department in a table filtered and sorted in its header, the change page with where the change is, its approvals with their reminders (`change-approvals.ts`), its update status and its change tasks, the edit page that publishes to ProTech, the change wizard, the secure coding page, and the ProTech fields form and change tasks editor shared with Beadle Admin |
 | `beadle/`      | Beadle Admin: the products list by department with the state of their change templates, the product dialog, the product page with its details and change template, and what the Departments tab counts (`department-usage.ts`) |
+| `action-history/` | Action History: the client of `GET /api/action-history` and its filter lists (`action-history-api.ts`), the model with the labels of the actions, outcomes and objects and the query of the filters (`action-history-model.ts`), the page with its filters, table and pager (`action-history.ts`) and the details dialog with the request as JSON and the message (`action-details.ts`) |
 | `testing/`     | fixtures and DOM helpers for the unit tests |
 | `../styles.scss`, `../styles/` | everything more than one page draws: the page header, cards, tables and the 12 column form grid, the chips, the fact lists, the quiet links, the side navigation, the muted help line and the look of the UI kit on top of Bootstrap, plus the navy `public-theme.scss` used outside BBH |
 | `../testFixtures/` | the Groovy support of the browser tests: `GuiServer`, `StubApi` with the departments and the recording of requests, `GuiSpecification` with the Playwright browser, the menu and form helpers and the screenshots, and Beadle's `BeadleSpecification`, `BeadleStubApi` and `ChangeStubs` |
 
-`main.ts` is `appConfig('Beadle', routes)`: the header reads "BBH Beadle", the menu lists Changes, New Change and
-Admin, and nothing of the DevSecOps Management Portal appears anywhere. "Your department" is the department last
+`main.ts` is `appConfig('Beadle', routes)`: the header reads "BBH Beadle", the menu lists Changes, New Change,
+Admin and Action History, and nothing of the DevSecOps Management Portal appears anywhere. "Your department" is the department last
 picked in Changes or New Change, remembered in the browser (`departments/my-department.ts`).
 
 ## BBH Design System
@@ -65,8 +66,8 @@ icons of `ui/icons.ts` (Material Icons outlines, Apache License 2.0).
 
 The smoke and regression suites are Spock specifications that drive Chromium with Playwright against the production
 build. `GuiServer` (in `src/testFixtures`) serves `dist` and answers `/api` from `BeadleStubApi`
-(`src/testFixtures`), which serves the departments, the products, the signed-in user and the lookups from recorded
-answers (`src/testFixtures/resources/.../api`), keeps a demo ProTech in memory (`ChangeStubs`) that raises changes,
+(`src/testFixtures`), which serves the departments, the products, the signed-in user, the lookups and the action
+history (filtered and paged like the API) from recorded answers (`src/testFixtures/resources/.../api`), keeps a demo ProTech in memory (`ChangeStubs`) that raises changes,
 creates change tasks and secure coding tickets, names the approvers of each change task, records reminders and moves
 changes through the workflow with their approvals as the tests ask, and records
 every request, so a specification checks both what the page shows and the exact JSON the GUI sends. Every
@@ -74,11 +75,13 @@ specification extends `BeadleSpecification`, which knows Beadle's menu, the fiel
 task, and how to use a lookup. Screenshots of the last state of every feature land in
 `build/reports/frontend/screenshots`.
 
-- Smoke (`src/smokeTest`): the title, the three menu entries and the footer without any trace of DevSecOps; every
+- Smoke (`src/smokeTest`): the title, the four menu entries and the footer without any trace of DevSecOps; every
   section and every Admin tab from the menu and from a direct link; the pages that read the API; the pages without
   icons but the magnifiers of the lookups; every page in an 800 and a 600 pixel window without sideways scrolling;
   an unknown address falling back to the changes.
-- Regression (`src/regressionTest`): the tabs of Beadle Admin; the departments with the changes they own, and adding,
+- Regression (`src/regressionTest`): the action history newest first with the details of an action, its filters
+  asking the API again from the first page, a range that ends before it starts, its pager and a history that cannot
+  be read; the tabs of Beadle Admin; the departments with the changes they own, and adding,
   renaming and deleting them; the products by department with the state of their change template, searching them,
   adding one, editing its details with a version conflict and deleting it; the change template section by section,
   with a lookup, the downtime, the risk answers and the risk they give, privileged accounts, default change tasks
@@ -94,7 +97,7 @@ task, and how to use a lookup. Screenshots of the last state of every feature la
 
 ## Look and layout
 
-The header holds the name of the application and one flat menu of short labels: Changes, New Change and Admin; the
+The header holds the name of the application and one flat menu of short labels: Changes, New Change, Admin and Action History; the
 entry of the current page is underlined. A new feature is a `PortalSection` added to `SECTIONS` in
 `core/sections.ts`, routed in `app.routes.ts`, and to `MENU` in `BeadleSpecification`. Beadle Admin is an
 `AdminArea` of tabs in `core/sections.ts`, routed as children of the common `AdminPage`; its tabs render without their

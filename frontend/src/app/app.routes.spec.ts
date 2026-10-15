@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Route, Router, Routes, provideRouter } from '@angular/router';
+import { ActionHistory } from './action-history/action-history';
 import { AdminPage } from './admin/admin-page';
 import { DepartmentsAdmin } from './admin/departments-admin';
 import { routes } from './app.routes';
@@ -49,6 +50,7 @@ describe('routes', () => {
       admin: AdminPage,
       'admin/departments': DepartmentsAdmin,
       'admin/products': BeadleProducts,
+      'action-history': ActionHistory,
     });
   });
 

@@ -131,6 +131,20 @@ class BeadleSmokeSpec extends Specification {
         }
     }
 
+    def "the action history answers its newest rows and the values of its filters"() {
+        when:
+        def newest = api.get('/api/action-history?size=5')
+
+        then:
+        newest.status == 200
+        newest.json.keySet() == ['content', 'page', 'size', 'total'] as Set
+        newest.json.page == 0
+        newest.json.size == 5
+        newest.json.content.size() <= 5
+        api.get('/api/action-history/users').status == 200
+        api.get('/api/action-history/actions').status == 200
+    }
+
     def "the DevSecOps Management portal is not part of this application"() {
         expect:
         ['/api/settings', '/api/pipelines/1', '/api/monitoring/status', '/api/dso/config/1'].every {
@@ -141,7 +155,7 @@ class BeadleSmokeSpec extends Specification {
     @Requires({ BeadleSmokeSpec.uiExpected() })
     def "the web UI is served, also for links into the app"() {
         expect:
-        ['/', '/changes', '/new-change', '/admin/products', '/admin/departments'].every { path ->
+        ['/', '/changes', '/new-change', '/admin/products', '/admin/departments', '/action-history'].every { path ->
             def page = api.get(path)
             assert page.status == 200: "$path: $page.status"
             assert page.header('Content-Type').startsWith('text/html')

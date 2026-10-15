@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { unsavedChangesGuard } from './core/unsaved-changes';
 import { DEPARTMENT_USAGE } from './beadle/department-usage';
 import {
+  ACTION_HISTORY,
   ADMIN,
   ADMIN_DEPARTMENTS,
   ADMIN_PRODUCTS,
@@ -57,8 +58,7 @@ export const routes: Routes = [
         path: 'departments',
         title: `${ADMIN_DEPARTMENTS.label} · ${ADMIN.heading}`,
         data: { usage: DEPARTMENT_USAGE },
-        loadComponent: () =>
-          import('./admin/departments-admin').then((m) => m.DepartmentsAdmin),
+        loadComponent: () => import('./admin/departments-admin').then((m) => m.DepartmentsAdmin),
       },
       {
         path: 'products',
@@ -66,6 +66,11 @@ export const routes: Routes = [
         loadComponent: () => import('./beadle/beadle-products').then((m) => m.BeadleProducts),
       },
     ],
+  },
+  {
+    path: 'action-history',
+    title: ACTION_HISTORY.heading,
+    loadComponent: () => import('./action-history/action-history').then((m) => m.ActionHistory),
   },
   { path: '**', redirectTo: 'changes' },
 ];

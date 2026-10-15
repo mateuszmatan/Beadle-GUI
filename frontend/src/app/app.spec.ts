@@ -33,11 +33,12 @@ describe('App', () => {
 
   it('names Beadle in its header and links only its own sections', () => {
     expect(page().querySelector('.brand-name')?.textContent).toBe('BBH Beadle');
-    expect(links().map(text)).toEqual(['Changes', 'New Change', 'Admin']);
+    expect(links().map(text)).toEqual(['Changes', 'New Change', 'Admin', 'Action History']);
     expect(links().map((link) => link.getAttribute('href'))).toEqual([
       '/changes',
       '/new-change',
       '/admin',
+      '/action-history',
     ]);
     expect(text(page())).not.toContain('DevSecOps');
   });
@@ -56,6 +57,10 @@ describe('App', () => {
         'Beadle Admin',
         "Departments, products and each product's change template: the answers every new change of the product starts with.",
       ],
+      [
+        'Action History',
+        'What people did in Beadle and what Beadle-ProTech and Beadle-Internal reported back, newest first, with the request and the outcome of every action.',
+      ],
     ]);
   });
 
@@ -63,6 +68,7 @@ describe('App', () => {
     ['/changes/4/edit', 'Changes'],
     ['/new-change', 'New Change'],
     ['/admin/products/2', 'Admin'],
+    ['/action-history', 'Action History'],
   ])('marks the section of %s', async (url, label) => {
     await TestBed.inject(Router).navigateByUrl(url);
     await fixture.whenStable();

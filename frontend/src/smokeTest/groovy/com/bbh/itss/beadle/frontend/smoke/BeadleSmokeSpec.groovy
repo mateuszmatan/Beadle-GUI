@@ -13,7 +13,9 @@ class BeadleSmokeSpec extends BeadleSpecification {
             [label      : 'New Change', heading: 'New ProTech Change', path: '/new-change',
              description: 'Raise a ProTech change for a production release in guided steps. The product\'s change template fills in the answers and Jira provides the scope.'],
             [label      : 'Admin', heading: 'Beadle Admin', path: '/admin/products',
-             description: 'Departments, products and each product\'s change template: the answers every new change of the product starts with.']]
+             description: 'Departments, products and each product\'s change template: the answers every new change of the product starts with.'],
+            [label      : 'Action History', heading: 'Action History', path: '/action-history',
+             description: 'What people did in Beadle and what Beadle-ProTech and Beadle-Internal reported back, newest first, with the request and the outcome of every action.']]
 
     static final Map<String, String> ADMIN_TABS = [Departments: '/admin/departments', Products: '/admin/products']
 
@@ -123,6 +125,7 @@ class BeadleSmokeSpec extends BeadleSpecification {
         '/admin/departments' | 0
         '/admin/products'    | 0
         '/admin/products/1'  | 20
+        '/action-history'    | 0
     }
 
     @IgnoreIf({ BeadleSpecification.remoteBaseUrl() })
@@ -140,7 +143,7 @@ class BeadleSmokeSpec extends BeadleSpecification {
 
         where:
         [path, width] << [['/changes', '/new-change', '/changes/4', '/changes/4/edit', '/changes/2', '/admin/departments',
-                           '/admin/products', '/admin/products/1'], [800, 600]].combinations()
+                           '/admin/products', '/admin/products/1', '/action-history'], [800, 600]].combinations()
     }
 
     def "an unknown address falls back to the changes"() {
