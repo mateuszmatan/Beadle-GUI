@@ -20,6 +20,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 import static com.bbh.itss.beadle.adapter.RecordMapper.map;
+import static com.bbh.itss.beadle.domain.audit.Action.PRODUCT_CREATED;
+import static com.bbh.itss.beadle.domain.audit.Action.PRODUCT_DELETED;
+import static com.bbh.itss.beadle.domain.audit.Action.PRODUCT_UPDATED;
 import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.ResponseEntity.created;
 import static org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentRequestUri;
@@ -47,17 +50,20 @@ public class ProductController {
     }
 
     @PostMapping
+    @AuditedRequest(value = PRODUCT_CREATED, objectKey = "code")
     public ResponseEntity<ProductView> create(@Valid @RequestBody ProductRequest request) {
         ProductView created = products.create(map(request, ProductCommand.class));
         return created(fromCurrentRequestUri().path("/{id}").buildAndExpand(created.id()).toUri()).body(created);
     }
 
     @PutMapping("/{id}")
+    @AuditedRequest(PRODUCT_UPDATED)
     public ProductView update(@PathVariable long id, @Valid @RequestBody ProductRequest request) {
         return products.update(id, map(request, ProductCommand.class));
     }
 
     @DeleteMapping("/{id}")
+    @AuditedRequest(PRODUCT_DELETED)
     @ResponseStatus(NO_CONTENT)
     public void delete(@PathVariable long id) {
         products.delete(id);

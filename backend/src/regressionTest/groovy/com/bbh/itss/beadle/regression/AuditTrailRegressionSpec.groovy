@@ -112,6 +112,89 @@ class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
                 [ACTION: 'DEPARTMENT_CREATED', OBJECT_TYPE: 'DEPARTMENT', OUTCOME: 'FAILURE']]
     }
 
+    def "a raise refused by the validation of its request leaves a FAILURE row filed under its product"() {
+        given:
+        def code = uniqueCode()
+        def created = createProduct(product(code: code, name: "Refused ${code}"))
+
+        when:
+        def blank = api.post('/api/changes', change(created, '', ['CHG-1']))
+        def bare = api.post('/api/changes', [productId: created.id])
+
+        then:
+        blank.status == 400
+        blank.json.problems == [[field: 'fixVersion', message: 'must not be blank']]
+        rowOf(blank) == [USER_NAME: SIGNED_IN, ACTION: 'CHANGE_RAISED', OBJECT_TYPE: 'PRODUCT',
+                         OBJECT_ID: created.id as Long, OBJECT_KEY: code, OUTCOME: 'FAILURE',
+                         MESSAGE: 'fixVersion must not be blank', DURATION_MS: 0L]
+        detailsOf(blank).startsWith("""{"request":{"productId":$created.id,"fixVersion":"",""".toString())
+
+        and:
+        bare.status == 400
+        rowOf(bare).subMap(['ACTION', 'OBJECT_KEY', 'OUTCOME']) ==
+                [ACTION: 'CHANGE_RAISED', OBJECT_KEY: code, OUTCOME: 'FAILURE']
+        (rowOf(bare).MESSAGE as String).split('; ')*.split(' ')*.getAt(0) as Set ==
+                (bare.json.problems*.field as Set)
+        detailsOf(bare) == """{"request":{"productId":$created.id}}""".toString()
+    }
+
+    def "a department refused by the validation of its name leaves a FAILURE row with the field problem"() {
+        when:
+        def blank = api.post('/api/departments', [name: ''])
+        def tooLong = api.post('/api/departments', [name: 'X' * 300])
+
+        then:
+        [blank, tooLong]*.status == [400, 400]
+        rowOf(blank) == [USER_NAME: SIGNED_IN, ACTION: 'DEPARTMENT_CREATED', OBJECT_TYPE: 'DEPARTMENT', OBJECT_ID: null,
+                         OBJECT_KEY: null, OUTCOME: 'FAILURE', MESSAGE: 'name must not be blank', DURATION_MS: 0L]
+        detailsOf(blank) == '{"request":{"name":""}}'
+        rowOf(tooLong).subMap(['ACTION', 'OUTCOME', 'MESSAGE']) ==
+                [ACTION: 'DEPARTMENT_CREATED', OUTCOME: 'FAILURE', MESSAGE: 'name size must be between 0 and 100']
+        (rowOf(tooLong).OBJECT_KEY as String).startsWith('XXXXXXXXXX')
+        api.get("/api/action-history?action=DEPARTMENT_CREATED&outcome=FAILURE&size=200").json.content
+                .findAll { it.correlationId in [blank, tooLong]*.header('X-Correlation-Id') }.size() == 2
+    }
+
+    def "a reminder of an approval off its list and an edit of a change that is no number leave FAILURE rows"() {
+        given:
+        def raised = raise(createProduct(product(code: uniqueCode(), name: "Reminded ${uniqueCode()}")), [])
+
+        when:
+        def reminder = api.post("/api/changes/$raised.id/reminders", [departmentId: raised.departmentId,
+                                                                       approval: 'BOSS'])
+        def edit = api.put('/api/changes/undefined', [version: 0])
+
+        then:
+        reminder.status == 400
+        rowOf(reminder) == [USER_NAME: SIGNED_IN, ACTION: 'REMINDER_SENT', OBJECT_TYPE: 'CHANGE',
+                            OBJECT_ID: raised.id as Long, OBJECT_KEY: raised.number, OUTCOME: 'FAILURE',
+                            MESSAGE: 'approval must be one of BUSINESS, L1, L2, SUPPORT', DURATION_MS: 0L]
+        detailsOf(reminder) ==
+                """{"id":$raised.id,"request":{"departmentId":$raised.departmentId,"approval":"BOSS"}}""".toString()
+
+        and:
+        edit.status == 400
+        rowOf(edit).subMap(['ACTION', 'OBJECT_TYPE', 'OBJECT_ID', 'OUTCOME', 'MESSAGE']) ==
+                [ACTION: 'CHANGE_EDITED', OBJECT_TYPE: 'CHANGE', OBJECT_ID: null, OUTCOME: 'FAILURE',
+                 MESSAGE: 'id must be a whole number']
+    }
+
+    def "a callback refused by the validation of its body is recorded as the system that called back"() {
+        given:
+        def correlation = UUID.randomUUID().toString()
+
+        when:
+        def refused = api.post('/api/callbacks/protech', [number: 'CHG7777777', state: 'IMPLEMENTATION'],
+                [Authorization: "Bearer $SERVICE_TOKEN".toString(), 'X-Correlation-Id': correlation])
+
+        then:
+        refused.status == 400
+        rowOf(refused) == [USER_NAME: 'system:protech', ACTION: 'CALLBACK_PROTECH', OBJECT_TYPE: 'CHANGE',
+                           OBJECT_ID: null, OBJECT_KEY: 'CHG7777777', OUTCOME: 'FAILURE',
+                           MESSAGE: 'event must not be null', DURATION_MS: 0L]
+        refused.header('X-Correlation-Id') == correlation
+    }
+
     def "the callbacks are recorded as the system that called back, under the correlation id it passed on"() {
         when:
         callback('/api/callbacks/protech', [number: 'CHG8888888', event: 'TASK_CHANGED', correlationId: CORRELATION])
@@ -217,6 +300,22 @@ class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
         jdbc.queryForList('''SELECT USER_NAME, ACTION, OBJECT_TYPE, OBJECT_ID, OUTCOME, MESSAGE, CORRELATION_ID
                 FROM BEADLE_ACTION_HISTORY WHERE OBJECT_KEY = ? ORDER BY ID''', key)
                 .collect { row -> row.collectEntries { name, value -> [name, value instanceof Number ? value as Long : value] } }
+    }
+
+    /** The one row the request left besides a sign-in, found by the correlation id it was answered with. */
+    private Map rowOf(PortalClient.Response response) {
+        def rows = jdbc.queryForList('''SELECT USER_NAME, ACTION, OBJECT_TYPE, OBJECT_ID, OBJECT_KEY, OUTCOME, MESSAGE,
+                DURATION_MS FROM BEADLE_ACTION_HISTORY WHERE CORRELATION_ID = ? AND ACTION <> 'USER_SIGNED_IN'
+                ORDER BY ID''', response.header('X-Correlation-Id')).collect { row ->
+            row.collectEntries { name, value -> [name, value instanceof Number ? value as Long : value] }
+        }
+        assert rows.size() == 1: rows
+        rows[0]
+    }
+
+    private String detailsOf(PortalClient.Response response) {
+        jdbc.queryForObject('SELECT DETAILS FROM BEADLE_ACTION_HISTORY WHERE CORRELATION_ID = ?', String,
+                response.header('X-Correlation-Id'))
     }
 
     private List<String> details(String key) {

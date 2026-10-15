@@ -16,6 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_CREATED;
+import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_DELETED;
+import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_RENAMED;
 import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.ResponseEntity.created;
 import static org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentRequestUri;
@@ -33,17 +36,20 @@ public class DepartmentController {
     }
 
     @PostMapping
+    @AuditedRequest(value = DEPARTMENT_CREATED, objectKey = "name")
     public ResponseEntity<DepartmentResponse> create(@Valid @RequestBody DepartmentRequest request) {
         DepartmentResponse created = DepartmentResponse.of(departments.create(request.name()));
         return created(fromCurrentRequestUri().path("/{id}").buildAndExpand(created.id()).toUri()).body(created);
     }
 
     @PutMapping("/{id}")
+    @AuditedRequest(DEPARTMENT_RENAMED)
     public DepartmentResponse rename(@PathVariable long id, @Valid @RequestBody DepartmentRequest request) {
         return DepartmentResponse.of(departments.rename(id, request.version(), request.name()));
     }
 
     @DeleteMapping("/{id}")
+    @AuditedRequest(DEPARTMENT_DELETED)
     @ResponseStatus(NO_CONTENT)
     public void delete(@PathVariable long id) {
         departments.delete(id);

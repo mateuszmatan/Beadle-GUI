@@ -753,11 +753,11 @@ that changes something or calls another system writes one row of `BEADLE_ACTION_
 
 | Column | Holds |
 |--------|-------|
-| `AT`, `DURATION_MS` | when the call started (UTC) and how long it ran |
+| `AT`, `DURATION_MS` | when the call started (UTC) and how long it ran (0 for a request refused before its use case ran) |
 | `USER_NAME` | the signed-in user; `system:protech` or `system:internal` for a callback, `system:startup` for the demo data Beadle stores when it starts |
 | `ACTION` | one of the seventeen actions below |
 | `OBJECT_TYPE`, `OBJECT_ID`, `OBJECT_KEY` | what the action was about, taken from the result of the use case or else from its arguments: `CHANGE` with the CHG number, `PRODUCT` with the product code, `CHANGE_PROFILE` (the change template of a product) with the product's id and code, `DEPARTMENT` with its name, `TICKET` with the CyberTrack key, `USER` with the user name; Beadle's database id when the object has one, the key read from the database when only the id is known (before the call for a deletion), and the name a department was to have when creating it was refused (`@AuditedKey`) |
-| `DETAILS` | the arguments of the use case by parameter name, as JSON (`{"id": 7, "command": {...}}`), and last what came of it in the other systems, as the use case noted it with `AuditNotes`: `"result": {"created": ["CTASK0041003", "CTASK0041004"]}` for the change tasks ProTech numbered, `["SCP-123"]` for the secure coding ticket CyberTrack created, `["CHG0031001"]` for a raised change (also when Beadle could not store it afterwards), and `"reminded": [{"role": "SUPPORT", "task": null, "people": ["Rebecca Lawson"]}]` for the people a reminder reached; also a call that failed half-way records what it had created. Every property whose name contains `token`, `password`, `secret`, `authorization`, `credential` or `apikey` is masked as `*****`, and the arguments are cut so that the whole text fits in 32 KB with its result |
+| `DETAILS` | the arguments of the use case by parameter name, as JSON (`{"id": 7, "command": {...}}`; for a request refused before its use case ran, the path values and the body as sent, `{"id": 7, "request": {...}}`), and last what came of it in the other systems, as the use case noted it with `AuditNotes`: `"result": {"created": ["CTASK0041003", "CTASK0041004"]}` for the change tasks ProTech numbered, `["SCP-123"]` for the secure coding ticket CyberTrack created, `["CHG0031001"]` for a raised change (also when Beadle could not store it afterwards), and `"reminded": [{"role": "SUPPORT", "task": null, "people": ["Rebecca Lawson"]}]` for the people a reminder reached; also a call that failed half-way records what it had created. Every property whose name contains `token`, `password`, `secret`, `authorization`, `credential` or `apikey` is masked as `*****`, and the arguments are cut so that the whole text fits in 32 KB with its result |
 | `OUTCOME`, `MESSAGE` | `SUCCESS`, or `FAILURE` with the message of the exception (for a refused request its field problems, such as `name is too long: ...`) |
 | `CORRELATION_ID` | the correlation id of the user action: the `X-Correlation-Id` of the answer and of the calls to Beadle-Internal and Beadle-ProTech, or the one a callback passed on |
 
@@ -782,7 +782,21 @@ case stored; should that transaction not commit after all, a `FAILURE` row ("The
 did not commit") follows. The row of a call that throws, and every row of a use case that runs without a transaction
 (the change use cases, which call Beadle-ProTech and Beadle-Internal, and the callbacks), is written in a
 `REQUIRES_NEW` transaction of its own, so a refused or rolled-back action still leaves its trace; a row that cannot
-be written there is logged and does not change the answer. Reads write nothing. Beadle only inserts rows:
+be written there is logged and does not change the answer.
+
+A request the API refuses before the use case runs leaves its `FAILURE` row as well: a body that cannot be read (no
+JSON, a value off the list of its enum), a field that fails validation (`@Valid` on the request record: a blank
+FixVersion, a department name of more than 100 characters), a path or query value of the wrong type or a body of
+another content type. Every endpoint that changes something names the action of its use case with `@AuditedRequest`
+(`adapter/in/web`), with the property of the body that names the object when the path has no `{id}` (the product of a
+change to raise, the code of a product, the name of a department, the number or the key of a callback);
+`ApiExceptionHandler` hands the refusal to `RefusedRequests`, which writes the row through `RefusedRequestsUseCase`
+(`application/audit`) in a transaction of its own: the user (or the system of a callback), the action, the object,
+the path values and the body as sent (`KeptRequestBodies` keeps it) with their secrets masked, the field problems of
+the answer as the message (`fixVersion must not be blank`, `approval must be one of BUSINESS, L1, L2, SUPPORT`), or
+its detail when it names no field (`The request body is not valid JSON.`), and the correlation id of the request.
+
+Reads write nothing. Beadle only inserts rows:
 `ActionHistoryEntity` is immutable, and `ActionHistoryJpaRepository` extends only Spring Data's `Repository` and
 declares `save`, the filtered `findAll(Specification, Pageable)` and the two filter lists, so it has neither update nor
 delete (not even the `update` and `delete` by specification `JpaSpecificationExecutor` would bring).
@@ -914,7 +928,7 @@ The service (`backend/src/main/java/com/bbh/itss/beadle`) is hexagonal:
 | Package | Holds |
 |---------|-------|
 | `domain` | plain Java: the departments and the shared value rules (`catalog`, `shared`), the change templates and the ProTech changes with their tasks, approvals, sync and update rules (`change`); every business rule lives here |
-| `application` | the use cases behind ports, per area (`catalog`, `change`, `callback` and `user`), each with its `port.in` and `port.out` packages; `@UseCase` classes become transactional beans, without Spring in the code; `CallContext` carries the correlation id of the user action and the system a callback acts for |
+| `application` | the use cases behind ports, per area (`catalog`, `change`, `callback`, `user` and `audit`), each with its `port.in` and `port.out` packages; `@UseCase` classes become transactional beans, without Spring in the code; `CallContext` carries the correlation id of the user action and the system a callback acts for |
 | `adapter.in` | Spring MVC controllers with the request and response records (`web`), the forwarding of the GUI pages to `index.html` (`SinglePageAppForwarding`, which reads the pages from `beadle.gui.pages`), and the start-up tasks that seed the demo data (`startup`) |
 | `adapter.out` | JPA entities and Spring Data repositories (`persistence`), the REST clients of Beadle-Internal with the Jira and CyberTrack adapters (`internal`) and of Beadle-ProTech with the ProTech adapter (`protech`), what every call to the two services carries (`http`) and the signed-in user read from the session (`user`) |
 | `config` | the wiring of use cases, transactions and the clock, the addresses of the two services and the token they share, the correlation id filter, Spring Security with the Ping sign-in, the local user, the CSRF cookie and the service token filter of the callbacks |

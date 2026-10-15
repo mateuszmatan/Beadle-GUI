@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import static com.bbh.itss.beadle.application.CallContext.actingAs;
 import static com.bbh.itss.beadle.application.CallContext.correlatedBy;
+import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_INTERNAL;
+import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_PROTECH;
 import static org.springframework.http.HttpStatus.ACCEPTED;
 
 /**
@@ -30,6 +32,7 @@ public class CallbackController {
     private final CallbacksUseCase callbacks;
 
     @PostMapping("/protech")
+    @AuditedRequest(value = CALLBACK_PROTECH, objectKey = "number", actor = PROTECH)
     @ResponseStatus(ACCEPTED)
     public void proTech(@Valid @RequestBody ProTechCallbackRequest request) {
         try (Scope system = actingAs(PROTECH); Scope action = correlatedBy(request.correlationId())) {
@@ -38,6 +41,7 @@ public class CallbackController {
     }
 
     @PostMapping("/internal")
+    @AuditedRequest(value = CALLBACK_INTERNAL, objectKey = "key", actor = INTERNAL)
     @ResponseStatus(ACCEPTED)
     public void internal(@Valid @RequestBody InternalCallbackRequest request) {
         try (Scope system = actingAs(INTERNAL); Scope action = correlatedBy(request.correlationId())) {

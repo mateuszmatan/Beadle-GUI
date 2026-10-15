@@ -26,6 +26,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_EDITED;
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_PREVIEWED;
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_PROFILE_UPDATED;
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED;
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_TASKS_CREATED;
+import static com.bbh.itss.beadle.domain.audit.Action.REMINDER_SENT;
+import static com.bbh.itss.beadle.domain.audit.Action.SECURE_CODING_TICKET_CREATED;
+import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT;
 import static org.springframework.http.ResponseEntity.created;
 import static org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentRequest;
 
@@ -50,6 +58,7 @@ public class ChangeController {
     }
 
     @PutMapping("/changes/{id}")
+    @AuditedRequest(CHANGE_EDITED)
     public ProductionChange update(@PathVariable long id, @Valid @RequestBody ChangeEditRequest request) {
         return changes.update(id, request.toCommand());
     }
@@ -70,28 +79,33 @@ public class ChangeController {
     }
 
     @PostMapping("/changes/preview")
+    @AuditedRequest(value = CHANGE_PREVIEWED, objectId = "productId")
     public ProductionChange preview(@Valid @RequestBody ChangeRequest request) {
         return changes.preview(request.toCommand());
     }
 
     @PostMapping("/changes")
+    @AuditedRequest(value = CHANGE_RAISED, objectId = "productId", objectType = PRODUCT)
     public ResponseEntity<ProductionChange> raise(@Valid @RequestBody ChangeRequest request) {
         ProductionChange raised = changes.raise(request.toCommand());
         return created(fromCurrentRequest().path("/{id}").buildAndExpand(raised.id()).toUri()).body(raised);
     }
 
     @PostMapping("/changes/{id}/tasks")
+    @AuditedRequest(CHANGE_TASKS_CREATED)
     public ProductionChange createTasks(@PathVariable long id, @Valid @RequestBody ChangeTasksRequest request) {
         return changes.createTasks(id, request.toCommand());
     }
 
     @PostMapping("/changes/{id}/secure-coding")
+    @AuditedRequest(SECURE_CODING_TICKET_CREATED)
     public ProductionChange createSecureCodingTicket(@PathVariable long id,
                                                      @Valid @RequestBody SecureCodingRequest request) {
         return changes.createSecureCodingTicket(id, request.toCommand());
     }
 
     @PostMapping("/changes/{id}/reminders")
+    @AuditedRequest(REMINDER_SENT)
     public ProductionChange remind(@PathVariable long id, @Valid @RequestBody ReminderRequest request) {
         return changes.remind(id, request.toCommand());
     }
@@ -125,6 +139,7 @@ public class ChangeController {
     }
 
     @PutMapping("/products/{id}/change-profile")
+    @AuditedRequest(CHANGE_PROFILE_UPDATED)
     public ChangeProfileView saveProfile(@PathVariable long id, @Valid @RequestBody ChangeProfileRequest request) {
         return profiles.save(id, request.version(), request.toTemplate(), request.toTasks());
     }

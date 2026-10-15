@@ -1,6 +1,8 @@
 package com.bbh.itss.beadle.config
 
 import com.bbh.itss.beadle.application.UseCase
+import com.bbh.itss.beadle.application.audit.port.in.RefusedRequest
+import com.bbh.itss.beadle.application.audit.port.in.RefusedRequestsUseCase
 import com.bbh.itss.beadle.application.audit.port.out.ActionHistoryPort
 import com.bbh.itss.beadle.application.audit.port.out.ObjectKeyPort
 import com.bbh.itss.beadle.application.catalog.port.in.DepartmentsUseCase
@@ -37,13 +39,15 @@ import spock.lang.Specification
 import java.time.Clock
 import java.util.function.Supplier
 
+import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_CREATED
 import static com.bbh.itss.beadle.support.RecordingTransactionManager.transactionState
 import static java.time.Clock.systemUTC
 import static org.springframework.aop.support.AopUtils.isAopProxy
 
 class UseCaseConfigurationSpec extends Specification {
 
-    static final List<String> UNAUDITED = ['changeOptionsService', 'lookupService', 'actionHistoryService']
+    static final List<String> UNAUDITED = ['changeOptionsService', 'lookupService', 'actionHistoryService',
+                                           'refusedRequestService']
 
     def transactions = new RecordingTransactionManager()
     List<String> calls = []
@@ -82,13 +86,26 @@ class UseCaseConfigurationSpec extends Specification {
             def useCases = context.getBeansWithAnnotation(UseCase)
             assert useCases.keySet() == ['departmentService', 'productService', 'changeProfileService',
                                          'productionChangeService', 'changeOptionsService', 'lookupService',
-                                         'signedInUserService', 'callbackService', 'actionHistoryService'] as Set
+                                         'signedInUserService', 'callbackService', 'actionHistoryService',
+                                         'refusedRequestService'] as Set
             useCases.each { name, useCase ->
                 assert isAopProxy(useCase)
                 assert (useCase as Advised).advisors*.advice*.class == (name in UNAUDITED ? [TransactionInterceptor]
                         : [TransactionInterceptor, AuditInterceptor])
             }
         }
+    }
+
+    def "a request refused before its use case ran is written as its FAILURE row in a read-write transaction"() {
+        when:
+        runner.run { ApplicationContext context ->
+            context.getBean(RefusedRequestsUseCase).refused(new RefusedRequest(DEPARTMENT_CREATED, null,
+                    '{"request":{"name":""}}', 'name must not be blank'))
+        }
+
+        then:
+        transactions.log == ['begin read-write', 'commit']
+        calls == ['audit DEPARTMENT_CREATED read-write']
     }
 
     def "products are listed in a read-only transaction and created in a read-write one"() {
