@@ -1,5 +1,6 @@
 package com.bbh.itss.beadle.config
 
+import com.bbh.itss.beadle.adapter.AuditDetails
 import com.bbh.itss.beadle.adapter.Secrets
 import com.bbh.itss.beadle.application.AuditNotes
 import com.bbh.itss.beadle.application.CallContext
@@ -13,6 +14,7 @@ import com.bbh.itss.beadle.application.catalog.port.out.DepartmentRepositoryPort
 import com.bbh.itss.beadle.application.catalog.port.out.DepartmentUsagePort
 import com.bbh.itss.beadle.application.catalog.port.out.ProductRepositoryPort
 import com.bbh.itss.beadle.application.change.port.in.ChangeEditCommand
+import com.bbh.itss.beadle.application.change.port.in.ChangeProfilesUseCase
 import com.bbh.itss.beadle.application.change.port.in.ChangeTasksCommand
 import com.bbh.itss.beadle.application.change.port.in.ProductionChangesUseCase
 import com.bbh.itss.beadle.application.change.port.in.ReminderCommand
@@ -30,6 +32,7 @@ import com.bbh.itss.beadle.domain.callback.InternalCallback
 import com.bbh.itss.beadle.domain.callback.ProTechCallback
 import com.bbh.itss.beadle.domain.catalog.Department
 import com.bbh.itss.beadle.domain.catalog.DepartmentUsage
+import com.bbh.itss.beadle.domain.change.ChangeProfile
 import com.bbh.itss.beadle.domain.change.ChangeTask
 import com.bbh.itss.beadle.domain.change.ProductionChange
 import com.bbh.itss.beadle.domain.change.WorkflowStep
@@ -45,7 +48,9 @@ import org.springframework.context.ApplicationContext
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionSystemException
 import spock.lang.Specification
+import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.node.ObjectNode
 
 import java.time.Clock
 import java.time.Instant
@@ -55,6 +60,7 @@ import java.util.function.Supplier
 import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_INTERNAL
 import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_PROTECH
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_EDITED
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_PROFILE_UPDATED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_SYNCED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_TASKS_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_CREATED
@@ -65,6 +71,7 @@ import static com.bbh.itss.beadle.domain.audit.Action.USER_SIGNED_IN
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.SUCCESS
 import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE
+import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE_PROFILE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.DEPARTMENT
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT
 import static com.bbh.itss.beadle.domain.audit.ObjectType.TICKET
@@ -76,8 +83,10 @@ import static com.bbh.itss.beadle.domain.change.ChangeState.BUSINESS_APPROVAL
 import static com.bbh.itss.beadle.domain.change.ChangeState.CLOSED
 import static com.bbh.itss.beadle.domain.change.ChangeState.DRAFT
 import static com.bbh.itss.beadle.support.ChangeFixtures.RAISED
+import static com.bbh.itss.beadle.support.ChangeFixtures.changeProduct
 import static com.bbh.itss.beadle.support.ChangeFixtures.raised
 import static com.bbh.itss.beadle.support.ChangeFixtures.releaseTask
+import static com.bbh.itss.beadle.support.ChangeFixtures.template
 import static com.bbh.itss.beadle.support.RecordingTransactionManager.transactionState
 
 class AuditInterceptorSpec extends Specification {
@@ -95,7 +104,10 @@ class AuditInterceptorSpec extends Specification {
     ProductRepositoryPort products = Mock()
     ProductionChangeRepositoryPort changes = Mock()
     ProTechPort proTech = Mock()
+    ChangeProductsPort changeProducts = Mock()
+    ChangeProfileRepositoryPort profiles = Mock()
     ObjectKeyPort keys = Mock()
+    JsonMapper strict = JsonMapper.builder().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build()
     ActionHistoryPort history = Mock() {
         record(_ as ActionRecord) >> { ActionRecord row ->
             transactions.log << 'audit row ' + transactionState()
@@ -114,8 +126,8 @@ class AuditInterceptorSpec extends Specification {
             .withBean(ProductRepositoryPort, { products } as Supplier<ProductRepositoryPort>)
             .withBean(DepartmentRepositoryPort, { departments } as Supplier<DepartmentRepositoryPort>)
             .withBean(DepartmentUsagePort, { usage } as Supplier<DepartmentUsagePort>)
-            .withBean(ChangeProductsPort, { Mock(ChangeProductsPort) } as Supplier<ChangeProductsPort>)
-            .withBean(ChangeProfileRepositoryPort, { Mock(ChangeProfileRepositoryPort) } as Supplier<ChangeProfileRepositoryPort>)
+            .withBean(ChangeProductsPort, { changeProducts } as Supplier<ChangeProductsPort>)
+            .withBean(ChangeProfileRepositoryPort, { profiles } as Supplier<ChangeProfileRepositoryPort>)
             .withBean(ProductionChangeRepositoryPort, { changes } as Supplier<ProductionChangeRepositoryPort>)
             .withBean(JiraPort, { Mock(JiraPort) } as Supplier<JiraPort>)
             .withBean(ProTechPort, { proTech } as Supplier<ProTechPort>)
@@ -433,9 +445,35 @@ class AuditInterceptorSpec extends Specification {
             message().startsWith('name is too long')
             message().endsWith("; departmentId choose the product's department")
             details().startsWith('{"command":{"code":"CERT","name":"NNN')
-            details().endsWith('...')
+            details().endsWith(AuditDetails.CUT + '","departmentId":null,"ownerTeam":null,"contactEmail":null,' +
+                    '"version":null}}')
             details().bytes.length <= ActionRecord.DETAILS_MAX
+            strict.readTree(details()).get('command').get('code').stringValue() == 'CERT'
         }
+    }
+
+    def "a change template of 12 long tasks is recorded with details that are JSON within 32 KB"() {
+        given:
+        def tasks = (1..12).collect { ChangeFixtures.details(it, [description: 'Step ' + it + ' ' + 'x' * 3_890]) }
+        changeProducts.get(1L) >> changeProduct()
+        profiles.find(1L) >> Optional.empty()
+        profiles.save(_ as ChangeProfile) >> { ChangeProfile it -> it }
+        keys.keyOf(CHANGE_PROFILE, 1L) >> Optional.of('CertScanner')
+
+        when:
+        use(ChangeProfilesUseCase) { it.save(1L, null, template(), tasks) }
+
+        then:
+        rows.collect { [it.action(), it.objectType(), it.objectId(), it.outcome()] } ==
+                [[CHANGE_PROFILE_UPDATED, CHANGE_PROFILE, 1L, SUCCESS]]
+        def details = rows[0].details()
+        details.bytes.length <= ActionRecord.DETAILS_MAX
+        def read = strict.readTree(details)
+        read.get('productId').asLong() == 1L
+        read.get('template').get('jiraProjectKey').stringValue() == 'CERT'
+        read.get('tasks').size() == 12
+        read.get('tasks').every { it.get('description').stringValue().endsWith(AuditDetails.CUT) }
+        read.get('tasks')*.get('shortDescription')*.stringValue() == tasks*.shortDescription()
     }
 
     def "a department that could not be created is filed under the name it was to have"() {
@@ -491,7 +529,7 @@ class AuditInterceptorSpec extends Specification {
         true    || '["CTASK0050001"]'
     }
 
-    def "long arguments are trimmed before the result, which stays whole at the end of the details"() {
+    def "long arguments are trimmed inside the JSON, and the result stays whole at the end of the details"() {
         given:
         def interceptor = new AuditInterceptor(null, null, null, Stub(ObjectProvider) {
             getIfUnique(_) >> JsonMapper.builder().build()
@@ -500,20 +538,26 @@ class AuditInterceptorSpec extends Specification {
         AuditNotes.result('reminded', [[role: 'SUPPORT', task: null, people: ['Jane Smith'], token: 'secret']])
         AuditNotes.created('SCP-1002')
         notes.close()
+        def result = ',"result":{"reminded":[{"role":"SUPPORT","task":null,"people":["Jane Smith"],' +
+                '"token":"*****"}],"created":["SCP-1002"]}}'
 
         when:
-        def details = interceptor.withResult('{"command":{"name":"' + 'N' * 40_000 + '"}}', notes)
+        def details = interceptor.details(arguments('{"command":{"name":"' + 'N' * 40_000 + '","code":"CERT"}}'),
+                notes)
 
         then:
-        details.bytes.length == ActionRecord.DETAILS_MAX
+        details.bytes.length <= ActionRecord.DETAILS_MAX
+        details.bytes.length > ActionRecord.DETAILS_MAX - 4
         details.startsWith('{"command":{"name":"NNN')
-        details.endsWith('NNN...,"result":{"reminded":[{"role":"SUPPORT","task":null,"people":["Jane Smith"],' +
-                '"token":"*****"}],"created":["SCP-1002"]}}')
+        details.endsWith('NNN' + AuditDetails.CUT + '","code":"CERT"}' + result)
+        strict.readTree(details).get('result').get('created').collect { it.stringValue() } == ['SCP-1002']
 
         expect:
-        interceptor.withResult('{}', notes) == '{"result":{"reminded":[{"role":"SUPPORT","task":null,' +
-                '"people":["Jane Smith"],"token":"*****"}],"created":["SCP-1002"]}}'
-        interceptor.withResult('{"id":7}', AuditNotes.listen().withCloseable { it }) == '{"id":7}'
+        interceptor.details(arguments('{}'), notes) == '{' + result.substring(1)
+        interceptor.details(null, notes) == '{' + result.substring(1)
+        interceptor.details(arguments('{"id":7}'), AuditNotes.listen().withCloseable { it }) == '{"id":7}'
+        interceptor.details(arguments('{"id":7}'), null) == '{"id":7}'
+        interceptor.details(null, null) == null
     }
 
     def "a signed-in user that cannot be read is recorded as unknown"() {
@@ -539,6 +583,10 @@ class AuditInterceptorSpec extends Specification {
                 '{"name":"CertScanner","serviceToken":"*****","nested":{"clientSecret":"*****","password":null,' +
                 '"list":[{"Authorization":"*****","apiKey":"*****","keep":"visible"}]}}'
         mapper.writeValueAsString(Secrets.masked('token', mapper.readTree('"plain"'))) == '"*****"'
+    }
+
+    private ObjectNode arguments(String json) {
+        strict.readTree(json) as ObjectNode
     }
 
     /** The raised change as ProTech moved it on to Business Approval. */

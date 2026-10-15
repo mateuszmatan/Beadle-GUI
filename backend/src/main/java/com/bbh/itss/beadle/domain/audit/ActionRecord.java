@@ -8,7 +8,8 @@ import static com.bbh.itss.beadle.domain.shared.Text.abbreviateBytes;
 
 /**
  * One row of the audit trail: who did what to which object, when, with which request ({@code details}, JSON without
- * secrets), and how it ended. Beadle only ever inserts these rows.
+ * secrets), and how it ended. Beadle only ever inserts these rows. The adapters trim long {@code details} inside the
+ * JSON to {@link #DETAILS_MAX}, so that they stay JSON; cutting the text here is only the last guard of the column.
  */
 @Builder(toBuilder = true)
 public record ActionRecord(Long id, Instant at, String user, Action action, ObjectType objectType, Long objectId,

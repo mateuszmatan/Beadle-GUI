@@ -1,5 +1,6 @@
 package com.bbh.itss.beadle.config;
 
+import com.bbh.itss.beadle.adapter.AuditDetails;
 import com.bbh.itss.beadle.adapter.Secrets;
 import com.bbh.itss.beadle.application.AuditNotes;
 import com.bbh.itss.beadle.application.AuditNotes.Listening;
@@ -47,8 +48,6 @@ import java.util.function.Supplier;
 
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE;
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.SUCCESS;
-import static com.bbh.itss.beadle.domain.shared.Text.abbreviateBytes;
-import static com.bbh.itss.beadle.domain.shared.Text.bytes;
 import static com.bbh.itss.beadle.domain.shared.Timestamps.now;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.stream.Collectors.joining;
@@ -69,10 +68,10 @@ import static org.springframework.transaction.support.TransactionSynchronization
  * cannot be written in their own transaction are logged and do not change the outcome of the use case.
  * <p>
  * {@code DETAILS} holds the arguments by parameter name and, last, what the use case noted with {@link AuditNotes}:
- * {@code "result": {"reminded": [...], "created": ["CTASK0041003", ...]}}, kept whole when long arguments are trimmed
- * to {@link ActionRecord#DETAILS_MAX}. A call that fails also records what it noted it had
- * {@link AuditNotes#storedOnTheWay stored on its way}, each in a {@code SUCCESS} row of its own before its
- * {@code FAILURE} row.
+ * {@code "result": {"reminded": [...], "created": ["CTASK0041003", ...]}}, as JSON that {@link AuditDetails} trims
+ * inside the tree to fit {@link ActionRecord#DETAILS_MAX}, the result whole. A call that fails also records what it
+ * noted it had {@link AuditNotes#storedOnTheWay stored on its way}, each in a {@code SUCCESS} row of its own before
+ * its {@code FAILURE} row.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -107,7 +106,7 @@ class AuditInterceptor implements MethodInterceptor {
              Listening notes = AuditNotes.listen()) {
             ActionRecordBuilder row = ActionRecord.builder().at(now(clock.getIfAvailable(Clock::systemUTC)))
                     .user(user()).action(action).correlationId(CallContext.correlationId().orElse(null));
-            String argumentDetails = details(method, arguments);
+            ObjectNode argumentDetails = arguments(method, arguments);
             ActionObject removed = action.deletes() ? keyed(fromArguments(action, method, arguments)) : null;
             long started = System.nanoTime();
             Object result;
@@ -115,19 +114,19 @@ class AuditInterceptor implements MethodInterceptor {
                 result = invocation.proceed();
             } catch (Throwable failure) {
                 row.durationMs(NANOSECONDS.toMillis(System.nanoTime() - started))
-                        .details(withResult(argumentDetails, notes));
+                        .details(details(argumentDetails, notes));
                 if (audited.onlyWhenNoted()) {
                     failedOnNoted(row.build(), notes.noted(), failure);
                 } else {
-                    storedOnTheWay(row.build().toBuilder().details(argumentDetails).outcome(SUCCESS).build(),
-                            notes.storedOnTheWay());
+                    storedOnTheWay(row.build().toBuilder().details(details(argumentDetails, null))
+                            .outcome(SUCCESS).build(), notes.storedOnTheWay());
                     inOwnTransaction(row.outcome(FAILURE).message(messageOf(failure)),
                             () -> removed != null ? removed : fromArguments(action, method, arguments));
                 }
                 throw failure;
             }
             row.durationMs(NANOSECONDS.toMillis(System.nanoTime() - started)).outcome(SUCCESS)
-                    .details(withResult(argumentDetails, notes));
+                    .details(details(argumentDetails, notes));
             if (audited.onlyWhenNoted()) {
                 ActionRecord each = row.build();
                 notes.noted().forEach(object -> succeeded(each.toBuilder(), () -> object));
@@ -234,33 +233,49 @@ class AuditInterceptor implements MethodInterceptor {
     }
 
     /**
-     * The details of the arguments with what the use case noted appended as {@code "result"}, its {@code "created"}
-     * keys last, where the object-key filter of the audit trail looks for them. Arguments too long for
-     * {@link ActionRecord#DETAILS_MAX} are trimmed before the result, so the result stays whole.
+     * The details of a row: the arguments and, last, what the use case noted as {@code "result"}, its
+     * {@code "created"} keys last, where the object-key filter of the audit trail looks for them; written by
+     * {@link AuditDetails}, which trims long arguments inside the JSON so that it fits {@link ActionRecord#DETAILS_MAX}
+     * with the result whole. Without notes ({@code null}) only the arguments; {@code null} when there is neither.
      */
-    String withResult(String argumentDetails, Listening notes) {
+    String details(ObjectNode arguments, Listening notes) {
+        JsonMapper mapper = mapper();
+        ObjectNode details = mapper.createObjectNode();
+        if (arguments != null) {
+            details.setAll(arguments);
+        }
+        ObjectNode result = notes == null ? null : resultOf(mapper, notes);
+        if (result != null) {
+            details.set(ActionRecord.RESULT, result);
+        } else if (arguments == null) {
+            return null;
+        }
+        try {
+            return AuditDetails.write(mapper, details);
+        } catch (RuntimeException e) {
+            log.warn("The details of an action could not be written as JSON: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /** What the use case noted, secrets masked and the created keys last; {@code null} when it noted nothing. */
+    private static ObjectNode resultOf(JsonMapper mapper, Listening notes) {
         Map<String, Object> results = notes.results();
         List<String> created = notes.created();
         if (results.isEmpty() && created.isEmpty()) {
-            return argumentDetails;
+            return null;
         }
         try {
-            JsonMapper mapper = json.getIfUnique(() -> JsonMapper.builder().build());
             ObjectNode result = mapper.createObjectNode();
             results.forEach((name, value) -> result.set(name, Secrets.masked(name, mapper.valueToTree(value))));
             if (!created.isEmpty()) {
                 result.remove(ActionRecord.CREATED);
                 result.set(ActionRecord.CREATED, mapper.valueToTree(created));
             }
-            String suffix = "\"" + ActionRecord.RESULT + "\":" + mapper.writeValueAsString(result) + "}";
-            String arguments = argumentDetails == null || argumentDetails.length() < 2 ? "{"
-                    : argumentDetails.substring(0, argumentDetails.length() - 1);
-            String separator = arguments.equals("{") ? "" : ",";
-            int room = ActionRecord.DETAILS_MAX - bytes(suffix) - bytes(separator);
-            return abbreviateBytes(arguments, Math.max(room, 1)) + separator + suffix;
+            return result;
         } catch (RuntimeException e) {
             log.warn("The result of an action could not be written as JSON: {}", e.getMessage());
-            return argumentDetails;
+            return null;
         }
     }
 
@@ -284,10 +299,13 @@ class AuditInterceptor implements MethodInterceptor {
         }
     }
 
-    /** The arguments by parameter name as JSON, every property that looks like a secret masked ({@link Secrets}). */
-    String details(Method method, Object[] arguments) {
+    /**
+     * The arguments by parameter name as a JSON tree, every property that looks like a secret masked
+     * ({@link Secrets}); {@code null} when they cannot be written as JSON.
+     */
+    ObjectNode arguments(Method method, Object[] arguments) {
         try {
-            JsonMapper mapper = json.getIfUnique(() -> JsonMapper.builder().build());
+            JsonMapper mapper = mapper();
             String[] names = parameterNames.getParameterNames(method);
             ObjectNode details = mapper.createObjectNode();
             for (int index = 0; index < arguments.length; index++) {
@@ -298,11 +316,15 @@ class AuditInterceptor implements MethodInterceptor {
                     details.set(name, Secrets.masked(name, mapper.valueToTree(arguments[index])));
                 }
             }
-            return mapper.writeValueAsString(details);
+            return details;
         } catch (RuntimeException e) {
             log.warn("The arguments of {} could not be written as JSON: {}", method.getName(), e.getMessage());
             return null;
         }
+    }
+
+    private JsonMapper mapper() {
+        return json.getIfUnique(() -> JsonMapper.builder().build());
     }
 
     private static Method implementationOf(MethodInvocation invocation) {
