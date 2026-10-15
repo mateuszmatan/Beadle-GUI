@@ -1,0 +1,174 @@
+.wizard {
+  max-width: 1120px;
+}
+
+.step-bar {
+  display: flex;
+  gap: 4px;
+
+  li {
+    flex: 1 1 0;
+    min-width: 28px;
+  }
+
+  li:not(.current) .step-label {
+    display: block;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .current {
+    flex: 0 0 auto;
+
+    button {
+      padding-right: 14px;
+    }
+
+    .step-label {
+      white-space: nowrap;
+    }
+  }
+
+  button {
+    padding: 6px 4px;
+  }
+
+  .done button:not(:disabled):hover .number {
+    border-color: var(--beadle-navy);
+  }
+}
+
+.step-count {
+  margin: 0 0 -6px;
+  color: var(--beadle-navy);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.raised-note {
+  margin: 0;
+}
+
+.fields {
+  align-items: start;
+}
+
+.issues {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 4px 8px;
+  border: 1px solid var(--beadle-border);
+}
+
+.find {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 4px 12px;
+
+  .project {
+    width: 140px;
+  }
+
+  .version {
+    width: 280px;
+  }
+
+  > .btn {
+    margin-top: 20px;
+  }
+}
+
+.versions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 100%;
+  max-height: 260px;
+  margin-top: 2px;
+  overflow-y: auto;
+}
+
+.issue-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.key {
+  font-size: 12px;
+  color: var(--beadle-navy);
+}
+
+.story-group {
+  padding: 4px 8px 6px;
+  border-left: 3px solid var(--beadle-navy-light);
+  background: var(--beadle-surface);
+
+  h4 {
+    margin: 2px 0;
+    font-size: 13px;
+  }
+}
+
+.defaults-note,
+.product-error {
+  margin-bottom: 0;
+}
+
+.scope {
+  margin: 0;
+}
+
+.texts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  textarea {
+    font-family: var(--beadle-mono);
+    font-size: 12px;
+  }
+
+  .new-text {
+    align-self: flex-start;
+  }
+
+  .length-hint {
+    display: block;
+    text-align: end;
+  }
+}
+
+@media (max-width: 480px) {
+  .step-bar {
+    gap: 2px;
+
+    li {
+      min-width: 22px;
+    }
+
+    .current .step-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
+
+    button {
+      justify-content: center;
+      padding: 6px 0;
+    }
+  }
+}

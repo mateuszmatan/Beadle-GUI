@@ -74,4 +74,4 @@ dependencyResolutionManagement {
 
 rootProject.name = 'beadle'
 
-include 'backend', 'frontend'
+include 'beadle-backend', 'beadle-gui'

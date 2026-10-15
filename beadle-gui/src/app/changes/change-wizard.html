@@ -1,0 +1,507 @@
+<div class="page wizard">
+  <header class="page-header">
+    <div>
+      <h1>{{ section.heading }}</h1>
+      <p class="page-description">{{ section.description }}</p>
+    </div>
+  </header>
+
+  <beadle-integration-note />
+
+  <ol class="step-bar" aria-label="Steps">
+    @for (label of steps(); track label; let index = $index) {
+      <li [class.done]="index < step()" [class.current]="index === step()">
+        <button
+          type="button"
+          [disabled]="!canRevisit(index)"
+          [attr.aria-current]="index === step() ? 'step' : null"
+          [attr.title]="index + 1 + '. ' + label"
+          (click)="goTo(index)"
+        >
+          <span class="number">{{ index + 1 }}</span>
+          <span class="step-label">{{ label }}</span>
+        </button>
+      </li>
+    }
+  </ol>
+
+  <section class="card step">
+    <p class="step-count">Step {{ step() + 1 }} of {{ steps().length }}</p>
+    @switch (stepKey()) {
+      @case ('request') {
+        <h2>{{ current()!.title }}</h2>
+        <p class="lead">
+          Choose your department and the product that goes to production. The product's change
+          template fills in every step, and you can change any value for this change. Fields marked
+          * are required.
+        </p>
+        @if (departmentsError(); as error) {
+          <p class="choice-error">The departments could not be loaded: {{ error }}</p>
+        }
+        @if (productsError(); as error) {
+          <p class="choice-error">The products could not be loaded: {{ error }}</p>
+        }
+        <div class="fields">
+          <beadle-form-field>
+            <beadle-label>Your department</beadle-label>
+            <select beadleInput [formControl]="departmentId">
+              @for (group of groups(); track group.department.id) {
+                <option [ngValue]="group.department.id">{{ group.department.name }}</option>
+              }
+            </select>
+          </beadle-form-field>
+          <beadle-form-field>
+            <beadle-label>Product</beadle-label>
+            <select beadleInput [formControl]="productId">
+              @for (product of productsInDepartment(); track product.id) {
+                <option [ngValue]="product.id">{{ product.name }} ({{ product.code }})</option>
+              }
+            </select>
+            @if (chosenDepartment() !== null) {
+              <beadle-hint
+                >{{ counted(productsInDepartment().length, 'product') }} in the department</beadle-hint
+              >
+            }
+          </beadle-form-field>
+        </div>
+        @if (unplaced(); as names) {
+          <p class="hint unplaced">
+            Products without a department are not listed; an admin must place them in a department
+            in Beadle Admin first: {{ names }}.
+          </p>
+        }
+        @if (profile.isLoading()) {
+          <beadle-loading />
+        }
+        @if (profile.error(); as error) {
+          <div class="banner product-error" role="alert">
+            <span>The product could not be loaded: {{ errorMessage(error) }}</span>
+            <span class="spacer"></span>
+            <button type="button" class="btn btn-link" (click)="profile.reload()">Try again</button>
+          </div>
+        }
+        @if (profile.hasValue() && details(); as form) {
+          @let chosen = profile.value();
+          @if (chosen.version === null) {
+            <div class="banner info defaults-note" role="note">
+              <span
+                >{{ chosen.productName }} has no change template yet, so the suggested values are
+                filled in. An admin can set it in Beadle Admin.</span
+              >
+              <span class="spacer"></span>
+              <a class="btn btn-link" [routerLink]="templateLink(chosen.productId)"
+                >Set the template</a
+              >
+            </div>
+          }
+          <beadle-template-section [form]="form" section="request" [facts]="facts()" />
+        }
+      }
+      @case ('jira') {
+        <h2>{{ current()!.title }}</h2>
+        <p class="lead">{{ current()!.lead }}</p>
+        <div class="find">
+          <beadle-form-field class="project read-only">
+            <beadle-label>Jira project</beadle-label>
+            <input
+              beadleInput
+              readonly
+              class="mono"
+              [value]="details()!.controls.jiraProjectKey.value"
+            />
+          </beadle-form-field>
+          <beadle-form-field class="version">
+            <beadle-label>FixVersion</beadle-label>
+            <input
+              beadleInput
+              autocomplete="off"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-haspopup="listbox"
+              [attr.aria-expanded]="versionsShown()"
+              [attr.aria-controls]="versionsShown() ? 'fix-versions' : null"
+              [attr.aria-activedescendant]="
+                versionsShown() && activeVersion() !== null
+                  ? 'fix-version-' + activeVersion()
+                  : null
+              "
+              [formControl]="fixVersion"
+              (focus)="versionsOpen.set(true)"
+              (click)="versionsOpen.set(true)"
+              (input)="versionsOpen.set(true)"
+              (blur)="versionsOpen.set(false)"
+              (keydown)="versionKey($event)"
+            />
+            @if (versionsShown()) {
+              <ul id="fix-versions" class="dropdown-menu beadle-menu show versions" role="listbox">
+                @for (version of versionOptions(); track version.name; let index = $index) {
+                  <li role="none">
+                    <button
+                      type="button"
+                      role="option"
+                      tabindex="-1"
+                      class="dropdown-item"
+                      [id]="'fix-version-' + index"
+                      [class.active]="index === activeVersion()"
+                      [attr.aria-selected]="index === activeVersion()"
+                      (mousedown)="$event.preventDefault()"
+                      (click)="pickVersion(version.name)"
+                    >
+                      {{ version.name }}
+                      <span class="muted"> · {{ versionText(version) }}</span>
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+            <beadle-error>{{ errorText(fixVersion) }}</beadle-error>
+          </beadle-form-field>
+          <button type="button" class="btn btn-outline-primary" (click)="findEpics()">
+            Find epics
+          </button>
+        </div>
+        @if (versions.error(); as error) {
+          <p class="choice-error">
+            The FixVersions could not be listed, so type the FixVersion yourself.
+            {{ errorMessage(error) }}
+          </p>
+        }
+        <h3>Epics</h3>
+        @if (epics.isLoading()) {
+          <beadle-loading />
+        }
+        @if (epics.error(); as error) {
+          <p class="choice-error">
+            The epics could not be loaded: {{ errorMessage(error) }}
+            <button type="button" class="text-link" (click)="findEpics()">Try again</button>
+          </p>
+        }
+        @if (!searched()) {
+          <p class="empty">Enter the FixVersion and find its epics.</p>
+        } @else if (epics.hasValue()) {
+          @if (epics.value().length) {
+            <div class="issue-actions">
+              <button type="button" class="text-link" (click)="chooseAllEpics(true)">All</button>
+              <button type="button" class="text-link" (click)="chooseAllEpics(false)">None</button>
+              <span class="muted">{{ counted(epicKeys().length, 'epic') }} chosen</span>
+            </div>
+            <div class="issues">
+              @for (epic of epics.value(); track epic.key) {
+                <beadle-checkbox
+                  [checked]="epicKeys().includes(epic.key)"
+                  (checkedChange)="toggleEpic(epic.key, $event)"
+                >
+                  <span class="mono key">{{ epic.key }}</span> {{ epic.summary }}
+                  <span class="muted"> · {{ issueText(epic) }}</span>
+                </beadle-checkbox>
+              }
+            </div>
+          } @else {
+            <p class="empty">No epic carries FixVersion {{ searched() }}.</p>
+          }
+        }
+        <h3>Stories of the chosen epics</h3>
+        @if (stories.isLoading()) {
+          <beadle-loading />
+        }
+        @if (stories.error(); as error) {
+          <p class="choice-error">
+            The stories could not be loaded: {{ errorMessage(error) }}
+            <button type="button" class="text-link" (click)="stories.reload()">Try again</button>
+          </p>
+        }
+        @for (group of storyGroups(); track group.key) {
+          <div class="story-group">
+            <h4>
+              <span class="mono">{{ group.key }}</span> {{ group.epic?.summary }}
+            </h4>
+            @for (story of group.stories; track story.key) {
+              <beadle-checkbox
+                [checked]="storyKeys().includes(story.key)"
+                (checkedChange)="toggleStory(story.key, $event)"
+              >
+                <span class="mono key">{{ story.key }}</span> {{ story.summary }}
+                <span class="muted"> · {{ issueText(story) }}</span>
+              </beadle-checkbox>
+            } @empty {
+              <p class="empty">
+                {{
+                  stories.isLoading()
+                    ? 'Loading its stories'
+                    : 'No story of this epic carries the FixVersion.'
+                }}
+              </p>
+            }
+          </div>
+        } @empty {
+          <p class="empty">Choose an epic to see its stories.</p>
+        }
+        @if (epicKeys().length) {
+          @if (preview(); as draft) {
+            <div>
+              <h3>Text sent to ProTech</h3>
+              <p class="hint">
+                Written from the chosen epics and stories. The description takes in the later steps
+                as you fill them in, and you can change both texts.
+              </p>
+            </div>
+            <ng-container
+              [ngTemplateOutlet]="changeTexts"
+              [ngTemplateOutletContext]="{ $implicit: draft }"
+            />
+          }
+        }
+      }
+      @case ('schedule') {
+        <h2>{{ current()!.title }}</h2>
+        <p class="lead">
+          The installation starts on the release date of the FixVersion while it is ahead, otherwise
+          on the next day, with the times of the change template. Change any of it.
+        </p>
+        <beadle-change-schedule [schedule]="schedule()!" [downtime]="details()!.controls.downtime" />
+      }
+      @case ('review') {
+        <h2>Check the change and create it in ProTech</h2>
+        <p class="lead">
+          Check every value, then create the change: ProTech creates it and gives it its change
+          number (CHG). Two more steps then follow: you add its change tasks (CTASKs), which carry
+          that number, and create its secure coding ticket in CyberTrack.
+        </p>
+        @if (previewing()) {
+          <beadle-loading />
+        }
+        @if (preview(); as draft) {
+          <h3>Every value of the change</h3>
+          <beadle-change-summary [change]="draft" />
+          <p class="scope">
+            {{ counted(draft.epicKeys.length, 'epic') }} and
+            {{ counted(draft.storyKeys.length, 'story', 'stories') }} of FixVersion
+            {{ draft.fixVersion }}
+          </p>
+          <div>
+            <h3>Text sent to ProTech</h3>
+            <p class="hint">
+              Written from the values above. Change it if you like before you create the change.
+            </p>
+          </div>
+          <ng-container
+            [ngTemplateOutlet]="changeTexts"
+            [ngTemplateOutletContext]="{ $implicit: draft }"
+          />
+        }
+      }
+      @case ('tasks') {
+        @if (raised(); as change) {
+          <div class="banner success raised-note" role="status">
+            <span
+              ><strong>{{ change.number }} is created in ProTech.</strong> Now add its change tasks
+              to it.</span
+            >
+          </div>
+          <h2>Change tasks of {{ change.number }}</h2>
+          <p class="lead">
+            A change task (CTASK) is a piece of work inside the change, done by one team, and it
+            carries the change number {{ change.number }}. The product's default change tasks are
+            filled in; the button below creates them in ProTech. A Release Management task also
+            needs the platform, its start in the installation window, the application and the
+            packages.
+          </p>
+          <beadle-change-tasks-form [tasks]="tasks()!" />
+        }
+      }
+      @case ('ticket') {
+        @if (raised(); as change) {
+          <h2>Secure coding ticket of {{ change.number }}</h2>
+          <p class="lead">
+            CyberTrack, the Jira project SCP, holds the secure coding tickets. Fill in the values
+            below: the ticket is named after the APO number, the application and the implementation
+            date, lists every value in its description, and its number becomes the secure coding
+            ticket of {{ change.number }}.
+          </p>
+          <beadle-secure-coding-form [form]="secureCoding()!" [applicationName]="change.productName" />
+        }
+      }
+      @case ('raised') {
+        @if (raised(); as change) {
+          <h2>{{ change.number }} is created</h2>
+          <p class="lead">{{ change.shortDescription }}</p>
+          <div class="form-fields summary-numbers">
+            <beadle-form-field class="span-6 read-only">
+              <beadle-label>Change number</beadle-label>
+              <input beadleInput readonly class="mono" [value]="change.number" />
+            </beadle-form-field>
+            <beadle-form-field class="span-6 read-only">
+              <beadle-label>Secure coding ticket number</beadle-label>
+              <input
+                beadleInput
+                readonly
+                class="mono"
+                placeholder="Not created yet: create it on the change page"
+                [value]="change.template.secureCodingTicket ?? ''"
+              />
+            </beadle-form-field>
+          </div>
+          <dl class="rows">
+            <dt>FixVersion</dt>
+            <dd class="mono">{{ change.fixVersion }}</dd>
+            <dt>Installation</dt>
+            <dd>
+              {{ windowText(change.schedule.installationStart, change.schedule.installationEnd) }}
+            </dd>
+            <dt>Change tasks</dt>
+            <dd>
+              <ul class="review-list">
+                @for (task of change.tasks; track $index) {
+                  <li>
+                    <span class="mono">{{ task.number }}</span> ·
+                    {{ task.details.shortDescription }}
+                    <span class="muted"> · {{ task.details.assignmentGroup }}</span>
+                  </li>
+                } @empty {
+                  <li class="muted">None yet. Add them with Edit the change on its page.</li>
+                }
+              </ul>
+            </dd>
+          </dl>
+          <ol class="next-steps">
+            <li>
+              <h3>Approvals</h3>
+              <p>
+                @if (approverNames(change.template).length) {
+                  {{ approverNames(change.template).join(', ') }} approve the change in ProTech.
+                } @else {
+                  The approvers of {{ change.template.assignmentGroup }} approve the change in
+                  ProTech.
+                }
+                Then the approvers of each change task approve it, and the change goes In Progress
+                once every change task is approved.
+              </p>
+            </li>
+            <li>
+              <h3>Deploy in the window</h3>
+              <p>
+                {{ change.template.assignmentGroup }} works through the change tasks and closes each
+                in ProTech.
+              </p>
+            </li>
+            <li>
+              <h3>Follow the change</h3>
+              <p>
+                <a [routerLink]="changeLink(change.id!)">{{ change.number }}</a> shows the
+                approvals, the workflow and the change tasks as ProTech holds them, and
+                <a [routerLink]="changes.path">{{ changes.label }}</a> lists every change of your
+                department.
+              </p>
+            </li>
+          </ol>
+        }
+      }
+      @default {
+        <h2>{{ current()!.title }}</h2>
+        <p class="lead">{{ current()!.lead }}</p>
+        <beadle-template-section [form]="details()!" [section]="current()!.key" />
+      }
+    }
+
+    @if (raising()) {
+      <beadle-loading />
+    }
+    @if (problem(); as error) {
+      <div class="banner save-problem" role="alert">
+        <div>
+          <strong>{{ error }}</strong>
+          @if (problems().length) {
+            <ul class="problems">
+              @for (message of problems(); track message) {
+                <li>{{ message }}</li>
+              }
+            </ul>
+          }
+        </div>
+        @if (stepKey() === 'review' && !preview()) {
+          <span class="spacer"></span>
+          <button type="button" class="btn btn-link" (click)="loadPreview()">Try again</button>
+        }
+      </div>
+    }
+
+    @if (checked() && stepProblem(); as message) {
+      <p class="choice-error step-problem" role="alert">{{ message }}</p>
+    }
+
+    <div class="step-actions">
+      @if (stepKey() === 'raised') {
+        <button type="button" class="btn btn-outline-primary" (click)="restart()">
+          Create another change
+        </button>
+        <span class="spacer"></span>
+        <a class="btn btn-primary" [routerLink]="changeLink(raised()?.id ?? '')">Open the change</a>
+      } @else {
+        @if (laterLabels[stepKey()]; as label) {
+          <button
+            type="button"
+            class="btn btn-outline-primary"
+            [disabled]="raising()"
+            (click)="later()"
+          >
+            {{ label }}
+          </button>
+        } @else if (step() > 0) {
+          <button
+            type="button"
+            class="btn btn-outline-primary"
+            [disabled]="raising() || previewing()"
+            (click)="back()"
+          >
+            Back
+          </button>
+        }
+        <span class="spacer"></span>
+        <button
+          type="button"
+          class="btn btn-primary"
+          [disabled]="raising() || previewing() || (stepKey() === 'review' && !preview())"
+          (click)="next()"
+        >
+          {{ nextLabel() }}
+        </button>
+      }
+    </div>
+  </section>
+</div>
+<ng-template #changeTexts let-draft>
+  <div class="texts">
+    @if (shortDescription.value !== draft.shortDescription) {
+      <button
+        type="button"
+        class="text-link new-text"
+        aria-label="Use the generated text for the short description"
+        (click)="useGeneratedText(shortDescription, draft.shortDescription)"
+      >
+        Use the generated text
+      </button>
+    }
+    <beadle-form-field>
+      <beadle-label>Short description</beadle-label>
+      <input beadleInput [formControl]="shortDescription" maxlength="160" />
+      <beadle-hint class="length-hint">{{ byteLength(shortDescription.value) }} / 160</beadle-hint>
+      <beadle-error>{{ errorText(shortDescription) }}</beadle-error>
+    </beadle-form-field>
+    @if (description.value !== draft.description) {
+      <button
+        type="button"
+        class="text-link new-text"
+        aria-label="Use the generated text for the description"
+        (click)="useGeneratedText(description, draft.description)"
+      >
+        Use the generated text
+      </button>
+    }
+    <beadle-form-field>
+      <beadle-label>Description</beadle-label>
+      <textarea beadleInput rows="11" [formControl]="description"></textarea>
+      <beadle-hint class="length-hint">{{ byteLength(description.value) }} / 4000</beadle-hint>
+      <beadle-error>{{ errorText(description) }}</beadle-error>
+    </beadle-form-field>
+  </div>
+</ng-template>
