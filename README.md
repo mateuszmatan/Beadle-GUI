@@ -196,7 +196,7 @@ under the prefix `beadle.` its own settings, one document per profile.
 | `BEADLE_DATA_DIR` | `~/bbh-devsecops/beadle` | the folder of the H2 database `beadle.mv.db` of the `local` profile |
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | H2 with `local`; required with `rd`, `qc`, `prod` | the database of the active profile |
 | `DB_POOL_SIZE` | 5, 10, 20 in `rd`, `qc`, `prod` | Oracle connection pool size |
-| `BEADLE_DEMO_DATA` | `true` with `local`, `false` otherwise | the demo products with their change templates and the demo changes; see [Beadle demo data](#beadle-demo-data) |
+| `BEADLE_DEMO_DATA` | `true` with `local`, `false` otherwise | the demo products with their change templates, nothing more: the changes are raised by the users and their state comes from Beadle-ProTech; see [Beadle demo data](#beadle-demo-data) |
 | `BEADLE_AUTH_MODE` | `local` with `local`, `oidc` otherwise | how users sign in (`beadle.auth.mode`): `oidc` with Ping, `local` as `BEADLE_SIGNED_IN_USER` without a sign-in; see [Signing in](#signing-in) |
 | `BEADLE_SIGNED_IN_USER` | `Mateusz Matan` | the user everybody is signed in as when `BEADLE_AUTH_MODE` is `local` (`beadle.signed-in-user`) |
 | `PING_ISSUER_URI` | none; required with `rd`, `qc`, `prod` | the Ping issuer (`spring.security.oauth2.client.provider.ping.issuer-uri`), whose OpenID configuration Beadle reads when it starts |
@@ -226,8 +226,9 @@ docker run --rm -p 8081:8081 beadle:0.1.0-SNAPSHOT
 The build context is the repository root, whose `.dockerignore` lets only the application jar through, so build the
 jar first. To build on an internal mirror of the base image, pass `--build-arg BASE_IMAGE=<mirror>/ubi9/openjdk-21-runtime:<tag>`;
 Podman and Buildah accept the same arguments. The container starts the `local` profile: H2 in `/application/data`
-(`BEADLE_DATA_DIR`) with demo data; give it a volume (`-v beadle-data:/application/data`) when the demo changes should
-survive a restart, or `-e SPRING_PROFILES_ACTIVE=rd` with the `DB_*` variables to run it on Oracle.
+(`BEADLE_DATA_DIR`) with the demo products; give it a volume (`-v beadle-data:/application/data`) to keep its H2
+database (the products, their change templates, the changes raised and the audit trail) across restarts, or
+`-e SPRING_PROFILES_ACTIVE=rd` with the `DB_*` variables to run it on Oracle.
 
 The manifests in `deploy/openshift/beadle` are a Kustomize base (Deployment, Service, Route and the ConfigMap
 `beadle-config`) with one overlay per environment, `rd`, `qc` and `prod`, each starting the Spring profile of the
