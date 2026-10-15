@@ -260,16 +260,24 @@ same name:
    oc create secret generic beadle-services --from-literal=BEADLE_SERVICE_TOKEN='<token>'
    ```
 
-   The OpenID Connect client Ping registered for Beadle in this environment goes into `beadle-oidc`, and its issuer
-   into the overlay's ConfigMap (the base leaves `PING_ISSUER_URI` empty, so an overlay without it does not start);
-   Ping has to know `https://<route>/login/oauth2/code/ping` as a redirect URI of the client:
+   The OpenID Connect client Ping registered for Beadle in this environment goes into `beadle-oidc`; Ping has to know
+   `https://<route>/login/oauth2/code/ping` as a redirect URI of the client and `https://<route>/` as its address
+   after signing out:
 
    ```bash
    oc create secret generic beadle-oidc \
      --from-literal=PING_CLIENT_ID='<client id>' \
      --from-literal=PING_CLIENT_SECRET='<client secret>'
-   cd deploy/openshift/beadle/overlays/rd
-   kustomize edit add configmap beadle-config --behavior=merge --from-literal=PING_ISSUER_URI='https://<ping>/as'
+   ```
+
+   Its issuer goes into the overlay itself, since it is no secret: each overlay carries the placeholder
+   `PING_ISSUER_URI=https://set-the-ping-issuer-of-<environment>.invalid`, which keeps the pod from starting (Beadle
+   reads the Ping configuration from the issuer when it starts, and the reserved domain `.invalid` never answers).
+   Replace it with the issuer Ping names for the client, commit the overlay, and check that no placeholder is left:
+
+   ```bash
+   sed -i 's|^\( *- PING_ISSUER_URI=\).*|\1https://<ping issuer of rd>|' deploy/openshift/beadle/overlays/rd/kustomization.yaml
+   grep -rn 'set-the-ping-issuer' deploy/openshift/beadle/overlays/rd && echo 'Set PING_ISSUER_URI first'
    ```
 
 3. Beadle-Internal and Beadle-ProTech run in the same project as the Services `beadle-internal` (port 8082) and
@@ -297,7 +305,7 @@ overlay patch if an environment needs more.
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Secret `beadle-db` | Oracle connection |
 | `DB_POOL_SIZE` | ConfigMap (optional) | Connection pool size, defaults per profile |
 | `BEADLE_AUTH_MODE` | ConfigMap `beadle-config` | `oidc`: users sign in with Ping |
-| `PING_ISSUER_URI` | ConfigMap `beadle-config`, set per overlay | The Ping issuer of the environment |
+| `PING_ISSUER_URI` | ConfigMap `beadle-config`, set in each overlay over its placeholder | The Ping issuer of the environment |
 | `PING_CLIENT_ID`, `PING_CLIENT_SECRET` | Secret `beadle-oidc` | The OpenID Connect client of Beadle at Ping |
 | `BEADLE_INTERNAL_URL`, `BEADLE_PROTECH_URL` | ConfigMap `beadle-config` | Where Beadle-Internal and Beadle-ProTech answer, `http://beadle-internal:8082` and `http://beadle-protech:8083` |
 | `BEADLE_SERVICE_TOKEN` | Secret `beadle-services` | The token the three Beadle services share; Jira, CyberTrack and ProTech are configured in Beadle-Internal and Beadle-ProTech |

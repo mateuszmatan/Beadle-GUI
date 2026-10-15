@@ -16,5 +16,5 @@ configMapGenerator:
       - BEADLE_INTERNAL_URL=http://beadle-internal:8082
       - BEADLE_PROTECH_URL=http://beadle-protech:8083
       - BEADLE_AUTH_MODE=oidc
-      # The Ping issuer of the environment, set in each overlay; the client id and secret are in the secret beadle-oidc.
-      - PING_ISSUER_URI=
+      # PING_ISSUER_URI, the Ping issuer of the environment, is set in each overlay; the client id and secret are in
+      # the secret beadle-oidc.
