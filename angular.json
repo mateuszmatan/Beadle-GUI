@@ -6,32 +6,32 @@
   },
   "newProjectRoot": ".",
   "projects": {
-    "frontend": {
+    "beadle-gui": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
           "style": "scss"
         }
       },
-      "root": "frontend",
-      "sourceRoot": "frontend/src",
-      "prefix": "dso",
+      "root": "beadle-gui",
+      "sourceRoot": "beadle-gui/src",
+      "prefix": "beadle",
       "architect": {
         "build": {
           "builder": "@angular/build:application",
           "options": {
             "outputPath": {
-              "base": "frontend/dist",
+              "base": "beadle-gui/dist",
               "browser": ""
             },
-            "browser": "frontend/src/main.ts",
-            "index": "frontend/src/index.html",
-            "tsConfig": "frontend/tsconfig.app.json",
+            "browser": "beadle-gui/src/main.ts",
+            "index": "beadle-gui/src/index.html",
+            "tsConfig": "beadle-gui/tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": [
               {
                 "glob": "**/*",
-                "input": "frontend/public"
+                "input": "beadle-gui/public"
               },
               {
                 "glob": "**/*.svg",
@@ -53,7 +53,7 @@
               "node_modules/@v6/v6-themes/jersey-theme.min.css",
               "node_modules/@angular/cdk/overlay-prebuilt.css",
               "node_modules/@angular/cdk/a11y-prebuilt.css",
-              "frontend/src/styles.scss"
+              "beadle-gui/src/styles.scss"
             ],
             "define": {
               "AG_GRID_LICENSE_KEY": "''"
@@ -87,19 +87,19 @@
                 "node_modules/ag-grid-community/styles/ag-theme-balham.css",
                 "node_modules/@angular/cdk/overlay-prebuilt.css",
                 "node_modules/@angular/cdk/a11y-prebuilt.css",
-                "frontend/src/styles/public-theme.scss",
-                "frontend/src/styles.scss"
+                "beadle-gui/src/styles/public-theme.scss",
+                "beadle-gui/src/styles.scss"
               ],
               "assets": [
                 {
                   "glob": "**/*",
-                  "input": "frontend/public"
+                  "input": "beadle-gui/public"
                 }
               ],
               "fileReplacements": [
                 {
-                  "replace": "frontend/src/app/ui/design-system.ts",
-                  "with": "frontend/src/app/ui/design-system.public.ts"
+                  "replace": "beadle-gui/src/app/ui/design-system.ts",
+                  "with": "beadle-gui/src/app/ui/design-system.public.ts"
                 }
               ]
             }
@@ -110,45 +110,45 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "frontend:build:production"
+              "buildTarget": "beadle-gui:build:production"
             },
             "development": {
-              "buildTarget": "frontend:build:development"
+              "buildTarget": "beadle-gui:build:development"
             },
             "public": {
-              "buildTarget": "frontend:build:development,public"
+              "buildTarget": "beadle-gui:build:development,public"
             }
           },
           "defaultConfiguration": "development",
           "options": {
-            "proxyConfig": "frontend/proxy.conf.json",
+            "proxyConfig": "beadle-gui/proxy.conf.json",
             "port": 4201
           }
         },
         "test": {
           "builder": "@angular/build:unit-test",
           "options": {
-            "tsConfig": "frontend/tsconfig.spec.json",
+            "tsConfig": "beadle-gui/tsconfig.spec.json",
             "coverageReporters": [
               "text-summary",
               "html",
               "lcov"
             ],
             "coverageExclude": [
-              "frontend/src/**/*.spec.ts",
-              "frontend/src/**/*.d.ts",
-              "frontend/src/app/testing/**",
-              "frontend/src/test-providers.ts"
+              "beadle-gui/src/**/*.spec.ts",
+              "beadle-gui/src/**/*.d.ts",
+              "beadle-gui/src/app/testing/**",
+              "beadle-gui/src/test-providers.ts"
             ],
             "coverageThresholds": {
               "statements": 60,
               "lines": 60
             },
             "coverageInclude": [
-              "frontend/src/**/*.ts"
+              "beadle-gui/src/**/*.ts"
             ],
-            "buildTarget": "frontend:build:development,public",
-            "providersFile": "frontend/src/test-providers.ts"
+            "buildTarget": "beadle-gui:build:development,public",
+            "providersFile": "beadle-gui/src/test-providers.ts"
           }
         }
       }

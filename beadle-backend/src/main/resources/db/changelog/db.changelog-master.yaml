@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - include:
+      file: oracle/001-baseline.sql
+      relativeToChangelogFile: true
+  - include:
+      file: oracle/002-action-history.sql
+      relativeToChangelogFile: true

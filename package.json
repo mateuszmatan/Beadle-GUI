@@ -3,10 +3,10 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve frontend",
-    "start:public": "ng serve frontend --configuration=public",
-    "build": "ng build frontend",
-    "test": "ng test frontend"
+    "start": "ng serve beadle-gui",
+    "start:public": "ng serve beadle-gui --configuration=public",
+    "build": "ng build beadle-gui",
+    "test": "ng test beadle-gui"
   },
   "private": true,
   "packageManager": "npm@10.8.2",

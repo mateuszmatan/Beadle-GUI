@@ -113,7 +113,7 @@ tasks.register('installDesignSystem', Exec) {
     outputs.dir('node_modules/@v6')
 }
 
-project(':frontend') { frontend ->
+project(':beadle-gui') { frontend ->
     apply plugin: 'groovy'
     apply plugin: 'java-test-fixtures'
 
@@ -133,7 +133,7 @@ project(':frontend') { frontend ->
     tasks.register('buildAngular', Exec) {
         dependsOn ':installDesignSystem'
         group = 'build'
-        description = "Build the Angular interface ($angularConfiguration) with npx ng into frontend/dist"
+        description = "Build the Angular interface ($angularConfiguration) with npx ng into beadle-gui/dist"
         workingDir = rootDir
         environment npmEnvironment
         inputs.files(sources).withPathSensitivity(PathSensitivity.RELATIVE)
@@ -229,7 +229,7 @@ project(':frontend') { frontend ->
 def nexusPublishProperty = version.toString().endsWith('SNAPSHOT') ? 'nexus.snapshotsUrl' : 'nexus.releasesUrl'
 def nexusPublishUrl = findProperty(nexusPublishProperty)
 
-project(':backend') { backend ->
+project(':beadle-backend') { backend ->
     apply plugin: 'groovy'
     apply plugin: 'jacoco'
     apply plugin: 'java-test-fixtures'
@@ -372,7 +372,7 @@ project(':backend') { backend ->
         dependsOn tasks.named('jacocoTestCoverageVerification')
     }
 
-    def frontend = project(':frontend')
+    def frontend = project(':beadle-gui')
     if (!skipGui) {
         tasks.named('processResources', ProcessResources) {
             from(frontend.tasks.named('buildAngular')) {
@@ -419,10 +419,10 @@ project(':backend') { backend ->
 
 tasks.register('beadleJar') {
     group = 'build'
-    description = 'Builds backend/build/libs/beadle-<version>.jar: the Beadle service with the Angular interface inside'
-    dependsOn ':backend:bootJar'
+    description = 'Builds beadle-backend/build/libs/beadle-<version>.jar: the Beadle service with the Angular interface inside'
+    dependsOn ':beadle-backend:bootJar'
 }
 
 tasks.named('sonar').configure {
-    dependsOn ':backend:jacocoTestReport', ':frontend:testAngular'
+    dependsOn ':beadle-backend:jacocoTestReport', ':beadle-gui:testAngular'
 }

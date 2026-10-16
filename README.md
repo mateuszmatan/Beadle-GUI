@@ -20,17 +20,17 @@ reminds ProTech changes through Beadle-ProTech, and both call it back when somet
 
 ```
 settings.gradle, build.gradle   the root build: the two modules, repositories, versions, how the jar is packaged
-backend/                        the Beadle service (Spring Boot, port 8081), with the Liquibase changelog
-frontend/                       the Beadle interface (Angular) and the Groovy browser tests
-angular.json, package.json      the Angular workspace with the one project, frontend
+beadle-backend/                 the Beadle service (Spring Boot, port 8081), with the Liquibase changelog
+beadle-gui/                     the Beadle interface (Angular) and the Groovy browser tests
+angular.json, package.json      the Angular workspace with the one project, beadle-gui
 deploy/openshift/beadle/        the Kustomize manifests (base and rd, qc, prod overlays); Dockerfile in the root
 docs/CONTRACTS.md               the contract between Beadle-GUI, Beadle-Internal and Beadle-ProTech
 ```
 
 | Module | Holds |
 |--------|-------|
-| `backend` | the departments, the products with their change templates, the ProTech changes with their change tasks and secure coding tickets, the lookups, signing in with Ping and the signed-in user, the problem detail error handling, the `@UseCase` transaction wiring, the clock, the forwarding of the GUI pages to `index.html`, the REST clients of Beadle-Internal and Beadle-ProTech and the callbacks they send, the Beadle demo data, the Liquibase history and the test support of every suite, with the in-process stand-ins of the two services |
-| `frontend` | the application shell (header, menu, signed-in user with Sign out, footer, titles), the sign-in interceptor, the UI kit (form fields, grid, dialogs, toasts), the departments pages and dialogs, the Admin page with its tabs, Changes, New Change, Beadle Admin (Departments, Products with their change templates) and Action History, the API error texts and the browser test support; see [frontend/README.md](frontend/README.md) |
+| `beadle-backend` | the departments, the products with their change templates, the ProTech changes with their change tasks and secure coding tickets, the lookups, signing in with Ping and the signed-in user, the problem detail error handling, the `@UseCase` transaction wiring, the clock, the forwarding of the GUI pages to `index.html`, the REST clients of Beadle-Internal and Beadle-ProTech and the callbacks they send, the Beadle demo data, the Liquibase history and the test support of every suite, with the in-process stand-ins of the two services |
+| `beadle-gui` | the application shell (header, menu, signed-in user with Sign out, footer, titles), the sign-in interceptor, the UI kit (form fields, grid, dialogs, toasts), the departments pages and dialogs, the Admin page with its tabs, Changes, New Change, Beadle Admin (Departments, Products with their change templates) and Action History, the API error texts and the browser test support; see [beadle-gui/README.md](beadle-gui/README.md) |
 
 ## Build
 
@@ -40,34 +40,34 @@ exist). The Gradle wrapper downloads Gradle 8.14 from the BBH Nexus.
 
 ```bash
 ./gradlew build                     # the jar with the GUI inside and every test suite
-./gradlew beadleJar                 # the jar only: backend/build/libs/beadle-<version>.jar
-./gradlew :backend:bootJar -PskipGui   # the service without its GUI, for API work
+./gradlew beadleJar                 # the jar only: beadle-backend/build/libs/beadle-<version>.jar
+./gradlew :beadle-backend:bootJar -PskipGui   # the service without its GUI, for API work
 ./gradlew check                     # every suite of both modules, see Tests
 ./gradlew sonar                     # SonarQube at tools.bbh.com/sonar, project Beadle, token in SONAR_AUTH_TOKEN
 ./gradlew publish                   # the jar to the BBH Nexus (bbhNexusUsername and bbhNexusPassword as Gradle properties)
 ./gradlew beadleJar -PartifactVersion=1.4.0
 ```
 
-`beadleJar` builds the Angular bundle of `frontend` into the `static` folder of `backend`, so the jar serves the GUI
+`beadleJar` builds the Angular bundle of `beadle-gui` into the `static` folder of `beadle-backend`, so the jar serves the GUI
 and the API on one port. `publish` sends a `-SNAPSHOT` version to `nexus.snapshotsUrl` and any other to
 `nexus.releasesUrl`, both in `gradle.properties`.
 
 | File | Holds |
 |------|-------|
 | `settings.gradle` | the two modules; whether the BBH Nexus is reachable, and the repositories that follow from it |
-| `build.gradle` | the plugins, Java 21, SonarQube, the npm tasks and test suites of `frontend`, the test suites, coverage gate, packaging and publishing of `backend` |
-| `backend/build.gradle`, `frontend/build.gradle` | the dependencies of the module |
+| `build.gradle` | the plugins, Java 21, SonarQube, the npm tasks and test suites of `beadle-gui`, the test suites, coverage gate, packaging and publishing of `beadle-backend` |
+| `beadle-backend/build.gradle`, `beadle-gui/build.gradle` | the dependencies of the module |
 | `gradle.properties` | the BBH npm registry, proxy and CA file, the `npm`/`npx` paths on Windows and the Nexus URLs |
 | `gradle/libs.versions.toml` | the plugin and library versions |
 | `gradle/wrapper/gradle-wrapper.properties` | Gradle 8.14 from the BBH Nexus |
-| `angular.json`, `package.json`, `.npmrc` | the Angular workspace: the project `frontend`, the BBH npm registry and the Node.js and npm versions as hard requirements |
+| `angular.json`, `package.json`, `.npmrc` | the Angular workspace: the project `beadle-gui`, the BBH npm registry and the Node.js and npm versions as hard requirements |
 
 The GUI tasks run npm with the `npm.*` properties of `gradle.properties` as npm settings: `installNpmCIDeps`
 (`npm ci`), `installDesignSystem` (`npm install --no-save` of the BBH Design System packages `@v6/v6-themes`,
-`@v6/v6-table` and `@v6/v6-icons`, inside BBH only), `:frontend:buildAngular` (`npx ng build frontend
---configuration=production` into `frontend/dist`) and `:frontend:testAngular` (`npx ng test frontend --watch=false
---coverage`, Vitest on jsdom, so it needs no browser; the coverage lands in `coverage/frontend`). The
-`processResources` of `backend` depends on `buildAngular`, so `bootJar`, `bootRun` and the smoke tests always carry
+`@v6/v6-table` and `@v6/v6-icons`, inside BBH only), `:beadle-gui:buildAngular` (`npx ng build beadle-gui
+--configuration=production` into `beadle-gui/dist`) and `:beadle-gui:testAngular` (`npx ng test beadle-gui --watch=false
+--coverage`, Vitest on jsdom, so it needs no browser; the coverage lands in `coverage/beadle-gui`). The
+`processResources` of `beadle-backend` depends on `buildAngular`, so `bootJar`, `bootRun` and the smoke tests always carry
 the current GUI; `-PskipGui` leaves it out.
 
 The BBH Design System packages live only in the BBH npm registry, so `package.json` does not list them and `npm ci`
@@ -132,10 +132,10 @@ every callback and the two services refuse every call of Beadle-GUI.
 
    ```bash
    ./gradlew beadleJar
-   java -jar backend/build/libs/beadle-0.1.0-SNAPSHOT.jar
+   java -jar beadle-backend/build/libs/beadle-0.1.0-SNAPSHOT.jar
    ```
 
-   `./gradlew :backend:bootRun` starts it without building the jar. There is no Ping locally: everybody is signed in
+   `./gradlew :beadle-backend:bootRun` starts it without building the jar. There is no Ping locally: everybody is signed in
    as `Mateusz Matan` (`BEADLE_SIGNED_IN_USER` names someone else; see [Signing in](#signing-in)).
 
 4. Raise a change in New Change. Beadle-GUI raises it through Beadle-ProTech, whose demo ProTech moves it through the
@@ -156,7 +156,7 @@ needs them answers 503 naming the service ("Beadle-ProTech did not answer when a
 Admin pages and Action History work without them. None of the test suites needs them: they put the in-process
 stand-ins of [In-process stand-ins for the tests](#in-process-stand-ins-for-the-tests) in their place.
 
-Beadle starts with the `local` profile: an embedded H2 in Oracle mode in `~/bbh-devsecops/beadle/beadle.mv.db`
+Beadle starts with the `local` profile: an embedded H2 in Oracle mode in `~/beadle/beadle.mv.db`
 (`BEADLE_DATA_DIR` moves the folder) and demo data, so the ProTech workflow can be tried at once; `BEADLE_DEMO_DATA=false`
 starts it empty but for the five BBH departments (AI Lab, Capital Partners, Corporate Technology, Custody and Fund
 Services). Everybody is signed in as `Mateusz Matan` (`BEADLE_SIGNED_IN_USER`), without Ping: the `local` profile
@@ -170,7 +170,7 @@ On `rd`, `qc` and `prod` Beadle runs on Oracle:
 ```bash
 SPRING_PROFILES_ACTIVE=qc DB_URL=jdbc:oracle:thin:@//<host>:1521/<service> DB_USERNAME=BEADLE DB_PASSWORD=... \
   PING_ISSUER_URI=https://<ping>/as PING_CLIENT_ID=... PING_CLIENT_SECRET=... \
-  java -jar backend/build/libs/beadle-0.1.0-SNAPSHOT.jar
+  java -jar beadle-backend/build/libs/beadle-0.1.0-SNAPSHOT.jar
 ```
 
 Each of the three profiles belongs to the group `oracle` (the data source from `DB_URL`, `DB_USERNAME` and
@@ -183,21 +183,21 @@ scheme and host of their own address from its `X-Forwarded-*` headers (`server.f
 the address Ping sends the browser back to is the `https` one of the route.
 
 For GUI work, the Angular development server rebuilds on every change and proxies `/api`, `/logout`, `/oauth2` and
-`/login` to the service (`frontend/proxy.conf.json`), so signing out works there, and so does signing in with Ping when
+`/login` to the service (`beadle-gui/proxy.conf.json`), so signing out works there, and so does signing in with Ping when
 the service runs in mode `oidc` and Ping knows `http://localhost:4201/login/oauth2/code/ping`: the proxy keeps the
 `Host` of the development server, so the service builds its addresses on port 4201. `npm start` serves the GUI on
 http://localhost:4201 against port 8081; `npm run start:public` does the same without the BBH Design System.
 
 ### Configuration
 
-The service reads `backend/src/main/resources/application.yml`: JPA, Liquibase, the actuator health and info, and
+The service reads `beadle-backend/src/main/resources/application.yml`: JPA, Liquibase, the actuator health and info, and
 under the prefix `beadle.` its own settings, one document per profile.
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
 | `PORT` | `8081` | HTTP port |
 | `SPRING_PROFILES_ACTIVE` | `local` | `local` runs on H2, `rd`, `qc` and `prod` on Oracle (`rd` logs at DEBUG) |
-| `BEADLE_DATA_DIR` | `~/bbh-devsecops/beadle` | the folder of the H2 database `beadle.mv.db` of the `local` profile |
+| `BEADLE_DATA_DIR` | `~/beadle` | the folder of the H2 database `beadle.mv.db` of the `local` profile |
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | H2 with `local`; required with `rd`, `qc`, `prod` | the database of the active profile |
 | `DB_POOL_SIZE` | 5, 10, 20 in `rd`, `qc`, `prod` | Oracle connection pool size |
 | `BEADLE_DEMO_DATA` | `true` with `local`, `false` otherwise | the demo products with their change templates, nothing more: the changes are raised by the users and their state comes from Beadle-ProTech; see [Beadle demo data](#beadle-demo-data) |
@@ -667,7 +667,7 @@ Jira sits behind `JiraPort`, CyberTrack behind `CyberTrackPort`, ProTech behind 
 `ProTechLookupPort` (see [Lookups](#lookups)). Beadle-GUI talks to none of these systems itself: its adapters are
 REST clients of the two other Beadle services, on the endpoints of [docs/CONTRACTS.md](docs/CONTRACTS.md).
 
-| Port | Adapter (`backend/.../adapter/out`) | Calls |
+| Port | Adapter (`beadle-backend/.../adapter/out`) | Calls |
 |------|-------------------------------------|-------|
 | `JiraPort` | `internal/InternalJiraAdapter` | `GET /api/internal/jira/projects/{key}/versions`, `/epics?fixVersion=`, `/stories?fixVersion=&epicKeys=` |
 | `CyberTrackPort` | `internal/InternalCyberTrackAdapter` | `POST /api/internal/cybertrack/tickets` |
@@ -726,7 +726,7 @@ what the callback causes runs within the correlation id of the user action it re
 #### In-process stand-ins for the tests
 
 The demo Jira, CyberTrack and ProTech Beadle-GUI carried before the two services owned them live on in
-`backend/src/testFixtures` (`DemoJiraAdapter`, `DemoCyberTrackAdapter` with `JiraCyberTrackAdapter`,
+`beadle-backend/src/testFixtures` (`DemoJiraAdapter`, `DemoCyberTrackAdapter` with `JiraCyberTrackAdapter`,
 `DemoProTechAdapter` with `DemoApprovers`, `DemoProTechLookups` and `DemoProTechChanges`), so the test suites run
 without the two services: the Spring profile `stub-services` (`StubServices`) puts them in front of the REST adapters.
 The unit, regression and smoke suites (the smoke suite unless `-Dsmoke.baseUrl` names a deployed application) start
@@ -747,7 +747,7 @@ behaves the same way.
 
 Beadle-GUI is the system of record and keeps the only audit trail of the three services: every call of a use case
 that changes something or calls another system writes one row of `BEADLE_ACTION_HISTORY` (change set
-`028-action-history.sql`), whether the call succeeds or fails. The use-case method names its action with
+`002-action-history.sql`), whether the call succeeds or fails. The use-case method names its action with
 `@Audited(Action.X)` (`application/Audited.java`), and `AuditInterceptor` (`config`, registered by
 `UseCaseConfiguration` next to the transaction advisor, inside it) writes the row:
 
@@ -866,7 +866,7 @@ takes the signed-in user and the product's department. The demo Jira knows two r
 FixVersions per project, for example `PAYHUB 2.4`. The templates take the direct business service and the clients
 from the lookups of Beadle-ProTech, and go without them, with a warning in the log, while it does not answer. With the
 profile `stub-services` of the test suites, twelve demo changes are also raised in the demo ProTech at start-up
-(`backend/src/testFixtures/.../adapter/out/protech/DemoProTechChanges.java`), skipping those of a product that
+(`beadle-backend/src/testFixtures/.../adapter/out/protech/DemoProTechChanges.java`), skipping those of a product that
 already has a change; a Beadle-GUI that runs against Beadle-ProTech raises only the changes its users raise. They are
 spread over the departments and their products, with real demo epics and stories, the installation window as the
 downtime window of the products with downtime, and past raise times and schedules chosen so that on a new database
@@ -914,25 +914,25 @@ instant).
 ```mermaid
 flowchart LR
     users(["Users<br/>in a browser"])
-    subgraph gui["Beadle-GUI: one jar, one image, port 8081"]
-        frontend["frontend<br/>Angular, static files"]
-        backend["backend<br/>REST API, system of record, audit trail"]
-        frontend -- "/api" --> backend
+    subgraph app["Beadle-GUI: one jar, one image, port 8081"]
+        gui["beadle-gui<br/>Angular, static files"]
+        service["beadle-backend<br/>REST API, system of record, audit trail"]
+        gui -- "/api" --> service
     end
     internal["Beadle-Internal<br/>port 8082"]
     protechsvc["Beadle-ProTech<br/>port 8083"]
     db[("H2 file (local)<br/>Oracle (rd, qc, prod)")]
     systems["BBH Jira, CyberTrack,<br/>Confluence, qTest"]
     protech["ProTech (ServiceNow)"]
-    users --> frontend
-    backend --> db
-    backend -- "REST, both ways" --> internal
-    backend -- "REST, both ways" --> protechsvc
+    users --> gui
+    service --> db
+    service -- "REST, both ways" --> internal
+    service -- "REST, both ways" --> protechsvc
     internal --> systems
     protechsvc --> protech
 ```
 
-The service (`backend/src/main/java/com/bbh/itss/beadle`) is hexagonal:
+The service (`beadle-backend/src/main/java/com/bbh/itss/beadle`) is hexagonal:
 
 | Package | Holds |
 |---------|-------|
@@ -963,13 +963,13 @@ and the same libraries, `adapter.in` never on `adapter.out` or a `port.out`, `ad
 only the clients of Beadle-Internal and Beadle-ProTech (`adapter.out.internal`, `adapter.out.protech`,
 `adapter.out.http`) use an HTTP client, and every `@UseCase` class implements a `port.in` interface.
 
-The interface (`frontend/src/app`) follows the same cut: `shell/` holds the application shell, `ui/` the UI kit,
+The interface (`beadle-gui/src/app`) follows the same cut: `shell/` holds the application shell, `ui/` the UI kit,
 `core/` the API clients, the models, the sections of the menu, the error texts, the titles and the `appConfig` the
 application starts with, `departments/` the departments, `admin/` the Admin page with its tabs, `shared/` the forms,
 field definitions and dialogs, `changes/` Changes and New Change, `beadle/` Beadle Admin, `action-history/` Action
 History with its API client and details dialog, and `testing/` the fixtures
-of the unit tests; the Groovy fixtures of the browser tests live in `frontend/src/testFixtures`. `main.ts` is
-`appConfig('Beadle', routes)` with an `AppShell` that lists the sections; [frontend/README.md](frontend/README.md)
+of the unit tests; the Groovy fixtures of the browser tests live in `beadle-gui/src/testFixtures`. `main.ts` is
+`appConfig('Beadle', routes)` with an `AppShell` that lists the sections; [beadle-gui/README.md](beadle-gui/README.md)
 describes the interface.
 
 ### Code conventions
@@ -997,26 +997,22 @@ describes the interface.
 
 ### Data model
 
-The database starts from the Liquibase history Beadle shared with the DevSecOps Management Portal in DSOMgmtPortal,
-`backend/src/main/resources/db/changelog/history.yaml` with the SQL files `001` to `025` under `oracle/`, so an
-Oracle schema written by DSOMgmtPortal carries the same change sets, with the same file names, contents and
-relative references, as a new one: the `DATABASECHANGELOG` rows keep matching. `db.changelog-master.yaml` then adds
-`026-beadle-tables-only.sql`, which drops the pipeline, service, settings and template tables and the columns of a
-product only the DevSecOps Management Portal used, and `027-change-approvals.sql` and `028-action-history.sql`; every later change is numbered from there. The table
-names keep their `DSO_` prefix. Most change sets run on Oracle and on H2, a few on one of them only.
+The schema is the Liquibase changelog `beadle-backend/src/main/resources/db/changelog/db.changelog-master.yaml`.
+It starts from `oracle/001-baseline.sql`, which creates Beadle's tables and the five BBH departments; every later
+change is a new numbered file next to it. Every table is named `BEADLE_*`, and the change sets run on Oracle and on H2.
 
 ```mermaid
 erDiagram
-    DSO_DEPARTMENT |o--o{ DSO_PRODUCT : groups
-    DSO_PRODUCT ||--o| DSO_CHANGE_PROFILE : "change template"
-    DSO_CHANGE_PROFILE ||--o{ DSO_CHANGE_PROFILE_TASK : "default change tasks"
-    DSO_CHANGE_PROFILE ||--o{ DSO_CHANGE_PROFILE_PRIVILEGED_USER : has
-    DSO_DEPARTMENT |o--o{ DSO_PRODUCTION_CHANGE : owns
-    DSO_PRODUCT ||--o{ DSO_PRODUCTION_CHANGE : "raised for"
-    DSO_PRODUCTION_CHANGE ||--o{ DSO_PRODUCTION_CHANGE_TASK : has
-    DSO_PRODUCTION_CHANGE ||--o{ DSO_PRODUCTION_CHANGE_APPROVAL : has
-    DSO_PRODUCTION_CHANGE ||--o{ DSO_PRODUCTION_CHANGE_STAGE : "entered"
-    DSO_PRODUCTION_CHANGE ||--o{ DSO_PRODUCTION_CHANGE_PRIVILEGED_USER : has
+    BEADLE_DEPARTMENT |o--o{ BEADLE_PRODUCT : groups
+    BEADLE_PRODUCT ||--o| BEADLE_CHANGE_PROFILE : "change template"
+    BEADLE_CHANGE_PROFILE ||--o{ BEADLE_CHANGE_PROFILE_TASK : "default change tasks"
+    BEADLE_CHANGE_PROFILE ||--o{ BEADLE_CHANGE_PROFILE_PRIVILEGED_USER : has
+    BEADLE_DEPARTMENT |o--o{ BEADLE_PRODUCTION_CHANGE : owns
+    BEADLE_PRODUCT ||--o{ BEADLE_PRODUCTION_CHANGE : "raised for"
+    BEADLE_PRODUCTION_CHANGE ||--o{ BEADLE_PRODUCTION_CHANGE_TASK : has
+    BEADLE_PRODUCTION_CHANGE ||--o{ BEADLE_PRODUCTION_CHANGE_APPROVAL : has
+    BEADLE_PRODUCTION_CHANGE ||--o{ BEADLE_PRODUCTION_CHANGE_STAGE : "entered"
+    BEADLE_PRODUCTION_CHANGE ||--o{ BEADLE_PRODUCTION_CHANGE_PRIVILEGED_USER : has
     BEADLE_ACTION_HISTORY {
         NUMBER ID PK
         TIMESTAMP AT
@@ -1028,12 +1024,12 @@ erDiagram
         VARCHAR2 OUTCOME "SUCCESS, FAILURE"
         VARCHAR2 CORRELATION_ID
     }
-    DSO_DEPARTMENT {
+    BEADLE_DEPARTMENT {
         NUMBER ID PK
         VARCHAR2 NAME UK
         NUMBER VERSION
     }
-    DSO_PRODUCT {
+    BEADLE_PRODUCT {
         NUMBER ID PK
         NUMBER DEPARTMENT_ID FK
         VARCHAR2 CODE UK "such as CERT"
@@ -1042,7 +1038,7 @@ erDiagram
         VARCHAR2 CONTACT_EMAIL
         NUMBER VERSION
     }
-    DSO_PRODUCTION_CHANGE {
+    BEADLE_PRODUCTION_CHANGE {
         NUMBER ID PK
         NUMBER PRODUCT_ID FK
         NUMBER DEPARTMENT_ID FK "emptied when the department is deleted"
@@ -1053,7 +1049,7 @@ erDiagram
         VARCHAR2 UPDATE_STATUS "PENDING, APPLIED, NOT_APPLIED"
         NUMBER VERSION
     }
-    DSO_PRODUCTION_CHANGE_TASK {
+    BEADLE_PRODUCTION_CHANGE_TASK {
         NUMBER ID PK
         NUMBER CHANGE_ID FK
         VARCHAR2 TASK_NUMBER "CTASK, empty until ProTech created it"
@@ -1063,17 +1059,16 @@ erDiagram
     }
 ```
 
-Beadle keeps its products in `DSO_PRODUCT` (`CODE`, `NAME`, `OWNER_TEAM`, `CONTACT_EMAIL`, `DEPARTMENT_ID`,
-`VERSION`), a product's change template in `DSO_CHANGE_PROFILE` with its privileged users and its default change
-tasks (`DSO_CHANGE_PROFILE_PRIVILEGED_USER`, `DSO_CHANGE_PROFILE_TASK`), and every raised change in
-`DSO_PRODUCTION_CHANGE`: its department (`DEPARTMENT_ID`, emptied when the department is deleted), the ProTech state
+Beadle keeps its products in `BEADLE_PRODUCT` (`CODE`, `NAME`, `OWNER_TEAM`, `CONTACT_EMAIL`, `DEPARTMENT_ID`,
+`VERSION`), a product's change template in `BEADLE_CHANGE_PROFILE` with its privileged users and its default change
+tasks (`BEADLE_CHANGE_PROFILE_PRIVILEGED_USER`, `BEADLE_CHANGE_PROFILE_TASK`), and every raised change in
+`BEADLE_PRODUCTION_CHANGE`: its department (`DEPARTMENT_ID`, emptied when the department is deleted), the ProTech state
 (`STATE`), when it was last read from ProTech (`SYNCED_AT`) and the last update from Beadle (`UPDATE_STATUS`,
 `UPDATE_REQUESTED_AT`, `UPDATE_DEPARTMENT`, `UPDATE_FIELDS`, `UPDATE_MESSAGE`, `UPDATE_CHECKED_AT`), with its change
-tasks with their states, approvals, approvers and last reminders (`DSO_PRODUCTION_CHANGE_TASK`, `TASK_NUMBER` empty
+tasks with their states, approvals, approvers and last reminders (`BEADLE_PRODUCTION_CHANGE_TASK`, `TASK_NUMBER` empty
 until ProTech created the task; `APPROVAL`, `APPROVERS`, `REMINDER_SENT_AT`, `REMINDER_SENT_TO`), its business, L1,
-L2 and support approvals with their states and last reminders (`DSO_PRODUCTION_CHANGE_APPROVAL`, from change set
-`027-change-approvals.sql`), the stages it entered (`DSO_PRODUCTION_CHANGE_STAGE`) and its privileged users
-(`DSO_PRODUCTION_CHANGE_PRIVILEGED_USER`). Both the template and the change hold the request fields of the wizard
+L2 and support approvals with their states and last reminders (`BEADLE_PRODUCTION_CHANGE_APPROVAL`), the stages it entered (`BEADLE_PRODUCTION_CHANGE_STAGE`) and its privileged users
+(`BEADLE_PRODUCTION_CHANGE_PRIVILEGED_USER`). Both the template and the change hold the request fields of the wizard
 (`REQUESTED_FOR`, `REQUESTED_BY`, `REQUEST_DEPARTMENT`, `ASSIGNED_TO`, `DIRECT_BUSINESS_SERVICE`, `USERS_AFFECTED`,
 `SECURE_CODING_TICKET`), the secure coding inputs (`APO_NUMBER`, `BITBUCKET_URL`, `ARTIFACT_LINK`,
 `QC_APPLICATION_LINK`), the four approvers (`BUSINESS_APPROVER`, `L1_MANAGER`, `L2_MANAGER`, `SUPPORT_APPROVER`) and
@@ -1084,7 +1079,7 @@ Oracle counts `VARCHAR2` columns in bytes, so Beadle checks texts in UTF-8 bytes
 its field ("is too long: it may take at most N bytes") instead of failing in the database: a product name and owner
 team take 200 bytes, a department name 100, a short description 160 and a description 4000.
 
-`028-action-history.sql` adds the audit trail, `BEADLE_ACTION_HISTORY` (`ID`, `AT`, `USER_NAME`, `ACTION`,
+`002-action-history.sql` adds the audit trail, `BEADLE_ACTION_HISTORY` (`ID`, `AT`, `USER_NAME`, `ACTION`,
 `OBJECT_TYPE`, `OBJECT_ID`, `OBJECT_KEY`, `DETAILS` as a CLOB, `OUTCOME`, `MESSAGE`, `CORRELATION_ID`, `DURATION_MS`,
 with check constraints on the action, the object type and the outcome, and indexes on `AT`, `USER_NAME`, `ACTION` and
 `OBJECT_KEY`); see [Audit trail](#audit-trail).
@@ -1095,16 +1090,16 @@ with check constraints on the action, the object type and the outcome, and index
 ./gradlew check
 ```
 
-builds everything and runs every suite of both modules; `./gradlew :backend:check` or `./gradlew :frontend:check`
-runs the suites of one module, `./gradlew :backend:regressionTest` one suite.
+builds everything and runs every suite of both modules; `./gradlew :beadle-backend:check` or `./gradlew :beadle-gui:check`
+runs the suites of one module, `./gradlew :beadle-backend:regressionTest` one suite.
 
 | Module | Suite | What |
 |--------|-------|------|
-| `backend` | unit (`src/test`, `./gradlew :backend:test`) | domain rules, use cases, adapters (the REST clients against a local HTTP server that records the headers and answers what each spec sets, also an unreachable or failing service), the audit interceptor with the transactions it joins or opens, the security configuration in both modes (MockMvc with and without a session, the CSRF cookie, the callbacks with and without the token), the Liquibase migrations and the architecture rules; JaCoCo fails below 60% line coverage (`-Pcoverage.minimum=`) |
-| `backend` | regression (`src/regressionTest`) | the API end to end on H2 in Oracle mode, with the in-process stand-ins of Beadle-Internal and Beadle-ProTech (profile `stub-services`), the callbacks with and without the service token, and the rows of the audit trail they leave, the sign-in of each session among them |
-| `backend` | smoke (`src/smokeTest`) | starts the service on a fresh database and checks health, the API with the signed-in user, that a callback needs the token, that the API of the DevSecOps Management Portal is absent and that the GUI is served on every page; `-Dsmoke.baseUrl=https://...` checks a deployed application (with `-Dsmoke.cookie='JSESSIONID=...; XSRF-TOKEN=...'`, the cookies of a signed-in browser, where users sign in with Ping), `-Dsmoke.ui=false` skips the GUI checks |
-| `frontend` | unit (Vitest, `./gradlew :frontend:testAngular` or `npx ng test frontend --watch=false`) | components and form models; fails below 60% of lines and statements |
-| `frontend` | smoke, regression (`src/smokeTest`, `src/regressionTest`) | Spock and Playwright in Chromium against a stub API: every page, the menu, the signed-in user and the footer without any trace of the DevSecOps Management Portal, an unknown address falling back to Changes, the user journeys with the requests they send, signing out and the way through a stand-in of Ping when the session ended; `-Dsmoke.baseUrl=http://localhost:8081` runs the smoke suite against a running Beadle-GUI instead (one in mode `local`, since the browser does not sign in with Ping), without the three features that need the data of the stub API |
+| `beadle-backend` | unit (`src/test`, `./gradlew :beadle-backend:test`) | domain rules, use cases, adapters (the REST clients against a local HTTP server that records the headers and answers what each spec sets, also an unreachable or failing service), the audit interceptor with the transactions it joins or opens, the security configuration in both modes (MockMvc with and without a session, the CSRF cookie, the callbacks with and without the token), the Liquibase migrations and the architecture rules; JaCoCo fails below 60% line coverage (`-Pcoverage.minimum=`) |
+| `beadle-backend` | regression (`src/regressionTest`) | the API end to end on H2 in Oracle mode, with the in-process stand-ins of Beadle-Internal and Beadle-ProTech (profile `stub-services`), the callbacks with and without the service token, and the rows of the audit trail they leave, the sign-in of each session among them |
+| `beadle-backend` | smoke (`src/smokeTest`) | starts the service on a fresh database and checks health, the API with the signed-in user, that a callback needs the token and that the GUI is served on every page; `-Dsmoke.baseUrl=https://...` checks a deployed application (with `-Dsmoke.cookie='JSESSIONID=...; XSRF-TOKEN=...'`, the cookies of a signed-in browser, where users sign in with Ping), `-Dsmoke.ui=false` skips the GUI checks |
+| `beadle-gui` | unit (Vitest, `./gradlew :beadle-gui:testAngular` or `npx ng test beadle-gui --watch=false`) | components and form models; fails below 60% of lines and statements |
+| `beadle-gui` | smoke, regression (`src/smokeTest`, `src/regressionTest`) | Spock and Playwright in Chromium against a stub API: every page, the menu, the signed-in user and the footer, an unknown address falling back to Changes, the user journeys with the requests they send, signing out and the way through a stand-in of Ping when the session ended; `-Dsmoke.baseUrl=http://localhost:8081` runs the smoke suite against a running Beadle-GUI instead (one in mode `local`, since the browser does not sign in with Ping), without the three features that need the data of the stub API |
 
 `-Dperformance.factor=2` relaxes the performance limits on a slow machine. The browser suites need the Chromium
 revision Playwright 1.56 asks for; `PLAYWRIGHT_BROWSERS_PATH` points them at a folder that already holds it, and

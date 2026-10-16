@@ -3,12 +3,12 @@ ARG BASE_IMAGE=registry.access.redhat.com/ubi9/openjdk-21-runtime:latest
 FROM ${BASE_IMAGE} AS layers
 USER 0
 WORKDIR /layers
-COPY backend/build/libs/beadle-*.jar application.jar
+COPY beadle-backend/build/libs/beadle-*.jar application.jar
 RUN java -Djarmode=tools -jar application.jar extract --layers --destination extracted
 
 FROM ${BASE_IMAGE}
 LABEL org.opencontainers.image.title="BBH Beadle" \
-      org.opencontainers.image.source="https://github.com/mateuszmatan/DSOMgmtPortal" \
+      org.opencontainers.image.source="https://github.com/mateuszmatan/Beadle-GUI" \
       io.k8s.display-name="BBH Beadle" \
       io.k8s.description="Raises and follows ProTech changes with their change tasks and CyberTrack secure coding tickets" \
       io.openshift.expose-services="8081:http"

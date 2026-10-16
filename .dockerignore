@@ -1,4 +1,4 @@
 *
-!backend/build/libs/beadle-*.jar
+!beadle-backend/build/libs/beadle-*.jar
 **/*-plain.jar
 **/*-test-fixtures.jar
