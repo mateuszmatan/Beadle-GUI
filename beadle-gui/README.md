@@ -34,7 +34,7 @@ itself, as "Inside and outside the BBH network" in the main README describes.
 | `beadle/`      | Beadle Admin: the products list by department with the state of their change templates, the product dialog, the product page with its details and change template, and what the Departments tab counts (`department-usage.ts`) |
 | `action-history/` | Action History: the client of `GET /api/action-history` and its filter lists (`action-history-api.ts`), the model with the labels of the actions, outcomes and objects and the query of the filters (`action-history-model.ts`), the page with its filters, table and pager (`action-history.ts`) and the details dialog with the request as JSON and the message (`action-details.ts`) |
 | `testing/`     | fixtures and DOM helpers for the unit tests |
-| `../styles.scss`, `../styles/` | everything more than one page draws: the page header, cards, tables and the 12 column form grid, the chips, the fact lists, the quiet links, the side navigation, the muted help line and the look of the UI kit on top of Bootstrap, plus the navy `public-theme.scss` used outside BBH |
+| `../styles.scss`, `../styles/` | everything more than one page draws: the page header, cards, tables and the 12 column form grid, the chips, the fact lists, the quiet links, the muted help line and the look of the UI kit on top of Bootstrap, plus the navy `public-theme.scss` used outside BBH |
 | `../testFixtures/` | the Groovy support of the browser tests: `GuiServer`, `StubApi` with the departments and the recording of requests, `GuiSpecification` with the Playwright browser, the menu and form helpers and the screenshots, and Beadle's `BeadleSpecification`, `BeadleStubApi` and `ChangeStubs` |
 
 `main.ts` is `appConfig('Beadle', routes)`: the header reads "BBH Beadle", the menu lists Changes, New Change,
@@ -112,7 +112,7 @@ task, and how to use a lookup. Screenshots of the last state of every feature la
 The header holds the name of the application, one flat menu of short labels: Changes, New Change, Admin and Action
 History, with the entry of the current page underlined, and the name of the signed-in user (the email address as its
 tooltip) with **Sign out**; below 1000px the user stays beside the name of the application and the menu takes a row
-of its own. A new feature is a `PortalSection` added to `SECTIONS` in
+of its own. A new feature is an `AppSection` added to `SECTIONS` in
 `core/sections.ts`, routed in `app.routes.ts`, and to `MENU` in `BeadleSpecification`. Beadle Admin is an
 `AdminArea` of tabs in `core/sections.ts`, routed as children of the common `AdminPage`; its tabs render without their
 own page heading. Each page starts with the full name of its section as the heading and the section description under
