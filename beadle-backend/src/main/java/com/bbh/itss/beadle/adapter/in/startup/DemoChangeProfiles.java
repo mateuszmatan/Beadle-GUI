@@ -1,5 +1,7 @@
 package com.bbh.itss.beadle.adapter.in.startup;
 
+import com.bbh.itss.beadle.application.CallContext;
+import com.bbh.itss.beadle.application.CallContext.Scope;
 import com.bbh.itss.beadle.application.catalog.port.in.ProductView;
 import com.bbh.itss.beadle.application.catalog.port.in.ProductsUseCase;
 import com.bbh.itss.beadle.application.change.port.in.ChangeProfileView;
@@ -24,6 +26,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -81,6 +84,12 @@ public class DemoChangeProfiles {
     @EventListener(ApplicationReadyEvent.class)
     @Order(1)
     public void fillIn() {
+        try (Scope startup = CallContext.actingAs(CallContext.STARTUP)) {
+            log.info("Filled in the demo ProTech change template of {} product(s)", filledIn());
+        }
+    }
+
+    private int filledIn() {
         int filled = 0;
         for (ProductView product : products.list(null)) {
             ChangeProfileView profile = profiles.get(product.id());
@@ -94,7 +103,7 @@ public class DemoChangeProfiles {
                 }
             }
         }
-        log.info("Filled in the demo ProTech change template of {} product(s)", filled);
+        return filled;
     }
 
     static List<TaskDetails> tasksFor(ProductView product, ChangeTemplate defaults) {
@@ -122,7 +131,7 @@ public class DemoChangeProfiles {
         PrivilegedAccess access = PRIVILEGED_PRODUCT.equals(product.code())
                 ? new PrivilegedAccess(true, PRIVILEGED_USERS) : PrivilegedAccess.NONE;
         String outside = answer(CLIENTS_OUTSIDE_BBH, level, random);
-        List<String> clients = new ArrayList<>(lookups.find("clients", null).stream().map(Lookup::value).toList());
+        List<String> clients = new ArrayList<>(found("clients", null).stream().map(Lookup::value).toList());
         shuffle(clients, random);
         int named = NAMED_CLIENTS.get(CLIENTS_OUTSIDE_BBH.options().indexOf(outside));
         RiskAssessment risk = RiskAssessment.builder().bbhWorkgroups(answer(BBH_WORKGROUPS, level, random))
@@ -135,13 +144,22 @@ public class DemoChangeProfiles {
         String group = abbreviateBytes(defaultIfBlank(trim(product.ownerTeam()), product.name())
                 + " Application Support", GROUP_MAX);
         return suggested.toBuilder().assignmentGroup(group)
-                .directBusinessService(lookups.find("configuration-items", suggested.configurationItem()).stream()
+                .directBusinessService(found("configuration-items", suggested.configurationItem()).stream()
                         .filter(item -> item.value().equals(suggested.configurationItem())).map(Lookup::detail)
                         .findFirst().orElse(null))
                 .affectedClients(clients.stream().limit(named).collect(joining(", ")))
                 .usersAffected(USERS_AFFECTED.get(level).formatted(product.name())).approvers(approvers)
                 .downtime(level == 2).timing(timing).privilegedAccess(access).riskAssessment(risk)
                 .secureCoding(secureCodingOf(product, random)).build();
+    }
+
+    private List<Lookup> found(String kind, String query) {
+        try {
+            return lookups.find(kind, query);
+        } catch (UncheckedIOException e) {
+            log.warn("The demo change templates go without the {} of ProTech: {}", kind, e.getMessage());
+            return List.of();
+        }
     }
 
     private static SecureCoding secureCodingOf(ProductView product, Random random) {

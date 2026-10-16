@@ -512,17 +512,24 @@ class ChangesSpec extends BeadleSpecification {
         ownErrors().isEmpty()
     }
 
-    def "Beadle says when ProTech could not be reached and shows what it last read"() {
+    def "Beadle says when Beadle-ProTech could not be reached, not that it runs a demo, and shows what it last read"() {
         given:
         def stored = new JsonSlurper().parseText(api.handle('GET', '/api/changes/4', null, null).body) as Map
         api.get('/api/changes') { [stored + [syncProblem: SYNC_PROBLEM]] }
         api.get('/api/changes/4') { stored + [syncProblem: SYNC_PROBLEM] }
+        api.get('/api/changes/integrations') {
+            [jiraConnected: true, proTechConnected: true, cyberTrackConnected: true, internalReachable: true,
+             proTechReachable: false]
+        }
 
         when:
         open('/changes')
         choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
 
         then:
+        assertThat(page.locator('beadle-integration-note .banner[role=alert]'))
+                .hasText('Not reachable. Beadle-ProTech cannot be reached, so no change can be raised, changed or reminded in ProTech, and the changes show what Beadle stored last, until it answers again.')
+        assertThat(page.locator('beadle-integration-note .banner.info')).hasCount(0)
         assertThat(page.locator('.banner[role=status] span').first())
                 .hasText("$SYNC_PROBLEM The table shows what Beadle last read from ProTech. $RETRY".toString())
 

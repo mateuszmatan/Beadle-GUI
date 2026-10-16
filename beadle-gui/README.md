@@ -4,16 +4,17 @@ The Angular interface of BBH Beadle, the one project (`beadle-gui`) of the Angul
 (`angular.json`). See the [main README](../README.md) for the whole of Beadle.
 
 ```bash
-./gradlew installNpmCIDeps            # npm ci from package-lock.json
-./gradlew installDesignSystem         # the BBH Design System packages from the BBH npm registry, inside BBH only
-./gradlew :beadle-gui:buildAngular      # production bundle in beadle-gui/dist, checked against the angular.json budgets
-./gradlew :beadle-gui:testAngular       # Vitest unit tests with coverage in coverage/beadle-gui, thresholds in angular.json
-./gradlew :beadle-gui:smokeTest         # Spock and Playwright: every page in a browser against a stub API
-./gradlew :beadle-gui:regressionTest    # Spock and Playwright: user journeys against a stub API, with the requests they send
-./gradlew :beadle-gui:check             # all of the above
-npm start                             # http://localhost:4201, /api is proxied to the Beadle service on port 8081
-npm run start:public                  # the same without the BBH Design System, for a machine outside BBH
-npx ng test beadle-gui --watch=false    # the unit tests by hand
+./gradlew installNpmCIDeps                                              # npm ci from package-lock.json
+./gradlew installDesignSystem                                           # the BBH Design System packages from the BBH npm registry, inside BBH only
+./gradlew :beadle-gui:buildAngular                                      # production bundle in beadle-gui/dist, checked against the angular.json budgets
+./gradlew :beadle-gui:testAngular                                       # Vitest unit tests with coverage in coverage/beadle-gui, thresholds in angular.json
+./gradlew :beadle-gui:smokeTest                                         # Spock and Playwright: every page in a browser against a stub API
+./gradlew :beadle-gui:smokeTest -Dsmoke.baseUrl=http://localhost:8081   # the same against a running Beadle-GUI
+./gradlew :beadle-gui:regressionTest                                    # Spock and Playwright: user journeys against a stub API, with the requests they send
+./gradlew :beadle-gui:check                                             # all of the above
+npm start                                                               # http://localhost:4201, /api, /logout, /oauth2 and /login proxied to port 8081
+npm run start:public                                                    # the same without the BBH Design System, for a machine outside BBH
+npx ng test beadle-gui --watch=false                                    # the unit tests by hand
 ```
 
 `./gradlew beadleJar` builds the bundle and packs it into the Beadle service, which serves it on port 8081. The
@@ -23,20 +24,24 @@ itself, as "Inside and outside the BBH network" in the main README describes.
 
 | Folder (`src/app`) | Holds |
 |--------------------|-------|
-| `shell/`       | `AppShell`: the navy header with "BBH Beadle", the flat menu of the sections with the current one underlined, the routed page and the footer |
-| `core/`        | `appConfig(name, routes)`, the `ApplicationConfig` the application starts with (the router with component input binding, the HTTP client, the title strategy "<page> · BBH Beadle", the dialogs); `APP_NAME`; the API clients (departments, products, lookups, the signed-in user); the models mirroring Beadle's DTOs; the three sections of the menu (`sections.ts`) with the tabs of Beadle Admin; `errorMessage()`; the toast notifier; the unsaved-changes guard |
+| `shell/`       | `AppShell`: the navy header with "BBH Beadle", the flat menu of the sections with the current one underlined, the signed-in user of `/api/me` with **Sign out**, the routed page and the footer |
+| `core/`        | `appConfig(name, routes)`, the `ApplicationConfig` the application starts with (the router with component input binding, the HTTP client with `authInterceptor`, the title strategy "<page> · BBH Beadle", the dialogs); `APP_NAME`; the API clients (departments, products, lookups, the signed-in user); the models mirroring Beadle's DTOs; the four sections of the menu (`sections.ts`) with the tabs of Beadle Admin; `errorMessage()`; the toast notifier; the unsaved-changes guard; `auth.ts`, the sign-in: `authInterceptor`, which sends the `XSRF-TOKEN` cookie as `X-XSRF-TOKEN` with every change to Beadle and sends the browser to `/oauth2/authorization/ping` when an API call answers `401`, remembering the page in the tab's session storage, and `pageBeforeSignIn()`, which the route `/` follows back; `session-end.ts`, `SessionEnd`, which the router outlet of the shell tells the open page: when the session ends on a page with unsaved changes it asks first ("Your session ended") and keeps the page's draft in the tab, which New Change takes back after the sign-in |
 | `ui/`          | the UI kit every page builds on: form field, checkbox, panel, dialog, toast, loading bar, the AG Grid table (`beadle-grid`) and the BBH Design System icons (`design-system.ts`, swapped for `design-system.public.ts` outside BBH) |
 | `shared/`      | the field definitions and the `beadle-fields` component (`fields.ts`), form controls and byte-counting validators, the field problems of the API mapped onto a form, formatting (counts, relative times), the confirm dialog, the lookup dialog and the wizard styles |
 | `departments/` | the department dialog, the grouping of records by department (`byDepartment`) and "your department" remembered in the browser (`my-department.ts`) |
 | `admin/`       | `AdminPage`, the page with the tab bar of an `AdminArea`, and `DepartmentsAdmin`, the Departments tab, completed with Beadle's counts, columns and deletion rule (`DepartmentUsage`) |
 | `changes/`     | Changes and New Change: the ProTech changes of a department in a table filtered and sorted in its header, the change page with where the change is, its approvals with their reminders (`change-approvals.ts`), its update status and its change tasks, the edit page that publishes to ProTech, the change wizard, the secure coding page, and the ProTech fields form and change tasks editor shared with Beadle Admin |
 | `beadle/`      | Beadle Admin: the products list by department with the state of their change templates, the product dialog, the product page with its details and change template, and what the Departments tab counts (`department-usage.ts`) |
+| `action-history/` | Action History: the client of `GET /api/action-history` and its filter lists (`action-history-api.ts`), the model with the labels of the actions, outcomes and objects and the query of the filters (`action-history-model.ts`), the page with its filters, table and pager (`action-history.ts`) and the details dialog with the request as JSON and the message (`action-details.ts`) |
 | `testing/`     | fixtures and DOM helpers for the unit tests |
-| `../styles.scss`, `../styles/` | everything more than one page draws: the page header, cards, tables and the 12 column form grid, the chips, the fact lists, the quiet links, the side navigation, the muted help line and the look of the UI kit on top of Bootstrap, plus the navy `public-theme.scss` used outside BBH |
+| `../styles.scss`, `../styles/` | everything more than one page draws: the page header, cards, tables and the 12 column form grid, the chips, the fact lists, the quiet links, the muted help line and the look of the UI kit on top of Bootstrap, plus the navy `public-theme.scss` used outside BBH |
 | `../testFixtures/` | the Groovy support of the browser tests: `GuiServer`, `StubApi` with the departments and the recording of requests, `GuiSpecification` with the Playwright browser, the menu and form helpers and the screenshots, and Beadle's `BeadleSpecification`, `BeadleStubApi` and `ChangeStubs` |
 
-`main.ts` is `appConfig('Beadle', routes)`: the header reads "BBH Beadle", the menu lists Changes, New Change and
-Admin. "Your department" is the department last
+`main.ts` is `appConfig('Beadle', routes)`: the header reads "BBH Beadle", the menu lists Changes, New Change,
+Admin and Action History, the signed-in user and **Sign out** (`POST /logout`, then where Beadle answers: Ping's end of the session with Ping,
+`/` locally) close the header. Beadle signs users in with Ping; the interface has no sign-in
+page of its own: an API call without a session answers `401` and the interceptor sends the browser to Ping, which
+sends it back to `/`, and the app opens the page the browser was on (see the README of the repository, "Signing in"). "Your department" is the department last
 picked in Changes or New Change, remembered in the browser (`departments/my-department.ts`).
 
 ## BBH Design System
@@ -64,21 +69,31 @@ icons of `ui/icons.ts` (Material Icons outlines, Apache License 2.0).
 ## Browser tests
 
 The smoke and regression suites are Spock specifications that drive Chromium with Playwright against the production
-build. `GuiServer` (in `src/testFixtures`) serves `dist` and answers `/api` from `BeadleStubApi`
-(`src/testFixtures`), which serves the departments, the products, the signed-in user and the lookups from recorded
-answers (`src/testFixtures/resources/.../api`), keeps a demo ProTech in memory (`ChangeStubs`) that raises changes,
+build. `GuiServer` (in `src/testFixtures`) serves `dist` and answers `/api`, `/logout`, `/oauth2/` and `/ping/` from
+`BeadleStubApi` (`src/testFixtures`), which serves the departments, the products, the signed-in user (a session that
+`POST /logout` ends, after which every API call answers `401`, answering the end-session address of a stand-in of
+Ping, whose sign-in signs a browser it knows in again and redirects it to `/` and shows its sign-on page to one whose
+Ping session ended), the lookups and the action
+history (filtered and paged like the API) from recorded answers (`src/testFixtures/resources/.../api`), keeps a demo ProTech in memory (`ChangeStubs`) that raises changes,
 creates change tasks and secure coding tickets, names the approvers of each change task, records reminders and moves
 changes through the workflow with their approvals as the tests ask, and records
-every request, so a specification checks both what the page shows and the exact JSON the GUI sends. Every
+every request with its headers, so a specification checks both what the page shows and the exact JSON the GUI sends. Every
 specification extends `BeadleSpecification`, which knows Beadle's menu, the fields of a release task and of any other
 task, and how to use a lookup. Screenshots of the last state of every feature land in
 `build/reports/frontend/screenshots`.
 
-- Smoke (`src/smokeTest`): the title, the three menu entries and the footer; every
+- Smoke (`src/smokeTest`): the title, the four menu entries, the signed-in user with Sign out and the footer; every
   section and every Admin tab from the menu and from a direct link; the pages that read the API; the pages without
   icons but the magnifiers of the lookups; every page in an 800 and a 600 pixel window without sideways scrolling;
-  an unknown address falling back to the changes.
-- Regression (`src/regressionTest`): the tabs of Beadle Admin; the departments with the changes they own, and adding,
+  an unknown address falling back to the changes. `-Dsmoke.baseUrl=http://localhost:8081` runs it against a running
+  Beadle-GUI instead of `GuiServer` (one in mode `local`: the browser does not sign in with Ping), without the three
+  features that need the data of the stub API (the pages that read the API, the icons and the window widths); the
+  service forwards every address of the app, an unknown one too, to `index.html`, as `GuiServer` does.
+- Regression (`src/regressionTest`): the signed-in user in the header, signing out with the CSRF token of the cookie
+  and coming back through Ping, a session that ended on the way to another page and a page opened without a session,
+  both coming back to that page after signing in; the action history newest first with the details of an action, its filters
+  asking the API again from the first page, a range that ends before it starts, its pager and a history that cannot
+  be read; the tabs of Beadle Admin; the departments with the changes they own, and adding,
   renaming and deleting them; the products by department with the state of their change template, searching them,
   adding one, editing its details with a version conflict and deleting it; the change template section by section,
   with a lookup, the downtime, the risk answers and the risk they give, privileged accounts, default change tasks
@@ -94,8 +109,10 @@ task, and how to use a lookup. Screenshots of the last state of every feature la
 
 ## Look and layout
 
-The header holds the name of the application and one flat menu of short labels: Changes, New Change and Admin; the
-entry of the current page is underlined. A new feature is a `PortalSection` added to `SECTIONS` in
+The header holds the name of the application, one flat menu of short labels: Changes, New Change, Admin and Action
+History, with the entry of the current page underlined, and the name of the signed-in user (the email address as its
+tooltip) with **Sign out**; below 1000px the user stays beside the name of the application and the menu takes a row
+of its own. A new feature is an `AppSection` added to `SECTIONS` in
 `core/sections.ts`, routed in `app.routes.ts`, and to `MENU` in `BeadleSpecification`. Beadle Admin is an
 `AdminArea` of tabs in `core/sections.ts`, routed as children of the common `AdminPage`; its tabs render without their
 own page heading. Each page starts with the full name of its section as the heading and the section description under

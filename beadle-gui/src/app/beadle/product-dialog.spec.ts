@@ -133,7 +133,7 @@ describe('ProductDialog', () => {
     );
   });
 
-  it('shows the problems of Beadle on their fields and the rest above the buttons', async () => {
+  it('shows the problems Beadle found on their fields and the rest above the buttons', async () => {
     await render({ departmentId: 3 });
     form().patchValue({ name: 'Archive', code: 'ARCHIVE' });
 
@@ -141,7 +141,7 @@ describe('ProductDialog', () => {
     http.expectOne({ method: 'POST', url: '/api/products' }).flush(
       {
         detail: 'Beadle did not accept some values.',
-        errors: [
+        problems: [
           { field: 'ownerTeam', message: 'is not a BBH team' },
           { field: 'code', message: 'is reserved' },
         ],

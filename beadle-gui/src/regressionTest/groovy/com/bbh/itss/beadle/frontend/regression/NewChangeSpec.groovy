@@ -22,6 +22,9 @@ class NewChangeSpec extends BeadleSpecification {
     static final List<String> STEPS = ['Request data', 'Jira', 'Approval', 'Schedule', 'Planning', 'Privileged access',
                                        'Risk assessment', 'Review', 'Add CTASKs', 'Secure coding', 'Summary']
 
+    static final String SIGN_IN = '/oauth2/authorization/ping'
+    static final String DRAFT_KEY = 'beadle.signIn.draft'
+
     static final String IMPLEMENTATION_DATE = parse(RELEASE_DATE).format(ofPattern('MMddyyyy'))
 
     def "a release manager raises a ProTech change section by section, with the lookups, the downtime window and the risk lists, then creates its change tasks and its secure coding ticket"() {
@@ -460,6 +463,51 @@ class NewChangeSpec extends BeadleSpecification {
         ownErrors().isEmpty()
     }
 
+    def "a session that ends in the middle of the wizard asks first and brings back what was entered after the new sign-in"() {
+        given:
+        open('/new-change')
+        choose(step(), 'Your department', 'Corporate Technology')
+        choose(step(), 'Product', 'CertScanner (CERTSCANNER)')
+        input(step(), 'Assignment group').fill('Release Management')
+        button('Next: Jira', true).click()
+        assertThat(currentStep()).hasText('Jira')
+
+        when: 'the session ends at Beadle and the next step asks the API'
+        beadle.signedIn = false
+        select(step(), 'FixVersion').click()
+        page.getByRole(OPTION).first().click()
+
+        then: 'Beadle says so before leaving the page, and has kept the entries in the tab'
+        assertThat(dialog().locator('h2')).hasText('Your session ended')
+        assertThat(dialog().locator('.message')).hasText('Beadle signed you out, for example after a while without ' +
+                'activity, before your changes on this page were saved. They are kept in this browser tab and come ' +
+                'back on this page once you have signed in again.')
+        assertThat(dialogButton('Stay on this page')).isVisible()
+        api.requests('GET', SIGN_IN).isEmpty()
+        page.evaluate("() => JSON.parse(sessionStorage.getItem('$DRAFT_KEY')).page") == 'new-change'
+
+        when:
+        dialogButton('Sign in again').click()
+
+        then: 'Ping signs the browser in again and the wizard opens on the Jira step with the FixVersion and its epics'
+        awaitRequest('GET', SIGN_IN)
+        page.waitForURL('**/new-change')
+        assertThat(currentStep()).hasText('Jira')
+        assertThat(select(step(), 'FixVersion')).hasValue('CERT 4.2')
+        assertThat(step().locator('.issues .key')).hasText(['CERT-120', 'CERT-130'] as String[])
+        page.evaluate("() => sessionStorage.getItem('$DRAFT_KEY')") == null
+
+        when:
+        button('Back', true).click()
+
+        then: 'with the request data as the user left it'
+        assertThat(currentStep()).hasText('Request data')
+        assertThat(selected(step(), 'Product')).hasText('CertScanner (CERTSCANNER)')
+        assertThat(input(step(), 'Assignment group')).hasValue('Release Management')
+        api.requests('POST', '/api/changes').isEmpty()
+        ownErrors().findAll { !it.contains('401') }.isEmpty()
+    }
+
     def "a product without a change template raises a change with the suggested values"() {
         given:
         api.failOnce('GET', '/api/products/2/jira/stories', problem(502, 'Bad Gateway', 'Jira timed out'))
@@ -572,7 +620,7 @@ class NewChangeSpec extends BeadleSpecification {
     def "a change ProTech refuses stays on the review with the reasons, marked on the fields of each step"() {
         given:
         api.respond('POST', '/api/changes', problem(400, 'Bad Request', '3 fields are invalid',
-                [errors: [[field: 'schedule.installationEnd', message: 'must be after the start'],
+                [problems: [[field: 'schedule.installationEnd', message: 'must be after the start'],
                           [field: 'template.planning.backoutPlan', message: 'must not mention Nexus'],
                           [field: 'template.riskAssessment.businessImpact', message: 'is not one of the answers']]]))
 
@@ -626,7 +674,7 @@ class NewChangeSpec extends BeadleSpecification {
     def "change tasks ProTech refuses are marked on their fields, and the change gets them and its secure coding ticket later on its own page"() {
         given:
         api.respond('POST', '/api/changes/5/tasks', problem(400, 'Bad Request', '2 fields are invalid',
-                [errors: [[field: 'tasks[0].start', message: 'must be inside the installation window'],
+                [problems: [[field: 'tasks[0].start', message: 'must be inside the installation window'],
                           [field: 'tasks[1].details.shortDescription', message: 'is used twice']]]))
 
         when:

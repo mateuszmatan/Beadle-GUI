@@ -256,9 +256,12 @@ project(':beadle-backend') { backend ->
         annotationProcessor 'org.projectlombok:lombok'
         testCompileOnly 'org.projectlombok:lombok'
         testAnnotationProcessor 'org.projectlombok:lombok'
+        testFixturesCompileOnly 'org.projectlombok:lombok'
+        testFixturesAnnotationProcessor 'org.projectlombok:lombok'
 
         testFixturesApi 'org.springframework.boot:spring-boot-starter-test'
         testFixturesApi 'org.springframework.boot:spring-boot-starter-webmvc-test'
+        testFixturesApi 'org.springframework.boot:spring-boot-starter-security-test'
         testFixturesApi libs.groovy
         testFixturesApi libs.groovy.json
         testFixturesApi platform(libs.spock.bom)
@@ -321,7 +324,7 @@ project(':beadle-backend') { backend ->
                                 extensions.getByType(JacocoTaskExtension).enabled = false
                                 systemProperty 'regression.expectedDir', backend.file('src/regressionTest/resources/regression').absolutePath
                                 systemProperty 'performance.report', backend.layout.buildDirectory.file('reports/performance/backend-performance-report.md').get().asFile.absolutePath
-                                forward(it, 'regression.updateExpected', 'smoke.baseUrl', 'smoke.ui')
+                                forward(it, 'regression.updateExpected', 'smoke.baseUrl', 'smoke.ui', 'smoke.cookie')
                                 systemProperty 'performance.factor', performanceFactor
                                 if (suiteName != 'regressionTest') {
                                     outputs.upToDateWhen { false }

@@ -1,6 +1,6 @@
 package com.bbh.itss.beadle.frontend.support
 
-import groovy.json.JsonSlurper
+import groovy.json.JsonSlurperClassic
 import groovy.transform.Immutable
 
 @Immutable
@@ -10,9 +10,16 @@ class RecordedRequest {
     String path
     String query
     String body
+    /** The request headers by lower-case name, the first value of each. */
+    Map<String, String> headers
 
+    String header(String name) {
+        headers?.get(name.toLowerCase(Locale.ROOT))
+    }
+
+    /** The body as plain maps and lists, which a handler may keep in state that other server threads read. */
     Object json() {
-        body ? new JsonSlurper().parseText(body) : null
+        body ? new JsonSlurperClassic().parseText(body) : null
     }
 
     Map<String, String> params() {

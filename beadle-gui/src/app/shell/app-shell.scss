@@ -76,8 +76,50 @@
   }
 }
 
+.account {
+  display: flex;
+  align-items: center;
+  column-gap: 14px;
+  min-height: 48px;
+  padding-left: 20px;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.user-name {
+  max-width: 220px;
+  overflow: hidden;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sign-out {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: rgba(255, 255, 255, 0.78);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    color: #fff;
+    text-decoration: underline;
+  }
+
+  &:disabled {
+    cursor: progress;
+    opacity: 0.6;
+  }
+}
+
 .brand:focus-visible,
-.menu-link:focus-visible {
+.menu-link:focus-visible,
+.sign-out:focus-visible {
   outline: 1px solid #fff;
   outline-offset: 0;
 }
@@ -108,9 +150,17 @@
   }
 
   .menu {
+    order: 3;
     width: 100%;
     margin-left: 0;
     border-top: 1px solid rgba(255, 255, 255, 0.14);
+  }
+
+  .account {
+    min-height: 40px;
+    margin-left: auto;
+    padding-left: 0;
+    border-left: 0;
   }
 
   .brand {
@@ -133,5 +183,9 @@
 
   .menu-link {
     font-size: 12.5px;
+  }
+
+  .user-name {
+    max-width: 140px;
   }
 }

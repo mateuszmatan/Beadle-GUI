@@ -1,5 +1,7 @@
 package com.bbh.itss.beadle.adapter.in.startup;
 
+import com.bbh.itss.beadle.application.CallContext;
+import com.bbh.itss.beadle.application.CallContext.Scope;
 import com.bbh.itss.beadle.application.catalog.port.in.DepartmentsUseCase;
 import com.bbh.itss.beadle.application.catalog.port.in.ProductCommand;
 import com.bbh.itss.beadle.application.catalog.port.in.ProductsUseCase;
@@ -40,9 +42,11 @@ public class DemoProducts implements ApplicationRunner {
         if (!products.list(null).isEmpty()) {
             return;
         }
-        CATALOGUE.forEach(demo -> products.create(new ProductCommand(demo.code(), demo.name(),
-                department(demo.department()), demo.team(),
-                demo.team().toLowerCase(ROOT).replaceAll("[^a-z]+", "-") + "@bbh.com", null)));
+        try (Scope startup = CallContext.actingAs(CallContext.STARTUP)) {
+            CATALOGUE.forEach(demo -> products.create(new ProductCommand(demo.code(), demo.name(),
+                    department(demo.department()), demo.team(),
+                    demo.team().toLowerCase(ROOT).replaceAll("[^a-z]+", "-") + "@bbh.com", null)));
+        }
         log.info("Created the {} demo products", CATALOGUE.size());
     }
 

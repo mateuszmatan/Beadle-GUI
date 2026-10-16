@@ -1,5 +1,7 @@
 package com.bbh.itss.beadle.application.change;
 
+import com.bbh.itss.beadle.application.AuditNotes;
+import com.bbh.itss.beadle.application.Audited;
 import com.bbh.itss.beadle.application.UseCase;
 import com.bbh.itss.beadle.application.WithoutTransaction;
 import com.bbh.itss.beadle.application.change.port.in.ChangeCommand;
@@ -12,9 +14,9 @@ import com.bbh.itss.beadle.application.change.port.in.SecureCodingCommand;
 import com.bbh.itss.beadle.application.change.port.out.ChangeProductsPort;
 import com.bbh.itss.beadle.application.change.port.out.CyberTrackPort;
 import com.bbh.itss.beadle.application.change.port.out.JiraPort;
-import com.bbh.itss.beadle.application.change.port.out.ProductionChangeRepositoryPort;
 import com.bbh.itss.beadle.application.change.port.out.ProTechPort;
 import com.bbh.itss.beadle.application.change.port.out.ProTechPort.RaisedChange;
+import com.bbh.itss.beadle.application.change.port.out.ProductionChangeRepositoryPort;
 import com.bbh.itss.beadle.application.user.port.in.SignedInUserUseCase;
 import com.bbh.itss.beadle.domain.change.ApprovalRef;
 import com.bbh.itss.beadle.domain.change.ChangeProduct;
@@ -38,7 +40,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_EDITED;
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_PREVIEWED;
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED;
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_SYNCED;
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_TASKS_CREATED;
+import static com.bbh.itss.beadle.domain.audit.Action.REMINDER_SENT;
+import static com.bbh.itss.beadle.domain.audit.Action.SECURE_CODING_TICKET_CREATED;
 import static com.bbh.itss.beadle.domain.change.ChangeSchedule.UNPLANNED;
 import static com.bbh.itss.beadle.domain.change.ChangeTemplate.JIRA_KEY_MESSAGE;
 import static com.bbh.itss.beadle.domain.change.ChangeTemplate.isJiraKey;
@@ -47,6 +57,7 @@ import static com.bbh.itss.beadle.domain.change.JiraVersion.UNRELEASED_NEWEST_FI
 import static com.bbh.itss.beadle.domain.change.ProductionChange.DESCRIPTION_MAX;
 import static com.bbh.itss.beadle.domain.change.ProductionChange.FIX_VERSION_MAX;
 import static com.bbh.itss.beadle.domain.change.ProductionChange.SHORT_DESCRIPTION_MAX;
+import static com.bbh.itss.beadle.domain.change.ProductionChange.checkReminder;
 import static com.bbh.itss.beadle.domain.change.ProductionChange.checkTemplate;
 import static com.bbh.itss.beadle.domain.change.ProductionChange.checkTemplateAndSchedule;
 import static com.bbh.itss.beadle.domain.shared.Failures.notFound;
@@ -78,6 +89,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
 
     @Override
     @WithoutTransaction
+    @Audited(value = CHANGE_SYNCED, onlyWhenNoted = true)
     public List<ProductionChange> list(Long departmentId) {
         List<ProductionChange> stored = departmentId == null ? changes.findAll()
                 : changes.findByDepartment(departmentId);
@@ -92,6 +104,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
 
     @Override
     @WithoutTransaction
+    @Audited(value = CHANGE_SYNCED, onlyWhenNoted = true)
     public ProductionChange get(long id) {
         ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
         try {
@@ -103,6 +116,13 @@ public class ProductionChangeService implements ProductionChangesUseCase {
 
     @Override
     @WithoutTransaction
+    public Optional<ProductionChange> resync(String number) {
+        return changes.findByNumber(number).map(this::synced);
+    }
+
+    @Override
+    @WithoutTransaction
+    @Audited(CHANGE_EDITED)
     public ProductionChange update(long id, ChangeEditCommand command) {
         ProductionChange stored = editable(id, command.version(), command.departmentId());
         Instant now = now(clock);
@@ -115,7 +135,8 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @Override
     @WithoutTransaction
     public ChangeIntegrations integrations() {
-        return new ChangeIntegrations(jira.connected(), proTech.connected(), cyberTrack.connected());
+        return new ChangeIntegrations(jira.connected(), proTech.connected(), cyberTrack.connected(),
+                jira.reachable() && cyberTrack.reachable(), proTech.reachable());
     }
 
     @Override
@@ -142,28 +163,36 @@ public class ProductionChangeService implements ProductionChangesUseCase {
 
     @Override
     @WithoutTransaction
+    @Audited(CHANGE_PREVIEWED)
     public ProductionChange preview(ChangeCommand command) {
         return draft(command, null);
     }
 
     @Override
     @WithoutTransaction
+    @Audited(CHANGE_RAISED)
     public ProductionChange raise(ChangeCommand command) {
         Instant now = now(clock);
         ProductionChange draft = draft(command, now).raisedAt(now);
         RaisedChange raised = proTech.raise(draft);
+        AuditNotes.created(raised.number());
         return changes.save(draft.numbered(raised.number(), raised.url()));
     }
 
     @Override
     @WithoutTransaction
+    @Audited(CHANGE_TASKS_CREATED)
     public ProductionChange createTasks(long id, ChangeTasksCommand command) {
         ProductionChange stored = editable(id, command.version(), command.departmentId());
         List<ChangeTask> planned = stored.plannedTasks(command.tasks());
         ProductionChange current = changeable(stored);
         List<ChangeTask> created = new ArrayList<>();
         try {
-            planned.forEach(task -> created.add(task.numbered(proTech.createTask(current.number(), task))));
+            planned.forEach(task -> {
+                String number = proTech.createTask(current.number(), task);
+                AuditNotes.created(number);
+                created.add(task.numbered(number));
+            });
         } catch (RuntimeException refused) {
             if (!created.isEmpty()) {
                 recorded(current.withTasks(created));
@@ -175,6 +204,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
 
     @Override
     @WithoutTransaction
+    @Audited(SECURE_CODING_TICKET_CREATED)
     public ProductionChange createSecureCodingTicket(long id, SecureCodingCommand command) {
         ProductionChange stored = editable(id, command.version(), command.departmentId());
         SecureCodingTicket ticket = SecureCodingTicket.of(stored, command.secureCoding(),
@@ -185,6 +215,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
             throw new IllegalStateException(current.number() + " already has the secure coding ticket " + existing);
         }
         String key = cyberTrack.create(ticket);
+        AuditNotes.created(key);
         try {
             return published(current.withSecureCoding(command.secureCoding(), key), current, now(clock));
         } catch (RuntimeException refused) {
@@ -196,9 +227,11 @@ public class ProductionChangeService implements ProductionChangesUseCase {
 
     @Override
     @WithoutTransaction
+    @Audited(REMINDER_SENT)
     public ProductionChange remind(long id, ReminderCommand command) {
         ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
         requireDepartment(stored, command.departmentId(), "remind the approvers of");
+        checkReminder(command.approval(), command.task());
         ProductionChange current = synced(stored);
         if (current.syncProblem() != null) {
             throw new IllegalStateException(current.syncProblem());
@@ -206,9 +239,14 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         List<ApprovalRef> awaited = current.toRemind(command.approval(), command.task());
         Instant now = now(clock);
         Map<ApprovalRef, Reminder> sent = new LinkedHashMap<>();
+        List<Map<String, Object>> reminded = new ArrayList<>();
         try {
-            awaited.forEach(approval -> sent.put(approval,
-                    new Reminder(now, proTech.remind(current.number(), approval))));
+            awaited.forEach(approval -> {
+                List<String> people = proTech.remind(current.number(), approval);
+                sent.put(approval, new Reminder(now, people));
+                reminded.add(reminded(approval, people));
+                AuditNotes.result("reminded", List.copyOf(reminded));
+            });
         } catch (RuntimeException refused) {
             if (!sent.isEmpty()) {
                 remembered(current, sent);
@@ -216,6 +254,15 @@ public class ProductionChangeService implements ProductionChangesUseCase {
             throw refused;
         }
         return remembered(current, sent);
+    }
+
+    /** Who ProTech reminded of an approval, as the audit trail records it. */
+    private static Map<String, Object> reminded(ApprovalRef approval, List<String> people) {
+        Map<String, Object> reminded = new LinkedHashMap<>();
+        reminded.put("role", approval.role());
+        reminded.put("task", approval.task());
+        reminded.put("people", people);
+        return reminded;
     }
 
     private ProductionChange remembered(ProductionChange change, Map<ApprovalRef, Reminder> sent) {
@@ -329,12 +376,22 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         return synced;
     }
 
+    /**
+     * Stores the newer state read from ProTech: the action of opening or listing the change, which records it as
+     * {@code CHANGE_SYNCED}, or a step on the way to another action, which records it so only when that action then
+     * fails, as its own row stands for what it stored when it succeeds. A change someone stored meanwhile is taken as
+     * they stored it.
+     */
     private ProductionChange saved(ProductionChange synced, ProductionChange stored) {
+        AuditNotes.tookPlace(stored);
+        ProductionChange saved;
         try {
-            return changes.save(synced);
+            saved = changes.save(synced);
         } catch (IllegalStateException stale) {
             return changes.load(stored.id()).orElseThrow(() -> stale);
         }
+        AuditNotes.storedOnTheWay(CHANGE_SYNCED, saved);
+        return saved;
     }
 
     private void publish(ProductionChange claimed, ProductionChange current) {

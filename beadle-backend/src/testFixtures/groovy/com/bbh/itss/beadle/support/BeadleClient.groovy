@@ -2,6 +2,7 @@ package com.bbh.itss.beadle.support
 
 import groovy.transform.Canonical
 
+import java.net.CookieManager
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
@@ -12,16 +13,40 @@ import static java.net.http.HttpRequest.BodyPublishers.noBody
 import static java.net.http.HttpRequest.BodyPublishers.ofString
 import static java.time.Duration.ofSeconds
 
+/**
+ * Calls the API like the browser of one person: the clients share their cookies, so the calls of a suite run in one
+ * session (Beadle records {@code USER_SIGNED_IN} once per session); pass a {@link CookieManager} of its own for a
+ * session of its own.
+ */
 class BeadleClient {
 
-    final String baseUrl
-    private final HttpClient http = HttpClient.newBuilder()
-            .connectTimeout(ofSeconds(5))
-            .proxy(NO_PROXY)
-            .build()
+    static final CookieManager SHARED_COOKIES = new CookieManager()
 
-    BeadleClient(String baseUrl) {
+    final String baseUrl
+    final CookieManager cookies
+    private final HttpClient http
+
+    BeadleClient(String baseUrl, CookieManager cookies = SHARED_COOKIES) {
         this.baseUrl = baseUrl.replaceAll('/+$', '')
+        this.cookies = cookies
+        this.http = HttpClient.newBuilder()
+                .connectTimeout(ofSeconds(5))
+                .proxy(NO_PROXY)
+                .cookieHandler(cookies)
+                .build()
+    }
+
+    /** A client in the session whose cookies ({@code JSESSIONID=...; XSRF-TOKEN=...}) a browser holds. */
+    static BeadleClient withCookies(String baseUrl, String cookieHeader) {
+        def cookies = new CookieManager()
+        cookieHeader?.split(';')*.trim()?.findAll()?.each { String pair ->
+            def parts = pair.split('=', 2)
+            def cookie = new HttpCookie(parts[0], parts.length > 1 ? parts[1] : '')
+            cookie.path = '/'
+            cookie.version = 0
+            cookies.cookieStore.add(URI.create(baseUrl), cookie)
+        }
+        new BeadleClient(baseUrl, cookies)
     }
 
     Response get(String path) {
@@ -30,6 +55,12 @@ class BeadleClient {
 
     Response post(String path, Object body = null) {
         send(request(path).POST(body == null ? noBody() : json(body)))
+    }
+
+    Response post(String path, Object body, Map<String, String> headers) {
+        HttpRequest.Builder request = request(path)
+        headers.each { name, value -> request.header(name, value) }
+        send(request.POST(json(body)))
     }
 
     Response postRaw(String path, String contentType, String body) {

@@ -39,7 +39,15 @@ export const ADMIN: AppSection = {
     "Departments, products and each product's change template: the answers every new change of the product starts with.",
 };
 
-export const SECTIONS: readonly AppSection[] = [CHANGES, NEW_CHANGE, ADMIN];
+export const ACTION_HISTORY: AppSection = {
+  path: '/action-history',
+  label: 'Action History',
+  heading: 'Action History',
+  description:
+    'What people did in Beadle and what Beadle-ProTech and Beadle-Internal reported back, newest first, with the request and the outcome of every action.',
+};
+
+export const SECTIONS: readonly AppSection[] = [CHANGES, NEW_CHANGE, ADMIN, ACTION_HISTORY];
 
 export const ADMIN_DEPARTMENTS: AppTab = { path: '/admin/departments', label: 'Departments' };
 export const ADMIN_PRODUCTS: AppTab = { path: '/admin/products', label: 'Products' };

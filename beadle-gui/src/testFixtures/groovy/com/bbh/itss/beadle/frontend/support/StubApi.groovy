@@ -1,6 +1,6 @@
 package com.bbh.itss.beadle.frontend.support
 
-import groovy.json.JsonSlurper
+import groovy.json.JsonSlurperClassic
 import groovy.transform.TupleConstructor
 
 import java.util.concurrent.CopyOnWriteArrayList
@@ -19,8 +19,13 @@ abstract class StubApi {
     private final List<RecordedRequest> recorded = new CopyOnWriteArrayList<>()
     List<Map> departments
 
+    /**
+     * The parsed fixture as plain {@code LinkedHashMap}s and {@code ArrayList}s. The handlers share these maps across the
+     * threads of {@link GuiServer}, and the lazy maps of the default {@code JsonSlurper} are not safe to read from two
+     * threads at once: one thread can see a map that another is still filling in and answer a 500.
+     */
     static Object fixture(String name) {
-        new JsonSlurper().parseText(fixtureText(name))
+        new JsonSlurperClassic().parseText(fixtureText(name))
     }
 
     static String fixtureText(String name) {
@@ -87,9 +92,13 @@ abstract class StubApi {
         this
     }
 
-    StubResponse handle(String method, String path, String query, String body) {
-        def request = new RecordedRequest(method, path, query, body)
+    StubResponse handle(String method, String path, String query, String body, Map<String, String> headers = [:]) {
+        def request = new RecordedRequest(method: method, path: path, query: query, body: body, headers: headers)
         recorded << request
+        def refused = refuse(request)
+        if (refused) {
+            return refused
+        }
         for (route in routes) {
             def matcher = route.match(method, path)
             if (matcher != null) {
@@ -101,6 +110,11 @@ abstract class StubApi {
             }
         }
         problem(404, 'Not found', "No stub for $method $path")
+    }
+
+    /** An answer that comes before the routes, such as the 401 of a browser without a session; null lets the routes answer. */
+    protected StubResponse refuse(RecordedRequest request) {
+        null
     }
 
     List<RecordedRequest> requests() {

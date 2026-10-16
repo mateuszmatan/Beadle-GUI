@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface ProductionChangeJpaRepository extends JpaRepository<ProductionChangeEntity, Long> {
 
@@ -19,6 +20,9 @@ public interface ProductionChangeJpaRepository extends JpaRepository<ProductionC
 
     @EntityGraph(attributePaths = "tasks")
     List<ProductionChangeEntity> findByDepartmentIdOrderByIdDesc(long departmentId);
+
+    @EntityGraph(attributePaths = "tasks")
+    Optional<ProductionChangeEntity> findByNumber(String number);
 
     @Query("select c.departmentId, count(c) from ProductionChangeEntity c where c.departmentId is not null"
             + " group by c.departmentId")

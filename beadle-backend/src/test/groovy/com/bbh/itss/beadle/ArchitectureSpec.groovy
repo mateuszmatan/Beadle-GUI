@@ -10,7 +10,8 @@ class ArchitectureSpec extends ArchitectureSpecification {
     }
 
     @Override
-    String httpAdapter() {
-        'com.bbh.itss.beadle.adapter.out.cybertrack..'
+    String[] httpAdapters() {
+        ['com.bbh.itss.beadle.adapter.out.http..', 'com.bbh.itss.beadle.adapter.out.internal..',
+         'com.bbh.itss.beadle.adapter.out.protech..']
     }
 }

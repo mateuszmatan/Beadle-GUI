@@ -52,7 +52,7 @@ abstract class ArchitectureSpecification extends Specification {
 
     abstract Class<?> application()
 
-    abstract String httpAdapter()
+    abstract String[] httpAdapters()
 
     def "the import covers the application and the code it shares"() {
         expect:
@@ -95,7 +95,7 @@ abstract class ArchitectureSpecification extends Specification {
              [Entity, Embeddable, MappedSuperclass, Converter].any { type.isAnnotatedWith(it) } ||
                      type.isAssignableTo(Repository)
          }).should().resideInAPackage(PERSISTENCE),
-         noClasses().that().resideOutsideOfPackage(httpAdapter())
+         noClasses().that().resideOutsideOfPackages(httpAdapters())
                  .should().dependOnClassesThat()
                  .resideInAnyPackage('org.springframework.web.client..', 'java.net.http..'),
          slices().matching('com.bbh.itss.beadle.domain.(*)..').should().beFreeOfCycles(),

@@ -13,6 +13,8 @@ configMapGenerator:
   - name: beadle-config
     literals:
       - SPRING_PROFILES_ACTIVE=rd
-      - CYBERTRACK_URL=
-      - CYBERTRACK_PROJECT_KEY=SCP
-      - CYBERTRACK_ISSUE_TYPE=Task
+      - BEADLE_INTERNAL_URL=http://beadle-internal:8082
+      - BEADLE_PROTECH_URL=http://beadle-protech:8083
+      - BEADLE_AUTH_MODE=oidc
+      # PING_ISSUER_URI, the Ping issuer of the environment, is set in each overlay; the client id and secret are in
+      # the secret beadle-oidc.

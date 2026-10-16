@@ -21,6 +21,12 @@ class BaselineMigrationSpec extends MigrationSpecification {
                                         'BEADLE_PRODUCTION_CHANGE_PRIVILEGED_USER', 'BEADLE_PRODUCTION_CHANGE_STAGE',
                                         'BEADLE_PRODUCTION_CHANGE_TASK']
 
+    /** The baseline alone; ActionHistoryMigrationSpec runs the whole changelog, with 002 on top of it. */
+    @Override
+    protected String changelogFile() {
+        'db/changelog/oracle/001-baseline.sql'
+    }
+
     def "the baseline creates Beadle's tables and the BBH departments"() {
         when:
         liquibase.update('')

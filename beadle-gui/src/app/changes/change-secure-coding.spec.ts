@@ -134,7 +134,7 @@ describe('ChangeSecureCoding', () => {
     http.expectOne({ method: 'POST', url: '/api/changes/7/secure-coding' }).flush(
       {
         detail: 'must be a date written MMDDYYYY, such as 10152026',
-        errors: [
+        problems: [
           {
             field: 'implementationDate',
             message: 'must be a date written MMDDYYYY, such as 10152026',

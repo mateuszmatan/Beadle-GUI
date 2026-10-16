@@ -1,5 +1,6 @@
 package com.bbh.itss.beadle.application.change;
 
+import com.bbh.itss.beadle.application.Audited;
 import com.bbh.itss.beadle.application.ReadOnly;
 import com.bbh.itss.beadle.application.UseCase;
 import com.bbh.itss.beadle.application.change.port.in.ChangeProfileView;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_PROFILE_UPDATED;
 import static com.bbh.itss.beadle.domain.change.ChangeTemplate.suggestedFor;
 import static com.bbh.itss.beadle.domain.change.TaskDetails.suggestedTasks;
 import static com.bbh.itss.beadle.domain.change.TaskDetails.validateTasks;
@@ -47,6 +49,7 @@ public class ChangeProfileService implements ChangeProfilesUseCase {
     }
 
     @Override
+    @Audited(CHANGE_PROFILE_UPDATED)
     public ChangeProfileView save(long productId, Long version, ChangeTemplate template, List<TaskDetails> tasks) {
         ChangeProduct product = products.get(productId);
         ValidationProblems problems = new ValidationProblems();

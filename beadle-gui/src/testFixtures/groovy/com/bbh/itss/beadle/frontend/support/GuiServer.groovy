@@ -21,6 +21,9 @@ class GuiServer implements AutoCloseable {
             map  : 'application/json'
     ]
 
+    /** The paths Beadle's backend answers (the API, the sign-in and sign-out of Spring Security) and the stand-in of Ping. */
+    private static final List<String> BACKEND = ['/api/', '/oauth2/', '/logout', '/ping/']
+
     private final HttpServer server
     private final ExecutorService executor
     private final Path dist
@@ -57,9 +60,11 @@ class GuiServer implements AutoCloseable {
     private void serve(HttpExchange exchange) {
         try {
             def path = exchange.requestURI.rawPath
-            if (path.startsWith('/api/')) {
+            if (BACKEND.any { path.startsWith(it) }) {
                 def body = exchange.requestBody.getText(UTF_8.name())
-                def response = api.handle(exchange.requestMethod, path, exchange.requestURI.rawQuery, body)
+                def response = api.handle(exchange.requestMethod, path, exchange.requestURI.rawQuery, body,
+                        headers(exchange))
+                response.headers?.each { name, value -> exchange.responseHeaders.set(name, value) }
                 send(exchange, response.status, response.contentType, response.body.getBytes(UTF_8))
             } else {
                 def file = resolve(path)
@@ -71,6 +76,10 @@ class GuiServer implements AutoCloseable {
         } finally {
             exchange.close()
         }
+    }
+
+    private static Map<String, String> headers(HttpExchange exchange) {
+        exchange.requestHeaders.collectEntries { name, values -> [(name.toLowerCase(Locale.ROOT)): values ? values[0] : ''] }
     }
 
     private Path resolve(String rawPath) {

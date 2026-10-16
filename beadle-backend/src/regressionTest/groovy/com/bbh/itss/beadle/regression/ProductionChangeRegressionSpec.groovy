@@ -123,7 +123,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
 
         then:
         response.status == 400
-        response.json.errors*.field == [field]
+        response.json.problems*.field == [field]
         api.get("/api/products/$created.id/change-profile").json.version == null
 
         where:
@@ -353,7 +353,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
 
         then:
         response.status == 400
-        response.json.errors*.field == fields
+        response.json.problems*.field == fields
         api.get('/api/changes').json.every { it.productId != created.id }
 
         where:
@@ -392,7 +392,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
 
         then:
         [previewed, raised]*.status == [400, 400]
-        [previewed, raised]*.json*.errors == [[[field  : 'productId',
+        [previewed, raised]*.json*.problems == [[[field  : 'productId',
                                                  message: 'the product must be placed in a department in Beadle Admin first']]] * 2
         api.get('/api/changes').json.every { it.productId != created.id }
     }
@@ -409,7 +409,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
 
         expect:
         api.post('/api/changes/preview', past).json.schedule.installationStart == '2026-01-05T17:00:00Z'
-        api.post('/api/changes', past).json.errors == [[field: 'schedule.installationStart', message: 'must be in the future']]
+        api.post('/api/changes', past).json.problems == [[field: 'schedule.installationStart', message: 'must be in the future']]
     }
 
     def "the preview writes the texts before the schedule is planned, raising it does not"() {
@@ -429,7 +429,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         preview.json.shortDescription == "$created.name $fixVersion: $epic.summary"
         preview.json.description.contains('Installation not planned yet, post-install validation not planned yet,' +
                 ' first usage not planned yet. No downtime.')
-        api.post('/api/changes', unplanned).json.errors*.field == ['schedule.installationStart',
+        api.post('/api/changes', unplanned).json.problems*.field == ['schedule.installationStart',
                                                                    'schedule.installationEnd',
                                                                    'schedule.validationStart',
                                                                    'schedule.validationEnd', 'schedule.firstUsage']
@@ -526,7 +526,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         then:
         response.status == 400
         response.json.title == 'Validation failed'
-        response.json.errors.collectEntries { [it.field, it.message] } == errors
+        response.json.problems.collectEntries { [it.field, it.message] } == errors
         api.get("/api/changes/$raised.id").json.subMap('tasks', 'version') == [tasks: [], version: raised.version]
         jdbc.queryForObject('SELECT COUNT(*) FROM BEADLE_PRODUCTION_CHANGE_TASK WHERE CHANGE_ID = ?', Integer,
                 raised.id) == 0
@@ -558,7 +558,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         then:
         raised.tasks*.number.toSet().size() == 50
         response.status == 400
-        response.json.errors == [[field: 'tasks', message: "$raised.number may hold at most 50 change tasks".toString()]]
+        response.json.problems == [[field: 'tasks', message: "$raised.number may hold at most 50 change tasks".toString()]]
         api.get("/api/changes/$raised.id").json.tasks*.number == raised.tasks*.number
     }
 
@@ -731,7 +731,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         then:
         raised.tasks*.start == [START.plus(1, MINUTES).toString(), null]
         kept.status == 400
-        kept.json.errors == [[field: 'tasks[0].start', message: 'must be at least a minute after the installation start']]
+        kept.json.problems == [[field: 'tasks[0].start', message: 'must be at least a minute after the installation start']]
         moved.status == 200
         moved.json.tasks*.number == raised.tasks*.number
         moved.json.tasks*.start == [START.plus(1, DAYS).plus(1, MINUTES).toString(), null]
@@ -859,7 +859,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         then:
         response.status == status
         response.json.title == (status == 400 ? 'Validation failed' : 'Forbidden')
-        (status == 400 ? response.json.errors*.field : response.json.detail) == expected(raised)
+        (status == 400 ? response.json.problems*.field : response.json.detail) == expected(raised)
         api.get("/api/changes/$raised.id").json.version == raised.version
 
         where:
@@ -906,20 +906,21 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         api.get("/api/products/$created.id/jira/versions").status == 404
 
         and:
-        api.get('/api/products/1/jira/epics').json.errors*.field == ['fixVersion']
-        api.get('/api/products/1/jira/epics?fixVersion=%20').json.errors*.field == ['fixVersion']
-        api.get('/api/products/1/jira/stories?epics=CERT-1&fixVersion=').json.errors*.field == ['fixVersion']
-        api.get('/api/products/1/jira/versions?project=ce-rt').json.errors*.field == ['project']
+        api.get('/api/products/1/jira/epics').json.problems*.field == ['fixVersion']
+        api.get('/api/products/1/jira/epics?fixVersion=%20').json.problems*.field == ['fixVersion']
+        api.get('/api/products/1/jira/stories?epics=CERT-1&fixVersion=').json.problems*.field == ['fixVersion']
+        api.get('/api/products/1/jira/versions?project=ce-rt').json.problems*.field == ['project']
         api.get('/api/changes/99999').status == 404
         api.put('/api/changes/99999', editOf(raised, [:])).status == 404
         api.post('/api/changes/99999/tasks', tasksOf(raised, changeTasksJson(1))).status == 404
         api.get('/api/changes/integrations').json == [jiraConnected: false, proTechConnected: false,
-                                                      cyberTrackConnected: false]
+                                                      cyberTrackConnected: false, internalReachable: true,
+                                                      proTechReachable: true]
     }
 
     private List refused(long id, Map request) {
         def response = api.post("/api/changes/$id/reminders", request)
-        [response.status, response.status == 400 ? response.json.errors*.field : response.json.detail]
+        [response.status, response.status == 400 ? response.json.problems*.field : response.json.detail]
     }
 
     private String adopt(long id, Instant raisedAt, Instant installationStart, Instant validationEnd) {

@@ -2,5 +2,14 @@
   "/api": {
     "target": "http://localhost:8081",
     "secure": false
+  },
+  "/logout": {
+    "target": "http://localhost:8081"
+  },
+  "/oauth2": {
+    "target": "http://localhost:8081"
+  },
+  "/login": {
+    "target": "http://localhost:8081"
   }
 }

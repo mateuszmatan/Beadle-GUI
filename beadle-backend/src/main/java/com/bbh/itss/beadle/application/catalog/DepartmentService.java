@@ -1,5 +1,7 @@
 package com.bbh.itss.beadle.application.catalog;
 
+import com.bbh.itss.beadle.application.Audited;
+import com.bbh.itss.beadle.application.AuditedKey;
 import com.bbh.itss.beadle.application.ReadOnly;
 import com.bbh.itss.beadle.application.UseCase;
 import com.bbh.itss.beadle.application.catalog.port.in.DepartmentView;
@@ -13,6 +15,9 @@ import lombok.RequiredArgsConstructor;
 import java.util.List;
 import java.util.Map;
 
+import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_CREATED;
+import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_DELETED;
+import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_RENAMED;
 import static com.bbh.itss.beadle.domain.shared.Failures.notFound;
 import static java.lang.String.CASE_INSENSITIVE_ORDER;
 import static java.util.Comparator.comparing;
@@ -36,11 +41,13 @@ public class DepartmentService implements DepartmentsUseCase {
     }
 
     @Override
-    public DepartmentView create(String name) {
+    @Audited(DEPARTMENT_CREATED)
+    public DepartmentView create(@AuditedKey String name) {
         return view(departments.save(Department.create(name, departments::findByName)).id());
     }
 
     @Override
+    @Audited(DEPARTMENT_RENAMED)
     public DepartmentView rename(long id, Long version, String name) {
         Department department = departments.load(id).orElseThrow(() -> notFound("Department", id));
         departments.save(department.rename(version, name, departments::findByName));
@@ -48,6 +55,7 @@ public class DepartmentService implements DepartmentsUseCase {
     }
 
     @Override
+    @Audited(DEPARTMENT_DELETED)
     public void delete(long id) {
         DepartmentView department = view(id);
         long products = department.usage().productCount();

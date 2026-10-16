@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { RETRY, errorMessage, fieldProblems } from './errors';
+import { RETRY, UNREACHABLE, errorMessage, fieldProblems } from './errors';
 
 describe('errorMessage', () => {
   it('uses the detail of the problem the API returned', () => {
@@ -43,6 +43,19 @@ describe('errorMessage', () => {
     );
   });
 
+  it('names Beadle, not the portal it came from, in every message of its own', () => {
+    const messages = [
+      RETRY,
+      UNREACHABLE,
+      errorMessage(new HttpErrorResponse({ status: 0 })),
+      errorMessage(new HttpErrorResponse({ status: 502, statusText: 'Bad Gateway' })),
+    ];
+    for (const message of messages) {
+      expect(message).toContain('Beadle');
+      expect(message).not.toMatch(/portal/i);
+    }
+  });
+
   it('shows other errors as their message', () => {
     expect(errorMessage(new Error('boom'))).toBe('boom');
     expect(errorMessage('plain')).toBe('plain');
@@ -51,22 +64,22 @@ describe('errorMessage', () => {
 
 describe('fieldProblems', () => {
   it('lists the field problems of a 400 response', () => {
-    const errors = [{ field: 'services[0].name', message: 'is already used' }];
-    expect(fieldProblems(new HttpErrorResponse({ status: 400, error: { errors } }))).toEqual(
-      errors,
+    const problems = [{ field: 'services[0].name', message: 'is already used' }];
+    expect(fieldProblems(new HttpErrorResponse({ status: 400, error: { problems } }))).toEqual(
+      problems,
     );
   });
 
   it('reads the field problems of a 400 response given as text', () => {
-    const errors = [{ field: 'name', message: 'must not be blank' }];
+    const problems = [{ field: 'name', message: 'must not be blank' }];
     expect(
-      fieldProblems(new HttpErrorResponse({ status: 400, error: JSON.stringify({ errors }) })),
-    ).toEqual(errors);
+      fieldProblems(new HttpErrorResponse({ status: 400, error: JSON.stringify({ problems }) })),
+    ).toEqual(problems);
     expect(fieldProblems(new HttpErrorResponse({ status: 400, error: '{broken' }))).toEqual([]);
   });
 
   it('is empty for other responses', () => {
-    expect(fieldProblems(new HttpErrorResponse({ status: 409, error: { errors: [] } }))).toEqual(
+    expect(fieldProblems(new HttpErrorResponse({ status: 409, error: { problems: [] } }))).toEqual(
       [],
     );
     expect(

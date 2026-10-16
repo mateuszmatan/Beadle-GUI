@@ -43,15 +43,21 @@ management:
 logging:
   level:
     com.bbh.itss.beadle: INFO
+  pattern:
+    correlation: "[%X{correlationId:-}] "
 
 beadle:
   gui:
-    pages: changes, new-change, admin
-  cybertrack:
-    url: ${CYBERTRACK_URL:}
-    token: ${CYBERTRACK_TOKEN:}
-    project-key: ${CYBERTRACK_PROJECT_KEY:SCP}
-    issue-type: ${CYBERTRACK_ISSUE_TYPE:Task}
+    pages: changes, new-change, admin, action-history
+  auth:
+    mode: ${BEADLE_AUTH_MODE:oidc}
+  signed-in-user: ${BEADLE_SIGNED_IN_USER:Mateusz Matan}
+  services:
+    token: ${BEADLE_SERVICE_TOKEN:}
+    internal:
+      url: ${BEADLE_INTERNAL_URL}
+    protech:
+      url: ${BEADLE_PROTECH_URL}
   demo-data: false
 ---
 spring:
@@ -71,6 +77,34 @@ management:
       show-details: always
 beadle:
   demo-data: ${BEADLE_DEMO_DATA:true}
+  auth:
+    mode: ${BEADLE_AUTH_MODE:local}
+  services:
+    internal:
+      url: ${BEADLE_INTERNAL_URL:http://localhost:8082}
+    protech:
+      url: ${BEADLE_PROTECH_URL:http://localhost:8083}
+---
+spring:
+  config:
+    activate:
+      on-profile: rd | qc | prod
+  security:
+    oauth2:
+      client:
+        registration:
+          ping:
+            provider: ping
+            client-name: Ping
+            client-id: ${PING_CLIENT_ID}
+            client-secret: ${PING_CLIENT_SECRET}
+            authorization-grant-type: authorization_code
+            scope: openid, profile, email
+        provider:
+          ping:
+            issuer-uri: ${PING_ISSUER_URI}
+server:
+  forward-headers-strategy: native
 ---
 spring:
   config:
@@ -90,22 +124,9 @@ spring:
   datasource:
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:5}
-management:
-  endpoint:
-    health:
-      show-details: always
 logging:
   level:
     com.bbh.itss.beadle: DEBUG
----
-spring:
-  config:
-    activate:
-      on-profile: qc
-management:
-  endpoint:
-    health:
-      show-details: always
 ---
 spring:
   config:

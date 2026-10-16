@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
+import { SIGN_OUT_PATH } from './auth';
 import {
   Department,
   DepartmentRequest,
@@ -8,6 +9,7 @@ import {
   Product,
   ProductRequest,
   SignedInUser,
+  SignedOut,
 } from './models';
 
 @Injectable({ providedIn: 'root' })
@@ -81,5 +83,13 @@ export class UserApi {
 
   me(): Observable<SignedInUser> {
     return this.http.get<SignedInUser>('/api/me');
+  }
+
+  /**
+   * Ends the session at Beadle, the CSRF interceptor sending the token. With Ping Beadle answers where the browser
+   * ends its Ping session too; locally it answers 204, so `null`.
+   */
+  signOut(): Observable<SignedOut | null> {
+    return this.http.post<SignedOut | null>(SIGN_OUT_PATH, null);
   }
 }

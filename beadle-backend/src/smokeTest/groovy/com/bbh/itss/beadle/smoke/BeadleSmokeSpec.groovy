@@ -2,11 +2,14 @@ package com.bbh.itss.beadle.smoke
 
 import com.bbh.itss.beadle.BeadleApplication
 import com.bbh.itss.beadle.support.BeadleClient
+import com.bbh.itss.beadle.support.StubServices
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
 import spock.lang.Requires
 import spock.lang.Shared
 import spock.lang.Specification
+
+import java.net.CookieManager
 
 import static java.net.URLEncoder.encode
 import static java.nio.charset.StandardCharsets.UTF_8
@@ -22,12 +25,12 @@ class BeadleSmokeSpec extends Specification {
     def setupSpec() {
         String baseUrl = System.getProperty('smoke.baseUrl')
         if (!baseUrl) {
-            started = new SpringApplicationBuilder(BeadleApplication)
+            started = new SpringApplicationBuilder(BeadleApplication).profiles('local', StubServices.PROFILE)
                     .run('--server.port=0', '--BEADLE_DEMO_DATA=true',
                             '--DB_URL=jdbc:h2:mem:beadle-smoke;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1')
             baseUrl = "http://localhost:${started.environment.getProperty('local.server.port')}"
         }
-        api = new BeadleClient(baseUrl)
+        api = BeadleClient.withCookies(baseUrl, System.getProperty('smoke.cookie'))
     }
 
     def cleanupSpec() {
@@ -64,7 +67,8 @@ class BeadleSmokeSpec extends Specification {
         expect:
         api.get('/api/changes').status == 200
         api.get('/api/changes/integrations').json.keySet() ==
-                ['jiraConnected', 'proTechConnected', 'cyberTrackConnected'] as Set
+                ['jiraConnected', 'proTechConnected', 'cyberTrackConnected', 'internalReachable',
+                 'proTechReachable'] as Set
         api.get('/api/change-profiles').status == 200
         !started || api.get('/api/change-profiles').json.size() >= products.size()
         products.every { product ->
@@ -130,16 +134,44 @@ class BeadleSmokeSpec extends Specification {
         }
     }
 
+    def "the action history answers its newest rows and the values of its filters"() {
+        when:
+        def newest = api.get('/api/action-history?size=5')
+
+        then:
+        newest.status == 200
+        newest.json.keySet() == ['content', 'page', 'size', 'total'] as Set
+        newest.json.page == 0
+        newest.json.size == 5
+        newest.json.content.size() <= 5
+        api.get('/api/action-history/users').status == 200
+        api.get('/api/action-history/actions').status == 200
+    }
+
+    def "the API names the signed-in user, takes a callback only with the service token and leaves health open"() {
+        when:
+        def me = api.get('/api/me')
+
+        then:
+        me.status == 200
+        me.json.keySet() == ['name', 'email'] as Set
+        !started || me.json == [name: 'Mateusz Matan', email: null]
+        new BeadleClient(api.baseUrl, new CookieManager()).get('/actuator/health').status == 200
+        api.post('/api/callbacks/protech', [number: 'CHG0000001', event: 'STATE_CHANGED']).status == 401
+    }
+
     @Requires({ BeadleSmokeSpec.uiExpected() })
-    def "the web UI is served, also for links into the app"() {
+    def "the web UI is served, also for links into the app and for unknown addresses, which the app sends to Changes"() {
         expect:
-        ['/', '/changes', '/new-change', '/admin/products', '/admin/departments'].every { path ->
+        ['/', '/changes', '/new-change', '/admin/products', '/admin/departments', '/action-history',
+         '/no-such-page', '/no/such/page'].every { path ->
             def page = api.get(path)
             assert page.status == 200: "$path: $page.status"
             assert page.header('Content-Type').startsWith('text/html')
             assert page.body.contains('<beadle-root')
             true
         }
+        ['/no-such-file.js', '/api/no-such-endpoint'].every { path -> api.get(path).status == 404 }
     }
 
     static boolean uiExpected() {

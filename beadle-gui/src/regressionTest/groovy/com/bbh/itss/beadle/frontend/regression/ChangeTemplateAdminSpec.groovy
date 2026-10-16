@@ -218,7 +218,7 @@ class ChangeTemplateAdminSpec extends BeadleSpecification {
         input(defaults(), 'Privileged access 1').fill('alee')
         input(taskRows().nth(1), 'Short description').fill('Validate the gateway')
         api.respond('PUT', '/api/products/2/change-profile', problem(400, 'Bad Request', '2 fields are invalid',
-                [errors: [[field: 'template.privilegedAccess.users[0].account', message: 'must be a privileged account'],
+                [problems: [[field: 'template.privilegedAccess.users[0].account', message: 'must be a privileged account'],
                           [field: 'tasks[1].assignedTo', message: 'is not a ProTech user']]]))
         button('Save the template', true).click()
 

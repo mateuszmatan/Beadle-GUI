@@ -10,13 +10,13 @@ class BeadleWizardRegressionSpec extends ChangeRegressionSpecification {
     static final List<String> KINDS = ['users', 'departments', 'assignment-groups', 'releases', 'configuration-items',
                                        'incidents', 'problems', 'clients']
 
-    def "Beadle names the signed-in user until single sign-on comes"() {
+    def "Beadle names the user signed in locally, without an email address"() {
         when:
         def me = api.get('/api/me')
 
         then:
         me.status == 200
-        me.json == [name: SIGNED_IN]
+        me.json == [name: SIGNED_IN, email: null]
     }
 
     def "the wizard options are the ProTech categories, change types, risk answers and change task choices"() {
@@ -190,7 +190,7 @@ class BeadleWizardRegressionSpec extends ChangeRegressionSpecification {
 
         then:
         incomplete.status == 400
-        incomplete.json.errors.collect { [it.field, it.message] } == [['apoNumber', 'is required'],
+        incomplete.json.problems.collect { [it.field, it.message] } == [['apoNumber', 'is required'],
                 ['bitbucketUrl', 'is required'], ['qcApplicationLink', 'must be a link starting with https:// or http://'],
                 ['implementationDate', 'must be a date written MMDDYYYY, such as 10152026']]
         foreign.status == 403

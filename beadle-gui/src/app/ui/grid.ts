@@ -63,6 +63,7 @@ export interface GridColumn<T> {
   value?: (row: T) => unknown;
   sortValue?: (row: T) => string | number;
   sort?: 'asc' | 'desc';
+  sortable?: boolean;
   filter?: GridFilter;
   cellClass?: string;
   numeric?: boolean;
@@ -283,7 +284,7 @@ function columnDef<T>(
     headerClass: column.numeric ? 'number' : undefined,
     cellClass: classes || undefined,
     valueGetter: value ? ({ data }) => (data ? value(data) : null) : () => null,
-    sortable: !!sortValue,
+    sortable: column.sortable !== false && !!sortValue,
     sort: column.sort ?? null,
     comparator: sortValue
       ? (_x, _y, a, b) => compare(sortKey(sortValue, a.data), sortKey(sortValue, b.data))

@@ -50,11 +50,11 @@ class ProductRegressionSpec extends ChangeRegressionSpecification {
 
         expect:
         api.post('/api/products', product(code: 'lower', name: ' ', contactEmail: 'not an address'))
-                .json.errors*.field.sort() == ['code', 'contactEmail', 'name']
-        api.post('/api/products', product(code: uniqueCode(), name: 'Nowhere', departmentId: 99)).json.errors ==
+                .json.problems*.field.sort() == ['code', 'contactEmail', 'name']
+        api.post('/api/products', product(code: uniqueCode(), name: 'Nowhere', departmentId: 99)).json.problems ==
                 [[field: 'departmentId', message: 'department 99 does not exist']]
         api.post('/api/products', product(code: uniqueCode(), name: 'Long team', ownerTeam: 'Księgowość ' * 15))
-                .json.errors == [[field: 'ownerTeam', message: 'is too long: it may take at most 200 bytes']]
+                .json.problems == [[field: 'ownerTeam', message: 'is too long: it may take at most 200 bytes']]
         api.post('/api/products', product(code: taken.code, name: "Copy ${uniqueCode()}")).status == 409
         api.post('/api/products', product(code: uniqueCode(), name: taken.name.toUpperCase())).status == 409
         api.put('/api/products/999999', product(code: uniqueCode(), name: 'Missing', version: 0)).status == 404
