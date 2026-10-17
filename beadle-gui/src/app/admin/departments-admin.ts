@@ -9,7 +9,7 @@ import { Notifier } from '../core/notifier';
 import { DepartmentDialog } from '../departments/department-dialog';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
 import { counted } from '../shared/formatting';
-import { BeadleCell, GRID, GridColumn } from '../ui/grid';
+import { GRID, GridColumn } from '../ui/grid';
 import { BeadleLoading } from '../ui/loading';
 
 export interface DepartmentCount<D> {
@@ -33,7 +33,6 @@ export interface DepartmentUsage<D extends Department = Department> {
 })
 export class DepartmentsAdmin<D extends Department = Department> {
   readonly usage = input.required<DepartmentUsage<D>>();
-  readonly cells = input<readonly BeadleCell<D>[]>([]);
 
   private readonly api = inject(DepartmentsApi);
   private readonly dialog = inject(Dialog);

@@ -38,7 +38,6 @@
         [rows]="departments.value()"
         [columns]="columns()"
         [rowId]="departmentId"
-        [templates]="cells()"
       >
         <ng-template beadleCell="name" let-department>
           <span class="name">{{ department.name }}</span>

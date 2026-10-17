@@ -55,10 +55,7 @@
               "node_modules/@angular/cdk/overlay-prebuilt.css",
               "node_modules/@angular/cdk/a11y-prebuilt.css",
               "beadle-gui/src/styles.scss"
-            ],
-            "define": {
-              "AG_GRID_LICENSE_KEY": "''"
-            }
+            ]
           },
           "configurations": {
             "production": {

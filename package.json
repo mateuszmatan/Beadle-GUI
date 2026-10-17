@@ -10,7 +10,7 @@
   "private": true,
   "packageManager": "npm@10.8.2",
   "engines": {
-    "node": ">=18.0.0",
+    "node": "^20.19.0 || ^22.12.0",
     "npm": ">=9.0.0"
   },
   "dependencies": {
@@ -19,11 +19,11 @@
     "@angular/compiler": "21.2.20",
     "@angular/core": "21.2.20",
     "@angular/forms": "21.2.20",
-    "@angular/platform-browser": "21.2.20",
     "@angular/localize": "21.2.20",
+    "@angular/platform-browser": "21.2.20",
     "@angular/router": "21.2.20",
     "ag-grid-angular": "~33.1.0",
-    "ag-grid-enterprise": "~33.1.0",
+    "ag-grid-community": "~33.1.0",
     "angular-svg-icon": "^19.1.1",
     "bootstrap": "5.3.8",
     "rxjs": "~7.8.0",

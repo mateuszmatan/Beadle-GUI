@@ -21,7 +21,6 @@ import {
   CellStyleModule,
   ClientSideRowModelModule,
   ColDef,
-  CsvExportModule,
   CustomFilterModule,
   GetRowIdParams,
   GridOptions,
@@ -34,31 +33,7 @@ import {
   RowClickedEvent,
   RowStyleModule,
 } from 'ag-grid-community';
-import { LicenseManager } from 'ag-grid-enterprise';
 import { GRID_THEME } from './design-system';
-import {
-  V6Table,
-  V6TableConfig,
-  V6TableHelpers,
-  V6TableKeyStorageProvider,
-  V6TableMenuOption,
-  V6ActionsButtonOptions,
-  V6TablePreferences,
-  V6TablePreferencesStorage,
-  V6TablePreferencesLocalStorage,
-  V6ServerSideDatasource,
-  V6TableDefaultDatasource,
-  V6TableDefaultDatasourceOptions,
-  V6ActiveFilter,
-  V6ActiveSort,
-  V6TableHeaderSearchBoxComponent,
-  V6TableHeaderTitleComponent,
-  V6TableHeaderFilterSummaryComponent,
-  V6TableHeaderSortSummaryComponent,
-  V6TableSelectedRowsCountComponent,
-  V6ActionsButtonCellComponent,
-  V6_TABLE_COMPONENTS,
-} from './v6-table';
 
 ModuleRegistry.registerModules([
   ClientSideRowModelModule,
@@ -66,16 +41,38 @@ ModuleRegistry.registerModules([
   RowStyleModule,
   RowAutoHeightModule,
   CustomFilterModule,
-  CsvExportModule,
 ]);
-LicenseManager.setLicenseKey(AG_GRID_LICENSE_KEY);
 
-export interface GridOption {
+/** The BBH V6 client-side table: every row rendered (no virtualisation), sized to its rows, no column menus. */
+const OPTIONS: GridOptions = {
+  theme: 'legacy',
+  domLayout: 'autoHeight',
+  suppressColumnVirtualisation: true,
+  suppressRowVirtualisation: true,
+  ensureDomOrder: true,
+  suppressAnimationFrame: true,
+  enableCellTextSelection: true,
+  suppressCellFocus: true,
+  suppressMovableColumns: true,
+  suppressDragLeaveHidesColumns: true,
+  alwaysShowHorizontalScroll: true,
+  rowHeight: 34,
+  headerHeight: 34,
+  floatingFiltersHeight: 38,
+  defaultColDef: {
+    resizable: true,
+    suppressHeaderMenuButton: true,
+    suppressHeaderFilterButton: true,
+    suppressFloatingFilterButton: true,
+  },
+};
+
+interface GridOption {
   value: unknown;
   label: string;
 }
 
-export interface GridFilter {
+interface GridFilter {
   control: FormControl;
   label: string;
   options?: readonly GridOption[];
@@ -97,7 +94,7 @@ export interface GridColumn<T> {
   flex?: number;
 }
 
-export function compare(x: string | number, y: string | number): number {
+function compare(x: string | number, y: string | number): number {
   return typeof x === 'number' && typeof y === 'number'
     ? x - y
     : String(x).localeCompare(String(y), 'en', { numeric: true });
@@ -106,7 +103,6 @@ export function compare(x: string | number, y: string | number): number {
 @Directive({ selector: 'ng-template[beadleCell]' })
 export class BeadleCell<T> {
   readonly key = input.required<string>({ alias: 'beadleCell' });
-  readonly rows = input<readonly T[]>();
   readonly template = inject<TemplateRef<{ $implicit: T }>>(TemplateRef);
 
   static ngTemplateContextGuard<T>(
@@ -127,7 +123,7 @@ interface CellParams<T> extends ICellRendererParams<T> {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<ng-container *ngTemplateOutlet="template(); context: { $implicit: row() }" />`,
 })
-export class GridCell<T> implements ICellRendererAngularComp {
+class GridCell<T> implements ICellRendererAngularComp {
   protected readonly template = signal<TemplateRef<{ $implicit: T }> | null>(null);
   protected readonly row = signal<T | undefined>(undefined);
 
@@ -180,7 +176,7 @@ interface FilterParams extends IFloatingFilterParams {
     }
   `,
 })
-export class GridFilterCell implements IFloatingFilterAngularComp {
+class GridFilterCell implements IFloatingFilterAngularComp {
   protected readonly filter = signal<GridFilter | null>(null);
 
   agInit(params: FilterParams): void {
@@ -222,7 +218,7 @@ const INTERACTIVE = 'a, button, input, select, textarea, label';
   template: `
     <ag-grid-angular
       [class]="theme"
-      [gridOptions]="options()"
+      [gridOptions]="options"
       [columnDefs]="columnDefs()"
       [rowData]="rowData()"
       [overlayNoRowsTemplate]="emptyTemplate()"
@@ -244,11 +240,6 @@ export class BeadleGrid<T> {
   readonly rowClass = input<(row: T) => string | string[] | undefined>();
   readonly empty = input('');
   readonly label = input<string>();
-  readonly templates = input<readonly BeadleCell<T>[], readonly BeadleCell<T>[] | undefined>([], {
-    transform: (templates) => templates ?? [],
-  });
-  readonly v6Config = input<V6TableConfig>();
-  readonly gridOptions = input<GridOptions<T>>();
   readonly rowClick = output<T>();
 
   private readonly cells = contentChildren<BeadleCell<T>>(BeadleCell);
@@ -259,28 +250,12 @@ export class BeadleGrid<T> {
     () => `<span class="beadle-grid-empty">${escapeHtml(this.empty())}</span>`,
   );
 
-  protected readonly options = computed<GridOptions<T>>(() => {
-    const base = V6Table.defaultClientSideGridOptions() as GridOptions<T>;
-    const custom = this.v6Config()?.options || this.gridOptions() || {};
-    const autoSizeStrategy = this.v6Config()?.autoSizeStrategy;
-    return {
-      ...base,
-      suppressMovableColumns: true,
-      suppressDragLeaveHidesColumns: true,
-      ...(autoSizeStrategy ? { autoSizeStrategy } : {}),
-      ...custom,
-      defaultColDef: {
-        ...base.defaultColDef,
-        suppressHeaderMenuButton: true,
-        suppressHeaderFilterButton: true,
-        suppressFloatingFilterButton: true,
-        ...custom.defaultColDef,
-      },
-      getRowId: (params: GetRowIdParams<T>) => String(this.rowId()(params.data)),
-      getRowClass: (params: RowClassParams<T>) =>
-        params.data ? this.rowClass()?.(params.data) : undefined,
-    } as unknown as GridOptions<T>;
-  });
+  protected readonly options: GridOptions<T> = {
+    ...(OPTIONS as GridOptions<T>),
+    getRowId: (params: GetRowIdParams<T>) => String(this.rowId()(params.data)),
+    getRowClass: (params: RowClassParams<T>) =>
+      params.data ? this.rowClass()?.(params.data) : undefined,
+  };
 
   protected clicked(event: RowClickedEvent<T>): void {
     const target = event.event?.target;
@@ -290,9 +265,7 @@ export class BeadleGrid<T> {
   }
 
   protected readonly columnDefs = computed<ColDef<T>[]>(() => {
-    const templates = new Map(
-      [...this.templates(), ...this.cells()].map((cell) => [cell.key(), cell.template]),
-    );
+    const templates = new Map(this.cells().map((cell) => [cell.key(), cell.template]));
     return this.columns().map((column) => columnDef(column, templates.get(column.key)));
   });
 }
@@ -339,6 +312,4 @@ function escapeHtml(text: string): string {
   return text.replace(/[&<>"]/g, (character) => `&#${character.charCodeAt(0)};`);
 }
 
-export const GRID = [BeadleGrid, BeadleCell, ...V6_TABLE_COMPONENTS] as const;
-
-export * from './v6-table';
+export const GRID = [BeadleGrid, BeadleCell] as const;
