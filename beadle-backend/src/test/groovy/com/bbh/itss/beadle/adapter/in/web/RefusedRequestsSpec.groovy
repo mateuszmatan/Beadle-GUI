@@ -6,18 +6,28 @@ import com.bbh.itss.beadle.application.audit.port.in.RefusedRequest
 import com.bbh.itss.beadle.application.audit.port.in.RefusedRequestsUseCase
 import com.bbh.itss.beadle.domain.audit.ActionObject
 import com.bbh.itss.beadle.domain.audit.ActionRecord
+import com.bbh.itss.beadle.domain.shared.InvalidRequestException
+import com.bbh.itss.beadle.domain.shared.InvalidRequestException.FieldProblem
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Size
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider
 import org.springframework.core.type.filter.AnnotationTypeFilter
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PatchMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
 import spock.lang.Specification
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.json.JsonMapper
+
+import java.time.DayOfWeek
 
 import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_PROTECH
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED
@@ -203,5 +213,64 @@ class RefusedRequestsSpec extends Specification {
 
     private static MockHttpServletRequestBuilder json(MockHttpServletRequestBuilder request, String body) {
         request.contentType(APPLICATION_JSON).content(body)
+    }
+
+    /** Endpoints of every kind of {@link AuditedRequest}. */
+    @RestController
+    static class AuditedSampleController {
+
+        @PostMapping('/api/samples/named')
+        @AuditedRequest(value = DEPARTMENT_CREATED, objectKey = 'name')
+        String create(@Valid @RequestBody Named request) {
+            request.name
+        }
+
+        @PutMapping('/api/samples/named/{id}')
+        @AuditedRequest(DEPARTMENT_RENAMED)
+        String rename(@PathVariable('id') long id, @Valid @RequestBody Named request) {
+            "$id $request.name"
+        }
+
+        @PostMapping('/api/samples/raised')
+        @AuditedRequest(value = CHANGE_RAISED, objectId = 'productId', objectType = PRODUCT)
+        String raise(@Valid @RequestBody Raised request) {
+            request.fixVersion
+        }
+
+        @PostMapping('/api/samples/callback')
+        @AuditedRequest(value = CALLBACK_PROTECH, objectKey = 'number', actor = 'system:protech')
+        String callback(@Valid @RequestBody Named request) {
+            request.name
+        }
+
+        @PostMapping('/api/samples/refusing')
+        @AuditedRequest(DEPARTMENT_CREATED)
+        String refusing(@Valid @RequestBody Named request) {
+            throw new InvalidRequestException([new FieldProblem('name', 'is taken')])
+        }
+
+        @PostMapping('/api/samples/unaudited')
+        String unaudited(@Valid @RequestBody Named request) {
+            request.name
+        }
+    }
+
+    static class Named {
+
+        @NotBlank
+        @Size(max = 10)
+        String name
+        String apiToken
+        DayOfWeek day
+        String number
+    }
+
+    static class Raised {
+
+        @NotNull
+        Long productId
+
+        @NotBlank
+        String fixVersion
     }
 }

@@ -284,6 +284,10 @@ project(':beadle-backend') { backend ->
         }
     }
 
+    tasks.withType(GroovyCompile).configureEach {
+        groovyOptions.parameters = true
+    }
+
     jacoco {
         toolVersion = libs.versions.jacoco.get()
     }
