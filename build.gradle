@@ -300,6 +300,7 @@ project(':beadle-backend') { backend ->
                 targets.configureEach {
                     testTask.configure {
                         jvmArgs '-XX:+EnableDynamicAgentLoading'
+                        systemProperty 'LOG_PATH', backend.layout.buildDirectory.dir('logs').get().asFile.absolutePath
                         testLogging {
                             events 'failed'
                             exceptionFormat = 'full'

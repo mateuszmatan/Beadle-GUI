@@ -43,8 +43,6 @@ management:
 logging:
   level:
     com.bbh.itss.beadle: INFO
-  pattern:
-    correlation: "[%X{correlationId:-}] "
 
 beadle:
   gui:
