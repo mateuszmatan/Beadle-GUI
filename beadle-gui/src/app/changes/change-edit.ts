@@ -1,4 +1,3 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -15,33 +14,23 @@ import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { MyDepartment } from '../departments/my-department';
-import { errorMessage, fieldProblems } from '../core/errors';
+import { fieldProblems } from '../core/errors';
 import { Notifier } from '../core/notifier';
-import { CHANGES, beadleChange } from '../core/sections';
+import { beadleChange } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
-import { applyFieldProblems, byteLength, filled, text } from '../shared/form-controls';
-import { errorText } from '../shared/form-errors';
-import { FORM_FIELD } from '../ui/form-field';
-import { BeadleLoading, BeadleSpinner } from '../ui/loading';
-import { ChangesApi, ProductionChange, isOpen } from './change-api';
-import { activeTasks, editHint, fits } from './change-model';
-import { problemText } from './change-problems';
+import { applyFieldProblems, filled, text } from '../shared/form-controls';
+import { Failure, NEEDS_ATTENTION, SaveBar, failureOf } from '../ui/save-bar';
+import { ChangesApi, ProductionChange } from './change-api';
+import { activeTasks, editRefusal, fits } from './change-model';
+import { ChangePage } from './change-page';
 import { onHours, scheduleForm, scheduleValue } from './change-schedule-model';
 import { changeFacts } from './change-sections';
 import { ChangeTasksForm } from './change-tasks-form';
 import { setTaskWindow, taskWindow, tasksForm, toTaskRequests } from './change-tasks-model';
 import { ChangeTemplateForm } from './change-template-form';
 import { templateForm, toTemplate } from './change-template-model';
+import { ChangeTexts } from './change-texts';
 import { PublishedChange } from './published-change';
-
-export const STALE =
-  'The change was changed in ProTech or by someone else meanwhile. Reload it and apply your change again.';
-
-interface Failure {
-  message: string;
-  problems: string[];
-  reload: boolean;
-}
 
 export function editForm(change: ProductionChange) {
   const template = templateForm(change.template);
@@ -67,34 +56,15 @@ export type EditForm = ReturnType<typeof editForm>;
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    BeadleLoading,
-    BeadleSpinner,
-    FORM_FIELD,
+    ChangePage,
     ChangeTasksForm,
     ChangeTemplateForm,
+    ChangeTexts,
+    SaveBar,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="page">
-      <nav class="breadcrumb" aria-label="Breadcrumb">
-        <a [routerLink]="section.path">{{ section.label }}</a>
-        <span class="sep" aria-hidden="true">/</span>
-        @if (change.hasValue()) {
-          <a [routerLink]="changeLink(id())">{{ change.value().number }}</a>
-          <span class="sep" aria-hidden="true">/</span>
-        }
-        <span>Edit</span>
-      </nav>
-      @if (change.isLoading()) {
-        <beadle-loading />
-      }
-      @if (change.error(); as error) {
-        <div class="banner" role="alert">
-          <span>The change could not be loaded: {{ errorMessage(error) }}</span>
-          <span class="spacer"></span>
-          <button type="button" class="btn btn-link" (click)="change.reload()">Try again</button>
-        </div>
-      }
+    <beadle-change-page [change]="change" crumb="Edit">
       @if (change.hasValue()) {
         @let c = change.value();
         <header class="page-header">
@@ -106,13 +76,7 @@ export type EditForm = ReturnType<typeof editForm>;
             </p>
           </div>
         </header>
-        @if (!open()) {
-          <div class="banner refused" role="alert">
-            <span>{{ c.number }} is closed in ProTech and can no longer be changed</span>
-            <span class="spacer"></span>
-            <a class="btn btn-link" [routerLink]="changeLink(id())">Back to the change</a>
-          </div>
-        } @else if (hint(); as message) {
+        @if (refusal(); as message) {
           <div class="banner refused" role="alert">
             <span>{{ message }}</span>
             <span class="spacer"></span>
@@ -140,88 +104,31 @@ export type EditForm = ReturnType<typeof editForm>;
               </p>
               <beadle-change-tasks-form [tasks]="f.controls.tasks" />
             </section>
-            <section class="card block texts">
+            <section class="card block">
               <h2>Text sent to ProTech</h2>
               <p class="section-help">
                 The short description and description ProTech shows for the change. They are not
                 rewritten when you change the fields above, so bring them in line yourself.
               </p>
-              <beadle-form-field>
-                <beadle-label>Short description</beadle-label>
-                <input beadleInput formControlName="shortDescription" maxlength="160" required />
-                <beadle-hint class="length-hint"
-                  >{{ byteLength(f.controls.shortDescription.value) }} / 160</beadle-hint
-                >
-                <beadle-error>{{ errorText(f.controls.shortDescription) }}</beadle-error>
-              </beadle-form-field>
-              <beadle-form-field>
-                <beadle-label>Description</beadle-label>
-                <textarea beadleInput rows="9" formControlName="description" required></textarea>
-                <beadle-hint class="length-hint"
-                  >{{ byteLength(f.controls.description.value) }} / 4000</beadle-hint
-                >
-                <beadle-error>{{ errorText(f.controls.description) }}</beadle-error>
-              </beadle-form-field>
+              <beadle-change-texts
+                [shortDescription]="f.controls.shortDescription"
+                [description]="f.controls.description"
+              />
             </section>
-            @if (failure()?.problems?.length) {
-              <div class="banner danger problems-banner" role="alert">
-                <ul class="problems">
-                  @for (problem of failure()!.problems; track problem) {
-                    <li>{{ problem }}</li>
-                  }
-                </ul>
-              </div>
-            }
-            <div class="save-bar">
-              @if (failure(); as failed) {
-                <span class="save-error" role="alert">{{ failed.message }}</span>
-                @if (failed.reload) {
-                  <button type="button" class="btn btn-link" (click)="reload()">Reload</button>
-                }
-              } @else if (f.dirty) {
-                <span class="muted">Unsaved changes</span>
-              }
-              <span class="spacer"></span>
-              <a class="btn btn-link" [routerLink]="changeLink(id())">Cancel</a>
-              <button type="submit" class="btn btn-primary" [disabled]="saving()">
-                @if (saving()) {
-                  <beadle-spinner />
-                }
-                Publish the update to ProTech
-              </button>
-            </div>
+            <beadle-save-bar
+              label="Publish the update to ProTech"
+              [cancelLink]="changeLink(id())"
+              [failure]="failure()"
+              [saving]="saving()"
+              [dirty]="f.dirty"
+              (reload)="reload()"
+            />
           </form>
         }
       }
-    </div>
+    </beadle-change-page>
   `,
   styles: `
-    .block {
-      margin-bottom: 12px;
-      padding: 10px 14px;
-
-      h2 {
-        margin: 0 0 6px;
-        font-size: 15px;
-      }
-    }
-
-    .texts {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-
-      textarea {
-        font-family: var(--beadle-mono);
-        font-size: 12px;
-      }
-
-      .length-hint {
-        display: block;
-        text-align: end;
-      }
-    }
-
     .fields {
       margin-bottom: 12px;
 
@@ -229,14 +136,6 @@ export type EditForm = ReturnType<typeof editForm>;
         margin: 0 0 6px;
         font-size: 15px;
       }
-    }
-
-    .problems-banner {
-      margin: 12px 0 0;
-    }
-
-    .refused {
-      flex-wrap: wrap;
     }
   `,
 })
@@ -250,19 +149,16 @@ export class ChangeEdit implements HasUnsavedChanges {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly section = CHANGES;
   protected readonly changeLink = beadleChange;
-  protected readonly errorMessage = errorMessage;
-  protected readonly errorText = errorText;
-  protected readonly byteLength = byteLength;
 
   protected readonly change = rxResource({
     params: () => this.id(),
     stream: ({ params }) => this.api.get(params),
   });
-  protected readonly open = computed(() => this.change.hasValue() && isOpen(this.change.value()));
-  protected readonly hint = computed(() =>
-    this.change.hasValue() ? editHint(this.change.value(), this.myDepartment.departmentId()) : null,
+  protected readonly refusal = computed(() =>
+    this.change.hasValue()
+      ? editRefusal(this.change.value(), this.myDepartment.departmentId())
+      : null,
   );
   protected readonly facts = computed(() =>
     this.change.hasValue() ? changeFacts(this.change.value()) : [],
@@ -294,11 +190,7 @@ export class ChangeEdit implements HasUnsavedChanges {
     this.failure.set(null);
     form.markAllAsTouched();
     if (form.invalid) {
-      this.failure.set({
-        message: 'Some fields need your attention.',
-        problems: [],
-        reload: false,
-      });
+      this.failure.set(NEEDS_ATTENTION);
       return;
     }
     const value = form.getRawValue();
@@ -326,22 +218,10 @@ export class ChangeEdit implements HasUnsavedChanges {
           );
           this.router.navigate(beadleChange(this.id()));
         },
-        error: (error) => this.failed(form, error),
+        error: (error) => {
+          applyFieldProblems(form, fieldProblems(error).map(onHours));
+          this.failure.set(failureOf(error, 'The update could not be published'));
+        },
       });
-  }
-
-  private failed(form: EditForm, error: unknown): void {
-    const problems = fieldProblems(error);
-    applyFieldProblems(form, problems.map(onHours));
-    const conflict = error instanceof HttpErrorResponse && error.status === 409;
-    const message = errorMessage(error);
-    this.failure.set({
-      message:
-        conflict && message.includes('changed by someone else')
-          ? STALE
-          : `The update could not be published: ${message}`,
-      problems: problems.map(problemText),
-      reload: conflict,
-    });
   }
 }

@@ -411,7 +411,7 @@ class ChangesSpec extends BeadleSpecification {
     }
 
     Locator approvalRows() {
-        page.locator('beadle-change-approvals tbody tr:not(.group)')
+        page.locator('beadle-change-approvals .ag-center-cols-container .ag-row')
     }
 
     Locator stages() {

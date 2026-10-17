@@ -2,10 +2,10 @@
   <header class="topbar">
     <div class="topbar-inner">
       <a class="brand" routerLink="/">
-        <span class="brand-name"><strong>BBH</strong> {{ name }}</span>
+        <span class="brand-name"><strong>BBH</strong> Beadle</span>
       </a>
       <nav class="menu" aria-label="Main">
-        @for (section of sections(); track section.path) {
+        @for (section of sections; track section.path) {
           <a
             class="menu-link"
             [routerLink]="section.path"
@@ -16,8 +16,9 @@
         }
       </nav>
       @if (user(); as user) {
-        <div class="account">
-          <span class="user-name" [attr.title]="user.email">{{ user.name }}</span>
+        <div class="user-badge" [attr.title]="user.email">
+          <span class="user-icon" aria-hidden="true">👤</span>
+          <span class="user-name">{{ user.name }}</span>
           <button
             type="button"
             class="sign-out"

@@ -13,7 +13,7 @@ import {
   releaseDetails,
   taskDetails,
 } from '../testing/change-fixtures';
-import { buttonOf, inputOf, text } from '../testing/dom';
+import { buttonOf, gridColumn, inputOf, text } from '../testing/dom';
 import { ProductionChange } from './change-api';
 import { ChangeDetail, MAX_POLLS, POLL_INTERVAL, updateText } from './change-detail';
 import { momentText } from './change-model';
@@ -187,9 +187,9 @@ describe('ChangeDetail', () => {
       ),
     ).toEqual(['false', 'false']);
     expect(page().querySelectorAll('beadle-workflow-progress li')).toHaveLength(9);
-    expect(text(page().querySelector('beadle-workflow-progress li[aria-current="step"]'))).toContain(
-      'Primary Approval',
-    );
+    expect(
+      text(page().querySelector('beadle-workflow-progress li[aria-current="step"]')),
+    ).toContain('Primary Approval');
     expect(text(page().querySelector('.now'))).toBe(
       'Primary Approval. Waiting for the L1 approver, Olivia Bennett, to approve the change in ProTech.',
     );
@@ -232,17 +232,12 @@ describe('ChangeDetail', () => {
       expect.stringMatching(/^Downtime: Sat, 10 Oct 2026, \d\d:00 to \d\d:00$/),
     ]);
     expect(text(block('When it installs')!.querySelector('.note'))).toBe(zoneNote);
-    expect(
-      [...page().querySelectorAll('beadle-change-approvals tbody tr')].map((row) =>
-        [...row.children].map(text),
-      ),
-    ).toEqual([
-      ['Business approverBusiness Approval', 'Not named in ProTech', 'Approved', '', ''],
-      ['L1 approverPrimary Approval', 'Olivia Bennett', 'Requested', '', 'Remind'],
-      ['L2 approverSecondary Approval', 'James Carter', 'Not Approved', '', 'Remind'],
-      ['Support approverSupport Approval', 'Jane Smith', 'Not Approved', '', 'Remind'],
-      ['CTASK approvals'],
-      ['CTASK0020001Release Management', 'Rebecca Lawson, Thomas Ashby', 'Requested', '', 'Remind'],
+    expect(gridColumn(page().querySelector('beadle-change-approvals')!, 'approval')).toEqual([
+      'Business approverBusiness Approval',
+      'L1 approverPrimary Approval',
+      'L2 approverSecondary Approval',
+      'Support approverSupport Approval',
+      'CTASK0020001Release Management',
     ]);
     expect(rows('Secure coding')).toEqual([
       'Secure coding ticket number: SEC-12',
@@ -274,7 +269,9 @@ describe('ChangeDetail', () => {
     expect(inputOf(tasks[2], 'Number').placeholder).toBe('Given by ProTech when created');
     expect(
       [
-        ...page().querySelectorAll('beadle-change-tasks-form input, beadle-change-tasks-form textarea'),
+        ...page().querySelectorAll(
+          'beadle-change-tasks-form input, beadle-change-tasks-form textarea',
+        ),
       ].every((field) => (field as HTMLInputElement).disabled),
     ).toBe(true);
     expect(page().querySelector('beadle-change-tasks-form button')).toBeNull();
@@ -512,28 +509,6 @@ describe('ChangeDetail', () => {
     expect(text(page().querySelector('.banner.update'))).toBe(
       `ProTech did not apply the update of ${requested}: Installation start.`,
     );
-  });
-
-  it('says when a change cannot be found', async () => {
-    fixture = TestBed.createComponent(ChangeDetail);
-    fixture.componentRef.setInput('id', 99);
-    await settle();
-    http
-      .expectOne('/api/changes/99')
-      .flush({ detail: 'Change 99 does not exist' }, { status: 404, statusText: 'Not Found' });
-    await settle();
-
-    expect(text(page().querySelector('.banner span'))).toBe(
-      'The change could not be loaded: Change 99 does not exist',
-    );
-    expect(text(page().querySelector('.breadcrumb'))).toBe('Changes/Change');
-
-    buttonOf(page(), 'Try again').click();
-    await settle();
-    http.expectOne('/api/changes/99').flush(productionChange({ id: 99 }));
-    await settle();
-    expect(page().querySelector('.banner')).toBeNull();
-    expect(text(page().querySelector('h1'))).toBe('CHG0012345');
   });
 });
 

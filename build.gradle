@@ -14,7 +14,6 @@ def heavyTests = gradle.sharedServices.registerIfAbsent('heavyTests', HeavyTestS
   maxParallelUsages = (findProperty('heavyTests.parallel') ?: '1') as int
 }
 
-def bbhNetwork = true
 def skipGui = providers.gradleProperty('skipGui').map { it != 'false' }.getOrElse(false)
 def performanceFactor = providers.systemProperty('performance.factor')
   .orElse(providers.gradleProperty('performance.factor'))
@@ -79,14 +78,10 @@ def npmSettings = [
         'npm.https.proxy': 'npm_config_https_proxy',
         'npm.no.proxy'   : 'npm_config_noproxy',
         'npm.loglevel'   : 'npm_config_loglevel']
-def npmEnvironment = bbhNetwork
-        ? npmSettings.findAll { setting, variable -> findProperty(setting) && (setting != 'npm.cafile' || file(findProperty(setting)).isFile()) }
-                .collectEntries { setting, variable -> [variable, findProperty(setting)] }
-        : [npm_config_registry: findProperty('npm.publicRegistry') ?: 'https://registry.npmjs.org/']
+def npmEnvironment = npmSettings
+        .findAll { setting, variable -> findProperty(setting) && (setting != 'npm.cafile' || file(findProperty(setting)).isFile()) }
+        .collectEntries { setting, variable -> [variable, findProperty(setting)] }
 def designSystemPackages = (findProperty('designSystem.packages') ?: '@v6/v6-themes@21 @v6/v6-table @v6/v6-icons').toString().tokenize()
-def hasV6 = file('node_modules/@v6/v6-themes').isDirectory()
-def angularConfiguration = hasV6 ? 'production' : 'production,public'
-def agGridLicenseKey = providers.gradleProperty('agGridLicenseKey').orElse(providers.environmentVariable('AG_GRID_LICENSE_KEY')).getOrElse('')
 def npmInstalled = layout.buildDirectory.file('npm/installed.txt')
 def designSystemInstalled = layout.buildDirectory.file('npm/design-system.txt')
 def workspaceFiles = files('package.json', 'package-lock.json', '.npmrc', 'angular.json', 'tsconfig.json')
@@ -113,11 +108,10 @@ tasks.register('installDesignSystem', Exec) {
     environment npmEnvironment
     inputs.files('package.json', 'package-lock.json', '.npmrc')
     inputs.property('packages', designSystemPackages)
-    commandLine = npmCmd + ['install', '--no-save', '--no-audit', '--no-fund', '--fetch-retries=0', '--fetch-timeout=3000'] + designSystemPackages
+    commandLine = npmCmd + ['install', '--no-save', '--no-audit', '--no-fund'] + designSystemPackages
     outputs.file(designSystemInstalled)
     onlyIf { !designSystemInstalled.get().asFile.isFile() }
     outputs.upToDateWhen { designSystemInstalled.get().asFile.isFile() }
-    ignoreExitValue = true
     doLast {
         designSystemInstalled.get().asFile.parentFile.mkdirs()
         designSystemInstalled.get().asFile.text = 'checked'
@@ -144,16 +138,12 @@ project(':beadle-gui') { frontend ->
     tasks.register('buildAngular', Exec) {
         dependsOn ':installDesignSystem'
         group = 'build'
-        description = "Build the Angular interface ($angularConfiguration) with npx ng into beadle-gui/dist"
+        description = 'Build the Angular interface with npx ng into beadle-gui/dist'
         workingDir = rootDir
         environment npmEnvironment
         inputs.files(sources).withPathSensitivity(PathSensitivity.RELATIVE)
-        inputs.property('configuration', angularConfiguration)
-        inputs.property('agGridLicensed', agGridLicenseKey ? agGridLicenseKey.digest('SHA-256') : '')
-        commandLine = npxCmd + ['ng', 'build', frontend.name, "--configuration=$angularConfiguration"] +
-                (agGridLicenseKey ? ["--define=AG_GRID_LICENSE_KEY=\"$agGridLicenseKey\"".toString()] : [])
+        commandLine = npxCmd + ['ng', 'build', frontend.name]
         outputs.dir(distDir)
-        doFirst { logger.lifecycle("Executing: npx ng build ${frontend.name} --configuration=$angularConfiguration") }
     }
 
     tasks.register('testAngular', Exec) {

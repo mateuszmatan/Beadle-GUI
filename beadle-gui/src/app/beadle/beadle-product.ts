@@ -1,5 +1,4 @@
 import { DatePipe } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -30,7 +29,8 @@ import { Notifier } from '../core/notifier';
 import { ADMIN, ADMIN_PRODUCTS } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { applyFieldProblems } from '../shared/form-controls';
-import { BeadleLoading, BeadleSpinner } from '../ui/loading';
+import { BeadleLoading } from '../ui/loading';
+import { Failure, NEEDS_ATTENTION, SaveBar, failureOf } from '../ui/save-bar';
 import { ProductAdmin } from './product-admin';
 
 export function profileForm(profile: ChangeProfile) {
@@ -49,10 +49,10 @@ export type ProfileForm = ReturnType<typeof profileForm>;
     ReactiveFormsModule,
     RouterLink,
     BeadleLoading,
-    BeadleSpinner,
     ChangeTasksForm,
     ChangeTemplateForm,
     ProductAdmin,
+    SaveBar,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -119,24 +119,14 @@ export type ProfileForm = ReturnType<typeof profileForm>;
               </header>
               <beadle-change-tasks-form [tasks]="group.controls.tasks" />
             </section>
-            <div class="save-bar">
-              @if (saveError(); as error) {
-                <span class="save-error" role="alert">{{ error }}</span>
-                @if (conflict()) {
-                  <button type="button" class="btn btn-link" (click)="reload()">Reload</button>
-                }
-              } @else if (group.dirty) {
-                <span class="muted">Unsaved changes</span>
-              }
-              <span class="spacer"></span>
-              <a class="btn btn-link" [routerLink]="products.path">Cancel</a>
-              <button type="submit" class="btn btn-primary" [disabled]="saving()">
-                @if (saving()) {
-                  <beadle-spinner />
-                }
-                Save the template
-              </button>
-            </div>
+            <beadle-save-bar
+              label="Save the template"
+              [cancelLink]="products.path"
+              [failure]="failure()"
+              [saving]="saving()"
+              [dirty]="group.dirty"
+              (reload)="reload()"
+            />
           </form>
         </section>
       }
@@ -213,8 +203,7 @@ export class BeadleProduct implements HasUnsavedChanges {
   protected readonly version = signal<number | null>(null);
   protected readonly savedAt = signal<string | null>(null);
   protected readonly saving = signal(false);
-  protected readonly saveError = signal<string | null>(null);
-  protected readonly conflict = signal(false);
+  protected readonly failure = signal<Failure | null>(null);
 
   constructor() {
     effect(() => {
@@ -243,18 +232,16 @@ export class BeadleProduct implements HasUnsavedChanges {
   }
 
   protected reload(): void {
-    this.saveError.set(null);
-    this.conflict.set(false);
+    this.failure.set(null);
     this.profile.reload();
   }
 
   protected save(): void {
     const form = this.form()!;
-    this.saveError.set(null);
-    this.conflict.set(false);
+    this.failure.set(null);
     form.markAllAsTouched();
     if (form.invalid) {
-      this.saveError.set('Some fields need your attention.');
+      this.failure.set(NEEDS_ATTENTION);
       return;
     }
     this.saving.set(true);
@@ -277,14 +264,8 @@ export class BeadleProduct implements HasUnsavedChanges {
           this.notifier.success(`The change template of ${saved.productName} is saved`);
         },
         error: (error) => {
-          const problems = fieldProblems(error);
-          const unmatched = applyFieldProblems(form, nestedTaskProblems(problems));
-          this.saveError.set(
-            unmatched.length || !problems.length
-              ? errorMessage(error)
-              : 'Beadle did not accept some values. They are marked below.',
-          );
-          this.conflict.set(error instanceof HttpErrorResponse && error.status === 409);
+          applyFieldProblems(form, nestedTaskProblems(fieldProblems(error)));
+          this.failure.set(failureOf(error, 'The change template could not be saved'));
         },
       });
   }

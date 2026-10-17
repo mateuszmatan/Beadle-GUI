@@ -195,15 +195,6 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
     </div>
   `,
   styles: `
-    .toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 8px 16px;
-      margin-bottom: 12px;
-      padding: 10px 12px;
-    }
-
     .department {
       width: 280px;
       max-width: 100%;
@@ -220,14 +211,6 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
         margin: 0 0 4px;
         font-size: 15px;
       }
-    }
-
-    .list-head {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 4px 16px;
     }
 
     .state {

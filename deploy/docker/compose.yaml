@@ -1,0 +1,44 @@
+# The Docker test environment: Beadle-GUI, Beadle-Internal and Beadle-ProTech on one network, under the same service
+# names as in OpenShift. Build the three jars first (`gradle build` in each repository), then from this folder:
+#   BEADLE_SERVICE_TOKEN=<any secret> docker compose up --build
+# The profile is local (H2 in a volume, demo adapters, signed in as BEADLE_SIGNED_IN_USER). For Oracle, run with
+# SPRING_PROFILES_ACTIVE=rd and DB_URL, DB_USERNAME, DB_PASSWORD (plus the system URLs) in an env file.
+# Only Beadle-GUI is published, on BEADLE_PORT (default 8081).
+x-beadle: &beadle
+  restart: unless-stopped
+  environment: &env
+    SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+    BEADLE_SERVICE_TOKEN: ${BEADLE_SERVICE_TOKEN:?set BEADLE_SERVICE_TOKEN}
+    BEADLE_GUI_URL: http://beadle:8081
+
+services:
+  beadle:
+    <<: *beadle
+    build: ../..
+    environment:
+      <<: *env
+      BEADLE_INTERNAL_URL: http://beadle-internal:8082
+      BEADLE_PROTECH_URL: http://beadle-protech:8083
+      BEADLE_SIGNED_IN_USER: ${BEADLE_SIGNED_IN_USER:-Mateusz Matan}
+    ports:
+      - ${BEADLE_PORT:-8081}:8081
+    volumes:
+      - beadle-data:/application/data
+    depends_on: [beadle-internal, beadle-protech]
+
+  beadle-internal:
+    <<: *beadle
+    build: ${BEADLE_INTERNAL_DIR:-../../../Beadle-Internal}
+    volumes:
+      - beadle-internal-data:/application/data
+
+  beadle-protech:
+    <<: *beadle
+    build: ${BEADLE_PROTECH_DIR:-../../../Beadle-ProTech}
+    volumes:
+      - beadle-protech-data:/application/data
+
+volumes:
+  beadle-data:
+  beadle-internal-data:
+  beadle-protech-data:

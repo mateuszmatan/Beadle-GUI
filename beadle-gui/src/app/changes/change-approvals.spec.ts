@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MyDepartment } from '../departments/my-department';
 import { Notifier } from '../core/notifier';
 import { changeApproval, changeTask, productionChange } from '../testing/change-fixtures';
-import { buttonOf, text } from '../testing/dom';
+import { buttonOf, gridCell, gridRows, settleGrid, text } from '../testing/dom';
 import { ProductionChange } from './change-api';
 import {
   ChangeApprovals,
@@ -140,7 +140,11 @@ describe('ChangeApprovals', () => {
 
   const page = () => fixture.nativeElement as HTMLElement;
   const rows = () =>
-    [...page().querySelectorAll('tbody tr')].map((row) => [...row.children].map(text));
+    gridRows(page()).map((row) =>
+      ['approval', 'approvers', 'state', 'reminder', 'action'].map((column) =>
+        text(gridCell(row, column)),
+      ),
+    );
   const remindAll = () => buttonOf(page(), 'Remind everyone who has not approved');
 
   async function show(
@@ -153,6 +157,8 @@ describe('ChangeApprovals', () => {
     fixture.componentInstance.changed.subscribe((value) => changed.push(value));
     fixture.detectChanges();
     await fixture.whenStable();
+    await settleGrid();
+    fixture.detectChanges();
   }
 
   async function settle() {
@@ -190,12 +196,15 @@ describe('ChangeApprovals', () => {
     );
 
     expect(text(page().querySelector('h2'))).toBe('Approvals');
+    expect([...page().querySelectorAll('h3')].map(text)).toEqual([
+      'Change approvals',
+      'CTASK approvals',
+    ]);
     expect(rows()).toEqual([
       ['Business approverBusiness Approval', 'Not named in ProTech', 'Approved', '', ''],
       ['L1 approverPrimary Approval', 'Olivia Bennett', 'Requested', '', 'Remind'],
       ['L2 approverSecondary Approval', 'James Carter', 'Not Approved', '', 'Remind'],
       ['Support approverSupport Approval', 'Jane Smith', 'Not Approved', '', 'Remind'],
-      ['CTASK approvals'],
       [
         'CTASK0020001Technology Architecture',
         'Rebecca Lawson, Thomas Ashby',
@@ -319,7 +328,7 @@ describe('ChangeApprovals', () => {
     expect(text(page().querySelector('.no-tasks'))).toBe(
       'No change tasks yet. The change needs at least one approved change task to go In Progress.',
     );
-    expect(rows().some((row) => row[0] === 'CTASK approvals')).toBe(false);
+    expect([...page().querySelectorAll('h3')].map(text)).toEqual(['Change approvals']);
     fixture.destroy();
 
     await show(productionChange({ state: 'CLOSED', tasks: [] }));

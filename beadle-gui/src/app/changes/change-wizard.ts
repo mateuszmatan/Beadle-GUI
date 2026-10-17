@@ -11,7 +11,6 @@ import {
 } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { EMPTY, Observable, Subject, catchError, finalize, of, switchMap } from 'rxjs';
 import { MyDepartment } from '../departments/my-department';
@@ -21,11 +20,12 @@ import { CHANGES, NEW_CHANGE, beadleChange, beadleProduct } from '../core/sectio
 import { KeepsDraft, SessionEnd } from '../core/session-end';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { byDepartment } from '../departments/departments';
-import { applyFieldProblems, applyProblemsAt, byteLength, filled } from '../shared/form-controls';
+import { applyFieldProblems, applyProblemsAt, filled } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
 import { BeadleCheckbox } from '../ui/checkbox';
 import { FORM_FIELD } from '../ui/form-field';
+import { ATTENTION } from '../ui/save-bar';
 import { BeadleLoading } from '../ui/loading';
 import {
   ChangeRequest,
@@ -69,6 +69,7 @@ import {
   toTaskRequests,
 } from './change-tasks-model';
 import { ChangeTemplateSection } from './change-template-section';
+import { ChangeTexts } from './change-texts';
 import {
   TemplateForm,
   applyTemplateProblems,
@@ -115,8 +116,6 @@ const LATER_LABELS: Partial<Record<StepKey, string>> = {
   ticket: 'Create the ticket later',
 };
 
-const ATTENTION = 'Some fields need your attention.';
-
 /** The name the wizard keeps its draft under while the browser signs in again, see {@link SessionEnd}. */
 export const WIZARD_DRAFT = 'new-change';
 
@@ -148,7 +147,6 @@ export interface WizardDraft {
 @Component({
   selector: 'beadle-change-wizard',
   imports: [
-    NgTemplateOutlet,
     ReactiveFormsModule,
     RouterLink,
     BeadleCheckbox,
@@ -158,6 +156,7 @@ export interface WizardDraft {
     ChangeSummary,
     ChangeTasksForm,
     ChangeTemplateSection,
+    ChangeTexts,
     IntegrationNote,
     SecureCodingFields,
   ],
@@ -181,7 +180,6 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
   protected readonly versionText = versionText;
   protected readonly approverNames = approverNames;
   protected readonly counted = counted;
-  protected readonly byteLength = byteLength;
   protected readonly templateLink = beadleProduct;
   protected readonly changeLink = beadleChange;
 
@@ -598,11 +596,6 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
 
   protected issueText(issue: JiraIssue): string {
     return [issue.status, `updated ${issue.updated}`].filter(Boolean).join(' · ');
-  }
-
-  protected useGeneratedText(control: FormControl<string>, generated: string): void {
-    control.setValue(generated);
-    control.markAsPristine();
   }
 
   protected later(): void {

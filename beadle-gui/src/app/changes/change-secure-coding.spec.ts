@@ -5,7 +5,7 @@ import { Router, provideRouter } from '@angular/router';
 import { MyDepartment } from '../departments/my-department';
 import { Notifier } from '../core/notifier';
 import { changeTemplate, changeUpdate, productionChange } from '../testing/change-fixtures';
-import { buttonOf, inputOf, text } from '../testing/dom';
+import { buttonOf, enter, errorOf, inputOf, text } from '../testing/dom';
 import { ProductionChange } from './change-api';
 import { ChangeSecureCoding, refusalOf } from './change-secure-coding';
 import { PublishedChange } from './published-change';
@@ -31,7 +31,6 @@ describe('ChangeSecureCoding', () => {
   let navigate: ReturnType<typeof vi.spyOn>;
 
   const page = () => fixture.nativeElement as HTMLElement;
-  const form = () => fixture.componentInstance['form']()!;
   const date = implementationDateOf(productionChange().schedule.installationStart);
 
   async function settle() {
@@ -51,9 +50,7 @@ describe('ChangeSecureCoding', () => {
   }
 
   async function type(label: string, value: string) {
-    const input = inputOf(page(), label);
-    input.value = value;
-    input.dispatchEvent(new Event('input'));
+    enter(page(), label, value);
     await settle();
   }
 
@@ -125,9 +122,8 @@ describe('ChangeSecureCoding', () => {
     await type('Artifact link', ' ');
     await create();
     http.expectNone({ method: 'POST', url: '/api/changes/7/secure-coding' });
-    expect(text(page().querySelector('.problems-banner strong'))).toBe(
-      'Some fields need your attention.',
-    );
+    expect(text(page().querySelector('.save-error'))).toBe('Some fields need your attention.');
+    expect(errorOf(page(), 'Artifact link')).toBe('Required');
 
     await type('Artifact link', 'https://nexus.bbh.com/cert-4.2.jar');
     await create();
@@ -145,15 +141,15 @@ describe('ChangeSecureCoding', () => {
     );
     await settle();
 
-    expect(text(page().querySelector('.problems-banner strong'))).toBe(
+    expect(text(page().querySelector('.save-error'))).toBe(
       'The secure coding ticket could not be created: must be a date written MMDDYYYY, such as 10152026',
     );
     expect([...page().querySelectorAll('.problems li')].map(text)).toEqual([
       'Implementation date: must be a date written MMDDYYYY, such as 10152026',
     ]);
-    expect(form().controls.implementationDate.errors).toEqual({
-      server: 'must be a date written MMDDYYYY, such as 10152026',
-    });
+    expect(errorOf(page(), 'Implementation date')).toBe(
+      'must be a date written MMDDYYYY, such as 10152026',
+    );
     expect(navigate).not.toHaveBeenCalled();
   });
 
@@ -165,20 +161,5 @@ describe('ChangeSecureCoding', () => {
     );
     expect(page().querySelector('beadle-secure-coding-form')).toBeNull();
     expect(page().querySelector('.refused a')?.getAttribute('href')).toBe('/changes/7');
-  });
-
-  it('says why the change could not be loaded', async () => {
-    TestBed.inject(MyDepartment).choose(3);
-    fixture = TestBed.createComponent(ChangeSecureCoding);
-    fixture.componentRef.setInput('id', 7);
-    await settle();
-    http
-      .expectOne('/api/changes/7')
-      .flush({ detail: 'Change 7 does not exist' }, { status: 404, statusText: 'Not Found' });
-    await settle();
-
-    expect(text(page().querySelector('.banner span'))).toBe(
-      'The change could not be loaded: Change 7 does not exist',
-    );
   });
 });

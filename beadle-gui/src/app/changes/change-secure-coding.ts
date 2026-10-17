@@ -10,57 +10,36 @@ import {
   signal,
 } from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { MyDepartment } from '../departments/my-department';
-import { errorMessage, fieldProblems } from '../core/errors';
+import { fieldProblems } from '../core/errors';
 import { Notifier } from '../core/notifier';
-import { CHANGES, beadleChange } from '../core/sections';
+import { beadleChange } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { applyFieldProblems } from '../shared/form-controls';
-import { BeadleLoading, BeadleSpinner } from '../ui/loading';
+import { Failure, NEEDS_ATTENTION, SaveBar, failureOf } from '../ui/save-bar';
 import { ChangesApi, ProductionChange, isOpen } from './change-api';
-import { editHint } from './change-model';
-import { problemText } from './change-problems';
+import { editRefusal } from './change-model';
+import { ChangePage } from './change-page';
 import { PublishedChange } from './published-change';
 import { SecureCodingFields } from './secure-coding-form';
 import { SecureCodingForm, secureCodingForm, secureCodingRequest } from './secure-coding-model';
 
 export function refusalOf(change: ProductionChange, departmentId: number | null): string | null {
-  if (!isOpen(change)) {
-    return `${change.number} is closed in ProTech and can no longer be changed`;
-  }
   const ticket = change.template.secureCodingTicket;
-  return ticket
+  return isOpen(change) && ticket
     ? `${change.number} already has the secure coding ticket ${ticket}`
-    : editHint(change, departmentId);
+    : editRefusal(change, departmentId);
 }
 
 @Component({
   selector: 'beadle-change-secure-coding',
-  imports: [RouterLink, BeadleLoading, BeadleSpinner, SecureCodingFields],
+  imports: [ReactiveFormsModule, RouterLink, ChangePage, SaveBar, SecureCodingFields],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="page">
-      <nav class="breadcrumb" aria-label="Breadcrumb">
-        <a [routerLink]="section.path">{{ section.label }}</a>
-        <span class="sep" aria-hidden="true">/</span>
-        @if (change.hasValue()) {
-          <a [routerLink]="changeLink(id())">{{ change.value().number }}</a>
-          <span class="sep" aria-hidden="true">/</span>
-        }
-        <span>Secure coding ticket</span>
-      </nav>
-      @if (change.isLoading()) {
-        <beadle-loading />
-      }
-      @if (change.error(); as error) {
-        <div class="banner" role="alert">
-          <span>The change could not be loaded: {{ errorMessage(error) }}</span>
-          <span class="spacer"></span>
-          <button type="button" class="btn btn-link" (click)="change.reload()">Try again</button>
-        </div>
-      }
+    <beadle-change-page [change]="change" crumb="Secure coding ticket">
       @if (change.hasValue()) {
         @let c = change.value();
         <header class="page-header">
@@ -81,50 +60,21 @@ export function refusalOf(change: ProductionChange, departmentId: number | null)
             <a class="btn btn-link" [routerLink]="changeLink(id())">Back to the change</a>
           </div>
         } @else if (form(); as f) {
-          <section class="card block">
-            <beadle-secure-coding-form [form]="f" [applicationName]="c.productName" />
-          </section>
-          @if (failure(); as failed) {
-            <div class="banner danger problems-banner" role="alert">
-              <div>
-                <strong>{{ failed.message }}</strong>
-                @if (failed.problems.length) {
-                  <ul class="problems">
-                    @for (problem of failed.problems; track problem) {
-                      <li>{{ problem }}</li>
-                    }
-                  </ul>
-                }
-              </div>
-            </div>
-          }
-          <div class="save-bar">
-            <span class="spacer"></span>
-            <a class="btn btn-link" [routerLink]="changeLink(id())">Cancel</a>
-            <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="create()">
-              @if (saving()) {
-                <beadle-spinner />
-              }
-              Create the secure coding ticket in CyberTrack
-            </button>
-          </div>
+          <form [formGroup]="f" (ngSubmit)="create()" novalidate>
+            <section class="card block">
+              <beadle-secure-coding-form [form]="f" [applicationName]="c.productName" />
+            </section>
+            <beadle-save-bar
+              label="Create the secure coding ticket in CyberTrack"
+              [cancelLink]="changeLink(id())"
+              [failure]="failure()"
+              [saving]="saving()"
+              [dirty]="f.dirty"
+            />
+          </form>
         }
       }
-    </div>
-  `,
-  styles: `
-    .block {
-      margin-bottom: 12px;
-      padding: 10px 14px;
-    }
-
-    .problems-banner {
-      margin: 0 0 12px;
-    }
-
-    .refused {
-      flex-wrap: wrap;
-    }
+    </beadle-change-page>
   `,
 })
 export class ChangeSecureCoding implements HasUnsavedChanges {
@@ -137,9 +87,7 @@ export class ChangeSecureCoding implements HasUnsavedChanges {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly section = CHANGES;
   protected readonly changeLink = beadleChange;
-  protected readonly errorMessage = errorMessage;
 
   protected readonly change = rxResource({
     params: () => this.id(),
@@ -152,7 +100,7 @@ export class ChangeSecureCoding implements HasUnsavedChanges {
   );
   protected readonly form = signal<SecureCodingForm | null>(null);
   protected readonly saving = signal(false);
-  protected readonly failure = signal<{ message: string; problems: string[] } | null>(null);
+  protected readonly failure = signal<Failure | null>(null);
 
   constructor() {
     effect(() => {
@@ -172,7 +120,7 @@ export class ChangeSecureCoding implements HasUnsavedChanges {
     this.failure.set(null);
     form.markAllAsTouched();
     if (form.invalid) {
-      this.failure.set({ message: 'Some fields need your attention.', problems: [] });
+      this.failure.set(NEEDS_ATTENTION);
       return;
     }
     this.saving.set(true);
@@ -195,12 +143,8 @@ export class ChangeSecureCoding implements HasUnsavedChanges {
           this.router.navigate(beadleChange(this.id()));
         },
         error: (error) => {
-          const problems = fieldProblems(error);
-          applyFieldProblems(form, problems);
-          this.failure.set({
-            message: `The secure coding ticket could not be created: ${errorMessage(error)}`,
-            problems: problems.map(problemText),
-          });
+          applyFieldProblems(form, fieldProblems(error));
+          this.failure.set(failureOf(error, 'The secure coding ticket could not be created'));
         },
       });
   }

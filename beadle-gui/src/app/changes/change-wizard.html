@@ -59,7 +59,8 @@
             </select>
             @if (chosenDepartment() !== null) {
               <beadle-hint
-                >{{ counted(productsInDepartment().length, 'product') }} in the department</beadle-hint
+                >{{ counted(productsInDepartment().length, 'product') }} in the
+                department</beadle-hint
               >
             }
           </beadle-form-field>
@@ -245,9 +246,11 @@
                 as you fill them in, and you can change both texts.
               </p>
             </div>
-            <ng-container
-              [ngTemplateOutlet]="changeTexts"
-              [ngTemplateOutletContext]="{ $implicit: draft }"
+            <beadle-change-texts
+              [shortDescription]="shortDescription"
+              [description]="description"
+              [generated]="draft"
+              [rows]="11"
             />
           }
         }
@@ -258,7 +261,10 @@
           The installation starts on the release date of the FixVersion while it is ahead, otherwise
           on the next day, with the times of the change template. Change any of it.
         </p>
-        <beadle-change-schedule [schedule]="schedule()!" [downtime]="details()!.controls.downtime" />
+        <beadle-change-schedule
+          [schedule]="schedule()!"
+          [downtime]="details()!.controls.downtime"
+        />
       }
       @case ('review') {
         <h2>Check the change and create it in ProTech</h2>
@@ -284,9 +290,11 @@
               Written from the values above. Change it if you like before you create the change.
             </p>
           </div>
-          <ng-container
-            [ngTemplateOutlet]="changeTexts"
-            [ngTemplateOutletContext]="{ $implicit: draft }"
+          <beadle-change-texts
+            [shortDescription]="shortDescription"
+            [description]="description"
+            [generated]="draft"
+            [rows]="11"
           />
         }
       }
@@ -318,7 +326,10 @@
             date, lists every value in its description, and its number becomes the secure coding
             ticket of {{ change.number }}.
           </p>
-          <beadle-secure-coding-form [form]="secureCoding()!" [applicationName]="change.productName" />
+          <beadle-secure-coding-form
+            [form]="secureCoding()!"
+            [applicationName]="change.productName"
+          />
         }
       }
       @case ('raised') {
@@ -469,39 +480,3 @@
     </div>
   </section>
 </div>
-<ng-template #changeTexts let-draft>
-  <div class="texts">
-    @if (shortDescription.value !== draft.shortDescription) {
-      <button
-        type="button"
-        class="text-link new-text"
-        aria-label="Use the generated text for the short description"
-        (click)="useGeneratedText(shortDescription, draft.shortDescription)"
-      >
-        Use the generated text
-      </button>
-    }
-    <beadle-form-field>
-      <beadle-label>Short description</beadle-label>
-      <input beadleInput [formControl]="shortDescription" maxlength="160" />
-      <beadle-hint class="length-hint">{{ byteLength(shortDescription.value) }} / 160</beadle-hint>
-      <beadle-error>{{ errorText(shortDescription) }}</beadle-error>
-    </beadle-form-field>
-    @if (description.value !== draft.description) {
-      <button
-        type="button"
-        class="text-link new-text"
-        aria-label="Use the generated text for the description"
-        (click)="useGeneratedText(description, draft.description)"
-      >
-        Use the generated text
-      </button>
-    }
-    <beadle-form-field>
-      <beadle-label>Description</beadle-label>
-      <textarea beadleInput rows="11" [formControl]="description"></textarea>
-      <beadle-hint class="length-hint">{{ byteLength(description.value) }} / 4000</beadle-hint>
-      <beadle-error>{{ errorText(description) }}</beadle-error>
-    </beadle-form-field>
-  </div>
-</ng-template>

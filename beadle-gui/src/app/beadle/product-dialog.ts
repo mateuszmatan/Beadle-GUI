@@ -39,7 +39,9 @@ const CODE_HELP = "2 to 50 characters: a letter first, then A-Z, 0-9, '-' or '_'
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-header">
-      <h2 beadleDialogTitle>{{ product ? 'Edit the details of ' + product.name : 'Add product' }}</h2>
+      <h2 beadleDialogTitle>
+        {{ product ? 'Edit the details of ' + product.name : 'Add product' }}
+      </h2>
     </div>
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body">

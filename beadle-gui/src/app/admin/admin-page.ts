@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { AdminArea } from '../core/sections';
+import { ADMIN, ADMIN_TABS } from '../core/sections';
 
 @Component({
   selector: 'beadle-admin-page',
@@ -10,12 +10,12 @@ import { AdminArea } from '../core/sections';
     <div class="page admin">
       <header class="page-header">
         <div>
-          <h1>{{ area().section.heading }}</h1>
-          <p class="page-description">{{ area().section.description }}</p>
+          <h1>{{ section.heading }}</h1>
+          <p class="page-description">{{ section.description }}</p>
         </div>
       </header>
-      <nav class="tab-bar" [attr.aria-label]="area().section.heading">
-        @for (tab of area().tabs; track tab.path) {
+      <nav class="tab-bar" [attr.aria-label]="section.heading">
+        @for (tab of tabs; track tab.path) {
           <a [routerLink]="tab.path" routerLinkActive="active" ariaCurrentWhenActive="page">{{
             tab.label
           }}</a>
@@ -61,5 +61,6 @@ import { AdminArea } from '../core/sections';
   `,
 })
 export class AdminPage {
-  readonly area = input.required<AdminArea>();
+  protected readonly section = ADMIN;
+  protected readonly tabs = ADMIN_TABS;
 }

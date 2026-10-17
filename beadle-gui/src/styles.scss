@@ -21,7 +21,10 @@
   --beadle-neutral-bg: #eceef2;
   --beadle-info: #0c2340;
   --beadle-info-bg: #e3e8f0;
+  --beadle-code-bg: #0c1a2e;
+  --beadle-code-fg: #e2e8f0;
   --beadle-gutter: 24px;
+  scroll-behavior: auto;
 }
 
 *,
@@ -55,6 +58,16 @@ code {
   font-size: 11px;
 }
 
+pre.code-block {
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--beadle-code-bg);
+  color: var(--beadle-code-fg);
+  font-family: var(--beadle-mono);
+  font-size: 12px;
+  overflow: auto;
+}
+
 .mono {
   font-family: var(--beadle-mono);
 }
@@ -67,10 +80,6 @@ code {
   max-width: 1360px;
   margin: 0 auto;
   padding: 16px var(--beadle-gutter) 32px;
-}
-
-:root {
-  scroll-behavior: auto;
 }
 
 h1 {
@@ -181,6 +190,12 @@ h3 {
 }
 
 .chip {
+  display: inline-block;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  white-space: nowrap;
 
   &.success {
     background: var(--beadle-success-bg);
@@ -234,7 +249,6 @@ h3 {
 
 .card {
   display: block;
-  flex-direction: row;
   background: var(--beadle-card);
   border: 1px solid var(--beadle-border);
 }
@@ -288,10 +302,6 @@ h3 {
     color: var(--beadle-primary);
     text-decoration: underline;
   }
-}
-
-.table-scroll {
-  overflow-x: auto;
 }
 
 .section-help {
@@ -378,7 +388,6 @@ h3 {
 }
 
 @media (max-width: 1100px) {
-
   .beadle-panel .panel-title {
     min-width: 0;
   }
@@ -491,6 +500,41 @@ input[type='number'] {
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(6px);
   border-top: 1px solid var(--beadle-border);
+}
+
+.problems-banner {
+  margin: 12px 0 0;
+}
+
+.banner.refused {
+  flex-wrap: wrap;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+}
+
+.list-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+
+.card.block {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+
+  h2 {
+    margin: 0 0 6px;
+    font-size: 15px;
+  }
 }
 
 .save-error {
@@ -823,125 +867,13 @@ svg-icon svg {
   }
 }
 
-.wide-titles .beadle-panel .panel-title {
-  min-width: 280px;
-}
-
-.beadle-grid,
-.v6-table-theme--bbh,
-.ag-theme-balham {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  position: relative;
-
-  .ag-root-wrapper {
-    border: 1px solid var(--beadle-border, #d9dee6);
-    background-color: var(--beadle-card, #ffffff);
-    width: 100%;
-    max-width: 100%;
-    overflow: hidden;
-  }
-
-  .ag-root {
-    min-width: 100%;
-  }
-
-  /* Viewports: allow seamless horizontal scrolling without squashing columns */
-  .ag-body-viewport,
-  .ag-center-cols-viewport {
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* Horizontal Scrollbar - official BBH V6 aesthetics */
-  .ag-body-horizontal-scroll {
-    display: block !important;
-    position: sticky;
-    bottom: 0;
-    z-index: 10;
-    min-height: 10px !important;
-    height: 10px !important;
-    background-color: #f8fafc;
-    border-top: 1px solid var(--beadle-border, #e2e8f0);
-    opacity: 1 !important;
-    visibility: visible !important;
-  }
-
-  .ag-body-horizontal-scroll-viewport {
-    overflow-x: auto !important;
-    min-height: 10px !important;
-    height: 10px !important;
-  }
-
-  /* BBH styled scrollbars */
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: #f1f4f8;
-    border-radius: 4px;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: #b0b8c4;
-    border-radius: 4px;
-    border: 1px solid #f1f4f8;
-
-    &:hover {
-      background: #8a96a8;
-    }
-
-    &:active {
-      background: #5b6475;
-    }
-  }
-
-  scrollbar-width: thin;
-  scrollbar-color: #b0b8c4 #f1f4f8;
-
-  /* Header typography & styling */
-  .ag-header {
-    background-color: #f8fafc;
-    border-bottom: 2px solid var(--beadle-border, #d9dee6);
-  }
-
-  .ag-header-cell-text {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: #5b6475;
-  }
-
-  .ag-header-cell {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-
+/* The BBH table theme (ag-theme-balham v6-table-theme--bbh) paints the grids; these rules only lay out the cells.
+   ag-grid sizes and shows its own horizontal scrollbar when the columns are wider than the grid. */
+.beadle-grid {
   .ag-cell {
     display: flex;
     align-items: center;
-    padding-left: 12px;
-    padding-right: 12px;
-    font-size: 13px;
-    color: var(--beadle-text, #1b1f24);
-    border-bottom: 1px solid #e6e9ee;
-  }
-
-  .ag-row {
-    background-color: #ffffff;
-    transition: background-color 0.1s ease;
-
-    &:hover {
-      background-color: #f8fafc !important;
-    }
-
-    &.ag-row-selected {
-      background-color: #edf2f7 !important;
-    }
+    overflow: hidden;
   }
 
   .ag-cell-wrap-text {
@@ -967,107 +899,9 @@ svg-icon svg {
   }
 
   .beadle-grid-empty {
-    color: var(--beadle-muted, #5b6475);
+    color: var(--beadle-muted);
     font-style: italic;
   }
-
-  .v6-table-selection-cell {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* Pinned columns styling for left selection & right actions */
-  .ag-pinned-left-cols-container,
-  .ag-pinned-left-header {
-    border-right: 1px solid var(--beadle-border, #d9dee6);
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.04);
-    background-color: inherit;
-    z-index: 5;
-  }
-
-  .ag-pinned-right-cols-container,
-  .ag-pinned-right-header {
-    border-left: 1px solid var(--beadle-border, #d9dee6);
-    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.04);
-    background-color: inherit;
-    z-index: 5;
-  }
-}
-
-/* ==========================================================================
-   V6 Design System: Table Toolbars, Selection, Actions, and Header Controls
-   ========================================================================== */
-.v6-table-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 8px;
-  padding: 4px 0;
-}
-
-.v6-table-toolbar-left,
-.v6-table-toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-/* ==========================================================================
-   V6 Design System: Form Layouts, Field Widths, Inputs & Validation Feedback
-   ========================================================================== */
-/* Field width variants matched to expected data */
-.v6-field-xs, [v6Width='xs'], [beadleWidth='xs'] {
-  width: 120px !important;
-  max-width: 120px !important;
-}
-
-.v6-field-sm, [v6Width='sm'], [beadleWidth='sm'] {
-  width: 180px !important;
-  max-width: 180px !important;
-}
-
-.v6-field-md, [v6Width='md'], [beadleWidth='md'] {
-  width: 320px !important;
-  max-width: 320px !important;
-}
-
-.v6-field-lg, [v6Width='lg'], [beadleWidth='lg'] {
-  width: 480px !important;
-  max-width: 480px !important;
-}
-
-.v6-field-full, [v6Width='full'], [beadleWidth='full'] {
-  width: 100% !important;
-}
-
-/* Large-size inputs for comfortable data entry */
-.form-control-lg,
-.form-select-lg,
-.v6-input-lg,
-.beadle-input-lg {
-  min-height: 40px !important;
-  padding: 8px 12px !important;
-  font-size: 14px !important;
-  border-radius: 4px !important;
-}
-
-/* Form validation styling adhering to V6 guidelines */
-.form-control.is-invalid,
-.form-select.is-invalid {
-  border-color: #dc2626 !important;
-  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15) !important;
-}
-
-.invalid-feedback {
-  font-size: 11.5px !important;
-  color: #b91c1c !important;
-  font-weight: 500 !important;
-  line-height: 1.35 !important;
-  margin-top: 4px !important;
 }
 
 /* Disabled submit state indicator */

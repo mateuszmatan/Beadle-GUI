@@ -12,10 +12,9 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { Subscription, of } from 'rxjs';
 import { MyDepartment } from '../departments/my-department';
-import { RETRY, errorMessage } from '../core/errors';
-import { CHANGES, beadleChange, beadleProduct } from '../core/sections';
+import { RETRY } from '../core/errors';
+import { beadleChange, beadleProduct } from '../core/sections';
 import { RelativeTimePipe, formatRelative } from '../shared/formatting';
-import { BeadleLoading } from '../ui/loading';
 import { PANEL } from '../ui/panel';
 import {
   ChangeUpdate,
@@ -27,6 +26,7 @@ import {
   labelOf,
 } from './change-api';
 import { ChangeApprovals } from './change-approvals';
+import { ChangePage } from './change-page';
 import { editHint, momentText } from './change-model';
 import { fieldLabels } from './change-problems';
 import { ChangeSummary } from './change-summary';
@@ -72,7 +72,7 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
   selector: 'beadle-change-detail',
   imports: [
     RouterLink,
-    BeadleLoading,
+    ChangePage,
     PANEL,
     RelativeTimePipe,
     ChangeApprovals,
@@ -82,22 +82,7 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="page">
-      <nav class="breadcrumb" aria-label="Breadcrumb">
-        <a [routerLink]="section.path">{{ section.label }}</a>
-        <span class="sep" aria-hidden="true">/</span>
-        <span>{{ change.hasValue() ? change.value().number : 'Change' }}</span>
-      </nav>
-      @if (change.isLoading() && !change.hasValue()) {
-        <beadle-loading />
-      }
-      @if (change.error(); as error) {
-        <div class="banner" role="alert">
-          <span>The change could not be loaded: {{ errorMessage(error) }}</span>
-          <span class="spacer"></span>
-          <button type="button" class="btn btn-link" (click)="change.reload()">Try again</button>
-        </div>
-      }
+    <beadle-change-page [change]="change">
       @if (change.hasValue()) {
         @let c = change.value();
         <header class="page-header">
@@ -240,19 +225,9 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
           <pre class="text">{{ c.description }}</pre>
         </beadle-panel>
       }
-    </div>
+    </beadle-change-page>
   `,
   styles: `
-    .block {
-      margin-bottom: 12px;
-      padding: 12px 16px;
-
-      h2 {
-        margin: 0 0 8px;
-        font-size: 15px;
-      }
-    }
-
     .now {
       margin: -2px 0 10px;
     }
@@ -306,8 +281,6 @@ export class ChangeDetail {
   private readonly published = inject(PublishedChange);
   private readonly myDepartment = inject(MyDepartment);
 
-  protected readonly section = CHANGES;
-  protected readonly errorMessage = errorMessage;
   protected readonly productLink = beadleProduct;
   protected readonly changeLink = beadleChange;
   protected readonly updateText = updateText;

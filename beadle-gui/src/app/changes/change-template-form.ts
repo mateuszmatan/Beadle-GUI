@@ -17,7 +17,10 @@ import { TemplateForm } from './change-template-model';
           <p>{{ lead(section) }}</p>
         </header>
         @if (section.key === 'schedule' && schedule(); as changeSchedule) {
-          <beadle-change-schedule [schedule]="changeSchedule" [downtime]="form().controls.downtime" />
+          <beadle-change-schedule
+            [schedule]="changeSchedule"
+            [downtime]="form().controls.downtime"
+          />
         } @else {
           <beadle-template-section
             [form]="form()"

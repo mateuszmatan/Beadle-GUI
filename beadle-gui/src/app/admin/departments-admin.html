@@ -10,7 +10,10 @@
       <button type="button" class="btn btn-primary" (click)="add()">Add department</button>
     }
   </header>
-  <p class="section-help">{{ help() }}</p>
+  <p class="section-help">
+    Every product belongs to one department, and people choose their department to see its changes.
+    Only an empty department can be deleted.
+  </p>
 
   @if (departments.isLoading()) {
     <beadle-loading />
@@ -36,9 +39,8 @@
       <beadle-grid
         label="Departments"
         [rows]="departments.value()"
-        [columns]="columns()"
+        [columns]="columns"
         [rowId]="departmentId"
-        [templates]="cells()"
       >
         <ng-template beadleCell="name" let-department>
           <span class="name">{{ department.name }}</span>

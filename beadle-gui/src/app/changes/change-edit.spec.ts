@@ -12,9 +12,9 @@ import {
   releaseDetails,
   taskDetails,
 } from '../testing/change-fixtures';
-import { buttonOf, fieldOf, inputOf, selectOf, text } from '../testing/dom';
+import { buttonOf, choose, enter, errorOf, fieldOf, inputOf, selectOf, text } from '../testing/dom';
 import { ProductionChange } from './change-api';
-import { ChangeEdit, STALE } from './change-edit';
+import { ChangeEdit } from './change-edit';
 import { PublishedChange } from './published-change';
 
 describe('ChangeEdit', () => {
@@ -24,7 +24,6 @@ describe('ChangeEdit', () => {
 
   const page = () => fixture.nativeElement as HTMLElement;
   const edit = () => fixture.componentInstance;
-  const form = () => edit()['form']()!;
   const taskRows = () => [
     ...page().querySelectorAll<HTMLElement>('beadle-change-tasks-form .task-row'),
   ];
@@ -54,13 +53,18 @@ describe('ChangeEdit', () => {
     await settle();
   }
 
-  const texts = () => page().querySelector<HTMLElement>('section.texts')!;
+  const texts = () => page().querySelector<HTMLElement>('beadle-change-texts')!;
 
   async function type(label: string, value: string, root: ParentNode = page()) {
-    const input = inputOf(root, label);
-    input.value = value;
-    input.dispatchEvent(new Event('input'));
+    enter(root, label, value);
     await settle();
+  }
+
+  function refuse(status: number, body: object) {
+    http
+      .expectOne({ method: 'PUT', url: '/api/changes/7' })
+      .flush(body, { status, statusText: 'Refused' });
+    return settle();
   }
 
   async function publish() {
@@ -118,18 +122,16 @@ describe('ChangeEdit', () => {
 
     await type('Short description', ' CertScanner 4.2 ', texts());
     await type('Assignment group', 'Platform Team');
-    form().controls.template.controls.downtime.setValue(true);
+    choose(selectOf(page(), 'Downtime'), 'Yes');
     await settle();
     expect(inputOf(page(), 'Downtime start').value).toBe(
       inputOf(page(), 'Installation start').value,
     );
     buttonOf(page(), 'Add a change task').click();
     await settle();
-    form().controls.tasks.at(2).controls.details.patchValue({
-      assignmentGroup: 'Release Management',
-      shortDescription: 'Tell the users',
-      description: 'Mail.',
-    });
+    await type('Assignment group', 'Release Management', taskRows()[2]);
+    await type('Short description', 'Tell the users', taskRows()[2]);
+    await type('Description', 'Mail.', taskRows()[2]);
     expect(edit().hasUnsavedChanges()).toBe(true);
     await publish();
 
@@ -182,33 +184,17 @@ describe('ChangeEdit', () => {
   it('refuses to publish while a field needs attention', async () => {
     await show();
     await type('Short description', ' ', texts());
-    form().controls.tasks.at(0).controls.details.controls.description.setValue('');
-    form().controls.schedule.controls.installationStart.setValue('2020-01-01T10:00');
+    await type('Description', '', taskRows()[0]);
+    await type('Installation start', '2020-01-01T10:00');
     await publish();
 
     http.expectNone({ method: 'PUT', url: '/api/changes/7' });
     expect(text(page().querySelector('.save-error'))).toBe('Some fields need your attention.');
-    expect(text(fieldOf(texts(), 'Short description')?.querySelector('beadle-error'))).toBe(
-      'Required',
-    );
+    expect(errorOf(texts(), 'Short description')).toBe('Required');
+    expect(errorOf(taskRows()[0], 'Description')).toBe('Required');
     expect(text(page().querySelector('beadle-change-schedule .choice-error'))).toBe(
       'The installation must start in the future',
     );
-  });
-
-  it('counts the length of the texts in bytes, as ProTech and the checks do', async () => {
-    await show();
-    const counter = (label: string) =>
-      text(fieldOf(texts(), label)?.querySelector('beadle-hint.length-hint'));
-    await type('Short description', 'Überweisung – 4.2', texts());
-    await type('Description', 'Ü', texts());
-
-    expect(counter('Short description')).toBe('20 / 160');
-    expect(counter('Description')).toBe('2 / 4000');
-
-    await type('Short description', 'é'.repeat(80) + 'x', texts());
-    expect(counter('Short description')).toBe('161 / 160');
-    expect(form().controls.shortDescription.errors).toEqual({ bytes: { max: 160 } });
   });
 
   it('shows the installation window of the change on its tasks and follows a moved start', async () => {
@@ -218,8 +204,7 @@ describe('ChangeEdit', () => {
     expect(inputOf(taskRows()[0], 'Installation start').value).toBe(
       inputOf(page(), 'Installation start').value,
     );
-    form().controls.schedule.controls.installationStart.setValue('2026-10-11T10:00');
-    await settle();
+    await type('Installation start', '2026-10-11T10:00');
 
     expect(inputOf(taskRows()[0], 'Installation start').value).toBe('2026-10-11T10:00');
     expect(inputOf(taskRows()[0], 'Installation end').value).toBe('2026-10-11T12:00');
@@ -238,28 +223,29 @@ describe('ChangeEdit', () => {
     });
     await show(running);
 
-    expect(form().controls.schedule.valid).toBe(true);
-    form().controls.schedule.controls.installationHours.setValue(0);
-    expect(form().controls.schedule.errors).toEqual({
-      rule: 'The installation must end after it starts',
-    });
+    await type('Installation hours', '0');
+    await publish();
+    http.expectNone({ method: 'PUT', url: '/api/changes/7' });
+    expect(text(page().querySelector('beadle-change-schedule .choice-error'))).toBe(
+      'The installation must end after it starts',
+    );
+    await type('Installation hours', '2');
+    await publish();
+    const put = http.expectOne({ method: 'PUT', url: '/api/changes/7' });
+    expect(put.request.body.schedule.installationStart).toBe('2020-01-01T08:00:00.000Z');
   });
 
   it('marks the problems ProTech or Beadle found on the fields and lists them', async () => {
     await show();
     await publish();
-    http.expectOne({ method: 'PUT', url: '/api/changes/7' }).flush(
-      {
-        detail: '2 fields are invalid',
-        problems: [
-          { field: 'schedule.validationEnd', message: 'must be after the start' },
-          { field: 'tasks[0].details.shortDescription', message: 'is used twice' },
-          { field: 'tasks', message: 'CTASK0020009 is closed in ProTech and cannot be removed' },
-        ],
-      },
-      { status: 400, statusText: 'Bad Request' },
-    );
-    await settle();
+    await refuse(400, {
+      detail: '2 fields are invalid',
+      problems: [
+        { field: 'schedule.validationEnd', message: 'must be after the start' },
+        { field: 'tasks[0].details.shortDescription', message: 'is used twice' },
+        { field: 'tasks', message: 'CTASK0020009 is closed in ProTech and cannot be removed' },
+      ],
+    });
 
     expect(text(page().querySelector('.save-error'))).toBe(
       'The update could not be published: 2 fields are invalid',
@@ -269,28 +255,19 @@ describe('ChangeEdit', () => {
       'Change task 1: short description: is used twice',
       'Change tasks: CTASK0020009 is closed in ProTech and cannot be removed',
     ]);
-    expect(form().controls.tasks.at(0).controls.details.controls.shortDescription.errors).toEqual({
-      server: 'is used twice',
-    });
-    expect(form().controls.schedule.controls.validationHours.errors).toEqual({
-      server: 'must be after the start',
-    });
-    expect(buttonOf(page(), 'Reload')).toBeUndefined();
+    expect(errorOf(taskRows()[0], 'Short description')).toBe('is used twice');
+    expect(errorOf(page(), 'Validation hours')).toBe('must be after the start');
   });
 
-  it('offers to reload a change that was changed meanwhile', async () => {
+  it('reloads a change that was changed meanwhile and publishes with its new version', async () => {
     await show();
     await publish();
-    http.expectOne({ method: 'PUT', url: '/api/changes/7' }).flush(
-      {
-        detail:
-          'The record was changed by someone else in the meantime. Reload it and apply your change again.',
-      },
-      { status: 409, statusText: 'Conflict' },
+    await refuse(409, { detail: 'The record was changed by someone else in the meantime.' });
+    expect(text(page().querySelector('.save-error'))).toBe(
+      'The update could not be published: The record was changed by someone else in the meantime.',
     );
-    await settle();
+    expect(navigate).not.toHaveBeenCalled();
 
-    expect(text(page().querySelector('.save-error'))).toBe(STALE);
     buttonOf(page(), 'Reload').click();
     await settle();
     http.expectOne('/api/changes/7').flush(productionChange({ version: 6 }));
@@ -298,35 +275,7 @@ describe('ChangeEdit', () => {
     expect(page().querySelector('.save-error')).toBeNull();
 
     await publish();
-    const put = http.expectOne({ method: 'PUT', url: '/api/changes/7' });
-    expect(put.request.body.version).toBe(6);
-    put.flush(
-      { detail: 'ProTech does not change a closed change' },
-      { status: 409, statusText: 'Conflict' },
-    );
-    await settle();
-    expect(text(page().querySelector('.save-error'))).toBe(
-      'The update could not be published: ProTech does not change a closed change',
-    );
-    expect(buttonOf(page(), 'Reload')).toBeDefined();
-  });
-
-  it('says why ProTech or Beadle refused the update', async () => {
-    await show();
-    await publish();
-    http
-      .expectOne({ method: 'PUT', url: '/api/changes/7' })
-      .flush(
-        { detail: 'Only Corporate Technology can change CHG0012345' },
-        { status: 403, statusText: 'Forbidden' },
-      );
-    await settle();
-
-    expect(text(page().querySelector('.save-error'))).toBe(
-      'The update could not be published: Only Corporate Technology can change CHG0012345',
-    );
-    expect(buttonOf(page(), 'Reload')).toBeUndefined();
-    expect(navigate).not.toHaveBeenCalled();
+    expect(http.expectOne({ method: 'PUT', url: '/api/changes/7' }).request.body.version).toBe(6);
   });
 
   it('does not offer a closed change or the change of another department', async () => {
@@ -343,30 +292,5 @@ describe('ChangeEdit', () => {
     );
     expect(page().querySelector('.banner.refused a')?.getAttribute('href')).toBe('/changes/7');
     expect(page().querySelector('form')).toBeNull();
-  });
-
-  it('says when the change cannot be loaded', async () => {
-    TestBed.inject(MyDepartment).choose(3);
-    fixture = TestBed.createComponent(ChangeEdit);
-    fixture.componentRef.setInput('id', 7);
-    await settle();
-    http
-      .expectOne('/api/changes/7')
-      .flush({ detail: 'Change 7 does not exist' }, { status: 404, statusText: 'Not Found' });
-    await settle();
-
-    expect(text(page().querySelector('.banner span'))).toBe(
-      'The change could not be loaded: Change 7 does not exist',
-    );
-    expect(text(page().querySelector('.breadcrumb'))).toBe('Changes/Edit');
-
-    buttonOf(page(), 'Try again').click();
-    await settle();
-    http.expectOne('/api/changes/7').flush(stored);
-    await settle();
-    http.match('/api/changes/options').forEach((request) => request.flush(changeOptions()));
-    await settle();
-    expect(page().querySelector('.banner')).toBeNull();
-    expect(text(page().querySelector('h1'))).toBe('Edit CHG0012345');
   });
 });

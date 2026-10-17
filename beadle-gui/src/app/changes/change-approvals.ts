@@ -24,6 +24,7 @@ import {
   isOpen,
   labelOf,
 } from './change-api';
+import { GRID, GridColumn } from '../ui/grid';
 import { activeTasks } from './change-model';
 
 export interface ApprovalRow {
@@ -130,6 +131,7 @@ export function remindedNames(
 
 @Component({
   selector: 'beadle-change-approvals',
+  imports: [GRID],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="head">
@@ -155,59 +157,39 @@ export function remindedNames(
     @if (open() && hint(); as message) {
       <p class="muted hint">{{ message }}</p>
     }
-    <div class="table-scroll">
-      <table class="approvals-table">
-        <thead>
-          <tr>
-            <th scope="col">Approval</th>
-            <th scope="col">Approvers</th>
-            <th scope="col">State</th>
-            <th scope="col">Last reminder</th>
-            <th scope="col"><span class="visually-hidden">Reminder</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (row of rows(); track row.key; let first = $first) {
-            @if (row.task && (first || !rows()[$index - 1].task)) {
-              <tr class="group">
-                <th scope="rowgroup" colspan="5">CTASK approvals</th>
-              </tr>
-            }
-            <tr [class.task]="row.task">
-              <th scope="row">
-                <span class="name" [class.mono]="row.task">{{ row.label }}</span>
-                <span class="detail muted">{{ row.detail }}</span>
-              </th>
-              <td [class.muted]="!row.approvers.length">
-                {{ row.approvers.length ? row.approvers.join(', ') : 'Not named in ProTech' }}
-              </td>
-              <td>
-                <span class="chip" [class]="tones[row.state]">{{ stateLabel(row.state) }}</span>
-              </td>
-              <td class="reminder muted">
-                @if (row.reminder; as reminder) {
-                  {{ reminderText(reminder) }}
-                }
-              </td>
-              <td class="action">
-                @if (open() && row.remindable) {
-                  <button
-                    type="button"
-                    class="btn btn-link remind"
-                    [disabled]="!!hint() || sending()"
-                    [attr.title]="hint() ?? 'Send ' + row.approvers.join(', ') + ' a reminder'"
-                    [attr.aria-label]="'Remind the approvers of ' + row.label"
-                    (click)="remind(row.target)"
-                  >
-                    Remind
-                  </button>
-                }
-              </td>
-            </tr>
+    @for (group of groups(); track group.title) {
+      <h3>{{ group.title }}</h3>
+      <beadle-grid [label]="group.title" [rows]="group.rows" [columns]="columns" [rowId]="rowKey">
+        <ng-template beadleCell="approval" let-row>
+          <span class="approval">
+            <span class="name" [class.mono]="row.task">{{ row.label }}</span>
+            <span class="muted">{{ row.detail }}</span>
+          </span>
+        </ng-template>
+        <ng-template beadleCell="approvers" let-row>
+          <span [class.muted]="!row.approvers.length">{{
+            row.approvers.length ? row.approvers.join(', ') : 'Not named in ProTech'
+          }}</span>
+        </ng-template>
+        <ng-template beadleCell="state" let-row>
+          <span class="chip" [class]="tone(row.state)">{{ stateLabel(row.state) }}</span>
+        </ng-template>
+        <ng-template beadleCell="action" let-row>
+          @if (open() && row.remindable) {
+            <button
+              type="button"
+              class="btn btn-link remind"
+              [disabled]="!!hint() || sending()"
+              [attr.title]="hint() ?? 'Send ' + row.approvers.join(', ') + ' a reminder'"
+              [attr.aria-label]="'Remind the approvers of ' + row.label"
+              (click)="remind(row.target)"
+            >
+              Remind
+            </button>
           }
-        </tbody>
-      </table>
-    </div>
+        </ng-template>
+      </beadle-grid>
+    }
     @if (open() && !taskCount()) {
       <p class="no-tasks muted">
         No change tasks yet. The change needs at least one approved change task to go In Progress.
@@ -236,49 +218,21 @@ export function remindedNames(
       font-size: 12px;
     }
 
-    .approvals-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12.5px;
-
-      th,
-      td {
-        padding: 4px 8px 4px 0;
-        border-bottom: 1px solid var(--beadle-border);
-        text-align: left;
-        vertical-align: top;
-      }
-
-      thead th {
-        color: var(--beadle-muted);
-        font-size: 12px;
-        font-weight: 600;
-      }
-
-      tbody th {
-        font-weight: 600;
-      }
-
-      .group th {
-        padding-top: 10px;
-        color: var(--beadle-navy);
-        font-size: 12px;
-      }
+    h3 {
+      margin: 10px 0 4px;
+      font-size: 13px;
     }
 
-    .detail {
-      display: block;
+    .approval {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.3;
       font-size: 11.5px;
-      font-weight: 400;
     }
 
-    .reminder {
-      font-size: 12px;
-    }
-
-    .action {
-      width: 1%;
-      text-align: right;
+    .name {
+      font-size: 13px;
+      font-weight: 600;
     }
 
     .remind {
@@ -302,12 +256,38 @@ export class ChangeApprovals {
   private readonly notifier = inject(Notifier);
   private readonly myDepartment = inject(MyDepartment);
 
-  protected readonly tones = TONES;
-  protected readonly reminderText = reminderText;
   protected readonly sending = signal(false);
   protected readonly open = computed(() => isOpen(this.change()));
-  protected readonly rows = computed(() => approvalRows(this.change()));
+  protected readonly rowKey = (row: ApprovalRow) => row.key;
+  protected readonly columns: GridColumn<ApprovalRow>[] = [
+    { key: 'approval', header: 'Approval', value: (row) => row.label, wrap: true, minWidth: 190 },
+    {
+      key: 'approvers',
+      header: 'Approvers',
+      value: (row) => row.approvers.join(', '),
+      wrap: true,
+      flex: 2,
+      minWidth: 180,
+    },
+    { key: 'state', header: 'State', value: (row) => row.state, width: 130 },
+    {
+      key: 'reminder',
+      header: 'Last reminder',
+      value: (row) => (row.reminder ? reminderText(row.reminder) : ''),
+      wrap: true,
+      minWidth: 180,
+    },
+    { key: 'action', header: '', width: 100 },
+  ];
+  private readonly rows = computed(() => approvalRows(this.change()));
   protected readonly taskCount = computed(() => this.rows().filter((row) => row.task).length);
+  protected readonly groups = computed(() => {
+    const rows = this.rows();
+    return [
+      { title: 'Change approvals', rows: rows.filter((row) => !row.task) },
+      { title: 'CTASK approvals', rows: rows.filter((row) => row.task) },
+    ].filter((group) => group.rows.length);
+  });
   protected readonly hint = computed(() =>
     reminderHint(this.change(), this.myDepartment.departmentId()),
   );
@@ -318,6 +298,10 @@ export class ChangeApprovals {
         ? null
         : 'Everyone named on the change has approved it'),
   );
+
+  protected tone(state: ApprovalState): string {
+    return TONES[state];
+  }
 
   protected stateLabel(state: ApprovalState): string {
     return labelOf(APPROVAL_STATES, state);
