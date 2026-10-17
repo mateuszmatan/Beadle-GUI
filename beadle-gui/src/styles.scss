@@ -865,4 +865,92 @@ svg-icon svg {
   .beadle-grid-empty {
     color: var(--beadle-muted);
   }
+
+  .v6-table-selection-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* ==========================================================================
+   V6 Design System: Table Toolbars, Selection, Actions, and Header Controls
+   ========================================================================== */
+.v6-table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 4px 0;
+}
+
+.v6-table-toolbar-left,
+.v6-table-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ==========================================================================
+   V6 Design System: Form Layouts, Field Widths, Inputs & Validation Feedback
+   ========================================================================== */
+/* Field width variants matched to expected data */
+.v6-field-xs, [v6Width='xs'], [beadleWidth='xs'] {
+  width: 120px !important;
+  max-width: 120px !important;
+}
+
+.v6-field-sm, [v6Width='sm'], [beadleWidth='sm'] {
+  width: 180px !important;
+  max-width: 180px !important;
+}
+
+.v6-field-md, [v6Width='md'], [beadleWidth='md'] {
+  width: 320px !important;
+  max-width: 320px !important;
+}
+
+.v6-field-lg, [v6Width='lg'], [beadleWidth='lg'] {
+  width: 480px !important;
+  max-width: 480px !important;
+}
+
+.v6-field-full, [v6Width='full'], [beadleWidth='full'] {
+  width: 100% !important;
+}
+
+/* Large-size inputs for comfortable data entry */
+.form-control-lg,
+.form-select-lg,
+.v6-input-lg,
+.beadle-input-lg {
+  min-height: 40px !important;
+  padding: 8px 12px !important;
+  font-size: 14px !important;
+  border-radius: 4px !important;
+}
+
+/* Form validation styling adhering to V6 guidelines */
+.form-control.is-invalid,
+.form-select.is-invalid {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15) !important;
+}
+
+.invalid-feedback {
+  font-size: 11.5px !important;
+  color: #b91c1c !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+  margin-top: 4px !important;
+}
+
+/* Disabled submit state indicator */
+button[type='submit']:disabled,
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed !important;
 }

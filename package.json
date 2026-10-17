@@ -3,16 +3,17 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve beadle-gui",
-    "start:public": "ng serve beadle-gui --configuration=public",
-    "build": "ng build beadle-gui",
-    "test": "ng test beadle-gui"
+    "start": "ng serve beadle-gui --configuration=public",
+    "start:bbh": "ng serve beadle-gui --configuration=development",
+    "build": "ng build beadle-gui --configuration=production,public",
+    "build:bbh": "ng build beadle-gui --configuration=production",
+    "test": "ng test beadle-gui --watch=false"
   },
   "private": true,
   "packageManager": "npm@10.8.2",
   "engines": {
-    "node": ">=20.19.4 <21.0.0",
-    "npm": ">=10.8.2 <11.0.0"
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   },
   "dependencies": {
     "@angular/cdk": "21.2.14",

@@ -16,6 +16,7 @@ data/
 build/
 .kotlin/
 
+node_modules
 node_modules/
 .angular/
 dist/
