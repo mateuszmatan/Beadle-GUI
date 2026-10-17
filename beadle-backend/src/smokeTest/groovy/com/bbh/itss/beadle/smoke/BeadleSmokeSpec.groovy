@@ -154,8 +154,9 @@ class BeadleSmokeSpec extends Specification {
 
         then:
         me.status == 200
-        me.json.keySet() == ['name', 'email'] as Set
-        !started || me.json == [name: 'Mateusz Matan', email: null]
+        me.json.subMap(['name', 'email']) == [name: 'Mateusz Matan', email: null]
+        me.json.admin == true
+        me.json.roles.contains('ROLE_ADMIN')
         new BeadleClient(api.baseUrl, new CookieManager()).get('/actuator/health').status == 200
         api.post('/api/callbacks/protech', [number: 'CHG0000001', event: 'STATE_CHANGED']).status == 401
     }

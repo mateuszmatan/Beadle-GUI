@@ -36,6 +36,9 @@ export type LookupKind =
 export interface SignedInUser {
   name: string;
   email: string | null;
+  roles?: string[];
+  departmentNames?: string[];
+  admin?: boolean;
 }
 
 /** What Beadle answers to signing out with Ping: where the browser ends its session at Ping too. */

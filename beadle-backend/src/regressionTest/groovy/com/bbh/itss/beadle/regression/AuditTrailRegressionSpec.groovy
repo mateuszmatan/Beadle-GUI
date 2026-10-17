@@ -295,7 +295,8 @@ class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
 
         then:
         first.status == 200
-        first.json == [name: SIGNED_IN, email: null]
+        first.json.subMap(['name', 'email']) == [name: SIGNED_IN, email: null]
+        first.json.admin == true
         signIns() == before + 1
         lastSignIn() == [USER_NAME: SIGNED_IN, OBJECT_TYPE: 'USER', OBJECT_KEY: SIGNED_IN, OUTCOME: 'SUCCESS',
                          CORRELATION_ID: first.header('X-Correlation-Id')]

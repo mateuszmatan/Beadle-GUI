@@ -16,7 +16,8 @@ class BeadleWizardRegressionSpec extends ChangeRegressionSpecification {
 
         then:
         me.status == 200
-        me.json == [name: SIGNED_IN, email: null]
+        me.json.subMap(['name', 'email']) == [name: SIGNED_IN, email: null]
+        me.json.admin == true
     }
 
     def "the wizard options are the ProTech categories, change types, risk answers and change task choices"() {
