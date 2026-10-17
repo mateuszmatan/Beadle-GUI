@@ -3,11 +3,9 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve beadle-gui --configuration=public",
-    "start:bbh": "ng serve beadle-gui --configuration=development",
-    "build": "ng build beadle-gui --configuration=production,public",
-    "build:bbh": "ng build beadle-gui --configuration=production",
-    "test": "npx ng test beadle-gui --watch=false"
+    "start": "ng serve beadle-gui",
+    "build": "ng build beadle-gui",
+    "test": "ng test beadle-gui --watch=false"
   },
   "private": true,
   "packageManager": "npm@10.8.2",

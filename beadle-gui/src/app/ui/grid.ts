@@ -230,18 +230,10 @@ const INTERACTIVE = 'a, button, input, select, textarea, label';
     />
   `,
   styles: `
-    :host {
-      display: block;
-      width: 100%;
-      max-width: 100%;
-      overflow-x: auto;
-      overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
-    }
+    :host,
     ag-grid-angular {
       display: block;
-      width: 100%;
-      min-width: 100%;
+      min-width: 0;
     }
   `,
 })
@@ -275,8 +267,6 @@ export class BeadleGrid<T> {
       ...base,
       suppressMovableColumns: true,
       suppressDragLeaveHidesColumns: true,
-      suppressHorizontalScroll: false,
-      alwaysShowHorizontalScroll: true,
       ...(autoSizeStrategy ? { autoSizeStrategy } : {}),
       ...custom,
       defaultColDef: {
