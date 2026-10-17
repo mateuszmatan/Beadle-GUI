@@ -111,61 +111,14 @@
   margin-top: 4px;
 }
 
-.service-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-
-  li {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 8px 6px 10px;
-    border: 1px solid var(--beadle-border);
-
-    &.removed {
-      border-color: var(--beadle-danger);
-      background: var(--beadle-danger-bg);
-
-      strong {
-        text-decoration: line-through;
-      }
-    }
-  }
-}
-
-.removal {
-  color: var(--beadle-danger);
-  font-weight: 600;
-}
-
-.service-text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-  font-size: 12.5px;
-}
-
 .step > .btn-outline-primary {
   align-self: flex-start;
-}
-
-.removal-warning {
-  margin-bottom: 0;
 }
 
 .review-list {
   margin: 0;
   padding-left: 16px;
   list-style: square;
-
-  .tag {
-    margin-left: 6px;
-  }
 }
 
 .next-steps {
@@ -183,23 +136,6 @@
   p {
     margin: 0 0 6px;
   }
-}
-
-.jenkinsfile {
-  margin-top: 6px;
-  border: 1px solid var(--beadle-border);
-
-  .code-block {
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-  }
-}
-
-.jenkinsfile-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 2px 4px 2px 10px;
 }
 
 .step-actions {

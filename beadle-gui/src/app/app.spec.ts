@@ -55,7 +55,7 @@ describe('App', () => {
   });
 
   it('shows who is signed in next to the sections', () => {
-    expect(text(page().querySelector('header .account'))).toBe('Mateusz Matan Sign out');
+    expect(text(page().querySelector('header .user-badge'))).toBe('👤Mateusz Matan Sign out');
   });
 
   it('gives the sections their ProTech headings', () => {

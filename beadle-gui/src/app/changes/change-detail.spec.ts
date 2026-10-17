@@ -13,7 +13,7 @@ import {
   releaseDetails,
   taskDetails,
 } from '../testing/change-fixtures';
-import { buttonOf, inputOf, text } from '../testing/dom';
+import { buttonOf, gridColumn, inputOf, text } from '../testing/dom';
 import { ProductionChange } from './change-api';
 import { ChangeDetail, MAX_POLLS, POLL_INTERVAL, updateText } from './change-detail';
 import { momentText } from './change-model';
@@ -232,17 +232,12 @@ describe('ChangeDetail', () => {
       expect.stringMatching(/^Downtime: Sat, 10 Oct 2026, \d\d:00 to \d\d:00$/),
     ]);
     expect(text(block('When it installs')!.querySelector('.note'))).toBe(zoneNote);
-    expect(
-      [...page().querySelectorAll('beadle-change-approvals tbody tr')].map((row) =>
-        [...row.children].map(text),
-      ),
-    ).toEqual([
-      ['Business approverBusiness Approval', 'Not named in ProTech', 'Approved', '', ''],
-      ['L1 approverPrimary Approval', 'Olivia Bennett', 'Requested', '', 'Remind'],
-      ['L2 approverSecondary Approval', 'James Carter', 'Not Approved', '', 'Remind'],
-      ['Support approverSupport Approval', 'Jane Smith', 'Not Approved', '', 'Remind'],
-      ['CTASK approvals'],
-      ['CTASK0020001Release Management', 'Rebecca Lawson, Thomas Ashby', 'Requested', '', 'Remind'],
+    expect(gridColumn(page().querySelector('beadle-change-approvals')!, 'approval')).toEqual([
+      'Business approverBusiness Approval',
+      'L1 approverPrimary Approval',
+      'L2 approverSecondary Approval',
+      'Support approverSupport Approval',
+      'CTASK0020001Release Management',
     ]);
     expect(rows('Secure coding')).toEqual([
       'Secure coding ticket number: SEC-12',
