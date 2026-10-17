@@ -76,27 +76,13 @@ tables use `ag-grid-enterprise` with only AG Grid's community features so far, s
 BBH's licence key to AG Grid for the day an Enterprise feature is added: `-PagGridLicenseKey=...` or the
 `AG_GRID_LICENSE_KEY` environment variable.
 
-### Inside and outside the BBH network
+### BBH Network & Environment Configuration
 
-The BBH Nexus, the BBH npm registry and the `njproxy` proxy only answer inside BBH, and the build needs no setting to
-know where it is. `settings.gradle` asks the BBH Nexus for the Gradle distribution of the wrapper with one `HEAD`
-request (3 seconds to connect): when it answers, plugins and libraries come from the BBH Nexus repositories, npm
-packages from `tools.bbh.com/nexus/repository/npm-group` through `njproxy` with the BBH CA file, the Design System is
-installed and the GUI builds with the BBH Design System. When it does not, the build says so once ("The BBH Nexus is
-out of reach") and uses the Gradle Plugin Portal, Maven Central and `https://registry.npmjs.org/`
-(`npm.publicRegistry` names another), switches the `njproxy` proxy properties off, skips `installDesignSystem` and
-builds the GUI with the `public` configuration, which swaps the BBH Design System styles and icons for a navy Bootstrap
-theme with the same layout. The same build therefore works on a BBH workstation and on any other machine.
-
-`-PbbhNetwork=true` or `false` (also as `bbhNetwork=` in `~/.gradle/gradle.properties`) overrides the check. The
-wrapper's own Gradle download sits on the BBH Nexus too, so `gradlew` and `gradlew.bat` make the same check before
-they start: when the BBH distribution does not answer, they run the wrapper from a copy in `.gradle/public-wrapper`
-whose `distributionUrl` points at `https://services.gradle.org/distributions/gradle-8.14-all.zip`, and Gradle 8.14
-is downloaded from there once. `./gradlew build` is therefore the same command everywhere. A machine behind its own
-proxy sets `systemProp.https.proxyHost` and `systemProp.https.proxyPort` in `~/.gradle/gradle.properties`, which win
-over the project's. Running npm by hand outside BBH needs `--registry=https://registry.npmjs.org/`; `package-lock.json`
-resolves every package from `registry.npmjs.org`, which npm maps back to the BBH npm registry inside BBH
-(`replace-registry-host`).
+The build is configured directly for the BBH corporate network:
+- **Repositories**: Plugins and dependencies resolve from the BBH Nexus (`tools.bbh.com/nexus`) and internal npm group with the BBH CA certificate.
+- **Local Development**: Runs on developer laptops using the `local` profile with an embedded H2 file database in Oracle mode (`~/bbh-devsecops/beadle/beadle`).
+- **OpenShift Environments (`rd`, `qc`, `prod`)**: Run on Oracle database (`ojdbc11`) via the `oracle` profile group with automated Liquibase migrations and rolling updates.
+- **Logging**: Configured via `beadle-backend/src/main/resources/logback-spring.xml` with SLF4J and Logback `SizeAndTimeBasedRollingPolicy` (10MB or 1 day rotation, 30 days retention, gzip compression).
 
 ## Running locally
 

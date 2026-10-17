@@ -14,7 +14,7 @@ def heavyTests = gradle.sharedServices.registerIfAbsent('heavyTests', HeavyTestS
   maxParallelUsages = (findProperty('heavyTests.parallel') ?: '1') as int
 }
 
-def bbhNetwork = gradle.ext.bbhNetwork as boolean
+def bbhNetwork = true
 def skipGui = providers.gradleProperty('skipGui').map { it != 'false' }.getOrElse(false)
 def performanceFactor = providers.systemProperty('performance.factor')
   .orElse(providers.gradleProperty('performance.factor'))
@@ -82,7 +82,8 @@ def npmEnvironment = bbhNetwork
                 .collectEntries { setting, variable -> [variable, findProperty(setting)] }
         : [npm_config_registry: findProperty('npm.publicRegistry') ?: 'https://registry.npmjs.org/']
 def designSystemPackages = (findProperty('designSystem.packages') ?: '@v6/v6-themes@21 @v6/v6-table @v6/v6-icons').toString().tokenize()
-def angularConfiguration = bbhNetwork ? 'production' : 'production,public'
+def hasV6 = file('node_modules/@v6/v6-themes').isDirectory()
+def angularConfiguration = hasV6 ? 'production' : 'production,public'
 def agGridLicenseKey = providers.gradleProperty('agGridLicenseKey').orElse(providers.environmentVariable('AG_GRID_LICENSE_KEY')).getOrElse('')
 def npmInstalled = layout.buildDirectory.file('npm/installed.txt')
 def workspaceFiles = files('package.json', 'package-lock.json', '.npmrc', 'angular.json', 'tsconfig.json')
@@ -102,7 +103,6 @@ tasks.register('installNpmCIDeps', Exec) {
 
 tasks.register('installDesignSystem', Exec) {
     dependsOn 'installNpmCIDeps'
-    onlyIf { bbhNetwork }
     group = 'build'
     description = 'Install the BBH Design System (@v6) packages from the BBH npm registry next to the locked dependencies'
     workingDir = projectDir
@@ -110,7 +110,9 @@ tasks.register('installDesignSystem', Exec) {
     inputs.files('package.json', 'package-lock.json', '.npmrc')
     inputs.property('packages', designSystemPackages)
     commandLine = npmCmd + ['install', '--no-save', '--no-audit', '--no-fund'] + designSystemPackages
-    outputs.dir('node_modules/@v6')
+    outputs.dir('node_modules/@v6/v6-themes')
+    outputs.upToDateWhen { file('node_modules/@v6/v6-themes').isDirectory() }
+    ignoreExitValue = true
 }
 
 project(':beadle-gui') { frontend ->

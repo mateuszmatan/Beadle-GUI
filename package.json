@@ -7,7 +7,7 @@
     "start:bbh": "ng serve beadle-gui --configuration=development",
     "build": "ng build beadle-gui --configuration=production,public",
     "build:bbh": "ng build beadle-gui --configuration=production",
-    "test": "ng test beadle-gui --watch=false"
+    "test": "npx ng test beadle-gui --watch=false"
   },
   "private": true,
   "packageManager": "npm@10.8.2",
