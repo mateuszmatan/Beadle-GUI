@@ -15,7 +15,6 @@ def heavyTests = gradle.sharedServices.registerIfAbsent('heavyTests', HeavyTestS
 }
 
 def bbhNetwork = true
-def skipGui = providers.gradleProperty('skipGui').map { it != 'false' }.getOrElse(false)
 def performanceFactor = providers.systemProperty('performance.factor')
   .orElse(providers.gradleProperty('performance.factor'))
   .getOrElse('2.0')
@@ -385,16 +384,16 @@ project(':beadle-backend') { backend ->
     }
 
     def frontend = project(':beadle-gui')
-    if (!skipGui) {
-        tasks.named('processResources', ProcessResources) {
-            from(frontend.tasks.named('buildAngular')) {
-                into 'static'
-            }
+    tasks.named('bootJar') {
+        from(frontend.tasks.named('buildAngular')) {
+            into 'BOOT-INF/classes/static'
         }
     }
 
     tasks.named('bootRun') {
         workingDir = rootDir
+        dependsOn frontend.tasks.named('buildAngular')
+        args "--spring.web.resources.static-locations=file:${frontend.file('dist')}/"
     }
 
     tasks.matching { it.name in ['regressionTest', 'performanceTest'] }.configureEach {
