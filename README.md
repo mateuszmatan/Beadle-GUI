@@ -25,6 +25,7 @@ beadle-gui/                     the Beadle interface (Angular) and the Groovy br
 angular.json, package.json      the Angular workspace with the one project, beadle-gui
 deploy/openshift/beadle/        the Kustomize manifests (base and rd, qc, prod overlays); Dockerfile in the root
 docs/CONTRACTS.md               the contract between Beadle-GUI, Beadle-Internal and Beadle-ProTech
+docs/DEPLOYMENT.md              quick deployment guide (local laptop & OpenShift)
 ```
 
 | Module | Holds |
