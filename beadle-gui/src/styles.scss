@@ -21,7 +21,10 @@
   --beadle-neutral-bg: #eceef2;
   --beadle-info: #0c2340;
   --beadle-info-bg: #e3e8f0;
+  --beadle-code-bg: #0c1a2e;
+  --beadle-code-fg: #e2e8f0;
   --beadle-gutter: 24px;
+  scroll-behavior: auto;
 }
 
 *,
@@ -55,6 +58,16 @@ code {
   font-size: 11px;
 }
 
+pre.code-block {
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--beadle-code-bg);
+  color: var(--beadle-code-fg);
+  font-family: var(--beadle-mono);
+  font-size: 12px;
+  overflow: auto;
+}
+
 .mono {
   font-family: var(--beadle-mono);
 }
@@ -67,10 +80,6 @@ code {
   max-width: 1360px;
   margin: 0 auto;
   padding: 16px var(--beadle-gutter) 32px;
-}
-
-:root {
-  scroll-behavior: auto;
 }
 
 h1 {
@@ -181,6 +190,12 @@ h3 {
 }
 
 .chip {
+  display: inline-block;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  white-space: nowrap;
 
   &.success {
     background: var(--beadle-success-bg);
@@ -234,7 +249,6 @@ h3 {
 
 .card {
   display: block;
-  flex-direction: row;
   background: var(--beadle-card);
   border: 1px solid var(--beadle-border);
 }

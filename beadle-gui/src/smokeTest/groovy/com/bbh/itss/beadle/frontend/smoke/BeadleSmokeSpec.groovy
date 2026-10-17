@@ -28,8 +28,8 @@ class BeadleSmokeSpec extends BeadleSpecification {
         then:
         assertThat(page.locator('header .brand-name')).hasText('BBH Beadle')
         assertThat(menuLinks()).hasText(MENU as String[])
-        assertThat(page.locator('header .account .user-name')).isVisible()
-        assertThat(buttonIn(page.locator('header .account'), 'Sign out')).isVisible()
+        assertThat(page.locator('header .user-badge .user-name')).isVisible()
+        assertThat(buttonIn(page.locator('header .user-badge'), 'Sign out')).isVisible()
         assertThat(activeMenuLink()).hasText('Admin')
         SECTIONS.every { section -> !page.locator('header.topbar').textContent().contains(section.description) }
         assertThat(page.locator('footer')).containsText('BBH 2026')
