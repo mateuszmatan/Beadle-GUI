@@ -191,7 +191,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
             planned.forEach(task -> {
                 String number = proTech.createTask(current.number(), task);
                 AuditNotes.created(number);
-                created.add(task.numbered(number));
+                created.add(task.withNumber(number));
             });
         } catch (RuntimeException refused) {
             if (!created.isEmpty()) {

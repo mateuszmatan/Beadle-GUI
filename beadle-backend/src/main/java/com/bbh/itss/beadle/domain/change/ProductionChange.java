@@ -211,10 +211,6 @@ public record ProductionChange(Long id, String number, Long productId, String pr
                 .syncProblem(null).build();
     }
 
-    public boolean tasksApproved() {
-        return approved(tasks);
-    }
-
     private static boolean approved(List<ChangeTask> tasks) {
         List<ChangeTask> active = tasks.stream().filter(ChangeTask::active).toList();
         return !active.isEmpty() && active.stream().noneMatch(ChangeTask::awaited);
@@ -256,7 +252,7 @@ public record ProductionChange(Long id, String number, Long productId, String pr
     public ProductionChange reminded(Map<ApprovalRef, Reminder> sent) {
         return toBuilder().approvals(approvals.stream().map(approval -> approval.remindedBy(
                         sent.getOrDefault(ApprovalRef.of(approval.role()), approval.reminder()))).toList())
-                .tasks(tasks.stream().map(task -> task.number() == null ? task : task.remindedBy(
+                .tasks(tasks.stream().map(task -> task.number() == null ? task : task.withReminder(
                         sent.getOrDefault(ApprovalRef.ofTask(task.number()), task.reminder()))).toList()).build();
     }
 
@@ -334,7 +330,7 @@ public record ProductionChange(Long id, String number, Long productId, String pr
             } else if (known != null && known.state() == CLOSED && !known.content().equals(task.content())) {
                 problems.add(field, "is closed in ProTech and cannot be changed");
             }
-            edited.add(known == null ? task.in(OPEN) : known.editedTo(task));
+            edited.add(known == null ? task.withState(OPEN) : known.editedTo(task));
         }
         tasks.stream().filter(task -> task.state() == CLOSED && !listed.contains(task.number()))
                 .forEach(task -> problems.add("tasks", task.number() + " is closed in ProTech and cannot be removed"));
@@ -396,7 +392,7 @@ public record ProductionChange(Long id, String number, Long productId, String pr
         Map<String, Reminder> sent = new HashMap<>();
         tasks.stream().filter(task -> task.number() != null && task.reminder() != null)
                 .forEach(task -> sent.putIfAbsent(task.number(), task.reminder()));
-        return synced.stream().map(task -> task.remindedBy(sent.get(task.number()))).toList();
+        return synced.stream().map(task -> task.withReminder(sent.get(task.number()))).toList();
     }
 
     private List<ChangeTask.Content> contents() {

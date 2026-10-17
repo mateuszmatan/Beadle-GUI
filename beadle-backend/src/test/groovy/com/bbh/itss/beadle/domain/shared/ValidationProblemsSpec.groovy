@@ -3,6 +3,8 @@ package com.bbh.itss.beadle.domain.shared
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException.FieldProblem
 import spock.lang.Specification
 
+import static com.bbh.itss.beadle.support.ChangeFixtures.reported
+
 class ValidationProblemsSpec extends Specification {
 
     def problems = new ValidationProblems()
@@ -13,8 +15,7 @@ class ValidationProblemsSpec extends Specification {
         problems.at('services[0]').at('build').add('javaPath', 'is required')
 
         then:
-        !problems.list().isEmpty()
-        problems.list() == [new FieldProblem('code', 'is taken'),
+        reported(problems) == [new FieldProblem('code', 'is taken'),
                             new FieldProblem('services[0].build.javaPath', 'is required')]
     }
 
@@ -38,31 +39,13 @@ class ValidationProblemsSpec extends Specification {
         outcome = fields.size() == 1 ? 'says it' : 'counts them'
     }
 
-    def "the list is a snapshot that cannot be changed"() {
-        given:
-        problems.add('name', 'is taken')
-        def snapshot = problems.list()
-
-        when:
-        problems.add('code', 'is taken')
-
-        then:
-        snapshot.size() == 1
-
-        when:
-        snapshot.add(new FieldProblem('x', 'y'))
-
-        then:
-        thrown(UnsupportedOperationException)
-    }
-
     def "a request without problems passes and a single field problem can be raised directly"() {
         when:
         problems.throwIfAny()
         def e = InvalidRequestException.of('range', 'use 30d')
 
         then:
-        problems.list().isEmpty()
+        reported(problems).isEmpty()
         e.message == 'use 30d'
         e.problems() == [new FieldProblem('range', 'use 30d')]
     }

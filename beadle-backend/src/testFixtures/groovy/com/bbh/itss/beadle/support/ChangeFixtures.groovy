@@ -17,6 +17,9 @@ import com.bbh.itss.beadle.domain.change.SecureCoding
 import com.bbh.itss.beadle.domain.change.TaskDetails
 import com.bbh.itss.beadle.domain.change.TaskState
 import com.bbh.itss.beadle.domain.change.WorkflowStep
+import com.bbh.itss.beadle.domain.shared.InvalidRequestException
+import com.bbh.itss.beadle.domain.shared.InvalidRequestException.FieldProblem
+import com.bbh.itss.beadle.domain.shared.ValidationProblems
 
 import java.time.Instant
 import java.time.LocalDate
@@ -188,5 +191,15 @@ class ChangeFixtures {
 
     static Instant at(String text) {
         Instant.parse(text)
+    }
+
+    /** The problems found so far, as the request they are about would be refused with. */
+    static List<FieldProblem> reported(ValidationProblems problems) {
+        try {
+            problems.throwIfAny()
+            []
+        } catch (InvalidRequestException refused) {
+            refused.problems()
+        }
     }
 }

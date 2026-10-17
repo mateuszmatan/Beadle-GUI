@@ -278,7 +278,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         when:
         def saved = changes.save(ProductionChange.draft(changeProducts.get(product.id()), 'Mateusz Matan',
                 FIX_VERSION, schedule(), bare, [epic('CERT-1', 'Expiry alerts')], [], null, null)
-                .raisedAt(RAISED).numbered('CHG0001009', null).withTasks([task(1).numbered('CTASK0002019')]))
+                .raisedAt(RAISED).numbered('CHG0001009', null).withTasks([task(1).withNumber('CTASK0002019')]))
         entities.clear()
 
         then:
@@ -301,8 +301,8 @@ class ChangePersistenceAdaptersSpec extends Specification {
         def synced = saved.toBuilder().shortDescription('Renamed in ProTech')
                 .schedule(schedule(firstUsage: '2026-10-13T08:00:00Z')).state(BUSINESS_APPROVAL)
                 .workflow(saved.workflow() + new WorkflowStep(BUSINESS_APPROVAL, RAISED.plusSeconds(120)))
-                .tasks([saved.tasks()[1].in(WORK_IN_PROGRESS), ctask('CTASK0002009', 'Check the audit trail',
-                        'Open the audit trail.', OPEN), saved.tasks()[0].in(CANCELED)])
+                .tasks([saved.tasks()[1].withState(WORK_IN_PROGRESS), ctask('CTASK0002009', 'Check the audit trail',
+                        'Open the audit trail.', OPEN), saved.tasks()[0].withState(CANCELED)])
                 .update(update).syncedAt(RAISED.plusSeconds(660)).build()
 
         when:
@@ -335,7 +335,8 @@ class ChangePersistenceAdaptersSpec extends Specification {
         entities.clear()
         def moved = saved.toBuilder().state(BUSINESS_APPROVAL)
                 .workflow(saved.workflow() + new WorkflowStep(BUSINESS_APPROVAL, RAISED.plusSeconds(120)))
-                .tasks([saved.tasks()[0].in(WORK_IN_PROGRESS), saved.tasks()[1]]).syncedAt(RAISED.plusSeconds(120))
+                .tasks([saved.tasks()[0].withState(WORK_IN_PROGRESS), saved.tasks()[1]])
+                .syncedAt(RAISED.plusSeconds(120))
                 .build()
 
         when:
@@ -380,8 +381,8 @@ class ChangePersistenceAdaptersSpec extends Specification {
         def release = releaseTask([assignedTo     : 'Grace Turner', configurationItem: 'CertScanner UI',
                                    platform       : 'Distributed', packages: 'cert-4.2.tar\ncert-ui-4.2.tar',
                                    backoutPackages: 'cert-4.1.tar', additionalComments: 'Call the owner first.'])
-                .numbered('CTASK0002031').withApproval(REQUESTED, ['Rebecca Lawson', 'Thomas Ashby'])
-                .remindedBy(new Reminder(RAISED, ['Rebecca Lawson', 'Thomas Ashby']))
+                .withNumber('CTASK0002031').withApproval(REQUESTED).withApprovers(['Rebecca Lawson', 'Thomas Ashby'])
+                .withReminder(new Reminder(RAISED, ['Rebecca Lawson', 'Thomas Ashby']))
         def other = ChangeTask.of(taskDetails(2, [assignmentGroup  : 'Cloud Engineering', importance: '2 - High',
                                                   configurationItem: 'CertScanner']))
         def saved = changes.save(raise('CHG0001031').withTasks([release, other])
@@ -415,13 +416,13 @@ class ChangePersistenceAdaptersSpec extends Specification {
         when:
         def pending = changes.save(saved.toBuilder().tasks(saved.tasks() + added).build())
         entities.clear()
-        def applied = changes.save(pending.toBuilder().tasks(saved.tasks() + added.numbered('CTASK0002009')).build())
+        def applied = changes.save(pending.toBuilder().tasks(saved.tasks() + added.withNumber('CTASK0002009')).build())
         entities.clear()
 
         then:
         pending.tasks()*.number() == ['CTASK0002001', null]
         applied.tasks()*.number() == ['CTASK0002001', 'CTASK0002009']
-        changes.load(saved.id()).get().tasks() == saved.tasks() + added.numbered('CTASK0002009')
+        changes.load(saved.id()).get().tasks() == saved.tasks() + added.withNumber('CTASK0002009')
         jdbc.queryForObject('SELECT COUNT(*) FROM BEADLE_PRODUCTION_CHANGE_TASK WHERE CHANGE_ID = ?', Integer,
                 saved.id()) == 2
     }
@@ -499,7 +500,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
                 .withSecureCoding(FULL.secureCoding(), 'SCP-2001')
                 .raisedAt(RAISED).numbered(number, "https://snow/$number".toString())
                 .withTasks(taskNumbers.withIndex().collect { String taskNumber, int index ->
-                    task(index + 1).numbered(taskNumber)
+                    task(index + 1).withNumber(taskNumber)
                 })
     }
 

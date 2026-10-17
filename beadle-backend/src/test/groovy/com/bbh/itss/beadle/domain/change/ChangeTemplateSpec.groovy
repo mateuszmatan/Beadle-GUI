@@ -23,6 +23,7 @@ import static com.bbh.itss.beadle.domain.change.ChangeTemplate.suggestedFor
 import static com.bbh.itss.beadle.domain.change.JiraVersion.UNRELEASED_NEWEST_FIRST
 import static com.bbh.itss.beadle.support.ChangeFixtures.at
 import static com.bbh.itss.beadle.support.ChangeFixtures.privileged
+import static com.bbh.itss.beadle.support.ChangeFixtures.reported
 import static com.bbh.itss.beadle.support.ChangeFixtures.risk
 import static com.bbh.itss.beadle.support.ChangeFixtures.schedule
 import static com.bbh.itss.beadle.support.ChangeFixtures.tasks
@@ -204,7 +205,7 @@ class ChangeTemplateSpec extends Specification {
         schedule(edits).check(false, problems.at('schedule'))
 
         then:
-        problems.list().collect { "$it.field $it.message".toString() } == expected
+        reported(problems).collect { "$it.field $it.message".toString() } == expected
 
         where:
         edits                                                                        || expected
@@ -226,7 +227,7 @@ class ChangeTemplateSpec extends Specification {
         schedule(edits).check(downtime, problems.at('schedule'))
 
         then:
-        problems.list().collect { "$it.field $it.message".toString() } == expected
+        reported(problems).collect { "$it.field $it.message".toString() } == expected
 
         where:
         downtime | edits                                                                      || expected
@@ -250,7 +251,7 @@ class ChangeTemplateSpec extends Specification {
         schedule().checkUpcoming(at(now), problems)
 
         then:
-        problems.list()*.field == fields
+        reported(problems)*.field == fields
 
         where:
         now                    || fields
@@ -299,6 +300,6 @@ class ChangeTemplateSpec extends Specification {
     private static List<String> problems(ChangeTemplate template) {
         def problems = new ValidationProblems()
         template.validate(problems.at('template'))
-        problems.list().collect { "$it.field $it.message".toString() }
+        reported(problems).collect { "$it.field $it.message".toString() }
     }
 }

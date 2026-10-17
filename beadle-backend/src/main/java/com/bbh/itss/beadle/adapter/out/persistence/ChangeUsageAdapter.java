@@ -6,11 +6,12 @@ import com.bbh.itss.beadle.domain.change.ChangeUsage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.bbh.itss.beadle.adapter.out.persistence.Counts.perId;
 import static com.bbh.itss.beadle.domain.change.ChangeUsage.UNUSED;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
@@ -35,5 +36,12 @@ class ChangeUsageAdapter implements DepartmentUsagePort {
     @Override
     public DepartmentUsage unused() {
         return UNUSED;
+    }
+
+    /** The rows {@code [department id, count]} of a count query by department. */
+    private static Map<Long, Long> perId(List<Object[]> rows) {
+        Map<Long, Long> counts = new HashMap<>();
+        rows.forEach(row -> counts.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue()));
+        return counts;
     }
 }

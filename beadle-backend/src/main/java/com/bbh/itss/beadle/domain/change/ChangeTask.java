@@ -1,6 +1,7 @@
 package com.bbh.itss.beadle.domain.change;
 
 import com.bbh.itss.beadle.domain.shared.ValidationProblems;
+import lombok.With;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -15,6 +16,7 @@ import static java.time.Duration.ofMinutes;
 import static org.apache.commons.lang3.ObjectUtils.getIfNull;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
+@With
 public record ChangeTask(String number, TaskDetails details, Instant start, ApprovalState approval,
                          List<String> approvers, Reminder reminder, TaskState state) {
 
@@ -36,22 +38,6 @@ public record ChangeTask(String number, TaskDetails details, Instant start, Appr
 
     static void validateTasks(List<ChangeTask> tasks, ChangeSchedule schedule, ValidationProblems problems) {
         validateEach(tasks, problems, (task, at) -> task.validate(schedule, at));
-    }
-
-    public ChangeTask numbered(String number) {
-        return new ChangeTask(number, details, start, approval, approvers, reminder, state);
-    }
-
-    public ChangeTask in(TaskState state) {
-        return new ChangeTask(number, details, start, approval, approvers, reminder, state);
-    }
-
-    public ChangeTask withApproval(ApprovalState approval, List<String> approvers) {
-        return new ChangeTask(number, details, start, approval, approvers, reminder, state);
-    }
-
-    public ChangeTask remindedBy(Reminder sent) {
-        return new ChangeTask(number, details, start, approval, approvers, sent, state);
     }
 
     public ChangeTask editedTo(ChangeTask edit) {

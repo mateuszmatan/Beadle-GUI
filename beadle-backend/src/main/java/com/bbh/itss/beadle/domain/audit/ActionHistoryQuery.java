@@ -43,8 +43,4 @@ public record ActionHistoryQuery(String user, Action action, ObjectType objectTy
         problems.throwIfAny();
         return query;
     }
-
-    public static ActionHistoryQuery all() {
-        return of(null, null, null, null, null, null, null, null, null);
-    }
 }

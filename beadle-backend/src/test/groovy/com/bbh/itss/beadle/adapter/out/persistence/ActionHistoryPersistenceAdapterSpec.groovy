@@ -75,7 +75,7 @@ class ActionHistoryPersistenceAdapterSpec extends Specification {
         stored.details().startsWith('{"command":{"name":"éé')
         stored.details().endsWith('é...')
         stored.details().getBytes('UTF-8').length in (ActionRecord.DETAILS_MAX - 4)..ActionRecord.DETAILS_MAX
-        def read = adapter.find(ActionHistoryQuery.all()).content()
+        def read = adapter.find(ActionHistoryQuery.of(null, null, null, null, null, null, null, null, null)).content()
         read == [stored]
         read[0].at() == Instant.parse('2026-10-15T09:00:00.123456Z')
     }

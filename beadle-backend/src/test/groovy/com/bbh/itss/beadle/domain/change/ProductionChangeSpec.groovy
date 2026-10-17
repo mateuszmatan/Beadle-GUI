@@ -283,7 +283,7 @@ class ProductionChangeSpec extends Specification {
                 tasks: [])
         def same = raised(template: template(release: FIX_VERSION, jiraProjectKey: 'OTHER', type: EMERGENCY,
                 timing: new Timing('06:00', 1, 0)),
-                tasks: mine.tasks().collect { it.in(WORK_IN_PROGRESS) } + ctask('CTASK9', 'Gone', 'Gone.', CANCELED))
+                tasks: mine.tasks().collect { it.withState(WORK_IN_PROGRESS) } + ctask('CTASK9', 'Gone', 'Gone.', CANCELED))
 
         expect:
         mine.unappliedIn(all) == ['shortDescription', 'description', 'schedule.installationStart',
@@ -366,7 +366,8 @@ class ProductionChangeSpec extends Specification {
 
         then:
         synced.update().fields() == ['tasks']
-        synced.tasks() == [raised().tasks()[0].in(WORK_IN_PROGRESS).withApproval(APPROVED, ['Daniel Foster']),
+        synced.tasks() == [raised().tasks()[0].withState(WORK_IN_PROGRESS).withApproval(APPROVED)
+                                   .withApprovers(['Daniel Foster']),
                            ctask(null, 'New task', 'A new task.', OPEN)]
         synced.state() == CTASK_APPROVAL
     }
@@ -377,12 +378,13 @@ class ProductionChangeSpec extends Specification {
         raised().synced(remote(state: ChangeState.CLOSED, tasks: []), NOW).state() == ChangeState.CLOSED
 
         where:
-        tasks                                                                             || state
-        []                                                                                || CTASK_APPROVAL
-        [task(1).withApproval(APPROVED, []), task(2).withApproval(REQUESTED, [])]         || CTASK_APPROVAL
-        [task(1).withApproval(NOT_APPROVED, []), task(2).in(CANCELED)]                    || CTASK_APPROVAL
-        [task(1).withApproval(APPROVED, []), task(2).in(CANCELED)]                        || IMPLEMENTATION
-        [task(1).withApproval(APPROVED, []), task(2).withApproval(APPROVED, [])]          || IMPLEMENTATION
+        tasks                                                              || state
+        []                                                                 || CTASK_APPROVAL
+        [task(1).withState(CANCELED)]                                      || CTASK_APPROVAL
+        [task(1).withApproval(APPROVED), task(2).withApproval(REQUESTED)]  || CTASK_APPROVAL
+        [task(1).withApproval(NOT_APPROVED), task(2).withState(CANCELED)]  || CTASK_APPROVAL
+        [task(1).withApproval(APPROVED), task(2).withState(CANCELED)]      || IMPLEMENTATION
+        [task(1).withApproval(APPROVED), task(2).withApproval(APPROVED)]   || IMPLEMENTATION
     }
 
     def "an update that could not be checked waits with every path it changed and says why"() {
@@ -474,14 +476,15 @@ class ProductionChangeSpec extends Specification {
         def change = raised(tasks: [task(1)])
 
         when:
-        def planned = change.plannedTasks([releaseTask([configurationItem: null], null).numbered('CTASK9')
-                                                   .withApproval(APPROVED, ['Ann Lee']).in(CLOSED), ChangeTask.of(details(2))])
+        def planned = change.plannedTasks([releaseTask([configurationItem: null], null).withNumber('CTASK9')
+                                                   .withApproval(APPROVED).withApprovers(['Ann Lee']).withState(CLOSED),
+                                           ChangeTask.of(details(2))])
 
         then:
         planned == [releaseTask([configurationItem: 'CertScanner'], '2026-10-10T06:01:00Z'),
                     ChangeTask.of(details(2, [configurationItem: 'CertScanner']))]
-        change.withTasks(planned.collect { it.numbered('CTASK7') }).tasks() ==
-                [task(1)] + planned.collect { it.numbered('CTASK7') }
+        change.withTasks(planned.collect { it.withNumber('CTASK7') }).tasks() ==
+                [task(1)] + planned.collect { it.withNumber('CTASK7') }
     }
 
     def "the tasks created on a raised change are refused when #problem"() {
@@ -537,20 +540,6 @@ class ProductionChangeSpec extends Specification {
                 .schedule() == schedule()
     }
 
-    def "the change tasks are approved only when every active task is approved and there is at least one"() {
-        expect:
-        raised(tasks: tasks).tasksApproved() == approved
-
-        where:
-        tasks                                                                         || approved
-        []                                                                            || false
-        [task(1).withApproval(APPROVED, [])]                                          || true
-        [task(1).withApproval(APPROVED, []), task(2).withApproval(REQUESTED, [])]     || false
-        [task(1).withApproval(APPROVED, []), task(2).withApproval(NOT_APPROVED, [])]  || false
-        [task(1).withApproval(APPROVED, []), task(2).in(CANCELED)]                    || true
-        [task(1).in(CANCELED)]                                                        || false
-    }
-
     def "a reminder to everyone goes to each named approver of the change and of each active task who has not approved yet"() {
         given:
         def change = raised(state: CTASK_APPROVAL, approvals: [
@@ -558,10 +547,11 @@ class ProductionChangeSpec extends Specification {
                 new ChangeApproval(L1, 'Olivia Bennett', REQUESTED, null),
                 new ChangeApproval(L2, null, NOT_APPROVED, null),
                 new ChangeApproval(SUPPORT, 'Jane Smith', NOT_APPROVED, null)],
-                tasks: [task(1).withApproval(APPROVED, ['Ann Lee']), task(2).withApproval(REQUESTED, ['Ann Lee']),
-                        ctask('CTASK3', 'Three', 'Third.', CANCELED).withApproval(REQUESTED, ['Ann Lee']),
+                tasks: [task(1).withApproval(APPROVED).withApprovers(['Ann Lee']),
+                        task(2).withApproval(REQUESTED).withApprovers(['Ann Lee']),
+                        ctask('CTASK3', 'Three', 'Third.', CANCELED).withApproval(REQUESTED).withApprovers(['Ann Lee']),
                         ctask('CTASK4', 'Four', 'Fourth.', OPEN),
-                        ctask('CTASK5', 'Five', 'Fifth.', OPEN).withApproval(NOT_APPROVED, ['Grace Turner'])])
+                        ctask('CTASK5', 'Five', 'Fifth.', OPEN).withApproval(NOT_APPROVED).withApprovers(['Grace Turner'])])
 
         expect:
         change.toRemind(null, null) == [ApprovalRef.of(L1), ApprovalRef.of(SUPPORT), ApprovalRef.ofTask('CTASK0041002'),
@@ -574,8 +564,8 @@ class ProductionChangeSpec extends Specification {
         given:
         def change = raised(state: state, approvals: [new ChangeApproval(BUSINESS, 'Rebecca Lawson', APPROVED, null),
                                                       new ChangeApproval(L1, null, REQUESTED, null)],
-                tasks: [task(1).withApproval(APPROVED, ['Ann Lee']),
-                        ctask('CTASK2', 'Two', 'Second.', CANCELED).withApproval(REQUESTED, ['Ann Lee']),
+                tasks: [task(1).withApproval(APPROVED).withApprovers(['Ann Lee']),
+                        ctask('CTASK2', 'Two', 'Second.', CANCELED).withApproval(REQUESTED).withApprovers(['Ann Lee']),
                         ctask('CTASK3', 'Three', 'Third.', OPEN)])
 
         when:
@@ -609,7 +599,7 @@ class ProductionChangeSpec extends Specification {
         def reminded = change.reminded([(ApprovalRef.of(L1)): sent, (ApprovalRef.ofTask('CTASK0041002')): toTask])
         def synced = reminded.synced(remote(approvals: ChangeApproval.of(template().approvers()).collect {
             new ChangeApproval(it.role(), it.approver(), APPROVED, null)
-        }, tasks: raised().tasks().collect { it.withApproval(APPROVED, ['Ann Lee']) }), NOW)
+        }, tasks: raised().tasks().collect { it.withApproval(APPROVED).withApprovers(['Ann Lee']) }), NOW)
 
         then:
         reminded.approvals()*.reminder() == [null, sent, null, null]
@@ -629,13 +619,15 @@ class ProductionChangeSpec extends Specification {
         new ChangeApproval(L1, ' Ann Lee ', REQUESTED, null).approver() == 'Ann Lee'
         new Reminder(NOW, (1..12).collect { " Person $it ".toString() } + [' Person 1', null, ' ']).sentTo() ==
                 (1..9).collect { "Person $it".toString() }
-        ChangeTask.of(details()).withApproval(REQUESTED, [' Ann ', 'Ann', null]).approvers() == ['Ann']
+        ChangeTask.of(details()).withApproval(REQUESTED).withApprovers([' Ann ', 'Ann', null]).approvers() == ['Ann']
     }
 
     static ProductionChange remote(Map changes = [:]) {
         raised([url: 'https://protech/CHG', state: IMPLEMENTATION,
                 workflow: [new WorkflowStep(DRAFT, RAISED), new WorkflowStep(BUSINESS_APPROVAL, RAISED.plusSeconds(120)),
                            new WorkflowStep(IMPLEMENTATION, RAISED.plusSeconds(600))],
-                tasks: raised().tasks().collect { it.in(WORK_IN_PROGRESS).withApproval(APPROVED, ['Daniel Foster']) }] + changes)
+                tasks: raised().tasks().collect {
+                    it.withState(WORK_IN_PROGRESS).withApproval(APPROVED).withApprovers(['Daniel Foster'])
+                }] + changes)
     }
 }

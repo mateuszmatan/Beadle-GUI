@@ -6,15 +6,13 @@ import spock.lang.Specification
 import static com.bbh.itss.beadle.domain.change.ApprovalState.NOT_APPROVED
 import static com.bbh.itss.beadle.domain.change.TaskDetails.suggestedTasks
 import static com.bbh.itss.beadle.domain.change.TaskDetails.validateTasks
-import static com.bbh.itss.beadle.domain.change.TaskState.CANCELED
-import static com.bbh.itss.beadle.domain.change.TaskState.CLOSED
 import static com.bbh.itss.beadle.domain.change.TaskState.OPEN
-import static com.bbh.itss.beadle.domain.change.TaskState.WORK_IN_PROGRESS
 import static com.bbh.itss.beadle.domain.shared.Text.bytes
 import static com.bbh.itss.beadle.support.ChangeFixtures.at
 import static com.bbh.itss.beadle.support.ChangeFixtures.ctask
 import static com.bbh.itss.beadle.support.ChangeFixtures.details
 import static com.bbh.itss.beadle.support.ChangeFixtures.releaseTask
+import static com.bbh.itss.beadle.support.ChangeFixtures.reported
 import static com.bbh.itss.beadle.support.ChangeFixtures.schedule
 
 class TaskDetailsSpec extends Specification {
@@ -54,7 +52,6 @@ class TaskDetailsSpec extends Specification {
         new ChangeTask(null, details(), at('2026-10-10T06:30:00Z'), null, null, null, null).start() == null
         releaseTask().start() == at('2026-10-10T06:01:00Z')
         new ChangeTask(null, null, null, null, null, null, null).details() == TaskDetails.builder().build()
-        [OPEN, WORK_IN_PROGRESS, CLOSED, CANCELED].collect { it.frozen() } == [false, false, true, true]
     }
 
     def "a planned task falls back to the affected CI of the change and starts a minute into the installation"() {
@@ -101,7 +98,7 @@ class TaskDetailsSpec extends Specification {
         validateTasks(tasks, problems)
 
         then:
-        problems.list().collect { it.field() + ': ' + it.message() } == expected
+        reported(problems).collect { it.field() + ': ' + it.message() } == expected
 
         where:
         problem                     | tasks                                                                    || expected
@@ -124,7 +121,7 @@ class TaskDetailsSpec extends Specification {
         ChangeTask.validateTasks(tasks, schedule(), problems)
 
         then:
-        problems.list().collect { it.field() + ': ' + it.message() } == expected
+        reported(problems).collect { it.field() + ': ' + it.message() } == expected
 
         where:
         problem                           | tasks                                                      || expected

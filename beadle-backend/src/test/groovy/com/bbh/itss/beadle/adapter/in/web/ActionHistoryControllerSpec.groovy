@@ -38,7 +38,8 @@ class ActionHistoryControllerSpec extends Specification {
         def response = call('/api/action-history')
 
         then:
-        1 * history.find(ActionHistoryQuery.all()) >> new ActionHistoryPage([RAISED], 0, 50, 1234)
+        1 * history.find(ActionHistoryQuery.of(null, null, null, null, null, null, null, null, null)) >>
+                new ActionHistoryPage([RAISED], 0, 50, 1234)
         response.status == 200
         parse(response.contentAsString) == [
                 content: [[id           : 41, at: '2026-10-15T09:00:00Z', user: 'Mateusz Matan',

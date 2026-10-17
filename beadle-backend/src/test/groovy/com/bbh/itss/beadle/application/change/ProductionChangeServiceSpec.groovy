@@ -591,7 +591,7 @@ class ProductionChangeServiceSpec extends Specification {
         given:
         def stored = raised()
         def applied = raised(shortDescription: 'Renamed', state: BUSINESS_APPROVAL,
-                tasks: stored.tasks() + NEW_TASK.numbered('CTASK0041003'))
+                tasks: stored.tasks() + NEW_TASK.withNumber('CTASK0041003'))
 
         when:
         def updated = service.update(7L, edit(shortDescription: ' Renamed ', tasks: stored.tasks() + NEW_TASK))
@@ -738,7 +738,7 @@ class ProductionChangeServiceSpec extends Specification {
         problem                  | reply                                                                     || failure               | message
         'has closed the change'  | { [CHG0031001: raised(state: CLOSED)] }                                   || IllegalStateException | 'CHG0031001 is closed in ProTech and can no longer be changed'
         'changed its texts'      | { [CHG0031001: raised(description: 'Edited in ProTech')] }               || IllegalStateException | STALE_VERSION
-        'added a change task'    | { [CHG0031001: raised(tasks: raised().tasks() + NEW_TASK.numbered('CTASK0041009'))] } || IllegalStateException | STALE_VERSION
+        'added a change task'    | { [CHG0031001: raised(tasks: raised().tasks() + NEW_TASK.withNumber('CTASK0041009'))] } || IllegalStateException | STALE_VERSION
         'no longer holds it'     | { [:] }                                                                   || IllegalStateException | 'ProTech has no change CHG0031001.'
         'cannot be reached'      | { throw new UncheckedIOException('Read timed out', new IOException()) }  || UncheckedIOException  | 'Read timed out'
     }
@@ -922,7 +922,9 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * proTech.read({ it*.version() == [1L] }) >> { [CHG0031001: recorded.toBuilder().tasks(
-                recorded.tasks().collect { it.withApproval(NOT_APPROVED, ['Rebecca Lawson', 'Thomas Ashby']) })
+                recorded.tasks().collect {
+                    it.withApproval(NOT_APPROVED).withApprovers(['Rebecca Lawson', 'Thomas Ashby'])
+                })
                 .build()] }
         1 * changes.save({ ProductionChange it -> it.tasks()*.approvers().every { it == ['Rebecca Lawson', 'Thomas Ashby'] } }) >>
                 { ProductionChange saved -> saved.toBuilder().version(2L).build() }
@@ -1410,8 +1412,8 @@ class ProductionChangeServiceSpec extends Specification {
                 approvals: ChangeApproval.of(template().approvers()).withIndex().collect { approval, index ->
                     new ChangeApproval(approval.role(), approval.approver(), index < 3 ? APPROVED : REQUESTED, null)
                 },
-                tasks: [task(1).withApproval(APPROVED, ['Ann Lee']),
-                        task(2).withApproval(NOT_APPROVED, ['Ann Lee', 'Grace Turner'])])
+                tasks: [task(1).withApproval(APPROVED).withApprovers(['Ann Lee']),
+                        task(2).withApproval(NOT_APPROVED).withApprovers(['Ann Lee', 'Grace Turner'])])
     }
 
     static ChangeTasksCommand created(Map changes = [:]) {

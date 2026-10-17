@@ -44,11 +44,8 @@ public final class Text {
         return codePoint < 0x80 ? 1 : codePoint < 0x800 ? 2 : codePoint < 0x10000 ? 3 : 4;
     }
 
+    /** The values trimmed, without blanks and repeats, in their order. */
     public static List<String> clean(List<String> values) {
-        return trimmed(values).stream().distinct().toList();
-    }
-
-    public static List<String> trimmed(List<String> values) {
-        return emptyIfNull(values).stream().filter(StringUtils::isNotBlank).map(String::trim).toList();
+        return emptyIfNull(values).stream().filter(StringUtils::isNotBlank).map(String::trim).distinct().toList();
     }
 }

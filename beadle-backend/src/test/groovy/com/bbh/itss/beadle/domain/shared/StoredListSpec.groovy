@@ -2,11 +2,9 @@ package com.bbh.itss.beadle.domain.shared
 
 import spock.lang.Specification
 
-import static com.bbh.itss.beadle.domain.shared.StoredList.COMMAS_1000
-import static com.bbh.itss.beadle.domain.shared.StoredList.COMMAS_2000
 import static com.bbh.itss.beadle.domain.shared.StoredList.LINES_1000
-import static com.bbh.itss.beadle.domain.shared.StoredList.LINES_2000
 import static com.bbh.itss.beadle.domain.shared.StoredList.LINES_4000
+import static com.bbh.itss.beadle.support.ChangeFixtures.reported
 
 class StoredListSpec extends Specification {
 
@@ -30,12 +28,11 @@ class StoredListSpec extends Specification {
 
         when:
         LINES_1000.check(problems.at('flutter'), 'modules', ['m' * 600, 'n' * 400])
-        COMMAS_1000.check(problems, 'agentLabels', ['a' * 500, 'b' * 499])
+        LINES_4000.check(problems, 'agentLabels', ['a' * 2000, 'b' * 1999])
 
         then:
-        problems.list()*.field == ['flutter.modules']
-        problems.list()*.message == ['is too long: all entries together may take at most 1000 bytes']
-        [LINES_1000, LINES_2000, LINES_4000, COMMAS_1000, COMMAS_2000].collect { [it.separator(), it.maxBytes()] } ==
-                [['\n', 1000], ['\n', 2000], ['\n', 4000], [',', 1000], [',', 2000]]
+        reported(problems)*.field == ['flutter.modules']
+        reported(problems)*.message == ['is too long: all entries together may take at most 1000 bytes']
+        [LINES_1000, LINES_4000].collect { [it.separator(), it.maxBytes()] } == [['\n', 1000], ['\n', 4000]]
     }
 }
