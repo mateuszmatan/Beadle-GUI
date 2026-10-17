@@ -2,7 +2,7 @@ package com.bbh.itss.beadle.config
 
 import com.bbh.itss.beadle.BeadleApplication
 import com.bbh.itss.beadle.support.RecordingHttpServer
-import com.bbh.itss.beadle.support.StubServices
+import com.bbh.itss.beadle.support.StandInServices
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.boot.context.TypeExcludeFilter
 import org.springframework.context.ApplicationContextInitializer
@@ -244,13 +244,15 @@ class SecurityConfigurationSpec extends Specification {
     }
 
     private static ConfigurableApplicationContext start(String name, List<String> arguments) {
-        new SpringApplicationBuilder(BeadleApplication).profiles('local', StubServices.PROFILE)
+        new SpringApplicationBuilder(BeadleApplication).profiles('local')
                 .logStartupInfo(false)
                 .initializers({ ConfigurableApplicationContext context ->
                     context.beanFactory.registerSingleton('specClasses', new SpecClasses())
                 } as ApplicationContextInitializer<ConfigurableApplicationContext>)
                 .run(([
                         '--server.port=0', '--beadle.demo-data=false', "--beadle.services.token=$TOKEN",
+                        "--beadle.services.internal.url=$StandInServices.SHARED.url",
+                        "--beadle.services.protech.url=$StandInServices.SHARED.url",
                         '--management.endpoint.health.probes.enabled=true',
                         "--DB_URL=jdbc:h2:mem:security-$name;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1"
                 ]*.toString() + arguments) as String[])

@@ -1,5 +1,6 @@
 package com.bbh.itss.beadle.regression
 
+import com.bbh.itss.beadle.support.BeadleClient
 import com.bbh.itss.beadle.support.BeadleSpecification
 
 import java.time.Instant
@@ -17,6 +18,7 @@ abstract class ChangeRegressionSpecification extends BeadleSpecification {
     static final Instant START = Instant.now().plus(3, DAYS).truncatedTo(HOURS)
     static final String SIGNED_IN = 'Mateusz Matan'
 
+    /** Raises a change of {@code product} from the first epic of its newest FixVersion and creates its tasks. */
     protected Map raise(Map product, List tasks = changeTasksJson()) {
         String key = 'CHG' + product.id
         String fixVersion = api.get("/api/products/$product.id/jira/versions?project=$key").json[0].name
@@ -29,13 +31,10 @@ abstract class ChangeRegressionSpecification extends BeadleSpecification {
     }
 
     protected Map createTasks(Map change, List tasks) {
-        def response = api.post("/api/changes/$change.id/tasks", tasksOf(change, tasks))
+        def response = api.post("/api/changes/$change.id/tasks", [version: change.version,
+                                                                   departmentId: change.departmentId, tasks: tasks])
         assert response.status == 200: response
         response.json as Map
-    }
-
-    protected static Map tasksOf(Map change, List tasks) {
-        [version: change.version, departmentId: change.departmentId, tasks: tasks]
     }
 
     protected static Map editOf(Map change, Map edits) {
@@ -49,10 +48,8 @@ abstract class ChangeRegressionSpecification extends BeadleSpecification {
          schedule: scheduleJson(START), template: templateJson()] + edits
     }
 
-    protected static Map raisedAs(Map template, String release, String department = 'Corporate Technology') {
-        template + [release: release, requestedFor: template.requestedFor ?: SIGNED_IN,
-                    requestedBy: template.requestedBy ?: SIGNED_IN, department: template.department ?: department,
-                    assignedTo: template.assignedTo ?: SIGNED_IN, secureCodingTicket: null]
+    protected BeadleClient.Response callback(String path, Map body, Map<String, String> headers = [:]) {
+        api.post(path, body, [Authorization: "Bearer $SERVICE_TOKEN".toString()] + headers)
     }
 
     protected static String enc(String text) {

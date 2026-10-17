@@ -264,10 +264,6 @@ project(':beadle-backend') { backend ->
     dependencies {
         compileOnly 'org.projectlombok:lombok'
         annotationProcessor 'org.projectlombok:lombok'
-        testCompileOnly 'org.projectlombok:lombok'
-        testAnnotationProcessor 'org.projectlombok:lombok'
-        testFixturesCompileOnly 'org.projectlombok:lombok'
-        testFixturesAnnotationProcessor 'org.projectlombok:lombok'
 
         testFixturesApi 'org.springframework.boot:spring-boot-starter-test'
         testFixturesApi 'org.springframework.boot:spring-boot-starter-webmvc-test'
@@ -321,7 +317,7 @@ project(':beadle-backend') { backend ->
 
             [regressionTest : 'Runs the API end to end on H2 in Oracle mode.',
              smokeTest      : 'Starts the application and checks health, the API and the UI.',
-             performanceTest: 'Measures the p95 latencies of the main calls on a large catalogue.'].each { suiteName, text ->
+             performanceTest: 'Measures the p95 latencies of the key calls on the demo catalogue'].each { suiteName, text ->
                 if (backend.file("src/$suiteName").isDirectory()) {
                     register(suiteName, JvmTestSuite) {
                         dependencies {
@@ -333,9 +329,7 @@ project(':beadle-backend') { backend ->
                                 description = text
                                 shouldRunAfter tasks.named('test')
                                 extensions.getByType(JacocoTaskExtension).enabled = false
-                                systemProperty 'regression.expectedDir', backend.file('src/regressionTest/resources/regression').absolutePath
-                                systemProperty 'performance.report', backend.layout.buildDirectory.file('reports/performance/backend-performance-report.md').get().asFile.absolutePath
-                                forward(it, 'regression.updateExpected', 'smoke.baseUrl', 'smoke.ui', 'smoke.cookie')
+                                forward(it, 'smoke.baseUrl', 'smoke.ui', 'smoke.cookie')
                                 systemProperty 'performance.factor', performanceFactor
                                 if (suiteName != 'regressionTest') {
                                     outputs.upToDateWhen { false }
