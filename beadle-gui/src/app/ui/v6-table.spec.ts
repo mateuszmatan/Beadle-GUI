@@ -138,10 +138,14 @@ describe('V6Table and V6TableHelpers (Beadle)', () => {
       expect(clientOpts.rowHeight).toBe(34);
       expect(clientOpts.headerHeight).toBe(34);
       expect(clientOpts.defaultColDef?.sortable).toBe(true);
+      expect(clientOpts.suppressHorizontalScroll).toBe(false);
+      expect(clientOpts.alwaysShowHorizontalScroll).toBe(true);
 
       const serverOpts = V6Table.defaultServerSideGridOptions();
       expect(serverOpts.rowModelType).toBe('serverSide');
       expect(serverOpts.cacheBlockSize).toBe(50);
+      expect(serverOpts.suppressHorizontalScroll).toBe(false);
+      expect(serverOpts.alwaysShowHorizontalScroll).toBe(true);
     });
 
     it('provides defaultHeaderValueGetter', () => {

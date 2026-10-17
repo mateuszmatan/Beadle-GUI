@@ -75,7 +75,7 @@
   --ag-font-size: 13px;
   --ag-foreground-color: #1b1f24;
   --ag-header-foreground-color: #5b6475;
-  --ag-header-background-color: #ffffff;
+  --ag-header-background-color: #f8fafc;
   --ag-background-color: #ffffff;
   --ag-odd-row-background-color: #ffffff;
   --ag-row-hover-color: #f1f4f8;
@@ -85,4 +85,25 @@
   --ag-cell-horizontal-padding: 10px;
   --ag-borders: none;
   --ag-active-color: #0c2340;
+  --ag-scrollbar-size: 8px;
+
+  .ag-body-viewport,
+  .ag-center-cols-viewport {
+    overflow-x: auto !important;
+  }
+
+  .ag-body-horizontal-scroll {
+    display: block !important;
+    min-height: 10px !important;
+    height: 10px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .ag-body-horizontal-scroll-viewport {
+    overflow-x: auto !important;
+    min-height: 10px !important;
+    height: 10px !important;
+  }
 }
+

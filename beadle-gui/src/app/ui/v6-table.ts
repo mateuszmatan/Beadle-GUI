@@ -523,6 +523,8 @@ export class V6Table {
       suppressAnimationFrame: true,
       enableCellTextSelection: true,
       suppressCellFocus: true,
+      suppressHorizontalScroll: false,
+      alwaysShowHorizontalScroll: true,
       rowHeight: 34,
       headerHeight: 34,
       floatingFiltersHeight: 38,
@@ -531,6 +533,7 @@ export class V6Table {
         resizable: true,
         sortable: true,
         filter: true,
+        minWidth: 100,
         headerValueGetter: V6Table.defaultHeaderValueGetter(),
       },
     };
@@ -549,10 +552,13 @@ export class V6Table {
       maxBlocksInCache: 10,
       enableCellTextSelection: true,
       suppressCellFocus: true,
+      suppressHorizontalScroll: false,
+      alwaysShowHorizontalScroll: true,
       defaultColDef: {
         resizable: true,
         sortable: true,
         filter: true,
+        minWidth: 100,
         headerValueGetter: V6Table.defaultHeaderValueGetter(),
       },
     };

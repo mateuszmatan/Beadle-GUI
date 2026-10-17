@@ -827,17 +827,121 @@ svg-icon svg {
   min-width: 280px;
 }
 
-.beadle-grid {
+.beadle-grid,
+.v6-table-theme--bbh,
+.ag-theme-balham {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  position: relative;
+
+  .ag-root-wrapper {
+    border: 1px solid var(--beadle-border, #d9dee6);
+    background-color: var(--beadle-card, #ffffff);
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .ag-root {
+    min-width: 100%;
+  }
+
+  /* Viewports: allow seamless horizontal scrolling without squashing columns */
+  .ag-body-viewport,
+  .ag-center-cols-viewport {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Horizontal Scrollbar - official BBH V6 aesthetics */
+  .ag-body-horizontal-scroll {
+    display: block !important;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    min-height: 10px !important;
+    height: 10px !important;
+    background-color: #f8fafc;
+    border-top: 1px solid var(--beadle-border, #e2e8f0);
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .ag-body-horizontal-scroll-viewport {
+    overflow-x: auto !important;
+    min-height: 10px !important;
+    height: 10px !important;
+  }
+
+  /* BBH styled scrollbars */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #f1f4f8;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #b0b8c4;
+    border-radius: 4px;
+    border: 1px solid #f1f4f8;
+
+    &:hover {
+      background: #8a96a8;
+    }
+
+    &:active {
+      background: #5b6475;
+    }
+  }
+
+  scrollbar-width: thin;
+  scrollbar-color: #b0b8c4 #f1f4f8;
+
+  /* Header typography & styling */
+  .ag-header {
+    background-color: #f8fafc;
+    border-bottom: 2px solid var(--beadle-border, #d9dee6);
+  }
+
   .ag-header-cell-text {
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
+    color: #5b6475;
+  }
+
+  .ag-header-cell {
+    padding-left: 12px;
+    padding-right: 12px;
   }
 
   .ag-cell {
     display: flex;
     align-items: center;
+    padding-left: 12px;
+    padding-right: 12px;
+    font-size: 13px;
+    color: var(--beadle-text, #1b1f24);
+    border-bottom: 1px solid #e6e9ee;
+  }
+
+  .ag-row {
+    background-color: #ffffff;
+    transition: background-color 0.1s ease;
+
+    &:hover {
+      background-color: #f8fafc !important;
+    }
+
+    &.ag-row-selected {
+      background-color: #edf2f7 !important;
+    }
   }
 
   .ag-cell-wrap-text {
@@ -863,13 +967,31 @@ svg-icon svg {
   }
 
   .beadle-grid-empty {
-    color: var(--beadle-muted);
+    color: var(--beadle-muted, #5b6475);
+    font-style: italic;
   }
 
   .v6-table-selection-cell {
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  /* Pinned columns styling for left selection & right actions */
+  .ag-pinned-left-cols-container,
+  .ag-pinned-left-header {
+    border-right: 1px solid var(--beadle-border, #d9dee6);
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.04);
+    background-color: inherit;
+    z-index: 5;
+  }
+
+  .ag-pinned-right-cols-container,
+  .ag-pinned-right-header {
+    border-left: 1px solid var(--beadle-border, #d9dee6);
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.04);
+    background-color: inherit;
+    z-index: 5;
   }
 }
 
