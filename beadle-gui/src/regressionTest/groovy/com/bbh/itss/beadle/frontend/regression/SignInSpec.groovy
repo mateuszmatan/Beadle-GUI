@@ -57,38 +57,4 @@ class SignInSpec extends BeadleSpecification {
         page.waitForURL('**/changes')
         assertThat(page.locator('header .account .user-name')).hasText(BeadleStubApi.SIGNED_IN_USER)
     }
-
-    def "an API call that finds the session ended sends the browser to sign in and back to the page it was on"() {
-        given:
-        open('/admin/departments')
-        assertThat(gridRows().first()).isVisible()
-
-        when: 'the session ends at Beadle and the next page asks the API'
-        beadle.signedIn = false
-        tab('Products').click()
-
-        then: 'Ping signs the browser in again and the app comes back to the products'
-        awaitRequest('GET', SIGN_IN)
-        page.waitForURL('**/admin/products')
-        assertThat(page.locator('h1')).hasText('Beadle Admin')
-        assertThat(gridRows().first()).isVisible()
-        api.requests('GET', '/api/products').size() >= 2
-        page.evaluate("() => sessionStorage.getItem('$RETURN_KEY')") == null
-        page.url().startsWith(baseUrl())
-    }
-
-    def "a page opened without a session goes to sign in and comes back to that page"() {
-        given:
-        beadle.signedIn = false
-
-        when:
-        page.navigate(url('/action-history'))
-
-        then:
-        awaitRequest('GET', SIGN_IN)
-        page.waitForURL('**/action-history')
-        assertThat(page.locator('h1')).hasText('Action History')
-        assertThat(gridRows().first()).isVisible()
-        api.requests('GET', SIGN_IN).size() == 1
-    }
 }

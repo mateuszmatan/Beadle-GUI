@@ -1,21 +1,19 @@
 package com.bbh.itss.beadle.adapter.out.http;
 
+import lombok.RequiredArgsConstructor;
+
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.function.Supplier;
 
 /** An answer kept for a while, such as the status of a service, so that not every page asks for it again. */
+@RequiredArgsConstructor
 public final class CachedAnswer<T> {
 
     private final Duration lifetime;
     private final Clock clock;
     private Kept<T> kept;
-
-    public CachedAnswer(Duration lifetime, Clock clock) {
-        this.lifetime = lifetime;
-        this.clock = clock;
-    }
 
     public synchronized T get(Supplier<T> answer) {
         Instant now = clock.instant();

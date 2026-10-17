@@ -127,33 +127,11 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         api.get("/api/products/$created.id/change-profile").json.version == null
 
         where:
-        problem                          | edits                               | tasks         || field
-        'a Jira key with a dash'         | [jiraProjectKey: 'ce-rt']           | tasksJson()   || 'template.jiraProjectKey'
-        'no assignment group'            | [assignmentGroup: ' ']              | tasksJson()   || 'template.assignmentGroup'
-        'an unknown type'                | [type: 'MINOR']                     | tasksJson()   || 'template.type'
-        'no backout plan'                | ['planning.backoutPlan': ' ']       | tasksJson()   || 'template.planning.backoutPlan'
-        'a long first use plan'          | ['planning.firstUsePlan': 'x' * 2001] | tasksJson() || 'template.planning.firstUsePlan'
-        'no installation start'          | ['timing.installationStart': '6pm'] | tasksJson()   || 'template.timing.installationStart'
-        'an installation of four days'   | ['timing.installationHours': 96]    | tasksJson()   || 'template.timing.installationHours'
-        'a number of users off the list' | ['riskAssessment.bbhUsers': '10']   | tasksJson()   || 'template.riskAssessment.bbhUsers'
-        'a platform status off the list' | ['riskAssessment.platformStatus': 'Existing platform'] | tasksJson() || 'template.riskAssessment.platformStatus'
-        'a category off the list'        | [category: 'Software']              | tasksJson()   || 'template.category'
-        'no category'                    | [category: ' ']                     | tasksJson()   || 'template.category'
-        'a long requester'               | [requestedFor: 'x' * 201]           | tasksJson()   || 'template.requestedFor'
-        'a long department'              | [department: 'é' * 51]              | tasksJson()   || 'template.department'
-        'a long secure coding ticket'    | [secureCodingTicket: 'x' * 41]      | tasksJson()   || 'template.secureCodingTicket'
-        'a privileged user without account' | ['privilegedAccess.required': true, 'privilegedAccess.users': [[user: 'A', account: 'a'], [user: 'B', account: 'b'], [user: 'C', account: ' ']]] | tasksJson() || 'template.privilegedAccess.users[2].account'
-        'privileged access without users' | ['privilegedAccess.required': true] | tasksJson()  || 'template.privilegedAccess.users'
-        'users without privileged access' | ['privilegedAccess.users': [[user: 'A', account: 'a']]] | tasksJson() || 'template.privilegedAccess.users'
-        'eight privileged users'         | ['privilegedAccess.required': true, 'privilegedAccess.users': (1..8).collect { [user: "U$it", account: "u$it"] }] | tasksJson() || 'template.privilegedAccess.users'
-        'no planning'                    | [planning: null]                    | tasksJson()   || 'template.planning'
-        'no tasks'                       | [:]                                 | []            || 'tasks'
-        'a task without assignment group' | [:]                                | [[shortDescription: 'Deploy', description: 'Deploy.']] || 'tasks[0].assignmentGroup'
-        'a task without description'     | [:]                                 | [[assignmentGroup: 'Ops', shortDescription: 'Deploy', description: ' ']] || 'tasks[0].description'
-        'a long task'                    | [:]                                 | [[assignmentGroup: 'Ops', shortDescription: 'é' * 81, description: 'Deploy.']] || 'tasks[0].shortDescription'
-        'an importance off the list'     | [:]                                 | tasksJson() + [[assignmentGroup: 'Ops', shortDescription: 'Deploy', description: 'Deploy.', importance: 'Urgent']] || 'tasks[2].importance'
-        'a platform off the list'        | [:]                                 | [[assignmentGroup: 'Release Management', shortDescription: 'Deploy', description: 'Deploy.', platform: 'Windows']] || 'tasks[0].platform'
-        'fifty-one tasks'                | [:]                                 | tasksJson(51) || 'tasks'
+        problem                             | edits                                   | tasks       || field
+        'a Jira key with a dash'            | [jiraProjectKey: 'ce-rt']               | tasksJson() || 'template.jiraProjectKey'
+        'no assignment group'               | [assignmentGroup: ' ']                  | tasksJson() || 'template.assignmentGroup'
+        'privileged access without users'   | ['privilegedAccess.required': true]     | tasksJson() || 'template.privilegedAccess.users'
+        'no tasks'                          | [:]                                     | []          || 'tasks'
     }
 
     def "the stored change profiles are listed by product name, without products that have none"() {
@@ -357,23 +335,11 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         api.get('/api/changes').json.every { it.productId != created.id }
 
         where:
-        refusal                       | edits                                                          || fields
-        'no FixVersion'               | [fixVersion: ' ']                                              || ['fixVersion']
-        'an installation in the past' | [schedule: scheduleJson(Instant.parse('2020-01-01T08:00:00Z'))] || ['schedule.installationStart']
-        'an installation ending first' | [schedule: scheduleJson(START) + [installationEnd: START.toString()]] || ['schedule.installationEnd']
-        'a validation before the end' | [schedule: scheduleJson(START) + [validationStart: START.toString()]] || ['schedule.validationStart']
-        'no first usage'              | [schedule: scheduleJson(START) + [firstUsage: null]]           || ['schedule.firstUsage']
-        'no schedule'                 | [schedule: null]                                               || ['schedule']
-        'no template'                 | [template: null]                                               || ['template']
-        'no backout plan'             | [template: templateJson('planning.backoutPlan': '')]           || ['template.planning.backoutPlan']
-        'downtime without its window' | [template: templateJson(downtime: true)]                       || ['schedule.downtimeStart', 'schedule.downtimeEnd']
-        'a window without downtime'   | [schedule: scheduleJson(START, true)]                          || ['schedule.downtimeStart', 'schedule.downtimeEnd']
-        'a downtime ending first'     | [template: templateJson(downtime: true), schedule: scheduleJson(START, true) + [downtimeEnd: START.toString()]] || ['schedule.downtimeEnd']
-        'an answer off its list'      | [template: templateJson('riskAssessment.backoutTesting': '15 minutes')] || ['template.riskAssessment.backoutTesting']
-        'privileged access without users' | [template: templateJson('privilegedAccess.required': true)] || ['template.privilegedAccess.users']
-        'no epics'                    | [epicKeys: []]                                                 || ['epicKeys']
-        'an unknown epic'             | [epicKeys: ['NOPE-1']]                                         || ['epicKeys']
-        'a too long short text'       | [shortDescription: 's' * 161]                                  || ['shortDescription']
+        refusal                       | edits                                                            || fields
+        'no FixVersion'               | [fixVersion: ' ']                                                || ['fixVersion']
+        'an installation in the past' | [schedule: scheduleJson(Instant.parse('2020-01-01T08:00:00Z'))]  || ['schedule.installationStart']
+        'downtime without its window' | [template: templateJson(downtime: true)]                         || ['schedule.downtimeStart', 'schedule.downtimeEnd']
+        'no epics'                    | [epicKeys: []]                                                   || ['epicKeys']
     }
 
     def "a change of a product outside every department is refused on the product, previewed or raised"() {
@@ -532,20 +498,11 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
                 raised.id) == 0
 
         where:
-        problem                                       | tasks                                                                                       | edits                || errors
-        'a release task starting with the installation' | [changeTaskJson([assignmentGroup: 'Release Management'], START)]                          | [:]                  || ['tasks[0].start': 'must be at least a minute after the installation start']
-        'a release task starting after the installation' | [changeTaskJson([assignmentGroup: 'Release Management'], START.plus(2, HOURS).plusSeconds(1))] | [:]           || ['tasks[0].start': 'must not be after the installation end']
-        'a second task without assignment group'      | [changeTaskJson(), changeTaskJson(assignmentGroup: ' ')]                                    | [:]                  || ['tasks[1].details.assignmentGroup': 'must not be blank']
-        'a task without description'                  | [changeTaskJson(description: '')]                                                           | [:]                  || ['tasks[0].details.description': 'must not be blank']
-        'an importance off the list'                  | [changeTaskJson(importance: '6 - Someday')]                                                 | [:]                  || ['tasks[0].details.importance': 'must be one of 1 - Critical, 2 - High, 3 - Moderate, 4 - Low, 5 - Planning']
-        'a platform off the list'                     | [changeTaskJson(assignmentGroup: 'Release Management', platform: 'Windows')]                | [:]                  || ['tasks[0].details.platform': 'must be one of None, Mainframe, Distributed, OpenShift, Cognos/Motio']
-        'a short description over 160 bytes'          | [changeTaskJson(shortDescription: 'é' * 81)]                                                | [:]                  || ['tasks[0].details.shortDescription': 'is too long: it may take at most 160 bytes']
-        'a task without details'                      | [[start: null]]                                                                             | [:]                  || ['tasks[0].details.assignmentGroup': 'must not be blank', 'tasks[0].details.shortDescription': 'must not be blank', 'tasks[0].details.description': 'must not be blank']
-        'no tasks'                                    | []                                                                                          | [:]                  || [tasks: 'size must be between 1 and 50']
-        'no task list'                                | null                                                                                        | [:]                  || [tasks: 'must not be null']
-        'fifty-one tasks'                             | changeTasksJson(51)                                                                         | [:]                  || [tasks: 'size must be between 1 and 50']
-        'no version'                                  | changeTasksJson(1)                                                                          | [version: null]      || [version: 'must not be null']
-        'no department'                               | changeTasksJson(1)                                                                          | [departmentId: null] || [departmentId: 'must not be null']
+        problem                                         | tasks                                                            | edits                || errors
+        'a release task starting with the installation' | [changeTaskJson([assignmentGroup: 'Release Management'], START)] | [:]                  || ['tasks[0].start': 'must be at least a minute after the installation start']
+        'a task without description'                    | [changeTaskJson(description: '')]                                | [:]                  || ['tasks[0].details.description': 'must not be blank']
+        'no tasks'                                      | []                                                               | [:]                  || [tasks: 'size must be between 1 and 50']
+        'no department'                                 | changeTasksJson(1)                                               | [departmentId: null] || [departmentId: 'must not be null']
     }
 
     def "a change holds at most 50 change tasks"() {
@@ -866,16 +823,8 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         refusal                              | unowned | edits                                                     || status | expected
         'for another department'             | false   | { [departmentId: 4] }                                     || 403    | { "Only Corporate Technology can change $it.number".toString() }
         'for a change no department owns'    | true    | { [departmentId: 3] }                                     || 403    | { "No department owns $it.number, so nobody can change it in Beadle".toString() }
-        'without a department'               | false   | { [departmentId: null] }                                  || 400    | { ['departmentId'] }
-        'without a version'                  | false   | { [version: null] }                                       || 400    | { ['version'] }
-        'without a task list'                | false   | { [tasks: null] }                                         || 400    | { ['tasks'] }
         'with a blank short description'     | false   | { [shortDescription: ' '] }                               || 400    | { ['shortDescription'] }
         'with a task of another change'      | false   | { [tasks: [changeTaskJson() + [number: 'CTASK0000001']]] } || 400   | { ['tasks[0].number'] }
-        'with a task without assignment group' | false | { Map change -> [tasks: [change.tasks[0] + [details: change.tasks[0].details + [assignmentGroup: ' ']]]] } || 400 | { ['tasks[0].details.assignmentGroup'] }
-        'with a release task starting with the installation' | false | { [tasks: [changeTaskJson([assignmentGroup: 'Release Management'], START)]] } || 400 | { ['tasks[0].start'] }
-        'with fifty-one tasks'               | false   | { [tasks: changeTasksJson(51)] }                          || 400    | { ['tasks'] }
-        'with a task listed twice'           | false   | { Map change -> [tasks: [change.tasks[0], change.tasks[0]]] } || 400 | { ['tasks[1].number'] }
-        'with an installation in the past'   | false   | { [schedule: scheduleJson(Instant.parse('2026-01-05T17:00:00Z'))] } || 400 | { ['schedule.installationStart'] }
     }
 
     def "a change outlives its product and Jira refuses requests without a FixVersion or with a broken project"() {

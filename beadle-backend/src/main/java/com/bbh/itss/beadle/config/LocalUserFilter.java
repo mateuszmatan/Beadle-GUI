@@ -4,6 +4,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.AuthorityUtils;
@@ -16,16 +18,13 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /** Signs every request in as {@code beadle.signed-in-user}: the auth mode {@code local}, where there is no Ping. */
+@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 class LocalUserFilter extends OncePerRequestFilter {
 
     static final String ROLE = "ROLE_USER";
 
     private final String name;
     private final SecurityContextHolderStrategy holder = SecurityContextHolder.getContextHolderStrategy();
-
-    LocalUserFilter(String name) {
-        this.name = name;
-    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)

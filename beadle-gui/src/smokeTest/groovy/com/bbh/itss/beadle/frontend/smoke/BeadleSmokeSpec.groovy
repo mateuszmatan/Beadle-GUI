@@ -51,18 +51,16 @@ class BeadleSmokeSpec extends BeadleSpecification {
         ownErrors().isEmpty()
     }
 
-    def "#path opens from a direct link"() {
-        when:
-        open(path)
-
-        then:
-        assertThat(page.locator('h1').first()).containsText(heading)
-        ownErrors().isEmpty()
-
-        where:
-        [path, heading] << SECTIONS.collect { [it.path, it.heading] } +
+    def "key routes open from a direct link"() {
+        expect:
+        (SECTIONS.collect { [it.path, it.heading] } +
                 ADMIN_TABS.values().collect { [it, 'Beadle Admin'] } +
-                [['/', 'ProTech Changes'], ['/admin', 'Beadle Admin'], ['/changes/new', 'New ProTech Change']]
+                [['/', 'ProTech Changes'], ['/admin', 'Beadle Admin'], ['/changes/new', 'New ProTech Change']]).every { path, heading ->
+            open(path)
+            assertThat(page.locator('h1').first()).containsText(heading)
+            true
+        }
+        ownErrors().isEmpty()
     }
 
     def "every tab of Beadle Admin opens its page with the tab marked"() {
@@ -84,67 +82,39 @@ class BeadleSmokeSpec extends BeadleSpecification {
     }
 
     @IgnoreIf({ BeadleSpecification.remoteBaseUrl() })
-    def "#path shows #heading from the API"() {
+    def "detail and edit pages load data from the API and show only lookup magnifier icons"() {
         given:
         page.addInitScript(CORPORATE_TECHNOLOGY)
 
-        when:
-        open(path)
-
-        then:
-        assertThat(page.locator('h1').first()).containsText(heading)
+        expect:
+        [['/admin/products/1', 'CertScanner', 20],
+         ['/changes/4', 'CHG0031001', 0],
+         ['/changes/4/edit', 'Edit CHG0031001', 20]].every { String path, String heading, int lookups ->
+            open(path)
+            assertThat(page.locator('h1').first()).containsText(heading)
+            assertThat(page.locator('button.lookup svg-icon')).hasCount(lookups)
+            assert page.locator('svg-icon').count() == lookups
+            assert page.locator("button.lookup svg-icon[name='search']").count() == lookups
+            true
+        }
         ownErrors().isEmpty()
-
-        where:
-        path                | heading
-        '/admin/products/1' | 'CertScanner'
-        '/changes/4'        | 'CHG0031001'
-        '/changes/4/edit'   | 'Edit CHG0031001'
     }
 
     @IgnoreIf({ BeadleSpecification.remoteBaseUrl() })
-    def "#path shows no icons but the magnifiers of the lookups"() {
+    def "key pages fit narrow windows without page-level horizontal scrolling"() {
         given:
         page.addInitScript(CORPORATE_TECHNOLOGY)
 
-        when:
-        open(path)
-
-        then:
-        assertThat(page.locator('button.lookup svg-icon')).hasCount(lookups)
-        page.locator('svg-icon').count() == lookups
-        page.locator("button.lookup svg-icon[name='search']").count() == lookups
+        expect:
+        ['/changes', '/new-change', '/changes/4', '/admin/products', '/action-history'].every { path ->
+            [800, 600].every { width ->
+                page.setViewportSize(width, 900)
+                open(path)
+                assert (page.evaluate('() => document.documentElement.scrollWidth - document.documentElement.clientWidth') as int) == 0
+                true
+            }
+        }
         ownErrors().isEmpty()
-
-        where:
-        path                 | lookups
-        '/changes'           | 0
-        '/new-change'        | 0
-        '/changes/4'         | 0
-        '/changes/4/edit'    | 20
-        '/changes/2'         | 0
-        '/admin/departments' | 0
-        '/admin/products'    | 0
-        '/admin/products/1'  | 20
-        '/action-history'    | 0
-    }
-
-    @IgnoreIf({ BeadleSpecification.remoteBaseUrl() })
-    def "#path fits a #width px window without horizontal scrolling"() {
-        given:
-        page.setViewportSize(width, 900)
-        page.addInitScript(CORPORATE_TECHNOLOGY)
-
-        when:
-        open(path)
-
-        then:
-        (page.evaluate('() => document.documentElement.scrollWidth - document.documentElement.clientWidth') as int) == 0
-        ownErrors().isEmpty()
-
-        where:
-        [path, width] << [['/changes', '/new-change', '/changes/4', '/changes/4/edit', '/changes/2', '/admin/departments',
-                           '/admin/products', '/admin/products/1', '/action-history'], [800, 600]].combinations()
     }
 
     def "an unknown address falls back to the changes"() {

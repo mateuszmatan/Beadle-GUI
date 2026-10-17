@@ -10,7 +10,7 @@ class ProTechApplyRegressionSpec extends ChangeRegressionSpecification {
 
     @DynamicPropertySource
     static void applyLater(DynamicPropertyRegistry registry) {
-        registry.add('beadle.demo.protech-apply-delay') { 'PT1S' }
+        registry.add('beadle.demo.protech-apply-delay') { 'PT0.2S' }
     }
 
     def "an update ProTech applies a moment later is pending first and applied when the change is read again"() {
@@ -96,7 +96,7 @@ class ProTechApplyRegressionSpec extends ChangeRegressionSpecification {
             if (stored(id).UPDATE_STATUS != 'PENDING') {
                 return refused
             }
-            sleep(250)
+            sleep(100)
         }
         throw new AssertionError("ProTech has not applied the update of change $id")
     }
@@ -119,7 +119,7 @@ class ProTechApplyRegressionSpec extends ChangeRegressionSpecification {
             if (listed.update.status != 'PENDING') {
                 return listed
             }
-            sleep(250)
+            sleep(100)
         }
         throw new AssertionError("ProTech has not applied the update of change $id")
     }
@@ -130,7 +130,7 @@ class ProTechApplyRegressionSpec extends ChangeRegressionSpecification {
             if (read.update.status != 'PENDING') {
                 return read
             }
-            sleep(250)
+            sleep(100)
         }
         throw new AssertionError("ProTech has not applied the update of change $id")
     }

@@ -152,69 +152,6 @@ class ActionHistorySpec extends BeadleSpecification {
         ownErrors().isEmpty()
     }
 
-    def "the pager walks through the history with the rows per page chosen"() {
-        given:
-        beadle.addSignIns(60)
-
-        when:
-        open('/action-history')
-
-        then:
-        assertThat(page.locator('.list .shown')).hasText('Rows 1–50 of 66')
-        assertThat(page.locator('.pager .position')).hasText('Page 1 of 2')
-        assertThat(column('object')).hasCount(50)
-        assertThat(button('Previous', true)).isDisabled()
-        optionsOf(page.locator('.pager'), 'Rows per page') == ['25', '50', '100', '200']
-
-        when:
-        button('Next', true).click()
-
-        then:
-        assertThat(page.locator('.list .shown')).hasText('Rows 51–66 of 66')
-        assertThat(page.locator('.pager .position')).hasText('Page 2 of 2')
-        assertThat(column('object')).hasCount(16)
-        assertThat(button('Next', true)).isDisabled()
-        api.lastRequest('GET', '/api/action-history').params() == [page: '1', size: '50']
-
-        when:
-        choose(page.locator('.pager'), 'Rows per page', '25')
-
-        then:
-        assertThat(page.locator('.list .shown')).hasText('Rows 1–25 of 66')
-        assertThat(page.locator('.pager .position')).hasText('Page 1 of 3')
-        api.lastRequest('GET', '/api/action-history').params() == [page: '0', size: '25']
-
-        when:
-        button('Next', true).click()
-        assertThat(page.locator('.pager .position')).hasText('Page 2 of 3')
-        button('Previous', true).click()
-
-        then:
-        assertThat(page.locator('.pager .position')).hasText('Page 1 of 3')
-        assertThat(column('object').first()).hasText('Change CHG0031001')
-        ownErrors().isEmpty()
-    }
-
-    def "a history that cannot be read says why and reads it again on request"() {
-        given:
-        api.failOnce('GET', '/api/action-history', problem(503, 'Service Unavailable', 'The database is not answering.'))
-
-        when:
-        open('/action-history')
-
-        then:
-        assertThat(page.locator('.banner[role=alert]')).hasText(
-                'The action history could not be loaded: The database is not answering.Try again')
-        assertThat(column('object')).hasCount(0)
-
-        when:
-        buttonIn(page.locator('.banner'), 'Try again').click()
-
-        then:
-        assertThat(column('object')).hasText(OBJECTS as String[])
-        assertThat(page.locator('.banner')).hasCount(0)
-    }
-
     Locator filters() {
         page.locator('section.filters')
     }

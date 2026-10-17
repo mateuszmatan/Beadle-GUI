@@ -2,6 +2,8 @@ package com.bbh.itss.beadle.adapter.out.http;
 
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException;
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException.FieldProblem;
+import lombok.Getter;
+import lombok.experimental.Accessors;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
@@ -36,6 +38,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  * refusal ({@code 4xx}) keeps its meaning: the field problems of a {@code 400}, not found for {@code 404}, a conflict
  * otherwise. The token is sent trimmed, as the three services compare it, and never appears in a message.
  */
+@Accessors(fluent = true)
 public class BeadleServiceClient {
 
     public static final Duration CONNECT_TIMEOUT = ofSeconds(5);
@@ -45,6 +48,7 @@ public class BeadleServiceClient {
 
     static final String MASK = "*****";
 
+    @Getter
     private final String service;
     private final String token;
     private final RestClient client;
@@ -60,10 +64,6 @@ public class BeadleServiceClient {
                 .defaultHeader(AUTHORIZATION, "Bearer " + this.token)
                 .defaultHeader(ACCEPT, APPLICATION_JSON_VALUE)
                 .requestInterceptor(caller).build();
-    }
-
-    public String service() {
-        return service;
     }
 
     /** Makes one call; {@code operation} says what was asked, as in "read the changes". */

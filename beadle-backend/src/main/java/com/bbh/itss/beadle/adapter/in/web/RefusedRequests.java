@@ -9,6 +9,8 @@ import com.bbh.itss.beadle.application.audit.port.in.RefusedRequestsUseCase;
 import com.bbh.itss.beadle.domain.audit.ActionObject;
 import com.bbh.itss.beadle.domain.audit.ObjectType;
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException.FieldProblem;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.DefaultParameterNameDiscoverer;
 import org.springframework.core.MethodParameter;
@@ -44,6 +46,7 @@ import static org.springframework.web.servlet.HandlerMapping.URI_TEMPLATE_VARIAB
  * is logged and does not change the answer.
  */
 @Slf4j
+@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 final class RefusedRequests {
 
     static final String KEPT_BODY = RefusedRequests.class.getName() + ".BODY";
@@ -52,11 +55,6 @@ final class RefusedRequests {
     private final RefusedRequestsUseCase refusals;
     private final JsonMapper json;
     private final ParameterNameDiscoverer parameterNames = new DefaultParameterNameDiscoverer();
-
-    RefusedRequests(RefusedRequestsUseCase refusals, JsonMapper json) {
-        this.refusals = refusals;
-        this.json = json;
-    }
 
     /** Records the refusal of a request, when it was for an audited endpoint, with the problem it was answered. */
     void record(WebRequest request, ProblemDetail problem) {
