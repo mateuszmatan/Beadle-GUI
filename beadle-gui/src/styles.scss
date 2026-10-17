@@ -841,55 +841,13 @@ svg-icon svg {
   min-width: 280px;
 }
 
-/* The grids wear the BBH table theme (ag-theme-balham v6-table-theme--bbh). ag-grid sizes and shows its own
-   horizontal scrollbar when the columns are wider than the grid; nothing here may override its height. */
+/* The BBH table theme (ag-theme-balham v6-table-theme--bbh) paints the grids; these rules only lay out the cells.
+   ag-grid sizes and shows its own horizontal scrollbar when the columns are wider than the grid. */
 .beadle-grid {
-  .ag-root-wrapper {
-    border: 1px solid var(--beadle-border);
-    background-color: var(--beadle-card);
-  }
-
-  /* Header typography & styling */
-  .ag-header {
-    background-color: #f8fafc;
-    border-bottom: 2px solid var(--beadle-border, #d9dee6);
-  }
-
-  .ag-header-cell-text {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: #5b6475;
-  }
-
-  .ag-header-cell {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-
   .ag-cell {
     display: flex;
     align-items: center;
     overflow: hidden;
-    padding-left: 12px;
-    padding-right: 12px;
-    font-size: 13px;
-    color: var(--beadle-text, #1b1f24);
-    border-bottom: 1px solid #e6e9ee;
-  }
-
-  .ag-row {
-    background-color: #ffffff;
-    transition: background-color 0.1s ease;
-
-    &:hover {
-      background-color: #f8fafc !important;
-    }
-
-    &.ag-row-selected {
-      background-color: #edf2f7 !important;
-    }
   }
 
   .ag-cell-wrap-text {
@@ -915,31 +873,8 @@ svg-icon svg {
   }
 
   .beadle-grid-empty {
-    color: var(--beadle-muted, #5b6475);
+    color: var(--beadle-muted);
     font-style: italic;
-  }
-
-  .v6-table-selection-cell {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* Pinned columns styling for left selection & right actions */
-  .ag-pinned-left-cols-container,
-  .ag-pinned-left-header {
-    border-right: 1px solid var(--beadle-border, #d9dee6);
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.04);
-    background-color: inherit;
-    z-index: 5;
-  }
-
-  .ag-pinned-right-cols-container,
-  .ag-pinned-right-header {
-    border-left: 1px solid var(--beadle-border, #d9dee6);
-    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.04);
-    background-color: inherit;
-    z-index: 5;
   }
 }
 
