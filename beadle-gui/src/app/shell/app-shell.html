@@ -2,10 +2,10 @@
   <header class="topbar">
     <div class="topbar-inner">
       <a class="brand" routerLink="/">
-        <span class="brand-name"><strong>BBH</strong> {{ name }}</span>
+        <span class="brand-name"><strong>BBH</strong> Beadle</span>
       </a>
       <nav class="menu" aria-label="Main">
-        @for (section of sections(); track section.path) {
+        @for (section of sections; track section.path) {
           <a
             class="menu-link"
             [routerLink]="section.path"

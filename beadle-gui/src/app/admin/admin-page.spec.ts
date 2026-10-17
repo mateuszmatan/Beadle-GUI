@@ -2,52 +2,34 @@ import { Component, input } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Route, Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { AdminArea, BEADLE_ADMIN } from '../core/sections';
+import { ADMIN_TABS } from '../core/sections';
 import { text } from '../testing/dom';
 import { AdminPage } from './admin-page';
-
-const OTHER_AREA: AdminArea = {
-  section: {
-    path: '/other/admin',
-    label: 'Admin',
-    heading: 'Other Admin',
-    description: 'Another area built on the same page.',
-  },
-  tabs: [
-    { path: '/other/admin/departments', label: 'Departments' },
-    { path: '/other/admin/products', label: 'Products' },
-  ],
-};
 
 @Component({ template: '<p class="tab-content">{{ tab() }}</p>' })
 class TabContent {
   readonly tab = input('');
 }
 
-function adminRoute(area: AdminArea): Route {
-  return {
-    path: area.section.path.slice(1),
-    component: AdminPage,
-    data: { area },
-    children: [
-      { path: '', pathMatch: 'full', redirectTo: 'products' },
-      ...area.tabs.map((tab) => ({
-        path: tab.path.split('/').at(-1),
-        component: TabContent,
-        data: { tab: tab.label },
-      })),
-    ],
-  };
-}
+const ADMIN_ROUTE: Route = {
+  path: 'admin',
+  component: AdminPage,
+  children: [
+    { path: '', pathMatch: 'full', redirectTo: 'products' },
+    ...ADMIN_TABS.map((tab) => ({
+      path: tab.path.split('/').at(-1),
+      component: TabContent,
+      data: { tab: tab.label },
+    })),
+  ],
+};
 
 describe('AdminPage', () => {
   let harness: RouterTestingHarness;
 
   beforeEach(async () => {
     TestBed.configureTestingModule({
-      providers: [
-        provideRouter([adminRoute(BEADLE_ADMIN), adminRoute(OTHER_AREA)], withComponentInputBinding()),
-      ],
+      providers: [provideRouter([ADMIN_ROUTE], withComponentInputBinding())],
     });
     harness = await RouterTestingHarness.create();
   });
@@ -73,7 +55,10 @@ describe('AdminPage', () => {
     );
     expect(page().querySelector('nav.tab-bar')?.getAttribute('aria-label')).toBe('Beadle Admin');
     expect(tabs().map(text)).toEqual(['Departments', 'Products']);
-    expect(tabs().map((link) => link.getAttribute('href'))).toEqual(['/admin/departments', '/admin/products']);
+    expect(tabs().map((link) => link.getAttribute('href'))).toEqual([
+      '/admin/departments',
+      '/admin/products',
+    ]);
     expect(text(page().querySelector('.tab-content'))).toBe('Departments');
     expect(page().querySelector('svg-icon')).toBeNull();
   });
@@ -107,19 +92,5 @@ describe('AdminPage', () => {
     expect(current()).toEqual(['Departments']);
     expect(text(page().querySelector('h1'))).toBe('Beadle Admin');
     expect(text(page().querySelector('.tab-content'))).toBe('Departments');
-  });
-
-  it('shows another admin area under its own path', async () => {
-    await harness.navigateByUrl('/other/admin');
-
-    expect(TestBed.inject(Router).url).toBe('/other/admin/products');
-    expect(text(page().querySelector('h1'))).toBe('Other Admin');
-    expect(text(page().querySelector('.page-description'))).toBe('Another area built on the same page.');
-    expect(tabs().map(text)).toEqual(['Departments', 'Products']);
-    expect(tabs().map((link) => link.getAttribute('href'))).toEqual([
-      '/other/admin/departments',
-      '/other/admin/products',
-    ]);
-    expect(active()).toEqual(['Products']);
   });
 });

@@ -16,8 +16,8 @@ import {
 export class DepartmentsApi {
   private readonly http = inject(HttpClient);
 
-  list<D extends Department = Department>(): Observable<D[]> {
-    return this.http.get<D[]>('/api/departments');
+  list(): Observable<Department[]> {
+    return this.http.get<Department[]>('/api/departments');
   }
 
   create(name: string): Observable<Department> {

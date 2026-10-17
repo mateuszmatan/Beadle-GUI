@@ -1,25 +1,22 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { UserApi } from '../core/api';
-import { APP_NAME } from '../core/app-name';
 import { BROWSER_NAVIGATION, afterSignOut } from '../core/auth';
 import { errorMessage } from '../core/errors';
 import { Notifier } from '../core/notifier';
-import { AppSection } from '../core/sections';
+import { SECTIONS } from '../core/sections';
 import { SessionEnd } from '../core/session-end';
 
 @Component({
-  selector: 'beadle-app-shell',
+  selector: 'beadle-root',
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app-shell.html',
   styleUrl: './app-shell.scss',
 })
 export class AppShell {
-  readonly sections = input.required<readonly AppSection[]>();
-
-  protected readonly name = inject(APP_NAME);
+  protected readonly sections = SECTIONS;
 
   private readonly users = inject(UserApi);
   private readonly navigate = inject(BROWSER_NAVIGATION);

@@ -10,6 +10,7 @@ export interface Department {
   name: string;
   version: number;
   productCount: number;
+  changeCount: number;
 }
 
 export interface DepartmentRequest {
@@ -40,10 +41,6 @@ export interface SignedInUser {
 /** What Beadle answers to signing out with Ping: where the browser ends its session at Ping too. */
 export interface SignedOut {
   redirectUrl: string;
-}
-
-export interface BeadleDepartment extends Department {
-  changeCount: number;
 }
 
 export interface Product {

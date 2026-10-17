@@ -11,7 +11,6 @@ import {
   withNoXsrfProtection,
 } from '@angular/common/http';
 import {
-  Routes,
   TitleStrategy,
   provideRouter,
   withComponentInputBinding,
@@ -20,25 +19,22 @@ import {
 import { SvgIconRegistryService, provideAngularSvgIcon } from 'angular-svg-icon';
 import { registerIcons } from '../ui/design-system';
 import { provideDialogs } from '../ui/dialog';
-import { APP_NAME } from './app-name';
 import { authInterceptor } from './auth';
+import { routes } from '../app.routes';
 import { AppTitleStrategy } from './title-strategy';
 
-export function appConfig(name: string, routes: Routes): ApplicationConfig {
-  return {
-    providers: [
-      { provide: APP_NAME, useValue: name },
-      provideBrowserGlobalErrorListeners(),
-      provideHttpClient(withFetch(), withInterceptors([authInterceptor]), withNoXsrfProtection()),
-      provideRouter(
-        routes,
-        withComponentInputBinding(),
-        withInMemoryScrolling({ scrollPositionRestoration: 'enabled' }),
-      ),
-      { provide: TitleStrategy, useClass: AppTitleStrategy },
-      provideAngularSvgIcon(),
-      provideDialogs(),
-      provideAppInitializer(() => registerIcons(inject(SvgIconRegistryService))),
-    ],
-  };
-}
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideBrowserGlobalErrorListeners(),
+    provideHttpClient(withFetch(), withInterceptors([authInterceptor]), withNoXsrfProtection()),
+    provideRouter(
+      routes,
+      withComponentInputBinding(),
+      withInMemoryScrolling({ scrollPositionRestoration: 'enabled' }),
+    ),
+    { provide: TitleStrategy, useClass: AppTitleStrategy },
+    provideAngularSvgIcon(),
+    provideDialogs(),
+    provideAppInitializer(() => registerIcons(inject(SvgIconRegistryService))),
+  ],
+};

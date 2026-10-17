@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Dialog } from '@angular/cdk/dialog';
-import { outputFromObservable, rxResource, toObservable } from '@angular/core/rxjs-interop';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { filter, switchMap } from 'rxjs';
 import { DepartmentsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
@@ -12,18 +12,6 @@ import { counted } from '../shared/formatting';
 import { GRID, GridColumn } from '../ui/grid';
 import { BeadleLoading } from '../ui/loading';
 
-export interface DepartmentCount<D> {
-  noun: string;
-  count: (department: D) => number;
-}
-
-export interface DepartmentUsage<D extends Department = Department> {
-  subject: string;
-  counts?: readonly DepartmentCount<D>[];
-  columns?: readonly GridColumn<D>[];
-  blocker?: (department: D) => string | null;
-}
-
 @Component({
   selector: 'beadle-departments-admin',
   imports: [GRID, BeadleLoading],
@@ -31,22 +19,15 @@ export interface DepartmentUsage<D extends Department = Department> {
   templateUrl: './departments-admin.html',
   styleUrl: './departments-admin.scss',
 })
-export class DepartmentsAdmin<D extends Department = Department> {
-  readonly usage = input.required<DepartmentUsage<D>>();
-
+export class DepartmentsAdmin {
   private readonly api = inject(DepartmentsApi);
   private readonly dialog = inject(Dialog);
   private readonly notifier = inject(Notifier);
 
-  protected readonly departments = rxResource({ stream: () => this.api.list<D>() });
-  private readonly listed = computed(() =>
-    this.departments.hasValue() ? this.departments.value() : [],
-  );
+  protected readonly departments = rxResource({ stream: () => this.api.list() });
 
-  readonly loaded = outputFromObservable(toObservable(this.listed));
-
-  protected readonly departmentId = (department: D) => department.id;
-  protected readonly columns = computed<GridColumn<D>[]>(() => [
+  protected readonly departmentId = (department: Department) => department.id;
+  protected readonly columns: GridColumn<Department>[] = [
     { key: 'name', header: 'Department', value: (department) => department.name, minWidth: 150 },
     {
       key: 'products',
@@ -55,35 +36,20 @@ export class DepartmentsAdmin<D extends Department = Department> {
       numeric: true,
       width: 100,
     },
-    ...(this.usage().columns ?? []),
     { key: 'actions', header: '', width: 140 },
-  ]);
+  ];
   protected readonly empty = computed(
     () => this.departments.hasValue() && this.departments.value().length === 0,
   );
   protected readonly summary = computed(() => {
-    const departments = this.listed();
-    const counts: DepartmentCount<D>[] = [
-      { noun: 'product', count: (department) => department.productCount },
-      ...(this.usage().counts ?? []),
-    ];
-    const contents = counts.map(({ noun, count }) =>
-      counted(
-        departments.reduce((sum, department) => sum + count(department), 0),
-        noun,
-      ),
-    );
-    return `${counted(departments.length, 'department')} with ${contents.join(' and ')}`;
+    const departments = this.departments.hasValue() ? this.departments.value() : [];
+    const products = departments.reduce((sum, department) => sum + department.productCount, 0);
+    return `${counted(departments.length, 'department')} with ${counted(products, 'product')}`;
   });
-  protected readonly help = computed(
-    () =>
-      'Every product belongs to one department, and people choose their department to see ' +
-      `${this.usage().subject}. Only an empty department can be deleted.`,
-  );
 
   protected readonly errorMessage = errorMessage;
 
-  protected deleteHint(department: D): string | null {
+  protected deleteHint(department: Department): string | null {
     if (department.productCount) {
       const them = department.productCount === 1 ? 'it' : 'them';
       return (
@@ -91,18 +57,20 @@ export class DepartmentsAdmin<D extends Department = Department> {
         `${counted(department.productCount, 'product')}: move ${them} to another department first.`
       );
     }
-    return this.usage().blocker?.(department) ?? null;
+    return department.changeCount
+      ? `${department.name} cannot be deleted: it still has ${counted(department.changeCount, 'change')}.`
+      : null;
   }
 
   protected add(): void {
     this.edit(null, (saved) => `${saved.name} added. Add its products on the Products tab.`);
   }
 
-  protected rename(department: D): void {
+  protected rename(department: Department): void {
     this.edit(department, (saved) => `${department.name} renamed to ${saved.name}`);
   }
 
-  protected delete(department: D): void {
+  protected delete(department: Department): void {
     this.dialog
       .open<boolean, ConfirmDialogData, ConfirmDialog>(ConfirmDialog, {
         data: {
@@ -127,7 +95,7 @@ export class DepartmentsAdmin<D extends Department = Department> {
       });
   }
 
-  private edit(department: D | null, message: (saved: Department) => string): void {
+  private edit(department: Department | null, message: (saved: Department) => string): void {
     this.dialog
       .open<Department, Department | null, DepartmentDialog>(DepartmentDialog, { data: department })
       .closed.pipe(filter((saved): saved is Department => !!saved))

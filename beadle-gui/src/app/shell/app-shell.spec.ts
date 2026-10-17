@@ -3,23 +3,15 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { APP_NAME } from '../core/app-name';
 import { BROWSER_NAVIGATION } from '../core/auth';
 import { Notifier } from '../core/notifier';
-import { AppSection } from '../core/sections';
+import { SECTIONS } from '../core/sections';
 import { SessionEnd } from '../core/session-end';
 import { text, toast } from '../testing/dom';
 import { AppShell } from './app-shell';
 
 @Component({ template: '' })
 class Blank {}
-
-const section = (path: string, label: string): AppSection => ({
-  path,
-  label,
-  heading: `Heading of ${label}`,
-  description: `What ${label} is for`,
-});
 
 describe('AppShell', () => {
   let fixture: ComponentFixture<AppShell>;
@@ -34,16 +26,11 @@ describe('AppShell', () => {
         provideRouter([{ path: '**', component: Blank }]),
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: APP_NAME, useValue: 'Test App' },
         { provide: BROWSER_NAVIGATION, useValue: navigate },
       ],
     });
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(AppShell);
-    fixture.componentRef.setInput('sections', [
-      section('/orders', 'Orders'),
-      section('/admin', 'Admin'),
-    ]);
     fixture.detectChanges();
   });
 
@@ -72,11 +59,11 @@ describe('AppShell', () => {
     const hidden = vi.spyOn(sessionEnd, 'hidden');
     await signedIn();
     TestBed.inject(Router).resetConfig([
-      { path: 'orders', component: Blank },
+      { path: 'changes', component: Blank },
       { path: 'admin', component: Blank },
     ]);
 
-    await TestBed.inject(Router).navigateByUrl('/orders');
+    await TestBed.inject(Router).navigateByUrl('/changes');
     await fixture.whenStable();
     const orders = shown.mock.lastCall?.[0];
     await TestBed.inject(Router).navigateByUrl('/admin');
@@ -88,29 +75,33 @@ describe('AppShell', () => {
     expect(shown.mock.lastCall?.[0]).not.toBe(orders);
   });
 
-  it('names the app in its header and links every section in order', async () => {
+  it('names Beadle in its header and links every section in order', async () => {
     await signedIn();
 
-    expect(page().querySelector('.brand-name')?.textContent).toBe('BBH Test App');
+    expect(page().querySelector('.brand-name')?.textContent).toBe('BBH Beadle');
     expect(page().querySelector('.brand')?.getAttribute('href')).toBe('/');
-    expect(links().map(text)).toEqual(['Orders', 'Admin']);
-    expect(links().map((link) => link.getAttribute('href'))).toEqual(['/orders', '/admin']);
+    expect(links().map(text)).toEqual(['Changes', 'New Change', 'Admin', 'Action History']);
+    expect(links().map((link) => link.getAttribute('href'))).toEqual(SECTIONS.map((s) => s.path));
     expect(page().querySelector('header svg-icon, header svg')).toBeNull();
-    expect(text(page().querySelector('header'))).not.toContain('What Orders is for');
+    expect(text(page().querySelector('header'))).not.toContain(SECTIONS[0].description);
   });
 
-  it('marks the section of the current page, also on the pages below it', async () => {
+  it.each([
+    ['/changes/4/edit', 'Changes'],
+    ['/new-change', 'New Change'],
+    ['/admin/products/2', 'Admin'],
+    ['/action-history', 'Action History'],
+  ])('marks the section of %s', async (url, label) => {
     await signedIn();
-    await TestBed.inject(Router).navigateByUrl('/admin/products/2/edit');
+    await TestBed.inject(Router).navigateByUrl(url);
     await fixture.whenStable();
 
-    expect(active()).toEqual(['Admin']);
-    expect(links()[1].getAttribute('aria-current')).toBe('page');
-
-    await TestBed.inject(Router).navigateByUrl('/orders');
-    await fixture.whenStable();
-
-    expect(active()).toEqual(['Orders']);
+    expect(active()).toEqual([label]);
+    expect(
+      links()
+        .find((link) => text(link) === label)
+        ?.getAttribute('aria-current'),
+    ).toBe('page');
   });
 
   it('has an empty footer apart from the year mark', async () => {
@@ -144,7 +135,7 @@ describe('AppShell', () => {
     await fixture.whenStable();
 
     expect(page().querySelector('.user-badge')).toBeNull();
-    expect(links().map(text)).toEqual(['Orders', 'Admin']);
+    expect(links()).toHaveLength(4);
   });
 
   it('signs out at Beadle and then starts again from the first page', async () => {
