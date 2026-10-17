@@ -130,26 +130,6 @@
   margin: 0;
 }
 
-.texts {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-
-  textarea {
-    font-family: var(--beadle-mono);
-    font-size: 12px;
-  }
-
-  .new-text {
-    align-self: flex-start;
-  }
-
-  .length-hint {
-    display: block;
-    text-align: end;
-  }
-}
-
 @media (max-width: 480px) {
   .step-bar {
     gap: 2px;

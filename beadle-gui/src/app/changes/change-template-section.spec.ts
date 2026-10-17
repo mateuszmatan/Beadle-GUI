@@ -255,7 +255,9 @@ describe('ChangeTemplateSection', () => {
     bitbucket.dispatchEvent(new Event('input'));
     bitbucket.dispatchEvent(new Event('blur'));
     await settle();
-    expect(text(fieldOf(page(), 'Bitbucket URL')?.querySelector('beadle-error'))).toBe(HTTP_URL_ERROR);
+    expect(text(fieldOf(page(), 'Bitbucket URL')?.querySelector('beadle-error'))).toBe(
+      HTTP_URL_ERROR,
+    );
     expect(form.controls.secureCoding.controls.bitbucketUrl.value).toBe('bitbucket.bbh.com');
   });
 

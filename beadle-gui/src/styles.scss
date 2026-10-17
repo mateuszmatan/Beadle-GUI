@@ -388,7 +388,6 @@ h3 {
 }
 
 @media (max-width: 1100px) {
-
   .beadle-panel .panel-title {
     min-width: 0;
   }
@@ -501,6 +500,41 @@ input[type='number'] {
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(6px);
   border-top: 1px solid var(--beadle-border);
+}
+
+.problems-banner {
+  margin: 12px 0 0;
+}
+
+.banner.refused {
+  flex-wrap: wrap;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+}
+
+.list-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+
+.card.block {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+
+  h2 {
+    margin: 0 0 6px;
+    font-size: 15px;
+  }
 }
 
 .save-error {

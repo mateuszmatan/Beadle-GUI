@@ -210,14 +210,6 @@ function filtersOf(form: FormGroup): ActionFilters {
       }
     }
 
-    .list-head {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 4px 16px;
-    }
-
     .shown,
     .position {
       font-size: 12px;

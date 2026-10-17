@@ -17,6 +17,18 @@ export function selectOf(root: ParentNode, label: string): HTMLSelectElement {
   return fieldOf(root, label)?.querySelector<HTMLSelectElement>('select')!;
 }
 
+/** Types into the input or text area of the field with this label, as the user does. */
+export function enter(root: ParentNode, label: string, value: string): void {
+  const input = inputOf(root, label);
+  input.value = value;
+  input.dispatchEvent(new Event('input'));
+}
+
+/** The error the field with this label shows, or '' while it shows its hint. */
+export function errorOf(root: ParentNode, label: string): string {
+  return text(fieldOf(root, label)?.querySelector('beadle-error'));
+}
+
 export function choose(select: HTMLSelectElement, label: string): void {
   const option = [...select.options].find((entry) => text(entry) === label);
   if (!option) {
