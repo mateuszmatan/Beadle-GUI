@@ -8,12 +8,12 @@ import { Product } from '../core/models';
 import { buttonOf, gridCell, gridHeaders, gridRows, settleGrid, text, toast } from '../testing/dom';
 import { businessService, product } from '../testing/fixtures';
 import { ChangeProfileSummary } from '../changes/change-api';
-import { BeadleProducts } from './products-page';
+import { ProductsPage } from './products-page';
 import { ProductDialog } from './product-dialog';
 import { BusinessService } from '../core/models';
 
-describe('BeadleProducts', () => {
-  let fixture: ComponentFixture<BeadleProducts>;
+describe('ProductsPage', () => {
+  let fixture: ComponentFixture<ProductsPage>;
   let http: HttpTestingController;
   let navigate: ReturnType<typeof vi.spyOn>;
 
@@ -39,12 +39,12 @@ describe('BeadleProducts', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [BeadleProducts],
+      imports: [ProductsPage],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     http = TestBed.inject(HttpTestingController);
     navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-    fixture = TestBed.createComponent(BeadleProducts);
+    fixture = TestBed.createComponent(ProductsPage);
   });
 
   afterEach(() => http.verify());

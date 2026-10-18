@@ -16,7 +16,7 @@ import { EMPTY, Observable, Subject, catchError, finalize, of, switchMap } from 
 import { MyBusinessService } from '../business-services/my-business-service';
 import { ProductsApi, UserApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
-import { CHANGES, NEW_CHANGE, beadleChange, beadleProduct } from '../core/sections';
+import { CHANGES, NEW_CHANGE, changePath, productPath } from '../core/sections';
 import { KeepsDraft, SessionEnd } from '../core/session-end';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { byBusinessService } from '../business-services/business-services';
@@ -180,8 +180,8 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
   protected readonly versionText = versionText;
   protected readonly approverNames = approverNames;
   protected readonly counted = counted;
-  protected readonly templateLink = beadleProduct;
-  protected readonly changeLink = beadleChange;
+  protected readonly templateLink = productPath;
+  protected readonly changeLink = changePath;
 
   protected readonly step = signal(0);
   protected readonly stepKey = computed(() => STEP_KEYS[this.step()]);

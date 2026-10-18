@@ -16,7 +16,7 @@ import { finalize } from 'rxjs';
 import { MyBusinessService } from '../business-services/my-business-service';
 import { fieldProblems } from '../core/errors';
 import { Notifier } from '../core/notifier';
-import { beadleChange } from '../core/sections';
+import { changePath } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { applyFieldProblems, filled, text } from '../shared/form-controls';
 import { Failure, NEEDS_ATTENTION, SaveBar, failureOf } from '../ui/save-bar';
@@ -149,7 +149,7 @@ export class ChangeEdit implements HasUnsavedChanges {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly changeLink = beadleChange;
+  protected readonly changeLink = changePath;
 
   protected readonly change = rxResource({
     params: () => this.id(),
@@ -216,7 +216,7 @@ export class ChangeEdit implements HasUnsavedChanges {
           this.notifier.success(
             `Your update of ${saved.number} is published to ProTech. This page shows when ProTech has applied it.`,
           );
-          this.router.navigate(beadleChange(this.id()));
+          this.router.navigate(changePath(this.id()));
         },
         error: (error) => {
           applyFieldProblems(form, fieldProblems(error).map(onHours));

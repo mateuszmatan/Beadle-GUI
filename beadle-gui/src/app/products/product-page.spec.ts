@@ -22,10 +22,10 @@ import {
   toast,
 } from '../testing/dom';
 import { product } from '../testing/fixtures';
-import { BeadleProduct } from './product-page';
+import { ProductPage } from './product-page';
 
-describe('BeadleProduct', () => {
-  let fixture: ComponentFixture<BeadleProduct>;
+describe('ProductPage', () => {
+  let fixture: ComponentFixture<ProductPage>;
   let http: HttpTestingController;
 
   const editor = () => fixture.componentInstance;
@@ -63,11 +63,11 @@ describe('BeadleProduct', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [BeadleProduct],
+      imports: [ProductPage],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     http = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent(BeadleProduct);
+    fixture = TestBed.createComponent(ProductPage);
   });
 
   afterEach(() => http.verify());

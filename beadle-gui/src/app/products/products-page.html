@@ -87,7 +87,7 @@
         >
           <ng-template beadleCell="product" let-product>
             <div class="product">
-              <a class="name quiet-link" [routerLink]="beadleProduct(product.id)">{{
+              <a class="name quiet-link" [routerLink]="productLink(product.id)">{{
                 product.name
               }}</a>
               <span class="code mono" title="Product code">{{ product.code }}</span>

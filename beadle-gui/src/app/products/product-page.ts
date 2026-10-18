@@ -43,7 +43,7 @@ export function profileForm(profile: ChangeProfile) {
 export type ProfileForm = ReturnType<typeof profileForm>;
 
 @Component({
-  selector: 'beadle-product',
+  selector: 'beadle-product-page',
   imports: [
     DatePipe,
     ReactiveFormsModule,
@@ -179,7 +179,7 @@ export type ProfileForm = ReturnType<typeof profileForm>;
     }
   `,
 })
-export class BeadleProduct implements HasUnsavedChanges {
+export class ProductPage implements HasUnsavedChanges {
   readonly id = input.required({ transform: numberAttribute });
 
   private readonly api = inject(ChangesApi);

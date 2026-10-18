@@ -45,7 +45,7 @@ export const routes: Routes = [
     path: 'admin/products/:id',
     title: `Product · ${ADMIN.heading}`,
     canDeactivate: [unsavedChangesGuard],
-    loadComponent: () => import('./products/product-page').then((m) => m.BeadleProduct),
+    loadComponent: () => import('./products/product-page').then((m) => m.ProductPage),
   },
   {
     path: 'admin',
@@ -63,7 +63,7 @@ export const routes: Routes = [
       {
         path: 'products',
         title: `${ADMIN_PRODUCTS.label} · ${ADMIN.heading}`,
-        loadComponent: () => import('./products/products-page').then((m) => m.BeadleProducts),
+        loadComponent: () => import('./products/products-page').then((m) => m.ProductsPage),
       },
     ],
   },

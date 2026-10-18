@@ -9,7 +9,7 @@ import { ProductsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { Product } from '../core/models';
 import { Notifier } from '../core/notifier';
-import { beadleProduct } from '../core/sections';
+import { productPath } from '../core/sections';
 import { BusinessServiceGroup, byBusinessService } from '../business-services/business-services';
 import { RelativeTimePipe, counted } from '../shared/formatting';
 import { BeadleInput } from '../ui/form-field';
@@ -23,13 +23,13 @@ function tally(group: BusinessServiceGroup<Product>): string {
 }
 
 @Component({
-  selector: 'beadle-products',
+  selector: 'beadle-products-page',
   imports: [ReactiveFormsModule, RouterLink, BeadleInput, GRID, BeadleLoading, RelativeTimePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './products-page.html',
   styleUrl: './products-page.scss',
 })
-export class BeadleProducts {
+export class ProductsPage {
   private readonly api = inject(ProductsApi);
   private readonly businessServicesApi = inject(BusinessServicesApi);
   private readonly changesApi = inject(ChangesApi);
@@ -37,7 +37,7 @@ export class BeadleProducts {
   private readonly notifier = inject(Notifier);
   private readonly router = inject(Router);
 
-  protected readonly beadleProduct = beadleProduct;
+  protected readonly productLink = productPath;
   protected readonly productId = (product: Product) => product.id;
   protected readonly clickable = () => 'clickable';
   protected readonly columns: GridColumn<Product>[] = [
@@ -109,7 +109,7 @@ export class BeadleProducts {
   }
 
   protected open(product: Product): void {
-    this.router.navigate(beadleProduct(product.id));
+    this.router.navigate(productPath(product.id));
   }
 
   protected add(businessServiceId: number | null = null): void {
@@ -124,7 +124,7 @@ export class BeadleProducts {
       .closed.pipe(filter((product): product is Product => !!product))
       .subscribe((product) => {
         this.notifier.success(`${product.name} added. Now fill in its change template.`);
-        this.router.navigate(beadleProduct(product.id));
+        this.router.navigate(productPath(product.id));
       });
   }
 }

@@ -5,8 +5,8 @@ import { ActionHistory } from './action-history/action-history';
 import { AdminPage } from './admin/admin-page';
 import { BusinessServicesAdmin } from './business-services/business-services-admin';
 import { routes } from './app.routes';
-import { BeadleProduct } from './products/product-page';
-import { BeadleProducts } from './products/products-page';
+import { ProductPage } from './products/product-page';
+import { ProductsPage } from './products/products-page';
 import { ChangeDetail } from './changes/change-detail';
 import { ChangeEdit } from './changes/change-edit';
 import { ChangeSecureCoding } from './changes/change-secure-coding';
@@ -44,10 +44,10 @@ describe('routes', () => {
       'changes/:id': ChangeDetail,
       'changes/:id/edit': ChangeEdit,
       'changes/:id/secure-coding': ChangeSecureCoding,
-      'admin/products/:id': BeadleProduct,
+      'admin/products/:id': ProductPage,
       admin: AdminPage,
       'admin/business-services': BusinessServicesAdmin,
-      'admin/products': BeadleProducts,
+      'admin/products': ProductsPage,
       'action-history': ActionHistory,
     });
   });

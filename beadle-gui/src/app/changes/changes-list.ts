@@ -5,7 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { MyBusinessService } from '../business-services/my-business-service';
 import { RETRY, errorMessage } from '../core/errors';
-import { CHANGES, NEW_CHANGE, beadleChange } from '../core/sections';
+import { CHANGES, NEW_CHANGE, changePath } from '../core/sections';
 import { text } from '../shared/form-controls';
 import { TIME_ZONE_NOTE, counted, formatRelative } from '../shared/formatting';
 import { FORM_FIELD } from '../ui/form-field';
@@ -245,7 +245,7 @@ export class ChangesList {
 
   protected readonly section = CHANGES;
   protected readonly newChange = NEW_CHANGE;
-  protected readonly changeLink = beadleChange;
+  protected readonly changeLink = changePath;
   protected readonly errorMessage = errorMessage;
   protected readonly timeZoneNote = TIME_ZONE_NOTE;
   protected readonly retry = RETRY;
@@ -369,6 +369,6 @@ export class ChangesList {
   }
 
   protected open(change: ProductionChange): void {
-    this.router.navigate(beadleChange(change.id!));
+    this.router.navigate(changePath(change.id!));
   }
 }

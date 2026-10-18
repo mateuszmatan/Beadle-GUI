@@ -13,7 +13,7 @@ import { RouterLink } from '@angular/router';
 import { Subscription, of } from 'rxjs';
 import { MyBusinessService } from '../business-services/my-business-service';
 import { RETRY } from '../core/errors';
-import { beadleChange, beadleProduct } from '../core/sections';
+import { changePath, productPath } from '../core/sections';
 import { RelativeTimePipe, formatRelative } from '../shared/formatting';
 import { PANEL } from '../ui/panel';
 import {
@@ -281,8 +281,8 @@ export class ChangeDetail {
   private readonly published = inject(PublishedChange);
   private readonly myBusinessService = inject(MyBusinessService);
 
-  protected readonly productLink = beadleProduct;
-  protected readonly changeLink = beadleChange;
+  protected readonly productLink = productPath;
+  protected readonly changeLink = changePath;
   protected readonly updateText = updateText;
   protected readonly stateNow = stateNow;
   protected readonly retry = RETRY;

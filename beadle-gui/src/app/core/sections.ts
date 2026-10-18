@@ -52,10 +52,10 @@ export const ADMIN_PRODUCTS: AppTab = { path: '/admin/products', label: 'Product
 
 export const ADMIN_TABS: readonly AppTab[] = [ADMIN_BUSINESS_SERVICES, ADMIN_PRODUCTS];
 
-export function beadleProduct(id: number | string): (string | number)[] {
+export function productPath(id: number | string): (string | number)[] {
   return [ADMIN_PRODUCTS.path, id];
 }
 
-export function beadleChange(id: number | string, ...rest: string[]): (string | number)[] {
+export function changePath(id: number | string, ...rest: string[]): (string | number)[] {
   return [CHANGES.path, id, ...rest];
 }
