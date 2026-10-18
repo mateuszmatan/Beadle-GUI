@@ -6,6 +6,7 @@ import com.bbh.itss.beadle.adapter.in.web.RefusedRequests
 import com.bbh.itss.beadle.adapter.in.web.ServiceTokenFilter
 import com.bbh.itss.beadle.support.RecordingHttpServer
 import com.bbh.itss.beadle.support.StandInServices
+import org.springframework.boot.ApplicationContextFactory
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.boot.context.TypeExcludeFilter
 import org.springframework.context.ApplicationContextInitializer
@@ -15,6 +16,7 @@ import org.springframework.core.type.classreading.MetadataReaderFactory
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.mock.web.MockHttpSession
+import org.springframework.mock.web.MockServletContext
 import org.springframework.security.core.authority.AuthorityUtils
 import org.springframework.security.core.context.SecurityContextImpl
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
@@ -24,6 +26,7 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder
 import org.springframework.web.context.WebApplicationContext
+import org.springframework.web.context.support.GenericWebApplicationContext
 import spock.lang.Shared
 import spock.lang.Specification
 
@@ -305,14 +308,17 @@ class SecurityConfigurationSpec extends Specification {
         ["--spring.security.oauth2.client.provider.ping.issuer-uri=$server.url".toString()]
     }
 
+    /** Beadle on a mock servlet context, as @SpringBootTest's MOCK environment has it: MockMvc needs no server. */
     private static ConfigurableApplicationContext start(String name, List<String> arguments) {
         new SpringApplicationBuilder(BeadleApplication).profiles('local')
                 .logStartupInfo(false)
+                .contextFactory({ type -> new GenericWebApplicationContext(new MockServletContext()) }
+                        as ApplicationContextFactory)
                 .initializers({ ConfigurableApplicationContext context ->
                     context.beanFactory.registerSingleton('specClasses', new SpecClasses())
                 } as ApplicationContextInitializer<ConfigurableApplicationContext>)
                 .run(([
-                        '--server.port=0', '--beadle.demo-data=false', "--beadle.services.token=$TOKEN",
+                        '--beadle.demo-data=false', "--beadle.services.token=$TOKEN",
                         "--beadle.services.internal.url=$StandInServices.SHARED.url",
                         "--beadle.services.protech.url=$StandInServices.SHARED.url",
                         '--management.endpoint.health.probes.enabled=true',
