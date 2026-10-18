@@ -182,8 +182,22 @@
         } @else if (epics.hasValue()) {
           @if (epics.value().length) {
             <div class="issue-actions">
-              <button type="button" class="text-link" (click)="chooseAllEpics(true)">All</button>
-              <button type="button" class="text-link" (click)="chooseAllEpics(false)">None</button>
+              <button
+                type="button"
+                class="text-link"
+                aria-label="Choose all epics"
+                (click)="chooseAllEpics(true)"
+              >
+                All
+              </button>
+              <button
+                type="button"
+                class="text-link"
+                aria-label="Choose no epics"
+                (click)="chooseAllEpics(false)"
+              >
+                None
+              </button>
               <span class="muted">{{ counted(epicKeys().length, 'epic') }} chosen</span>
             </div>
             <div class="issues">

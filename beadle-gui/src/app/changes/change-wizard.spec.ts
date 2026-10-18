@@ -681,7 +681,7 @@ describe('ChangeWizard', () => {
     await next();
     await scope();
 
-    await click(buttonOf(page(), 'All'));
+    await click(buttonOf(page(), 'Choose all epics'));
     jira('stories').flush([story('CERT-2', 'Mail', 'CERT-1'), story('CERT-6', 'Log', 'CERT-5')]);
     await texts();
     expect(epicKeys()).toEqual(['CERT-1', 'CERT-5']);
@@ -695,7 +695,7 @@ describe('ChangeWizard', () => {
     dropped.flush(DRAFT);
     await settle();
 
-    await click(buttonOf(page(), 'None'));
+    await click(buttonOf(page(), 'Choose no epics'));
     expect(epicKeys()).toEqual([]);
     expect(page().querySelector('.story-group')).toBeNull();
     expect(text(checkboxOf(page(), 'CERT-1').closest('beadle-checkbox'))).toBe(
