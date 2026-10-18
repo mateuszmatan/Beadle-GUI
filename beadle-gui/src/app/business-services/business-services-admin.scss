@@ -8,7 +8,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 4px 16px;
+  margin-bottom: 8px;
   padding: 8px 12px 2px;
+  border-bottom: 1px solid var(--beadle-border);
 }
 
 .list-title {

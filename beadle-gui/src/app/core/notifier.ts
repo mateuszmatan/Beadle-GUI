@@ -16,10 +16,6 @@ export class Notifier {
     this.show(message, 'info', 4000, 'OK');
   }
 
-  info(message: string): void {
-    this.show(message, 'info', 2000);
-  }
-
   error(error: unknown): void {
     this.show(errorMessage(error), 'error', 10000, 'Close');
   }

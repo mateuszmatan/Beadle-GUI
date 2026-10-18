@@ -103,7 +103,6 @@
   color-scheme: light;
   --beadle-primary: #0c2340;
   --beadle-text: #1b1f24;
-  --beadle-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
   --beadle-navy: #0c2340;
   --beadle-navy-light: #1d3a63;
   --beadle-serif: Georgia, 'Times New Roman', serif;
@@ -527,32 +526,6 @@ input[type='number'] {
   margin: 0;
   color: var(--beadle-muted);
   font-size: 12px;
-}
-
-.list-header {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  margin-bottom: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--beadle-border);
-
-  h4 {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0;
-    font-family: var(--beadle-serif);
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--beadle-navy);
-  }
-
-  .hint {
-    color: var(--beadle-muted);
-    font-size: 12px;
-  }
 }
 
 .index {

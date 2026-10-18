@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { FieldProblem } from '../core/models';
+import { FieldProblem } from './models';
 
 const DEFAULT_REASONS = new Set(['OK', 'Unknown Error']);
 
