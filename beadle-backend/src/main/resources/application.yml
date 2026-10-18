@@ -71,8 +71,7 @@ spring:
     username: ${DB_USERNAME:sa}
     password: ${DB_PASSWORD:}
   jpa:
-    hibernate:
-      ddl-auto: none
+    database-platform: com.bbh.itss.beadle.adapter.out.persistence.OracleModeH2Dialect
 management:
   endpoint:
     health:

@@ -25,7 +25,7 @@ class ApplicationProfilesSpec extends Specification {
         env.getProperty('spring.datasource.url') == "jdbc:h2:file:${System.getProperty('user.home')}/beadle/beadle;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;AUTO_SERVER=TRUE"
         environment([], [BEADLE_DATA_DIR: '/var/beadle']).getProperty('spring.datasource.url')
                 .startsWith('jdbc:h2:file:/var/beadle/beadle;')
-        env.getProperty('spring.jpa.hibernate.ddl-auto') == 'none'
+        env.getProperty('spring.jpa.hibernate.ddl-auto') == 'validate'
         env.getProperty('beadle.demo-data') == 'true'
         env.getProperty('management.endpoint.health.show-details') == 'always'
     }
