@@ -69,7 +69,7 @@ class ActionHistoryPersistenceAdapter implements ActionHistoryPort {
         return (root, criteria, builder) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (query.user() != null) {
-                predicates.add(builder.equal(root.get("userName"), query.user()));
+                predicates.add(builder.equal(root.get("user"), query.user()));
             }
             if (query.action() != null) {
                 predicates.add(builder.equal(root.get("action"), query.action()));

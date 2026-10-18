@@ -13,18 +13,18 @@ import spock.lang.Specification
 
 import java.time.Instant
 
+import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_RENAMED
 import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_INTERNAL
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_EDITED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_TASKS_CREATED
-import static com.bbh.itss.beadle.domain.audit.Action.SECURE_CODING_TICKET_CREATED
-import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_RENAMED
 import static com.bbh.itss.beadle.domain.audit.Action.PRODUCT_CREATED
+import static com.bbh.itss.beadle.domain.audit.Action.SECURE_CODING_TICKET_CREATED
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.SUCCESS
+import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE_PROFILE
-import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT
 import static com.bbh.itss.beadle.domain.audit.ObjectType.TICKET
 import static com.bbh.itss.beadle.domain.audit.ObjectType.USER
@@ -159,7 +159,7 @@ class ActionHistoryPersistenceAdapterSpec extends Specification {
 
         when:
         def entity = entities.find(ActionHistoryEntity, stored.id())
-        entity.@userName = 'Someone Else'
+        entity.@user = 'Someone Else'
         entity.@outcome = FAILURE
         entities.flush()
         entities.clear()

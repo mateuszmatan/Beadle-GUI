@@ -35,7 +35,7 @@ public class BusinessServicePersistenceAdapter implements BusinessServiceReposit
     public BusinessService save(BusinessService businessService) {
         BusinessServiceEntity entity = businessService.id() == null ? new BusinessServiceEntity()
                 : current(businessServices.findById(businessService.id()), businessService.version());
-        entity.rename(businessService.name());
+        entity.name(businessService.name());
         return businessServices.saveAndFlush(entity).toDomain();
     }
 
