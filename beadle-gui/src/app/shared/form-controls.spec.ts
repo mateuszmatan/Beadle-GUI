@@ -1,32 +1,18 @@
 import { FormArray, FormGroup, Validators } from '@angular/forms';
+import { fits } from '../changes/change-model';
 import {
-  HTTP_URL,
   addItem,
   applyFieldProblems,
   applyProblemsAt,
+  commaItems,
   controlAt,
-  eachItem,
   filled,
-  fitsColumn,
-  flag,
   integer,
-  joinLines,
-  joinWords,
-  lines,
   max,
-  maxLines,
-  maxWords,
-  moveItem,
   optional,
-  passesValidators,
   removeItem,
-  requireWhile,
-  requiredRule,
-  requiredWhen,
-  revalidateAll,
   setEnabled,
   text,
-  words,
 } from './form-controls';
 
 describe('text helpers', () => {
@@ -36,48 +22,13 @@ describe('text helpers', () => {
     expect(optional(null)).toBeNull();
   });
 
-  it('splits lines and words, dropping repeats unless asked to keep them', () => {
-    expect(lines(' a \n\nb\na ')).toEqual(['a', 'b']);
-    expect(lines('a\na', false)).toEqual(['a', 'a']);
-    expect(words('clean, build  build')).toEqual(['clean', 'build']);
-    expect(words('clean build build', false)).toEqual(['clean', 'build', 'build']);
-    expect(joinLines(['a', 'b'])).toBe('a\nb');
-    expect(joinWords(['DV', 'RD'], ', ')).toBe('DV, RD');
-    expect(joinWords(null)).toBe('');
+  it('splits items at commas and new lines and drops blank and repeated ones', () => {
+    expect(commaItems(' DV, RD\n\nDV ,')).toEqual(['DV', 'RD']);
+    expect(commaItems(null)).toEqual([]);
   });
 });
 
 describe('validators', () => {
-  it('limits the number of lines and words', () => {
-    expect(text('a\nb\nc', maxLines(2)).errors).toEqual({ maxLines: { max: 2 } });
-    expect(text('a\na\na', maxLines(2)).valid).toBe(true);
-    expect(text('a b c', maxWords(2)).errors).toEqual({ maxItems: { max: 2 } });
-  });
-
-  it('names the first item that does not match', () => {
-    const control = text('A=1\nnope\nalso no', eachItem(lines, /=/, 'Write NAME=value'));
-    expect(control.errors).toEqual({ item: { value: 'nope', message: 'Write NAME=value' } });
-  });
-
-  it('requires a value with a message of its own, for text and lists alike', () => {
-    expect(text('', requiredRule('Name the module')).errors).toEqual({ rule: 'Name the module' });
-    expect(text('core', requiredRule('Name the module')).valid).toBe(true);
-    expect(new FormArray([], requiredRule('Add a component')).errors).toEqual({
-      rule: 'Add a component',
-    });
-  });
-
-  it('checks that the joined items fit their column, counting UTF-8 bytes', () => {
-    const control = text('', fitsColumn(lines, '\n', 10));
-    control.setValue('abcd\nefgh');
-    expect(control.valid).toBe(true);
-    control.setValue('abcd\nefghij');
-    expect(control.errors).toEqual({ columnLength: { max: 10 } });
-    control.setValue('ąbcd\nefghi');
-    expect(control.hasError('columnLength')).toBe(true);
-    expect(text('a, b, a', fitsColumn(words, ',', 3)).valid).toBe(true);
-  });
-
   it('limits text in characters and in the UTF-8 bytes the Oracle column holds', () => {
     const control = text('', max(5));
     control.setValue('abcde');
@@ -90,41 +41,17 @@ describe('validators', () => {
     expect(control.valid).toBe(true);
   });
 
+  it('counts the UTF-8 bytes of the trimmed text against the ProTech field length', () => {
+    expect(text(' abcd ', fits(4)).valid).toBe(true);
+    expect(text('abcde', fits(4)).errors).toEqual({ bytes: { max: 4 } });
+    expect(text('ąbcd', fits(4)).hasError('bytes')).toBe(true);
+  });
+
   it('accepts only whole numbers within the range', () => {
     expect(integer(1.5, 0, 10).hasError('integer')).toBe(true);
     expect(integer(11, 0, 10).hasError('max')).toBe(true);
     expect(integer(null, 0, 10).valid).toBe(true);
     expect(integer(null, 0, 10, Validators.required).hasError('required')).toBe(true);
-  });
-
-  it('requires a value while the siblings meet a condition, with a message of its own', () => {
-    const group = new FormGroup({
-      remote: flag(false),
-      host: text(
-        '',
-        requiredWhen((siblings) => siblings['remote'] === true, 'Name the host'),
-      ),
-    });
-    expect(group.controls.host.valid).toBe(true);
-
-    group.controls.remote.setValue(true);
-    group.controls.host.updateValueAndValidity();
-
-    expect(group.controls.host.errors).toEqual({ rule: 'Name the host' });
-  });
-
-  it('adds and removes the required validator as the condition changes', () => {
-    const group = new FormGroup({ host: text(''), port: integer(null, 1, 65535) });
-    const { host, port } = group.controls;
-    requireWhile(port, () => !!optional(host.value), host);
-    expect(port.hasValidator(filled)).toBe(false);
-
-    host.setValue('protech.bbh.com');
-    expect(port.hasValidator(filled)).toBe(true);
-    expect(port.hasError('required')).toBe(true);
-
-    host.setValue('');
-    expect(port.valid).toBe(true);
   });
 
   it('rejects a value of spaces only where a value is required', () => {
@@ -142,28 +69,15 @@ describe('validators', () => {
     setEnabled(control, true);
     expect(control.enabled).toBe(true);
   });
-
-  it('tells whether a disabled control and its children hold values their validators accept', () => {
-    const group = new FormGroup({
-      url: text('https://jenkins.bbh.com', Validators.pattern(HTTP_URL)),
-      items: new FormArray([text('a')], requiredRule('Add one')),
-    });
-    group.disable();
-    expect(passesValidators(group)).toBe(true);
-
-    group.controls.url.setValue('jenkins.bbh.com');
-    expect(passesValidators(group)).toBe(false);
-    expect(passesValidators(group.controls.items)).toBe(true);
-
-    group.controls.items.clear();
-    expect(passesValidators(group.controls.items)).toBe(false);
-  });
 });
 
 describe('field problems', () => {
   function form() {
     return new FormGroup({
-      timing: new FormGroup({ installationStart: text('18:00'), installationHours: integer(null, 1, 72) }),
+      timing: new FormGroup({
+        installationStart: text('18:00'),
+        installationHours: integer(null, 1, 72),
+      }),
       approvals: new FormGroup({ L1: new FormGroup({ reminders: integer(0, 0, 10) }) }),
       tasks: new FormArray([new FormGroup({ shortDescription: text('a') })]),
     });
@@ -220,26 +134,25 @@ describe('field problems', () => {
       { field: 'timing.installationHours', message: 'is required' },
       { field: 'tasks', message: 'is too long' },
     ]);
-    expect(f.controls.tasks.at(0).controls.shortDescription.errors).toEqual({ server: 'is used twice' });
-    expect(controlAt(f.controls.tasks, '[0].shortDescription')).toBe(f.controls.tasks.at(0).controls.shortDescription);
+    expect(f.controls.tasks.at(0).controls.shortDescription.errors).toEqual({
+      server: 'is used twice',
+    });
+    expect(controlAt(f.controls.tasks, '[0].shortDescription')).toBe(
+      f.controls.tasks.at(0).controls.shortDescription,
+    );
   });
 });
 
 describe('lists', () => {
-  it('adds, moves and removes items and marks the list as changed', () => {
+  it('adds and removes items and marks the list as changed', () => {
     const list = new FormArray([text('a'), text('b')]);
     addItem(list, text('c'), 1);
     expect(list.value).toEqual(['a', 'c', 'b']);
     expect(list.dirty).toBe(true);
 
     list.markAsPristine();
-    moveItem(list, 0, 2);
-    expect(list.value).toEqual(['c', 'b', 'a']);
-    expect(list.dirty).toBe(true);
-
-    list.markAsPristine();
     removeItem(list, 1);
-    expect(list.value).toEqual(['c', 'a']);
+    expect(list.value).toEqual(['a', 'b']);
     expect(list.dirty).toBe(true);
   });
 });

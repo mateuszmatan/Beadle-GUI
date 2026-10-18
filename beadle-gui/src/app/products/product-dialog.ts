@@ -20,8 +20,7 @@ import { errorText } from '../shared/form-errors';
 import { DIALOG } from '../ui/dialog';
 import { FORM_FIELD } from '../ui/form-field';
 import { ProductsApi } from '../core/api';
-import { Product } from '../core/models';
-import { BusinessService, PRODUCT_CODE } from '../core/models';
+import { BusinessService, PRODUCT_CODE, Product } from '../core/models';
 
 export interface ProductDialogData {
   businessServices: readonly BusinessService[];

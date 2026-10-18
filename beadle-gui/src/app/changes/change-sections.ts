@@ -1,8 +1,6 @@
 import { AbstractControl } from '@angular/forms';
-import { LookupKind } from '../core/models';
-import { Field, FieldOption, area, choice, count, line, mono } from '../shared/fields';
+import { Field, FieldOption, area, choice, count, find, line, mono } from '../shared/fields';
 import { HTTP_URL_ERROR } from '../shared/form-controls';
-import { Lookup } from '../shared/lookup-dialog';
 import { APPROVAL_STATES, ProductionChange, STATES, approvalOf, labelOf } from './change-api';
 import {
   JIRA_KEY_ERROR,
@@ -103,8 +101,6 @@ export function changeFacts(
 export const OPENER_HINT = 'If left empty: the user who opens the change';
 
 const BUSINESS_SERVICE_HINT = 'If left empty: the business service of the product';
-
-const find = (kind: LookupKind, more: Partial<Lookup> = {}) => ({ lookup: { kind, ...more } });
 
 const person = (key: string, label: string, span = 6) => line(key, label, '', span, find('users'));
 

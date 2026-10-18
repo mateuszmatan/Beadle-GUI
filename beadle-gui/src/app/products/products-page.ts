@@ -5,7 +5,7 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, filter, map } from 'rxjs';
 import { ChangesApi } from '../changes/change-api';
-import { ProductsApi } from '../core/api';
+import { BusinessServicesApi, ProductsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { Product } from '../core/models';
 import { Notifier } from '../core/notifier';
@@ -16,7 +16,6 @@ import { BeadleInput } from '../ui/form-field';
 import { GRID, GridColumn } from '../ui/grid';
 import { BeadleLoading } from '../ui/loading';
 import { ProductDialog, ProductDialogData } from './product-dialog';
-import { BusinessServicesApi } from '../core/api';
 
 function tally(group: BusinessServiceGroup<Product>): string {
   return counted(group.businessService?.productCount ?? group.products.length, 'product');

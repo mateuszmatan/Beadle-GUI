@@ -14,8 +14,18 @@ import {
 } from '../business-services/my-business-service';
 import { DRAFT_KEY, DRAFT_KEPT, SessionEnd } from '../core/session-end';
 import * as fixtures from '../testing/change-fixtures';
-import { buttonOf, checkboxOf, choose, enter, errorOf, fieldOf } from '../testing/dom';
-import { inputOf, optionsOf, selectOf, text } from '../testing/dom';
+import {
+  buttonOf,
+  checkboxOf,
+  choose,
+  enter,
+  errorOf,
+  fieldOf,
+  inputOf,
+  optionsOf,
+  selectOf,
+  text,
+} from '../testing/dom';
 import { businessService, product } from '../testing/fixtures';
 import { isoDate } from './change-model';
 import { localInput } from './change-schedule-model';

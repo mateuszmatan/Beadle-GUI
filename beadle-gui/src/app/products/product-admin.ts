@@ -15,8 +15,7 @@ import { Notifier } from '../core/notifier';
 import { NO_BUSINESS_SERVICE } from '../business-services/business-services';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
 import { BeadleLoading } from '../ui/loading';
-import { BusinessServicesApi } from '../core/api';
-import { ProductsApi } from '../core/api';
+import { BusinessServicesApi, ProductsApi } from '../core/api';
 import { Product } from '../core/models';
 import { ProductDialog, ProductDialogData, ProductDialogResult } from './product-dialog';
 

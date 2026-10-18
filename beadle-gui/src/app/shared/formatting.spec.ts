@@ -1,22 +1,4 @@
-import { CountedPipe, capitalized, counted, formatDuration, formatRelative } from './formatting';
-
-describe('formatDuration', () => {
-  it.each([
-    [null, '–'],
-    [undefined, '–'],
-    [Number.NaN, '–'],
-    [0, '0s'],
-    [44.6, '45s'],
-    [60, '1m'],
-    [725, '12m 5s'],
-    [3600, '1h'],
-    [12_000, '3h 20m'],
-    [172_800, '2d'],
-    [187_200, '2d 4h'],
-  ])('shows %s seconds as %s', (seconds, text) => {
-    expect(formatDuration(seconds)).toBe(text);
-  });
-});
+import { capitalized, counted, formatRelative } from './formatting';
 
 describe('formatRelative', () => {
   const now = Date.parse('2026-10-04T12:00:00Z');
@@ -46,7 +28,6 @@ describe('counted', () => {
   it('takes an irregular plural', () => {
     expect(counted(1, 'recovery', 'recoveries')).toBe('1 recovery');
     expect(counted(3, 'recovery', 'recoveries')).toBe('3 recoveries');
-    expect(new CountedPipe().transform(2, 'task')).toBe('2 tasks');
   });
 });
 

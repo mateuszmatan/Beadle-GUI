@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { LookupKind } from '../core/models';
 import {
   Field,
   FieldOption,
   Fields,
   area,
   choice,
+  find,
   formRevision,
   line,
   mono,
@@ -25,8 +25,6 @@ import {
   removeTask,
   taskStatus,
 } from './change-tasks-model';
-
-const find = (kind: LookupKind) => ({ lookup: { kind } });
 
 const FROM_THE_CHANGE: Record<string, string> = {
   changeNumber: 'The CHG number of the change',

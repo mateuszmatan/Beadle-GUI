@@ -4,13 +4,12 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { Product } from '../core/models';
+import { BusinessService, Product } from '../core/models';
 import { buttonOf, gridCell, gridHeaders, gridRows, settleGrid, text, toast } from '../testing/dom';
 import { businessService, product } from '../testing/fixtures';
 import { ChangeProfileSummary } from '../changes/change-api';
 import { ProductsPage } from './products-page';
 import { ProductDialog } from './product-dialog';
-import { BusinessService } from '../core/models';
 
 describe('ProductsPage', () => {
   let fixture: ComponentFixture<ProductsPage>;
