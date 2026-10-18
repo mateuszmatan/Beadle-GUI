@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import {
   Field,
-  FieldOption,
   Fields,
   area,
   choice,
@@ -9,6 +8,7 @@ import {
   formRevision,
   line,
   mono,
+  optionsOf,
 } from '../shared/fields';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
@@ -62,9 +62,6 @@ const SHORT = area('details.shortDescription', 'Short description', '', 12);
 const DESCRIPTION = area('details.description', 'Description', '', 12);
 const COMMENTS = area('details.additionalComments', 'Additional comments', '', 12);
 
-const choices = (values: readonly string[] = []): FieldOption[] =>
-  values.map((value) => ({ value, label: value }));
-
 export function taskFields(
   release: boolean,
   inChange: boolean,
@@ -80,7 +77,7 @@ export function taskFields(
         APPROVAL,
         APPROVERS,
         CI,
-        choice('details.platform', 'Platform', choices(platforms)),
+        choice('details.platform', 'Platform', optionsOf(platforms)),
         FROM,
         UNTIL,
         START,
@@ -98,7 +95,7 @@ export function taskFields(
         ASSIGNED,
         APPROVAL,
         APPROVERS,
-        choice('details.importance', 'Importance', choices(importances)),
+        choice('details.importance', 'Importance', optionsOf(importances)),
         CI,
         FROM,
         UNTIL,

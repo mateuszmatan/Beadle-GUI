@@ -15,6 +15,7 @@ import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { ChangeProfile, ChangesApi } from '../changes/change-api';
+import { NEEDS_ATTENTION, failureOf } from '../changes/change-problems';
 import { ChangeTasksForm } from '../changes/change-tasks-form';
 import {
   drafts,
@@ -30,7 +31,7 @@ import { ADMIN, ADMIN_PRODUCTS } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { applyFieldProblems } from '../shared/form-controls';
 import { BeadleLoading } from '../ui/loading';
-import { Failure, NEEDS_ATTENTION, SaveBar, failureOf } from '../ui/save-bar';
+import { Failure, SaveBar } from '../ui/save-bar';
 import { ProductAdmin } from './product-admin';
 
 export function profileForm(profile: ChangeProfile) {

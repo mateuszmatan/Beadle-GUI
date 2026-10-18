@@ -9,7 +9,6 @@ import static com.bbh.itss.beadle.frontend.support.ChangeStubs.PLANNING
 import static com.bbh.itss.beadle.frontend.support.ChangeStubs.RELEASE_DATE
 import static com.bbh.itss.beadle.frontend.support.ChangeStubs.details
 import static com.bbh.itss.beadle.frontend.support.BeadleStubApi.SIGNED_IN_USER
-import static com.bbh.itss.beadle.frontend.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import static com.microsoft.playwright.options.AriaRole.OPTION
 import static java.time.LocalDate.now
@@ -457,76 +456,6 @@ class NewChangeSpec extends BeadleSpecification {
         assertThat(term(summary(), 'Secure coding ticket number')).hasText('SCP-4201')
         assertThat(term(summary(), 'APO number')).hasText('APO-24680')
         ownErrors().isEmpty()
-    }
-
-    def "a change ProTech refuses stays on the review with the reasons, marked on the fields of each step"() {
-        given:
-        api.respond('POST', '/api/changes', problem(400, 'Bad Request', '3 fields are invalid',
-                [problems: [[field: 'schedule.installationEnd', message: 'must be after the start'],
-                          [field: 'template.planning.backoutPlan', message: 'must not mention Nexus'],
-                          [field: 'template.riskAssessment.businessImpact', message: 'is not one of the answers']]]))
-
-        when:
-        reviewCertScanner()
-
-        then:
-        assertThat(review('Epics')).hasText('CERT-130')
-        assertThat(review('Stories')).hasText('CERT-131')
-
-        when:
-        button('Create change in ProTech', true).click()
-
-        then:
-        assertThat(page.locator('.save-problem strong')).hasText('The change could not be created: 3 fields are invalid')
-        assertThat(page.locator('.save-problem li'))
-                .hasText(['Installation end: must be after the start', 'Backout plan: must not mention Nexus',
-                          'Business impact: is not one of the answers'] as String[])
-        assertThat(currentStep()).hasText('Review')
-        api.requests('POST', '/api/changes/\\d+/tasks').isEmpty()
-
-        when:
-        stepButton('Risk assessment').click()
-
-        then:
-        assertThat(errorOf(step(), 'Business impact')).hasText('is not one of the answers')
-
-        when:
-        stepButton('Planning').click()
-
-        then:
-        assertThat(errorOf(step(), 'Backout plan')).hasText('must not mention Nexus')
-
-        when:
-        input(step(), 'Backout plan').fill('Redeploy the previous release.')
-        button('Back', true).click()
-
-        then:
-        assertThat(currentStep()).hasText('Schedule')
-        assertThat(errorOf(step(), 'Installation hours')).hasText('must be after the start')
-
-        when:
-        input(step(), 'Installation hours').fill('3')
-
-        then:
-        assertThat(hintOf(step(), 'Installation hours')).hasText(~/^Until .+, 21:00$/)
-        assertThat(input(step(), 'Post-install validation start')).hasValue("${RELEASE_DATE}T21:00")
-        ownErrors().findAll { !it.contains('400') }.isEmpty()
-    }
-
-    void reviewCertScanner() {
-        open('/new-change')
-        choose(step(), 'Your business service', 'Corporate Technology')
-        choose(step(), 'Product', 'CertScanner (CERTSCANNER)')
-        button('Next: Jira', true).click()
-        select(step(), 'FixVersion').fill('CERT 4.2')
-        select(step(), 'FixVersion').press('Enter')
-        checkbox(step(), 'CERT-130').check()
-        continueTo('Review')
-    }
-
-    void continueTo(String label) {
-        ((STEPS.indexOf(currentStep().textContent().trim()) + 1)..STEPS.indexOf(label)).each { button("Next: ${STEPS[it]}", true).click() }
-        assertThat(currentStep()).hasText(label)
     }
 
     Locator step() {

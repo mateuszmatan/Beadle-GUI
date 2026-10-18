@@ -12,7 +12,16 @@ import {
 import { rxResource, takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { EMPTY, Observable, Subject, catchError, finalize, of, switchMap } from 'rxjs';
+import {
+  EMPTY,
+  Observable,
+  Subject,
+  catchError,
+  debounceTime,
+  finalize,
+  of,
+  switchMap,
+} from 'rxjs';
 import { MyBusinessService } from '../business-services/my-business-service';
 import { BusinessServicesApi, ProductsApi, UserApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
@@ -25,7 +34,6 @@ import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
 import { BeadleCheckbox } from '../ui/checkbox';
 import { FORM_FIELD } from '../ui/form-field';
-import { ATTENTION } from '../ui/save-bar';
 import { BeadleLoading } from '../ui/loading';
 import {
   ChangeRequest,
@@ -46,7 +54,7 @@ import {
   versionText,
   windowText,
 } from './change-model';
-import { problemText } from './change-problems';
+import { ATTENTION, problemText } from './change-problems';
 import { ChangeScheduleFields } from './change-schedule-fields';
 import {
   SCHEDULE_PREFIX,
@@ -161,7 +169,7 @@ export interface WizardDraft {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './change-wizard.html',
-  styleUrls: ['../shared/wizard.scss', './change-wizard.scss'],
+  styleUrl: './change-wizard.scss',
 })
 export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
   readonly draftName = WIZARD_DRAFT;
@@ -324,6 +332,8 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
   });
   protected readonly preview = signal<ProductionChange | null>(null);
   protected readonly previewing = signal(false);
+  /** Why the texts of the chosen epics and stories could not be written on the Jira step. */
+  protected readonly textsProblem = signal<string | null>(null);
   private readonly reviews = new Subject<void>();
   private readonly jiraScope = computed(() =>
     this.stepKey() === 'jira' && this.epicKeys().length && this.stories.status() === 'resolved'
@@ -349,11 +359,18 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
   constructor() {
     toObservable(this.jiraScope)
       .pipe(
-        switchMap((scope) =>
-          scope === null
+        debounceTime(500),
+        switchMap((scope) => {
+          this.textsProblem.set(null);
+          return scope === null
             ? EMPTY
-            : this.changesApi.preview(this.request()).pipe(catchError(() => EMPTY)),
-        ),
+            : this.changesApi.preview(this.request()).pipe(
+                catchError((error) => {
+                  this.textsProblem.set(errorMessage(error));
+                  return EMPTY;
+                }),
+              );
+        }),
         takeUntilDestroyed(),
       )
       .subscribe((draft) => this.showTexts(draft));

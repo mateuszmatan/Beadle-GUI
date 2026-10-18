@@ -1,13 +1,24 @@
 package com.bbh.itss.beadle.frontend.support
 
+import groovy.json.JsonSlurperClassic
+import groovy.transform.TupleConstructor
+
 import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.regex.Matcher
+import java.util.regex.Pattern
 
 import static com.bbh.itss.beadle.frontend.support.StubResponse.empty
 import static com.bbh.itss.beadle.frontend.support.StubResponse.json
 import static com.bbh.itss.beadle.frontend.support.StubResponse.problem
 
-class BeadleStubApi extends StubApi {
+/**
+ * The Beadle API the browser suites run against: business services, products, the action history, the sign-in with
+ * a stand-in of Ping, and the changes of {@link ChangeStubs}. It records every request it answers.
+ */
+class BeadleStubApi {
+
+    static final String FIXTURES = '/com/bbh/itss/beadle/frontend/api/'
 
     static final String SIGNED_IN_USER = 'Mateusz Matan'
 
@@ -16,6 +27,9 @@ class BeadleStubApi extends StubApi {
     /** Where the stand-in of Ping ends its session, on the stub server as Ping's address is in the browser. */
     static final String PING_END_SESSION = '/ping/idp/init_logout.openid'
 
+    private final List<Route> routes = new CopyOnWriteArrayList<>()
+    private final List<RecordedRequest> recorded = new CopyOnWriteArrayList<>()
+    List<Map> businessServices
     List<Map> products
     List<Map> actions
     ChangeStubs.ProTech protech
@@ -24,7 +38,104 @@ class BeadleStubApi extends StubApi {
     /** Whether Ping knows the browser, so that it signs it in at once without asking for a password. */
     volatile boolean pingSession
 
-    @Override
+    /**
+     * The parsed fixture as plain {@code LinkedHashMap}s and {@code ArrayList}s. The handlers share these maps across the
+     * threads of {@link GuiServer}, and the lazy maps of the default {@code JsonSlurper} are not safe to read from two
+     * threads at once: one thread can see a map that another is still filling in and answer a 500.
+     */
+    static Object fixture(String name) {
+        def resource = BeadleStubApi.getResource(FIXTURES + name)
+        if (!resource) {
+            throw new IllegalArgumentException("No API fixture $name")
+        }
+        new JsonSlurperClassic().parseText(resource.getText('UTF-8'))
+    }
+
+    void installBusinessServices(Map blank) {
+        businessServices = new CopyOnWriteArrayList<Map>(fixture('business-services.json') as List<Map>)
+        get('/api/business-services') { businessServices.sort(false) { (it.name as String).toLowerCase() } }
+        on('POST', '/api/business-services') { RecordedRequest request ->
+            def added = [id: (businessServices*.id.max() as int) + 1, name: request.json().name, version: 0, productCount: 0] + blank
+            businessServices << added
+            json(added, 201)
+        }
+        on('PUT', '/api/business-services/(\\d+)') { RecordedRequest request, List<String> ids ->
+            def businessService = businessServices.find { it.id == ids[0] as int }
+            businessService.putAll(name: request.json().name, version: (businessService.version as int) + 1)
+            businessService
+        }
+        on('DELETE', '/api/business-services/(\\d+)') { RecordedRequest request, List<String> ids ->
+            businessServices.removeIf { it.id == ids[0] as int }
+            StubResponse.empty()
+        }
+    }
+
+    String businessServiceName(Object id) {
+        businessServices.find { it.id == id }?.name
+    }
+
+    BeadleStubApi get(String path, Closure handler) {
+        on('GET', path, handler)
+    }
+
+    BeadleStubApi on(String method, String path, Closure handler) {
+        routes.add(0, new Route(method, Pattern.compile(path), handler))
+        this
+    }
+
+    BeadleStubApi respond(String method, String path, Object body, int status = 200) {
+        on(method, path) { json(body, status) }
+    }
+
+    BeadleStubApi respond(String method, String path, StubResponse response) {
+        on(method, path) { response }
+    }
+
+    StubResponse handle(String method, String path, String query, String body, Map<String, String> headers = [:]) {
+        def request = new RecordedRequest(method: method, path: path, query: query, body: body, headers: headers)
+        recorded << request
+        def refused = refuse(request)
+        if (refused) {
+            return refused
+        }
+        for (route in routes) {
+            def matcher = route.match(method, path)
+            if (matcher != null) {
+                def groups = matcher.groupCount() ? (1..matcher.groupCount()).collect { matcher.group(it) } : []
+                def handler = route.handler
+                def result = handler.maximumNumberOfParameters >= 2 ? handler.call(request, groups)
+                        : handler.maximumNumberOfParameters == 1 ? handler.call(request) : handler.call()
+                return result instanceof StubResponse ? result : json(result)
+            }
+        }
+        problem(404, 'Not found', "No stub for $method $path")
+    }
+
+    /** The 401 of a browser without a session, before the routes; null lets the routes answer. */
+    private StubResponse refuse(RecordedRequest request) {
+        !signedIn && request.path.startsWith('/api/') ? problem(401, 'Unauthorized', 'Sign in first') : null
+    }
+
+    List<RecordedRequest> requests() {
+        List.copyOf(recorded)
+    }
+
+    List<RecordedRequest> requests(String method, String pathPattern) {
+        def pattern = Pattern.compile(pathPattern)
+        recorded.findAll { it.method == method && pattern.matcher(it.path).matches() }
+    }
+
+    RecordedRequest lastRequest(String method, String pathPattern) {
+        def matching = requests(method, pathPattern)
+        matching ? matching.last() : null
+    }
+
+    void reset() {
+        routes.clear()
+        recorded.clear()
+        install()
+    }
+
     void install() {
         installBusinessServices(changeCount: 0)
         products = new CopyOnWriteArrayList<Map>(fixture('products.json') as List<Map>)
@@ -66,11 +177,6 @@ class BeadleStubApi extends StubApi {
             signedIn = true
             StubResponse.redirect('/')
         }
-    }
-
-    @Override
-    protected StubResponse refuse(RecordedRequest request) {
-        !signedIn && request.path.startsWith('/api/') ? problem(401, 'Unauthorized', 'Sign in first') : null
     }
 
     /** The audit trail of {@code action-history.json}, filtered and paged like {@code GET /api/action-history}. */
@@ -143,5 +249,21 @@ class BeadleStubApi extends StubApi {
         [id          : id, code: sent.code, name: sent.name, ownerTeam: sent.ownerTeam, contactEmail: sent.contactEmail,
          businessServiceId: sent.businessServiceId, businessServiceName: businessServiceName(sent.businessServiceId), version: version,
          updatedAt   : SAVED_AT]
+    }
+
+    @TupleConstructor(defaults = false)
+    private static final class Route {
+
+        final String method
+        final Pattern path
+        final Closure handler
+
+        Matcher match(String requestMethod, String requestPath) {
+            if (requestMethod != method) {
+                return null
+            }
+            def matcher = path.matcher(requestPath)
+            matcher.matches() ? matcher : null
+        }
     }
 }

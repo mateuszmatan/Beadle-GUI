@@ -46,9 +46,10 @@ com.bbh.itss.beadle
 └── config                   Spring wiring only
 ```
 
-The interface (`beadle-gui/src/app`) has the same cut: `shell` (header, menu, user, footer), `core` (API clients,
-models, sign-in), `ui` (form fields, grid, dialogs, toasts), `shared` (field definitions, lookups),
-`business-services`, `products`, `admin`, `changes` (Changes and New Change) and `action-history`.
+The interface (`beadle-gui/src/app`) has the same cut: `shell` (header, menu, user, footer), `core` (the API clients
+the features share, models, sign-in), `ui` (form fields, grid, dialogs, toasts), `shared` (field definitions,
+lookups), `business-services`, `products`, `admin`, `changes` (Changes and New Change) and `action-history`; each
+feature keeps the client of its own endpoints (`changes/change-api.ts`, `action-history/action-history-api.ts`).
 
 ## Look
 
@@ -72,6 +73,7 @@ The `local` profile keeps an H2 file database in Oracle mode in `~/beadle/beadle
 it) with demo products, and signs everybody in as `Mateusz Matan` without Ping (`BEADLE_SIGNED_IN_USER` names
 someone else). Beadle-GUI also starts while the two services are down; its pages then say which one cannot be
 reached. For work on the interface, `npm start` serves it on http://localhost:4201 and proxies the API to port 8081.
+`npm ci` removes the V6 packages, so after `npm ci` run `./gradlew installDesignSystem` before `npm start`.
 
 ## Build and tests
 

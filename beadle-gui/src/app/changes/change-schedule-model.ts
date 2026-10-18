@@ -14,7 +14,7 @@ const MINUTE = 60 * 1000;
 export const SCHEDULE_LABELS: Record<keyof ChangeSchedule, string> = {
   installationStart: 'Installation start',
   installationEnd: 'Installation end',
-  validationStart: 'Validation start',
+  validationStart: 'Post-install validation start',
   validationEnd: 'Validation end',
   firstUsage: 'First use',
   downtimeStart: 'Downtime start',

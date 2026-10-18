@@ -113,7 +113,7 @@ describe('ChangeTasksForm', () => {
 
     expect(rows().map((row) => text(row.querySelector('.task-head')))).toEqual([
       '1Release ManagementOpen Remove',
-      '2Change taskWork in progress Remove',
+      '2Change taskWork in Progress Remove',
       '3Change task Remove',
     ]);
     expect(labels(rows()[0])).toContain('Platform');

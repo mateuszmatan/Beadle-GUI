@@ -91,7 +91,7 @@ export function stages(state: ChangeState, workflow: readonly WorkflowStep[]): S
     <ol class="workflow" aria-label="Workflow in ProTech">
       @for (stage of stages(); track stage.state; let i = $index) {
         <li [class]="stage.status" [attr.aria-current]="stage.status === 'current' ? 'step' : null">
-          <span class="number">{{ i + 1 }}</span>
+          <span class="index">{{ i + 1 }}</span>
           <span class="text">
             <span class="label">{{ stage.label }}</span>
             <span class="when">
@@ -131,16 +131,11 @@ export function stages(state: ChangeState, workflow: readonly WorkflowStep[]): S
       font-size: 12px;
     }
 
-    .number {
-      display: grid;
+    .index {
       flex-shrink: 0;
-      place-items: center;
-      width: 20px;
-      height: 20px;
       border: 1px solid var(--beadle-border);
       background: var(--beadle-card);
-      font-size: 11px;
-      font-weight: 700;
+      color: inherit;
     }
 
     .text {
@@ -163,7 +158,7 @@ export function stages(state: ChangeState, workflow: readonly WorkflowStep[]): S
       border-top-color: var(--beadle-navy-light);
       color: var(--beadle-navy);
 
-      .number {
+      .index {
         border-color: var(--beadle-navy-light);
         background: var(--beadle-info-bg);
       }
@@ -175,7 +170,7 @@ export function stages(state: ChangeState, workflow: readonly WorkflowStep[]): S
       color: var(--beadle-navy);
       font-weight: 600;
 
-      .number {
+      .index {
         border-color: var(--beadle-navy);
         background: var(--beadle-navy);
         color: #fff;

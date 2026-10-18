@@ -26,8 +26,8 @@ class SignInSpec extends BeadleSpecification {
 
         and: 'Ping shows its sign-in instead of signing the browser straight back in'
         assertThat(page.locator('h1')).hasText('Sign on to Ping')
-        !beadle.signedIn
-        !beadle.pingSession
+        !api.signedIn
+        !api.pingSession
 
         and: 'in that order, with the session asked for in between'
         def calls = api.requests().collect { "$it.method $it.path".toString() }

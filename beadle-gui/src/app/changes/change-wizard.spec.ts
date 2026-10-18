@@ -91,6 +91,7 @@ describe('ChangeWizard', () => {
   }
 
   beforeEach(async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
     localStorage.removeItem(MY_BUSINESS_SERVICE_KEY);
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
@@ -100,6 +101,7 @@ describe('ChangeWizard', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     http.verify();
     sessionStorage.clear();
     localStorage.removeItem(MY_BUSINESS_SERVICE_KEY);
@@ -162,8 +164,15 @@ describe('ChangeWizard', () => {
     await click(buttonOf(page(), 'Find epics'));
   }
 
-  async function texts(draft = DRAFT) {
+  /** Lets the half second pass after the last tick, after which the Jira step writes the texts. */
+  async function pause() {
     await settle();
+    vi.advanceTimersByTime(500);
+    await settle();
+  }
+
+  async function texts(draft = DRAFT) {
+    await pause();
     previews().forEach((request) => request.flush(draft));
     await settle();
   }
@@ -548,7 +557,8 @@ describe('ChangeWizard', () => {
     await tick('CERT-1');
     expect(previews()).toEqual([]);
     jira('stories').flush([story('CERT-2', 'Mail', 'CERT-1'), story('CERT-3', 'Chat', 'CERT-1')]);
-    await settle();
+    expect(previews()).toEqual([]);
+    await pause();
 
     const [preview, ...more] = previews();
     expect(more).toEqual([]);
@@ -560,11 +570,24 @@ describe('ChangeWizard', () => {
     expect(value('Description')).toBe('Production release of CertScanner (CERT).');
 
     await tick('CERT-3');
+    await tick('CERT-2');
+    await tick('CERT-2');
+    expect(previews()).toEqual([]);
+    await pause();
     const [again, ...others] = previews();
     expect(others).toEqual([]);
     expect(again.request.body.storyKeys).toEqual(['CERT-2']);
     again.flush(productionChange({ shortDescription: 'CertScanner 4.2: Alerts' }));
     await settle();
+    expect(value('Short description')).toBe('CertScanner 4.2: Alerts');
+
+    await tick('CERT-3');
+    await pause();
+    fail(http.expectOne('/api/changes/preview'), 'Jira is down');
+    await settle();
+    expect(shown('.choice-error')).toBe(
+      'The text sent to ProTech could not be written: Jira is down',
+    );
     expect(value('Short description')).toBe('CertScanner 4.2: Alerts');
 
     await next();
@@ -658,7 +681,7 @@ describe('ChangeWizard', () => {
     await next();
     await scope();
 
-    await click(buttonOf(page(), 'All'));
+    await click(buttonOf(page(), 'Choose all epics'));
     jira('stories').flush([story('CERT-2', 'Mail', 'CERT-1'), story('CERT-6', 'Log', 'CERT-5')]);
     await texts();
     expect(epicKeys()).toEqual(['CERT-1', 'CERT-5']);
@@ -666,13 +689,13 @@ describe('ChangeWizard', () => {
 
     await tick('CERT-5');
     jira('stories').flush([story('CERT-2', 'Mail', 'CERT-1')]);
-    await settle();
+    await pause();
     const [dropped, ...more] = previews();
     expect([dropped.request.body.storyKeys, more]).toEqual([['CERT-2'], []]);
     dropped.flush(DRAFT);
     await settle();
 
-    await click(buttonOf(page(), 'None'));
+    await click(buttonOf(page(), 'Choose no epics'));
     expect(epicKeys()).toEqual([]);
     expect(page().querySelector('.story-group')).toBeNull();
     expect(text(checkboxOf(page(), 'CERT-1').closest('beadle-checkbox'))).toBe(

@@ -285,7 +285,7 @@ describe('ChangeDetail', () => {
     expect(page().querySelector('beadle-change-tasks-form button')).toBeNull();
     expect(tasks[1].classList).toContain('canceled');
     expect(text(page().querySelector('beadle-change-tasks-form')?.previousElementSibling)).toBe(
-      'A change task (CTASK) is a piece of work inside the change, done by one team. ProTech asks the approvers of its assignment group for their approval in the CTask approval stage.',
+      'A change task (CTASK) is a piece of work inside the change, done by one team. ProTech asks the approvers of its assignment group for their approval in the CTask Approval stage.',
     );
     expect(page().querySelector('.secure-coding-missing')).toBeNull();
     expect(text(page().querySelector('pre'))).toBe('Production release of CertScanner (CERT).');
@@ -486,6 +486,19 @@ describe('ChangeDetail', () => {
     TestBed.tick();
     fixture.detectChanges();
     expect(text(banner())).toContain('This page checks again every few seconds.');
+
+    for (let poll = 1; poll < MAX_POLLS; poll++) {
+      await vi.advanceTimersByTimeAsync(POLL_INTERVAL);
+      TestBed.tick();
+      http
+        .expectOne('/api/changes/7')
+        .flush({ detail: 'Beadle-ProTech cannot be reached' }, { status: 503, statusText: 'No' });
+      TestBed.tick();
+    }
+    fixture.detectChanges();
+    expect(text(banner())).toContain(
+      'The change could not be read again, so this page stopped checking: Beadle-ProTech cannot be reached',
+    );
   });
 
   it('shows what ProTech did not apply', async () => {

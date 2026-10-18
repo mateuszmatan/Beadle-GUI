@@ -112,7 +112,7 @@ project(':beadle-gui') { frontend ->
     apply plugin: 'groovy'
     apply plugin: 'java-test-fixtures'
 
-    def sources = files(fileTree('src') { exclude 'smokeTest/**', 'regressionTest/**', 'performanceTest/**', 'testFixtures/**' },
+    def sources = files(fileTree('src') { exclude 'smokeTest/**', 'regressionTest/**', 'performanceTest/**', 'testFixtures/groovy/**' },
             'tsconfig.app.json', 'tsconfig.spec.json', workspaceFiles)
     def distDir = layout.projectDirectory.dir('dist')
 

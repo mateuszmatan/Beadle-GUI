@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { errorMessage } from '../core/errors';
-import { Field, FieldOption, Fields, formRevision } from '../shared/fields';
+import { Field, Fields, formRevision, optionsOf } from '../shared/fields';
 import { FORM_FIELD } from '../ui/form-field';
 import { ChangeOptions, RiskQuestion } from './change-api';
 import { ChangeOptionLists } from './change-options';
@@ -25,9 +25,6 @@ import {
 import { MAX_PRIVILEGED_USERS, TemplateForm, riskOf } from './change-template-model';
 
 const LISTED: readonly SectionKey[] = ['request', 'risk'];
-
-const optionsOf = (values: readonly string[]): FieldOption[] =>
-  values.map((value) => ({ value, label: value }));
 
 function listed(field: Field, options: ChangeOptions | null): Field {
   switch (field.key) {
