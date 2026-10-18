@@ -14,49 +14,11 @@ import {
   Reminder,
   TaskDetails,
 } from '../changes/change-api';
+import OPTIONS from '../../testFixtures/resources/com/bbh/itss/beadle/frontend/api/change-options.json';
 
+/** The answer lists of GET /api/changes/options: the file the browser suites answer with too. */
 export function changeOptions(): ChangeOptions {
-  return {
-    categories: [
-      'Application',
-      'Hardware',
-      'Infrastructure',
-      'System Software',
-      'Network',
-      'Telecom',
-      'Data Amendment',
-      'Desktop Software',
-      'Storage',
-      'Facilities',
-      'Other',
-      'Database',
-    ],
-    types: [
-      { value: 'STANDARD', label: 'Standard' },
-      { value: 'EMERGENCY', label: 'Emergency' },
-      { value: 'BUSINESS_CRITICAL', label: 'Business Critical' },
-      { value: 'MODEL', label: 'Model' },
-    ],
-    risk: {
-      bbhWorkgroups: ['Single', '2-3', 'More than 3'],
-      changeComplexity: ['Simple', 'Moderate', 'Very'],
-      bbhUsers: ['Less than 5', '5-25', '26-250', 'All users'],
-      validationComplexity: ['Simple', 'Moderate', 'Very'],
-      bbhApplications: ['Single', 'Two', 'More than 2'],
-      backoutTesting: [
-        'Less than 30 minutes',
-        '30 mins - 2 hours',
-        'Greater than 2 hours',
-        'Unable to test',
-      ],
-      clientsOutsideBbh: ['No clients', 'Single', 'More than one but not all', 'All clients'],
-      platformStatus: ['Existing', 'New', 'Decommissioned'],
-      businessImpact: ['None', 'Low', 'Medium', 'High'],
-    },
-    platforms: ['None', 'Mainframe', 'Distributed', 'OpenShift', 'Cognos/Motio'],
-    importances: ['1 - Critical', '2 - High', '3 - Moderate', '4 - Low', '5 - Planning'],
-    releaseManagement: 'Release Management',
-  };
+  return structuredClone(OPTIONS) as ChangeOptions;
 }
 
 export function changeTemplate(overrides: Partial<ChangeTemplate> = {}): ChangeTemplate {
