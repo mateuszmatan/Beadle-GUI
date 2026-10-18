@@ -9,7 +9,6 @@ import com.bbh.itss.beadle.adapter.in.web.SignInRecorder;
 import com.bbh.itss.beadle.adapter.out.http.ServicesProperties;
 import com.bbh.itss.beadle.application.user.port.in.SignedInUserUseCase;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -59,7 +58,6 @@ import static org.springframework.security.config.http.SessionCreationPolicy.STA
  */
 @Configuration(proxyBeanMethods = false)
 @EnableWebSecurity
-@EnableConfigurationProperties(AuthProperties.class)
 public class SecurityConfiguration {
 
     public static final String SIGN_IN = "/oauth2/authorization/ping";

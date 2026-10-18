@@ -21,8 +21,7 @@ COPY --from=layers --chown=185:0 /layers/extracted/snapshot-dependencies/ ./
 COPY --from=layers --chown=185:0 /layers/extracted/application/ ./
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError" \
     BEADLE_DATA_DIR=/application/data \
-    LOG_PATH=/application/logs \
-    PORT=8081
+    LOG_PATH=/application/logs
 VOLUME /application/data
 USER 185
 EXPOSE 8081

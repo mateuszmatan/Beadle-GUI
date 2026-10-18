@@ -48,10 +48,10 @@ class ApplicationProfilesSpec extends Specification {
 
         where:
         profile | variables            || poolSize | healthDetails | logLevel
-        'rd'    | [:]                  || '5'      | 'never'       | 'DEBUG'
-        'qc'    | [:]                  || '10'     | 'never'       | 'INFO'
-        'prod'  | [:]                  || '20'     | 'never'       | 'INFO'
-        'prod'  | [DB_POOL_SIZE: '40'] || '40'     | 'never'       | 'INFO'
+        'rd'    | [:]                  || '5'      | null          | 'DEBUG'
+        'qc'    | [:]                  || '10'     | null          | null
+        'prod'  | [:]                  || '20'     | null          | null
+        'prod'  | [DB_POOL_SIZE: '40'] || '40'     | null          | null
     }
 
     def "the #profile profile does not start without the database address"() {

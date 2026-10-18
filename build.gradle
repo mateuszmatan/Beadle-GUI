@@ -1,4 +1,3 @@
-import org.springframework.boot.gradle.plugin.SpringBootPlugin
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
 
@@ -37,9 +36,6 @@ subprojects {
             toolchain {
                 languageVersion = JavaLanguageVersion.of(21)
             }
-        }
-        tasks.withType(JavaCompile).configureEach {
-            options.compilerArgs << '-parameters'
         }
     }
 
@@ -234,12 +230,6 @@ project(':beadle-backend') { backend ->
 
     base {
         archivesName = 'beadle'
-    }
-
-    dependencyManagement {
-        imports {
-            mavenBom SpringBootPlugin.BOM_COORDINATES
-        }
     }
 
     configurations {
