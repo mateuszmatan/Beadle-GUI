@@ -20,7 +20,8 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import static java.time.Duration.ofSeconds;
-import static org.apache.commons.collections4.ListUtils.emptyIfNull;
+import static java.util.Objects.requireNonNullElse;
+import static org.apache.commons.lang3.ObjectUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
@@ -105,7 +106,7 @@ public abstract class BeadleServiceClient<S> {
 
     /** Makes one call that answers a list; no answer is an empty list. */
     protected <T> List<T> list(String operation, Function<RestClient, List<T>> request) {
-        return emptyIfNull(call(operation, request));
+        return requireNonNullElse(call(operation, request), List.of());
     }
 
     /** The answer, which must carry a value such as the number of a new change; without it the call failed. */
@@ -138,7 +139,7 @@ public abstract class BeadleServiceClient<S> {
         }
         String refused = defaultIfBlank(detail, service + " refused to " + operation + " (" + status.value() + ")");
         return switch (status.value()) {
-            case 400 -> problem == null || emptyIfNull(problem.problems()).isEmpty()
+            case 400 -> problem == null || isEmpty(problem.problems())
                     ? new IllegalStateException(refused) : new InvalidRequestException(problem.problems());
             case 401, 403 -> unavailable(service + " refused the service token of Beadle-GUI when asked to "
                     + operation, "BEADLE_SERVICE_TOKEN must be the same in the three services", e);

@@ -19,7 +19,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.commons.collections4.MapUtils.emptyIfNull;
+import static java.util.Objects.requireNonNullElse;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 /**
@@ -69,9 +69,9 @@ public class ProTechClient extends BeadleServiceClient<ProTechClient.Status> imp
 
     @Override
     public Map<String, ProductionChange> read(Collection<ProductionChange> known) {
-        return known.isEmpty() ? Map.of() : emptyIfNull(call("read the changes", client -> client.post()
+        return known.isEmpty() ? Map.of() : requireNonNullElse(call("read the changes", client -> client.post()
                 .uri("/api/protech/changes/read").contentType(APPLICATION_JSON).body(List.copyOf(known))
-                .retrieve().body(CHANGES)));
+                .retrieve().body(CHANGES)), Map.of());
     }
 
     @Override

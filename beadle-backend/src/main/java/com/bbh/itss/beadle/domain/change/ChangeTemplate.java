@@ -11,8 +11,8 @@ import java.util.regex.Pattern;
 import static com.bbh.itss.beadle.domain.change.ChangeTemplate.Type.STANDARD;
 import static com.bbh.itss.beadle.domain.shared.Text.abbreviateBytes;
 import static java.util.Locale.ROOT;
+import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.joining;
-import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 import static org.apache.commons.lang3.BooleanUtils.isTrue;
 import static org.apache.commons.lang3.ObjectUtils.getIfNull;
 import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
@@ -247,7 +247,7 @@ public record ChangeTemplate(String jiraProjectKey, String requestedFor, String 
 
         public PrivilegedAccess {
             required = isTrue(required);
-            users = emptyIfNull(users).stream().toList();
+            users = requireNonNullElse(users, List.<PrivilegedUser>of()).stream().toList();
         }
 
         void validate(ValidationProblems problems) {

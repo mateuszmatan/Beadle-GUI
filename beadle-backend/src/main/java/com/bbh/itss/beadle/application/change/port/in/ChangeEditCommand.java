@@ -6,12 +6,12 @@ import com.bbh.itss.beadle.domain.change.ChangeTemplate;
 
 import java.util.List;
 
-import static org.apache.commons.collections4.ListUtils.emptyIfNull;
+import static java.util.Objects.requireNonNullElse;
 
 public record ChangeEditCommand(Long version, Long businessServiceId, String shortDescription, String description,
                                 ChangeSchedule schedule, ChangeTemplate template, List<ChangeTask> tasks) {
 
     public ChangeEditCommand {
-        tasks = emptyIfNull(tasks).stream().toList();
+        tasks = requireNonNullElse(tasks, List.<ChangeTask>of()).stream().toList();
     }
 }

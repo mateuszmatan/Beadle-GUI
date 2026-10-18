@@ -56,7 +56,7 @@ class ArchitectureSpec extends Specification {
     static final String PORT_OUT = 'com.bbh.itss.beadle.application..port.out..'
     static final String[] HTTP_ADAPTERS = [HTTP, 'com.bbh.itss.beadle.adapter.out.internal..',
                                            'com.bbh.itss.beadle.adapter.out.protech..']
-    static final String[] HELPERS = ['org.apache.commons.lang3..', 'org.apache.commons.collections4..', 'lombok..']
+    static final String[] HELPERS = ['org.apache.commons.lang3..', 'lombok..']
 
     @Shared
     JavaClasses beadle = new ClassFileImporter()
