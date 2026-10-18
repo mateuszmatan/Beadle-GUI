@@ -13,10 +13,10 @@ import static com.bbh.itss.beadle.domain.change.TaskDetails.MAX_TASKS;
 
 public record ChangeTasksRequest(
         @NotNull Long version,
-        @NotNull Long departmentId,
+        @NotNull Long businessServiceId,
         @NotNull @Size(min = 1, max = MAX_TASKS) List<@NotNull @Valid TaskDto> tasks) {
 
     ChangeTasksCommand toCommand() {
-        return new ChangeTasksCommand(version, departmentId, tasksOf(tasks));
+        return new ChangeTasksCommand(version, businessServiceId, tasksOf(tasks));
     }
 }

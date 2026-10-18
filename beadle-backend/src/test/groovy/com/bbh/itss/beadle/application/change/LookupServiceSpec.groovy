@@ -4,7 +4,7 @@ import com.bbh.itss.beadle.application.change.port.out.ProTechLookupPort
 import com.bbh.itss.beadle.domain.change.Lookup
 import spock.lang.Specification
 
-import static com.bbh.itss.beadle.domain.change.LookupKind.DEPARTMENTS
+import static com.bbh.itss.beadle.domain.change.LookupKind.BUSINESS_SERVICES
 import static com.bbh.itss.beadle.domain.change.LookupKind.USERS
 
 class LookupServiceSpec extends Specification {
@@ -18,13 +18,13 @@ class LookupServiceSpec extends Specification {
 
         when:
         def users = service.find('users', '  grace ')
-        def departments = service.find('departments', null)
+        def businessServices = service.find('business-services', null)
 
         then:
         1 * port.find(USERS, 'grace', 20) >> found
-        1 * port.find(DEPARTMENTS, '', 20) >> []
+        1 * port.find(BUSINESS_SERVICES, '', 20) >> []
         users == found
-        departments == []
+        businessServices == []
     }
 
     def "a lookup of an unknown kind is not found and asks nothing"() {

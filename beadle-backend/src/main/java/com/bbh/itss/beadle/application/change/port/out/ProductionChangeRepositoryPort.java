@@ -11,7 +11,7 @@ public interface ProductionChangeRepositoryPort {
 
     List<ProductionChange> findAll();
 
-    List<ProductionChange> findByDepartment(long departmentId);
+    List<ProductionChange> findByBusinessService(long businessServiceId);
 
     Optional<ProductionChange> load(long id);
 

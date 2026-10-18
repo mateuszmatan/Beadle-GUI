@@ -90,9 +90,9 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @Override
     @WithoutTransaction
     @Audited(value = CHANGE_SYNCED, onlyWhenNoted = true)
-    public List<ProductionChange> list(Long departmentId) {
-        List<ProductionChange> stored = departmentId == null ? changes.findAll()
-                : changes.findByDepartment(departmentId);
+    public List<ProductionChange> list(Long businessServiceId) {
+        List<ProductionChange> stored = businessServiceId == null ? changes.findAll()
+                : changes.findByBusinessService(businessServiceId);
         List<ProductionChange> open = stored.stream().filter(change -> change.state().isOpen()).toList();
         if (open.isEmpty()) {
             return stored;
@@ -124,7 +124,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @WithoutTransaction
     @Audited(CHANGE_EDITED)
     public ProductionChange update(long id, ChangeEditCommand command) {
-        ProductionChange stored = editable(id, command.version(), command.departmentId());
+        ProductionChange stored = editable(id, command.version(), command.businessServiceId());
         Instant now = now(clock);
         ProductionChange edit = stored.edited(command.shortDescription(), command.description(), command.schedule(),
                 command.template(), command.tasks(), now);
@@ -183,7 +183,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @WithoutTransaction
     @Audited(CHANGE_TASKS_CREATED)
     public ProductionChange createTasks(long id, ChangeTasksCommand command) {
-        ProductionChange stored = editable(id, command.version(), command.departmentId());
+        ProductionChange stored = editable(id, command.version(), command.businessServiceId());
         List<ChangeTask> planned = stored.plannedTasks(command.tasks());
         ProductionChange current = changeable(stored);
         List<ChangeTask> created = new ArrayList<>();
@@ -206,7 +206,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @WithoutTransaction
     @Audited(SECURE_CODING_TICKET_CREATED)
     public ProductionChange createSecureCodingTicket(long id, SecureCodingCommand command) {
-        ProductionChange stored = editable(id, command.version(), command.departmentId());
+        ProductionChange stored = editable(id, command.version(), command.businessServiceId());
         SecureCodingTicket ticket = SecureCodingTicket.of(stored, command.secureCoding(),
                 command.implementationDate());
         ProductionChange current = changeable(stored);
@@ -230,7 +230,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @Audited(REMINDER_SENT)
     public ProductionChange remind(long id, ReminderCommand command) {
         ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
-        requireDepartment(stored, command.departmentId(), "remind the approvers of");
+        requireBusinessService(stored, command.businessServiceId(), "remind the approvers of");
         checkReminder(command.approval(), command.task());
         ProductionChange current = synced(stored);
         if (current.syncProblem() != null) {
@@ -274,9 +274,9 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         }
     }
 
-    private ProductionChange editable(long id, Long version, Long departmentId) {
+    private ProductionChange editable(long id, Long version, Long businessServiceId) {
         ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
-        requireDepartment(stored, departmentId, "change");
+        requireBusinessService(stored, businessServiceId, "change");
         requireUnchangedSince(version, stored.editedVersion(), stored.version());
         return stored;
     }
@@ -288,7 +288,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private ProductionChange published(ProductionChange edit, ProductionChange current, Instant now) {
-        ProductionChange claimed = changes.save(edit.toBuilder().update(requested(now, current.departmentName()))
+        ProductionChange claimed = changes.save(edit.toBuilder().update(requested(now, current.businessServiceName()))
                 .build());
         publish(claimed, current);
         ProductionChange verified = verified(claimed, current, now);
@@ -298,8 +298,8 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     private ProductionChange draft(ChangeCommand command, Instant raisedAt) {
         ChangeProduct product = products.get(command.productId());
         ValidationProblems problems = new ValidationProblems();
-        problems.require("productId", product.departmentId(),
-                "the product must be placed in a department in Beadle Admin first");
+        problems.require("productId", product.businessServiceId(),
+                "the product must be placed in a business service in Beadle Admin first");
         String version = command.fixVersion();
         problems.require("fixVersion", version, "choose the FixVersion of the release")
                 .fits("fixVersion", version, FIX_VERSION_MAX);
@@ -438,16 +438,17 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         }
     }
 
-    private static void requireDepartment(ProductionChange stored, Long departmentId, String action) {
-        if (departmentId == null) {
-            throw InvalidRequestException.of("departmentId", "choose your department");
+    private static void requireBusinessService(ProductionChange stored, Long businessServiceId, String action) {
+        if (businessServiceId == null) {
+            throw InvalidRequestException.of("businessServiceId", "choose your business service");
         }
-        if (stored.departmentId() == null) {
-            throw new SecurityException("No department owns " + stored.number()
+        if (stored.businessServiceId() == null) {
+            throw new SecurityException("No business service owns " + stored.number()
                     + ", so nobody can " + action + " it in Beadle");
         }
-        if (!stored.departmentId().equals(departmentId)) {
-            throw new SecurityException("Only " + stored.departmentName() + " can " + action + " " + stored.number());
+        if (!stored.businessServiceId().equals(businessServiceId)) {
+            throw new SecurityException(
+                    "Only " + stored.businessServiceName() + " can " + action + " " + stored.number());
         }
     }
 

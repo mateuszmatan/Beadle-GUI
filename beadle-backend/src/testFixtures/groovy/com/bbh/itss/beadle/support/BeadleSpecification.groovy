@@ -43,7 +43,7 @@ abstract class BeadleSpecification extends Specification {
     }
 
     static Map product(Map overrides = [:]) {
-        [code: 'CERT', name: 'CertScanner', departmentId: 3, ownerTeam: 'Technology Architecture',
+        [code: 'CERT', name: 'CertScanner', businessServiceId: 3, ownerTeam: 'Technology Architecture',
          contactEmail: 'ta-team@bbh.com'] + overrides
     }
 

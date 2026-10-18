@@ -9,7 +9,7 @@ import java.util.Optional;
 
 public interface ProductionChangesUseCase {
 
-    List<ProductionChange> list(Long departmentId);
+    List<ProductionChange> list(Long businessServiceId);
 
     ProductionChange get(long id);
 

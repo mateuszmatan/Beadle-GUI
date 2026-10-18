@@ -31,7 +31,7 @@ public @interface AuditedRequest {
 
     /**
      * The property of the body with the key of the object of the action, when the path has no {@code {id}}: the code
-     * of a product, the name of a department, the number of a change or the key of a ticket.
+     * of a product, the name of a business service, the number of a change or the key of a ticket.
      */
     String objectKey() default "";
 

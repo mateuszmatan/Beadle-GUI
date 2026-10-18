@@ -101,13 +101,13 @@ class AuditDetailsSpec extends Specification {
         def details = json.createObjectNode().put('id', 7)
         def request = details.putObject('request')
         (1..10_000).each { request.put("field$it", it) }
-        details.put('departmentId', 3)
+        details.put('businessServiceId', 3)
         details.set(ActionRecord.RESULT, tree(RESULT))
         def whole = json.writeValueAsBytes(details).length
 
         expect:
         AuditDetails.write(json, details) ==
-                '{"truncated":true,"bytes":' + whole + ',"id":7,"departmentId":3,"result":' + RESULT + '}'
+                '{"truncated":true,"bytes":' + whole + ',"id":7,"businessServiceId":3,"result":' + RESULT + '}'
     }
 
     def "a string is cut to its length and marked, and kept when it is no longer"() {

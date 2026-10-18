@@ -54,10 +54,6 @@ class ProductCodeSpec extends Specification {
             boolean businessServiceExists(long id) {
                 true
             }
-
-            boolean departmentExists(long id) {
-                true
-            }
         }
     }
 }

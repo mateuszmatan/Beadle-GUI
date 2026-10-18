@@ -53,12 +53,8 @@ public class ProductionChangeEntity extends AuditedEntity {
     private String productCode;
     private String productName;
 
-    @Column(name = "BUSINESS_SERVICE_ID")
     private Long businessServiceId;
-
-    @Column(name = "BUSINESS_SERVICE_NAME")
     private String businessServiceName;
-
     private String openedBy;
     private String fixVersion;
     private ScheduleEmbeddable schedule;
@@ -112,14 +108,6 @@ public class ProductionChangeEntity extends AuditedEntity {
         }
         touch();
         return apply(change);
-    }
-
-    public Long departmentId() {
-        return businessServiceId;
-    }
-
-    public String departmentName() {
-        return businessServiceName;
     }
 
     private ProductionChangeEntity apply(ProductionChange change) {
@@ -196,7 +184,7 @@ public class ProductionChangeEntity extends AuditedEntity {
 
     @Embeddable
     public record UpdateEmbeddable(@Enumerated(STRING) ChangeUpdate.Status status, Instant requestedAt,
-                                   @Column(name = "DEPARTMENT") String departmentName, List<String> fields,
+                                   @Column(name = "BUSINESS_SERVICE") String businessServiceName, List<String> fields,
                                    String message, Instant checkedAt) {
     }
 }

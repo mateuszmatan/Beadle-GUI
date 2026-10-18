@@ -98,9 +98,9 @@ class ProductionChangeServiceSpec extends Specification {
 
     def setup() {
         products.get(1L) >> certScanner
-        products.get(2L) >> changeProduct(id: 2L, code: 'PAYHUB', name: 'PayHub', departmentId: 4L,
-                departmentName: 'Custody')
-        products.get(3L) >> changeProduct(id: 3L, departmentId: null, departmentName: null)
+        products.get(2L) >> changeProduct(id: 2L, code: 'PAYHUB', name: 'PayHub', businessServiceId: 4L,
+                businessServiceName: 'Custody')
+        products.get(3L) >> changeProduct(id: 3L, businessServiceId: null, businessServiceName: null)
         jira.versions('CERT') >> [new JiraVersion(FIX_VERSION, false, LocalDate.parse('2026-10-20')),
                                   new JiraVersion('CERT 4.1', true, LocalDate.parse('2026-09-01'))]
         jira.versions(_) >> []
@@ -110,17 +110,17 @@ class ProductionChangeServiceSpec extends Specification {
         }
     }
 
-    def "the preview drafts the change of the product's department with the chosen Jira issues and no tasks yet"() {
+    def "the preview drafts the change of the product's business service with the chosen Jira issues and no tasks yet"() {
         when:
         def draft = service.preview(command())
 
         then:
         draft == ProductionChange.draft(certScanner, 'Mateusz Matan', FIX_VERSION, schedule(), template(),
                 ISSUES.take(2), ISSUES.drop(2), null, null)
-        draft.departmentId() == 3L
+        draft.businessServiceId() == 3L
         draft.openedBy() == 'Mateusz Matan'
         [draft.template().requestedFor(), draft.template().requestedBy(), draft.template().assignedTo(),
-         draft.template().department()] == ['Mateusz Matan', 'Mateusz Matan', 'Mateusz Matan', 'Corporate Technology']
+         draft.template().businessService()] == ['Mateusz Matan', 'Mateusz Matan', 'Mateusz Matan', 'Corporate Technology']
         draft.tasks() == []
         draft.template().release() == FIX_VERSION
         draft.state() == DRAFT
@@ -129,7 +129,7 @@ class ProductionChangeServiceSpec extends Specification {
         0 * proTech._
     }
 
-    def "a product without stored ProTech defaults raises a change from the request in its department"() {
+    def "a product without stored ProTech defaults raises a change from the request in its business service"() {
         given:
         def payHub = template(jiraProjectKey: 'PAY', configurationItem: 'PayHub')
         jira.epics('PAY', 'PAY 1.0') >> [epic('PAY-1', 'Instant payments')]
@@ -140,8 +140,8 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         preview.productCode() == 'PAYHUB'
-        preview.departmentId() == 4L
-        preview.departmentName() == 'Custody'
+        preview.businessServiceId() == 4L
+        preview.businessServiceName() == 'Custody'
         preview.fixVersion() == 'PAY 1.0'
         preview.template() == payHub.releasedAs('PAY 1.0').openedBy('Mateusz Matan', 'Custody')
         preview.shortDescription() == 'PayHub PAY 1.0: Instant payments'
@@ -149,14 +149,14 @@ class ProductionChangeServiceSpec extends Specification {
         !preview.description().contains('Change tasks')
     }
 
-    def "a change of a product outside every department is refused on the product when it is #action"() {
+    def "a change of a product outside every business service is refused on the product when it is #action"() {
         when:
         call(service)
 
         then:
         def refused = thrown(InvalidRequestException)
         refused.problems() == [new FieldProblem('productId',
-                'the product must be placed in a department in Beadle Admin first')]
+                'the product must be placed in a business service in Beadle Admin first')]
         0 * proTech._
         0 * changes._
 
@@ -177,8 +177,8 @@ class ProductionChangeServiceSpec extends Specification {
         0 * proTech._
         raised.number() == 'CHG0012345'
         raised.tasks() == []
-        raised.departmentId() == 3L
-        raised.departmentName() == 'Corporate Technology'
+        raised.businessServiceId() == 3L
+        raised.businessServiceName() == 'Corporate Technology'
         raised.state() == DRAFT
         raised.workflow() == [new WorkflowStep(DRAFT, NOW)]
         raised.syncedAt() == NOW
@@ -395,7 +395,7 @@ class ProductionChangeServiceSpec extends Specification {
         def listed = service.list(3L)
 
         then:
-        1 * changes.findByDepartment(3L) >> [quiet, moved, unchanged, closed]
+        1 * changes.findByBusinessService(3L) >> [quiet, moved, unchanged, closed]
         1 * proTech.read([quiet, moved, unchanged]) >> [CHG0031001: unchanged, CHG0031002: progressed,
                                                            CHG0031003: quiet]
         1 * changes.save(progressed.toBuilder().syncedAt(NOW).build()) >>
@@ -587,7 +587,7 @@ class ProductionChangeServiceSpec extends Specification {
         'updated' | { ProductionChangeService it -> it.update(8L, edit()) }
     }
 
-    def "an update its department claims, publishes to ProTech, verifies as applied and stores"() {
+    def "an update its business service claims, publishes to ProTech, verifies as applied and stores"() {
         given:
         def stored = raised()
         def applied = raised(shortDescription: 'Renamed', state: BUSINESS_APPROVAL,
@@ -702,7 +702,7 @@ class ProductionChangeServiceSpec extends Specification {
         changes.load(7L) >> Optional.of(stored)
 
         when:
-        service.update(7L, edit(departmentId: departmentId, version: version))
+        service.update(7L, edit(businessServiceId: businessServiceId, version: version))
 
         then:
         def refused = thrown(failure)
@@ -711,11 +711,11 @@ class ProductionChangeServiceSpec extends Specification {
         0 * changes.save(_)
 
         where:
-        refusal                          | stored                                              | departmentId | version || failure                 | message
-        'without a department'           | raised()                                            | null         | 0L      || InvalidRequestException | 'choose your department'
-        'of another department'          | raised()                                            | 4L           | 0L      || SecurityException       | 'Only Corporate Technology can change CHG0031001'
-        'of another department at an old version' | raised(version: 2L, editedVersion: 2L)     | 4L           | 1L      || SecurityException       | 'Only Corporate Technology can change CHG0031001'
-        'of a change without department' | raised(departmentId: null, departmentName: null)    | 3L           | 0L      || SecurityException       | 'No department owns CHG0031001, so nobody can change it in Beadle'
+        refusal                          | stored                                              | businessServiceId | version || failure                 | message
+        'without a business service'           | raised()                                            | null         | 0L      || InvalidRequestException | 'choose your business service'
+        'of another business service'          | raised()                                            | 4L           | 0L      || SecurityException       | 'Only Corporate Technology can change CHG0031001'
+        'of another business service at an old version' | raised(version: 2L, editedVersion: 2L)     | 4L           | 1L      || SecurityException       | 'Only Corporate Technology can change CHG0031001'
+        'of a change without business service' | raised(businessServiceId: null, businessServiceName: null)    | 3L           | 0L      || SecurityException       | 'No business service owns CHG0031001, so nobody can change it in Beadle'
         'at a stale version'             | raised(version: 2L, editedVersion: 2L)              | 3L           | 1L      || IllegalStateException   | STALE_VERSION
         'read before its last edit'      | raised(version: 4L, editedVersion: 3L)              | 3L           | 2L      || IllegalStateException   | STALE_VERSION
         'at a version it never had'      | raised(version: 2L)                                 | 3L           | 3L      || IllegalStateException   | STALE_VERSION
@@ -973,7 +973,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         where:
         problem                          | command                                           | remote                          || type                    | message
-        'another department asks'        | created(departmentId: 4L)                         | raised(tasks: [])               || SecurityException       | 'Only Corporate Technology can change CHG0031001'
+        'another business service asks'        | created(businessServiceId: 4L)                         | raised(tasks: [])               || SecurityException       | 'Only Corporate Technology can change CHG0031001'
         'the change moved on meanwhile'  | created(version: 1L)                              | raised(tasks: [])               || IllegalStateException   | STALE_VERSION
         'ProTech has closed the change'  | created()                                         | raised(tasks: [], state: CLOSED) || IllegalStateException  | 'CHG0031001 is closed in ProTech and can no longer be changed'
         'a release task starts too late' | created(tasks: [releaseTask([:], '2026-10-10T10:01:00Z')]) | raised(tasks: [])      || InvalidRequestException | 'must not be after the installation end'
@@ -1075,7 +1075,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         where:
         problem                          | stored                                         | command                               || type                    | message
-        'another department asks'        | raised()                                       | ticket(departmentId: 4L)              || SecurityException       | 'Only Corporate Technology can change CHG0031001'
+        'another business service asks'        | raised()                                       | ticket(businessServiceId: 4L)              || SecurityException       | 'Only Corporate Technology can change CHG0031001'
         'the change moved on meanwhile'  | raised()                                       | ticket(version: 1L)                   || IllegalStateException   | STALE_VERSION
         'ProTech has closed the change'  | raised(state: CLOSED)                          | ticket()                              || IllegalStateException   | 'CHG0031001 is closed in ProTech and can no longer be changed'
         'the change has its ticket'      | raised().withSecureCoding(secureCoding(), 'SCP-7') | ticket()                          || IllegalStateException   | 'CHG0031001 already has the secure coding ticket SCP-7'
@@ -1207,9 +1207,9 @@ class ProductionChangeServiceSpec extends Specification {
         where:
         problem                        | id | stored                                         | command                                     | reply                               || type                    | message
         'the change is unknown'        | 8L | raised()                                       | new ReminderCommand(3L, null, null)         | { [:] }                             || NoSuchElementException  | 'Change 8 does not exist'
-        'no department is chosen'      | 7L | raised()                                       | new ReminderCommand(null, null, null)       | { [CHG0031001: awaiting()] }        || InvalidRequestException | 'choose your department'
-        'another department asks'      | 7L | raised()                                       | new ReminderCommand(4L, null, null)         | { [CHG0031001: awaiting()] }        || SecurityException       | 'Only Corporate Technology can remind the approvers of CHG0031001'
-        'no department owns it'        | 7L | raised(departmentId: null, departmentName: null) | new ReminderCommand(3L, null, null)       | { [CHG0031001: awaiting()] }        || SecurityException       | 'No department owns CHG0031001, so nobody can remind the approvers of it in Beadle'
+        'no business service is chosen'      | 7L | raised()                                       | new ReminderCommand(null, null, null)       | { [CHG0031001: awaiting()] }        || InvalidRequestException | 'choose your business service'
+        'another business service asks'      | 7L | raised()                                       | new ReminderCommand(4L, null, null)         | { [CHG0031001: awaiting()] }        || SecurityException       | 'Only Corporate Technology can remind the approvers of CHG0031001'
+        'no business service owns it'        | 7L | raised(businessServiceId: null, businessServiceName: null) | new ReminderCommand(3L, null, null)       | { [CHG0031001: awaiting()] }        || SecurityException       | 'No business service owns CHG0031001, so nobody can remind the approvers of it in Beadle'
         'ProTech cannot be read'       | 7L | raised()                                       | new ReminderCommand(3L, null, null)         | { throw new UncheckedIOException('Read timed out', new IOException()) } || UncheckedIOException | 'Read timed out'
         'ProTech closed it'            | 7L | raised()                                       | new ReminderCommand(3L, null, null)         | { [CHG0031001: raised(state: CLOSED)] } || IllegalStateException | 'CHG0031001 is closed in ProTech, so nobody is reminded to approve it'
         'the approver already approved' | 7L | raised()                                      | new ReminderCommand(3L, BUSINESS, null)     | { [CHG0031001: awaiting()] }        || IllegalStateException   | 'The business approver already approved CHG0031001'
@@ -1418,17 +1418,17 @@ class ProductionChangeServiceSpec extends Specification {
     }
 
     static ChangeTasksCommand created(Map changes = [:]) {
-        Map values = [version: 0L, departmentId: 3L, tasks: [releaseTask([:], null), ChangeTask.of(details(2))]] +
+        Map values = [version: 0L, businessServiceId: 3L, tasks: [releaseTask([:], null), ChangeTask.of(details(2))]] +
                 changes
-        new ChangeTasksCommand(values.version as Long, values.departmentId as Long, values.tasks as List)
+        new ChangeTasksCommand(values.version as Long, values.businessServiceId as Long, values.tasks as List)
     }
 
     static SecureCodingCommand ticket(Map changes = [:]) {
         SecureCoding inputs = secureCoding()
-        Map values = [version: 0L, departmentId: 3L, implementationDate: '10102026', apoNumber: inputs.apoNumber(),
+        Map values = [version: 0L, businessServiceId: 3L, implementationDate: '10102026', apoNumber: inputs.apoNumber(),
                       bitbucketUrl: inputs.bitbucketUrl(), artifactLink: inputs.artifactLink(),
                       qcApplicationLink: inputs.qcApplicationLink()] + changes
-        new SecureCodingCommand(values.version as Long, values.departmentId as Long,
+        new SecureCodingCommand(values.version as Long, values.businessServiceId as Long,
                 new SecureCoding(values.apoNumber as String, values.bitbucketUrl as String,
                         values.artifactLink as String, values.qcApplicationLink as String),
                 values.implementationDate as String)
@@ -1436,10 +1436,10 @@ class ProductionChangeServiceSpec extends Specification {
 
     static ChangeEditCommand edit(Map changes = [:]) {
         ProductionChange stored = raised()
-        Map values = [version: 0L, departmentId: 3L, shortDescription: stored.shortDescription(),
+        Map values = [version: 0L, businessServiceId: 3L, shortDescription: stored.shortDescription(),
                       description: stored.description(), schedule: stored.schedule(), template: stored.template(),
                       tasks: stored.tasks()] + changes
-        new ChangeEditCommand(values.version as Long, values.departmentId as Long, values.shortDescription as String,
+        new ChangeEditCommand(values.version as Long, values.businessServiceId as Long, values.shortDescription as String,
                 values.description as String, values.schedule as ChangeSchedule, values.template as ChangeTemplate,
                 values.tasks as List)
     }

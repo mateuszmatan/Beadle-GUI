@@ -54,7 +54,7 @@ public record ChangeProfileRequest(Long version, @NotNull @Valid TemplateDto tem
             String jiraProjectKey,
             @Size(max = GROUP_MAX) String requestedFor,
             @Size(max = GROUP_MAX) String requestedBy,
-            @Size(max = NAME_MAX) String department,
+            @Size(max = NAME_MAX) String businessService,
             @NotBlank @Size(max = GROUP_MAX) String assignmentGroup,
             @NotBlank String category,
             @Size(max = GROUP_MAX) String assignedTo,

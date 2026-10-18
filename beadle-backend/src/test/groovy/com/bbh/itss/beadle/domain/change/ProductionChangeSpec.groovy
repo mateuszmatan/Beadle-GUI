@@ -72,13 +72,13 @@ class ProductionChangeSpec extends Specification {
 
         then:
         [change.id(), change.number(), change.url(), change.createdAt(), change.version()] == [null] * 5
-        [change.productId(), change.productCode(), change.productName(), change.departmentId(),
-         change.departmentName(), change.openedBy()] == [1L, 'CERTSCANNER', 'CertScanner', 3L, 'Corporate Technology',
+        [change.productId(), change.productCode(), change.productName(), change.businessServiceId(),
+         change.businessServiceName(), change.openedBy()] == [1L, 'CERTSCANNER', 'CertScanner', 3L, 'Corporate Technology',
                                                           'Mateusz Matan']
         change.fixVersion() == FIX_VERSION
         change.schedule() == schedule()
         change.template() == template(planning: PLANNING, release: FIX_VERSION, requestedFor: 'Mateusz Matan',
-                requestedBy: 'Mateusz Matan', department: 'Corporate Technology', assignedTo: 'Mateusz Matan',
+                requestedBy: 'Mateusz Matan', businessService: 'Corporate Technology', assignedTo: 'Mateusz Matan',
                 secureCoding: secureCoding())
         change.epicKeys() == ['CERT-1', 'CERT-5']
         change.storyKeys() == ['CERT-2', 'CERT-6', 'CERT-3']
@@ -129,7 +129,7 @@ class ProductionChangeSpec extends Specification {
 
     def "the description names the downtime, the privileged users, the default risk answers and the new fields"() {
         when:
-        def text = descriptionOf(changeProduct(departmentName: null), 'R1', schedule(downtimeStart: '2026-10-10T06:00:00Z',
+        def text = descriptionOf(changeProduct(businessServiceName: null), 'R1', schedule(downtimeStart: '2026-10-10T06:00:00Z',
                 downtimeEnd: '2026-10-10T08:00:00Z'), template(downtime: true,
                 privilegedAccess: privileged(2), riskAssessment: RiskAssessment.DEFAULTS,
                 usersAffected: 'Fund accountants', secureCodingTicket: 'SCP-1234'), epics.take(1), [])
@@ -145,7 +145,7 @@ class ProductionChangeSpec extends Specification {
 
     def "texts typed by the user replace the generated ones and a given release is kept"() {
         when:
-        def change = draft(changeProduct(departmentId: null, departmentName: null), 'Mateusz Matan', FIX_VERSION, schedule(), template(release: 'Release 42'), epics, [], ' Mine ', ' My description ')
+        def change = draft(changeProduct(businessServiceId: null, businessServiceName: null), 'Mateusz Matan', FIX_VERSION, schedule(), template(release: 'Release 42'), epics, [], ' Mine ', ' My description ')
 
         then:
         change.shortDescription() == 'Mine'
@@ -158,7 +158,7 @@ class ProductionChangeSpec extends Specification {
         given:
         def many = (1..60).collect { epic("CERT-$it", "Epic number $it with a long summary that goes on and on") }
         def lots = (1..80).collect { story("CERT-${100 + it}", "Story $it " + 'x' * 60, 'CERT-1') }
-        def custody = changeProduct(departmentName: 'Custody')
+        def custody = changeProduct(businessServiceName: 'Custody')
         def wordy = template(planning: new Planning(*(['p' * 2000] * 5)),
                 usersAffected: 'u' * 2000, secureCodingTicket: 's' * 40)
 
@@ -182,7 +182,7 @@ class ProductionChangeSpec extends Specification {
         given:
         def many = (1..60).collect { epic("CERT-$it", "Épique numéro $it – résumé très détaillé " + 'é' * 20) }
         def lots = (1..80).collect { story("CERT-${100 + it}", "Story $it " + 'ż' * 60, 'CERT-1') }
-        def custody = changeProduct(departmentName: 'Custody')
+        def custody = changeProduct(businessServiceName: 'Custody')
 
         when:
         def summary = shortDescriptionOf(product, FIX_VERSION, many)
@@ -197,7 +197,7 @@ class ProductionChangeSpec extends Specification {
 
     def "a raised change is a draft of its raise time with its number and its link"() {
         given:
-        def drafted = draft(changeProduct(departmentName: null), null, FIX_VERSION, schedule(), template(),
+        def drafted = draft(changeProduct(businessServiceName: null), null, FIX_VERSION, schedule(), template(),
                 epics, [], null, null)
 
         when:
@@ -250,7 +250,7 @@ class ProductionChangeSpec extends Specification {
         'schedule.downtimeEnd'             | [schedule: schedule(downtimeEnd: '2026-10-10T08:00:00Z')]
         'template.requestedFor'            | [template: template(release: FIX_VERSION, requestedFor: 'Ann Lee')]
         'template.requestedBy'             | [template: template(release: FIX_VERSION, requestedBy: 'Ann Lee')]
-        'template.department'              | [template: template(release: FIX_VERSION, department: 'Custody')]
+        'template.businessService'              | [template: template(release: FIX_VERSION, businessService: 'Custody')]
         'template.assignmentGroup'         | [template: template(release: FIX_VERSION, assignmentGroup: 'Other')]
         'template.category'                | [template: template(release: FIX_VERSION, category: 'Other')]
         'template.assignedTo'              | [template: template(release: FIX_VERSION, assignedTo: 'Ann Lee')]
@@ -289,7 +289,7 @@ class ProductionChangeSpec extends Specification {
         mine.unappliedIn(all) == ['shortDescription', 'description', 'schedule.installationStart',
                                   'schedule.installationEnd', 'schedule.validationStart', 'schedule.validationEnd',
                                   'schedule.firstUsage', 'schedule.downtimeStart', 'schedule.downtimeEnd',
-                                  'template.requestedFor', 'template.requestedBy', 'template.department',
+                                  'template.requestedFor', 'template.requestedBy', 'template.businessService',
                                   'template.assignmentGroup', 'template.category', 'template.assignedTo',
                                   'template.release', 'template.configurationItem', 'template.incident',
                                   'template.directBusinessService', 'template.problem', 'template.affectedClients',
@@ -303,7 +303,7 @@ class ProductionChangeSpec extends Specification {
         given:
         def applied = new ChangeUpdate(APPLIED, RAISED, 'Custody', [], null, RAISED)
         def stored = raised(update: applied, syncProblem: 'old problem')
-        def remote = remote(shortDescription: 'Changed in ProTech', id: null, departmentId: null, epicKeys: [],
+        def remote = remote(shortDescription: 'Changed in ProTech', id: null, businessServiceId: null, epicKeys: [],
                 template: template(release: 'R 9', jiraProjectKey: 'OTHER', type: EMERGENCY))
 
         when:

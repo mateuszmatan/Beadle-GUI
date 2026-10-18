@@ -23,7 +23,7 @@ import static com.bbh.itss.beadle.domain.change.TaskDetails.MAX_TASKS;
 
 public record ChangeEditRequest(
         @NotNull Long version,
-        @NotNull Long departmentId,
+        @NotNull Long businessServiceId,
         @NotBlank @Size(max = SHORT_DESCRIPTION_MAX) String shortDescription,
         @NotBlank @Size(max = DESCRIPTION_MAX) String description,
         @NotNull ChangeSchedule schedule,
@@ -31,7 +31,7 @@ public record ChangeEditRequest(
         @NotNull @Size(max = MAX_TASKS) List<@NotNull @Valid TaskDto> tasks) {
 
     ChangeEditCommand toCommand() {
-        return new ChangeEditCommand(version, departmentId, shortDescription, description, schedule,
+        return new ChangeEditCommand(version, businessServiceId, shortDescription, description, schedule,
                 map(template, ChangeTemplate.class), tasksOf(tasks));
     }
 

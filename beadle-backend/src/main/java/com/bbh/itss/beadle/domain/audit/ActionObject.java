@@ -2,7 +2,7 @@ package com.bbh.itss.beadle.domain.audit;
 
 /**
  * The object an action is about: its type, Beadle's database id when it has one, and the key a person would search
- * for (the CHG or CTASK number, the product code, the department name or the ticket key).
+ * for (the CHG or CTASK number, the product code, the business service name or the ticket key).
  */
 public record ActionObject(ObjectType type, Long id, String key) {
 

@@ -8,9 +8,10 @@ import jakarta.validation.constraints.Size;
 import static com.bbh.itss.beadle.domain.change.ChangeTemplate.NUMBER_MAX;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
-public record ReminderRequest(@NotNull Long departmentId, ApprovalRole approval, @Size(max = NUMBER_MAX) String task) {
+public record ReminderRequest(@NotNull Long businessServiceId, ApprovalRole approval,
+                              @Size(max = NUMBER_MAX) String task) {
 
     ReminderCommand toCommand() {
-        return new ReminderCommand(departmentId, approval, trimToNull(task));
+        return new ReminderCommand(businessServiceId, approval, trimToNull(task));
     }
 }

@@ -32,13 +32,13 @@ abstract class ChangeRegressionSpecification extends BeadleSpecification {
 
     protected Map createTasks(Map change, List tasks) {
         def response = api.post("/api/changes/$change.id/tasks", [version: change.version,
-                                                                   departmentId: change.departmentId, tasks: tasks])
+                                                                   businessServiceId: change.businessServiceId, tasks: tasks])
         assert response.status == 200: response
         response.json as Map
     }
 
     protected static Map editOf(Map change, Map edits) {
-        [version: change.version, departmentId: change.departmentId, shortDescription: change.shortDescription,
+        [version: change.version, businessServiceId: change.businessServiceId, shortDescription: change.shortDescription,
          description: change.description, schedule: change.schedule, template: change.template,
          tasks: change.tasks] + edits
     }

@@ -19,7 +19,7 @@ class ObjectKeyAdapter implements ObjectKeyPort {
         String query = switch (type) {
             case CHANGE -> "select c.number from ProductionChangeEntity c where c.id = :id";
             case PRODUCT, CHANGE_PROFILE -> "select p.code from ProductEntity p where p.id = :id";
-            case DEPARTMENT, BUSINESS_SERVICE -> "select d.name from BusinessServiceEntity d where d.id = :id";
+            case BUSINESS_SERVICE -> "select b.name from BusinessServiceEntity b where b.id = :id";
             case TICKET, USER -> null;
         };
         return query == null ? Optional.empty() : entities.createQuery(query, String.class).setParameter("id", id)

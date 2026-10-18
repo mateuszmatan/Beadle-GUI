@@ -49,7 +49,7 @@ public class BusinessServiceService implements BusinessServicesUseCase {
     @Override
     @Audited(BUSINESS_SERVICE_RENAMED)
     public BusinessServiceView rename(long id, Long version, String name) {
-        BusinessService service = businessServices.load(id).orElseThrow(() -> notFound("BusinessService", id));
+        BusinessService service = businessServices.load(id).orElseThrow(() -> notFound("Business service", id));
         businessServices.save(service.rename(version, name, businessServices::findByName));
         return view(id);
     }
@@ -71,6 +71,6 @@ public class BusinessServiceService implements BusinessServicesUseCase {
 
     private BusinessServiceView view(long id) {
         return list().stream().filter(service -> service.id() == id).findFirst()
-                .orElseThrow(() -> notFound("BusinessService", id));
+                .orElseThrow(() -> notFound("Business service", id));
     }
 }

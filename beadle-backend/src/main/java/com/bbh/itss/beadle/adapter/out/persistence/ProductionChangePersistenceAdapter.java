@@ -31,8 +31,8 @@ class ProductionChangePersistenceAdapter implements ProductionChangeRepositoryPo
     }
 
     @Override
-    public List<ProductionChange> findByDepartment(long departmentId) {
-        return changes.findByBusinessServiceIdOrderByIdDesc(departmentId).stream()
+    public List<ProductionChange> findByBusinessService(long businessServiceId) {
+        return changes.findByBusinessServiceIdOrderByIdDesc(businessServiceId).stream()
                 .map(ProductionChangeEntity::toDomain).toList();
     }
 

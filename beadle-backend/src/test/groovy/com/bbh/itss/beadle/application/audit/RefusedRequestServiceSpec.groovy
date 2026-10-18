@@ -14,11 +14,11 @@ import java.time.Instant
 
 import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_PROTECH
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED
-import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_CREATED
+import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.REMINDER_SENT
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE
-import static com.bbh.itss.beadle.domain.audit.ObjectType.DEPARTMENT
+import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT
 import static java.time.ZoneOffset.UTC
 
@@ -80,8 +80,8 @@ class RefusedRequestServiceSpec extends Specification {
 
         where:
         action             | object                             | name   || user      | type
-        DEPARTMENT_CREATED | null                               | 'Ann'  || 'Ann'     | DEPARTMENT
-        DEPARTMENT_CREATED | ActionObject.keyed(DEPARTMENT, null) | ' ' || 'unknown' | DEPARTMENT
+        BUSINESS_SERVICE_CREATED | null                               | 'Ann'  || 'Ann'     | BUSINESS_SERVICE
+        BUSINESS_SERVICE_CREATED | ActionObject.keyed(BUSINESS_SERVICE, null) | ' ' || 'unknown' | BUSINESS_SERVICE
         REMINDER_SENT      | ActionObject.of(CHANGE, null)      | null   || 'unknown' | CHANGE
     }
 
@@ -90,7 +90,7 @@ class RefusedRequestServiceSpec extends Specification {
         users.name() >> { throw new IllegalStateException('no security context') }
 
         when:
-        service.refused(new RefusedRequest(DEPARTMENT_CREATED, null, null, 'name must not be blank'))
+        service.refused(new RefusedRequest(BUSINESS_SERVICE_CREATED, null, null, 'name must not be blank'))
 
         then:
         1 * history.record({ ActionRecord row -> row.user() == 'unknown' })

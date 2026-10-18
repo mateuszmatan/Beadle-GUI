@@ -27,13 +27,13 @@ class BeadlePerformanceSpec extends BeadleSpecification {
 
     def "the key calls answer within their limit at the 95th percentile on the demo catalogue"() {
         given: 'two changes raised for each product of Corporate Technology'
-        def requests = api.get('/api/products').json.findAll { it.departmentId == 3 }.collect { changeOf(it) }
+        def requests = api.get('/api/products').json.findAll { it.businessServiceId == 3 }.collect { changeOf(it) }
         def raised = requests.collectMany { request -> (1..2).collect { api.post('/api/changes', request) } }
         assert raised && raised.every { it.status == 201 }: raised
         def first = raised[0].json.id
 
         when:
-        def stats = [measure('GET /api/changes?departmentId=3') { api.get('/api/changes?departmentId=3') },
+        def stats = [measure('GET /api/changes?businessServiceId=3') { api.get('/api/changes?businessServiceId=3') },
                      measure("GET /api/changes/$first") { api.get("/api/changes/$first") },
                      measure('POST /api/changes/preview') { api.post('/api/changes/preview', requests[0]) },
                      measure('GET /api/action-history?size=50') { api.get('/api/action-history?size=50') }]

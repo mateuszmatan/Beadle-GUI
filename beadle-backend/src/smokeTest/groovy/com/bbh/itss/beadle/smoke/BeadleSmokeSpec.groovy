@@ -21,7 +21,7 @@ import static java.nio.charset.StandardCharsets.UTF_8
  */
 class BeadleSmokeSpec extends Specification {
 
-    static final List<String> LOOKUPS = ['users', 'departments', 'assignment-groups', 'releases',
+    static final List<String> LOOKUPS = ['users', 'business-services', 'assignment-groups', 'releases',
                                          'configuration-items', 'incidents', 'problems', 'clients']
 
     @Shared
@@ -61,17 +61,17 @@ class BeadleSmokeSpec extends Specification {
         api.post('/api/callbacks/protech', [number: 'CHG0000001', event: 'STATE_CHANGED']).status == 401
     }
 
-    def "the products, the departments and the changes answer"() {
+    def "the products, the business services and the changes answer"() {
         when:
         def products = api.get('/api/products')
-        def departments = api.get('/api/departments')
+        def businessServices = api.get('/api/business-services')
         def changes = api.get('/api/changes')
 
         then:
         products.status == 200
         !started || products.json.size() == 10
-        departments.status == 200
-        departments.json.every { it.containsKey('productCount') && it.containsKey('changeCount') }
+        businessServices.status == 200
+        businessServices.json.every { it.containsKey('productCount') && it.containsKey('changeCount') }
         changes.status == 200
         changes.json.every { it.syncProblem == null }
         def integrations = api.get('/api/changes/integrations').json

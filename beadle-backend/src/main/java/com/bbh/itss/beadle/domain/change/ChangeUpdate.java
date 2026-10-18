@@ -9,7 +9,7 @@ import static com.bbh.itss.beadle.domain.change.ChangeUpdate.Status.PENDING;
 import static com.bbh.itss.beadle.domain.change.ProductionChange.APPLY_LIMIT;
 import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 
-public record ChangeUpdate(Status status, Instant requestedAt, String departmentName, List<String> fields,
+public record ChangeUpdate(Status status, Instant requestedAt, String businessServiceName, List<String> fields,
                            String message, Instant checkedAt) {
 
     public static final String NOT_APPLIED_MESSAGE = "A minute later ProTech still held its own values, so Beadle shows those.";
@@ -20,8 +20,8 @@ public record ChangeUpdate(Status status, Instant requestedAt, String department
         fields = List.copyOf(emptyIfNull(fields));
     }
 
-    public static ChangeUpdate requested(Instant requestedAt, String departmentName) {
-        return new ChangeUpdate(PENDING, requestedAt, departmentName, List.of(), null, null);
+    public static ChangeUpdate requested(Instant requestedAt, String businessServiceName) {
+        return new ChangeUpdate(PENDING, requestedAt, businessServiceName, List.of(), null, null);
     }
 
     public boolean pending() {
@@ -33,18 +33,18 @@ public record ChangeUpdate(Status status, Instant requestedAt, String department
             return this;
         }
         if (unapplied.isEmpty()) {
-            return new ChangeUpdate(APPLIED, requestedAt, departmentName, List.of(), null, now);
+            return new ChangeUpdate(APPLIED, requestedAt, businessServiceName, List.of(), null, now);
         }
         return now.isBefore(requestedAt.plus(APPLY_LIMIT))
-                ? new ChangeUpdate(PENDING, requestedAt, departmentName, unapplied, null, now)
-                : new ChangeUpdate(NOT_APPLIED, requestedAt, departmentName, unapplied, NOT_APPLIED_MESSAGE, now);
+                ? new ChangeUpdate(PENDING, requestedAt, businessServiceName, unapplied, null, now)
+                : new ChangeUpdate(NOT_APPLIED, requestedAt, businessServiceName, unapplied, NOT_APPLIED_MESSAGE, now);
     }
 
     ChangeUpdate withCheckedAt(Instant at) {
-        return new ChangeUpdate(status, requestedAt, departmentName, fields, message, at);
+        return new ChangeUpdate(status, requestedAt, businessServiceName, fields, message, at);
     }
 
     ChangeUpdate waitingFor(List<String> unapplied) {
-        return new ChangeUpdate(PENDING, requestedAt, departmentName, unapplied, null, checkedAt);
+        return new ChangeUpdate(PENDING, requestedAt, businessServiceName, unapplied, null, checkedAt);
     }
 }

@@ -52,14 +52,14 @@ public class ProductController {
     @PostMapping
     @AuditedRequest(value = PRODUCT_CREATED, objectKey = "code")
     public ResponseEntity<ProductView> create(@Valid @RequestBody ProductRequest request) {
-        ProductView created = products.create(request.toDomain());
+        ProductView created = products.create(map(request, ProductCommand.class));
         return created(fromCurrentRequestUri().path("/{id}").buildAndExpand(created.id()).toUri()).body(created);
     }
 
     @PutMapping("/{id}")
     @AuditedRequest(PRODUCT_UPDATED)
     public ProductView update(@PathVariable long id, @Valid @RequestBody ProductRequest request) {
-        return products.update(id, request.toDomain());
+        return products.update(id, map(request, ProductCommand.class));
     }
 
     @DeleteMapping("/{id}")

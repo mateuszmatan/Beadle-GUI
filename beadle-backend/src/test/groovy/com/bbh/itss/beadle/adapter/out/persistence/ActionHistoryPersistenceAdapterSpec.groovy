@@ -18,13 +18,13 @@ import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_EDITED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_TASKS_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.SECURE_CODING_TICKET_CREATED
-import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_RENAMED
+import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_RENAMED
 import static com.bbh.itss.beadle.domain.audit.Action.PRODUCT_CREATED
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.SUCCESS
 import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE_PROFILE
-import static com.bbh.itss.beadle.domain.audit.ObjectType.DEPARTMENT
+import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT
 import static com.bbh.itss.beadle.domain.audit.ObjectType.TICKET
 import static com.bbh.itss.beadle.domain.audit.ObjectType.USER
@@ -88,8 +88,8 @@ class ActionHistoryPersistenceAdapterSpec extends Specification {
         def third = adapter.record(row(at: '2026-10-14T08:00:00Z', objectKey: 'CHG0031002'))
         def fourth = adapter.record(row(at: '2026-10-15T08:00:00Z', user: 'system:internal',
                 action: CALLBACK_INTERNAL, objectType: TICKET, objectId: null, objectKey: 'SCP-123'))
-        def fifth = adapter.record(row(at: '2026-10-15T09:00:00Z', user: 'Ann Lee', action: DEPARTMENT_RENAMED,
-                objectType: DEPARTMENT, objectId: 3L, objectKey: 'Corporate Technology'))
+        def fifth = adapter.record(row(at: '2026-10-15T09:00:00Z', user: 'Ann Lee', action: BUSINESS_SERVICE_RENAMED,
+                objectType: BUSINESS_SERVICE, objectId: 3L, objectKey: 'Corporate Technology'))
 
         expect:
         found() == [fifth, fourth, third, second, first]
@@ -144,11 +144,11 @@ class ActionHistoryPersistenceAdapterSpec extends Specification {
         adapter.record(row(user: 'Mateusz Matan'))
         adapter.record(row(user: 'Ann Lee', action: PRODUCT_CREATED))
         adapter.record(row(user: 'Mateusz Matan', action: PRODUCT_CREATED))
-        adapter.record(row(user: 'system:protech', action: DEPARTMENT_RENAMED))
+        adapter.record(row(user: 'system:protech', action: BUSINESS_SERVICE_RENAMED))
 
         expect:
         adapter.users() == ['Ann Lee', 'Mateusz Matan', 'system:protech']
-        adapter.actions() == [CHANGE_RAISED, DEPARTMENT_RENAMED, PRODUCT_CREATED]
+        adapter.actions() == [BUSINESS_SERVICE_RENAMED, CHANGE_RAISED, PRODUCT_CREATED]
     }
 
     def "a stored row is never updated"() {
@@ -190,7 +190,7 @@ class ActionHistoryPersistenceAdapterSpec extends Specification {
         0    | 0    | '2026-10-15T00:00:00Z' | '2026-10-15T00:00:00Z' || ['size', 'from']
     }
 
-    def "the key of a change, a product, its change template and a department is read by id"() {
+    def "the key of a change, a product, its change template and a business service is read by id"() {
         given:
         jdbc.update('''INSERT INTO BEADLE_PRODUCT (CODE, NAME, BUSINESS_SERVICE_ID, CREATED_AT, UPDATED_AT)
                 VALUES ('AUDITED', 'Audited Product', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)''')
@@ -202,9 +202,8 @@ class ActionHistoryPersistenceAdapterSpec extends Specification {
         keys.keyOf(CHANGE, changeId) == Optional.of('CHG0077001')
         keys.keyOf(PRODUCT, productId) == Optional.of('AUDITED')
         keys.keyOf(CHANGE_PROFILE, productId) == Optional.of('AUDITED')
-        keys.keyOf(DEPARTMENT, 3L) == Optional.of('Corporate Technology')
-        keys.keyOf(com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE, 3L) == Optional.of('Corporate Technology')
-        keys.keyOf(DEPARTMENT, 9999L) == Optional.empty()
+        keys.keyOf(BUSINESS_SERVICE, 3L) == Optional.of('Corporate Technology')
+        keys.keyOf(BUSINESS_SERVICE, 9999L) == Optional.empty()
         keys.keyOf(TICKET, 1L) == Optional.empty()
         keys.keyOf(USER, 1L) == Optional.empty()
     }

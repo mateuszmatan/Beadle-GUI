@@ -48,8 +48,8 @@ public class ChangeController {
     private final LookupsUseCase lookups;
 
     @GetMapping("/changes")
-    public List<ProductionChange> list(@RequestParam(required = false) Long departmentId) {
-        return changes.list(departmentId);
+    public List<ProductionChange> list(@RequestParam(required = false) Long businessServiceId) {
+        return changes.list(businessServiceId);
     }
 
     @GetMapping("/changes/{id}")

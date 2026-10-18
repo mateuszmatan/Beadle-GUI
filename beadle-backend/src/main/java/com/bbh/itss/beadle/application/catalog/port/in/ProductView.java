@@ -8,16 +8,8 @@ import java.time.Instant;
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT;
 
 public record ProductView(long id, String code, String name, String ownerTeam, String contactEmail,
-                          Long departmentId, String departmentName, long version, Instant updatedAt)
+                          Long businessServiceId, String businessServiceName, long version, Instant updatedAt)
         implements AuditedObject {
-
-    public Long businessServiceId() {
-        return departmentId;
-    }
-
-    public String businessServiceName() {
-        return departmentName;
-    }
 
     @Override
     public ActionObject auditedObject() {

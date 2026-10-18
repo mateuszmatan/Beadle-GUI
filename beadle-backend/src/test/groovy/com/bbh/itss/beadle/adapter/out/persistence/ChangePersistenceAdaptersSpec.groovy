@@ -67,7 +67,7 @@ import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTest
 class ChangePersistenceAdaptersSpec extends Specification {
 
     static final ChangeTemplate FULL = template(requestedFor: 'Ann Lee', requestedBy: 'Jane Smith',
-            department: 'Corporate Technology', assignedTo: 'Grace Turner', release: 'R 4.2', incident: 'INC0012345',
+            businessService: 'Corporate Technology', assignedTo: 'Grace Turner', release: 'R 4.2', incident: 'INC0012345',
             directBusinessService: 'Certificate management', problem: 'PRB0001234',
             affectedClients: 'Fund administration clients', usersAffected: 'Fund accountants', downtime: true,
             timing: new Timing('20:30', 3, 2), privilegedAccess: new PrivilegedAccess(true, [
@@ -130,11 +130,11 @@ class ChangePersistenceAdaptersSpec extends Specification {
         changed.template().privilegedAccess() == privileged(3)
         changed.tasks() == tasks(3).reverse()
         jdbc.queryForMap('''SELECT L1_MANAGER, L2_MANAGER, TIMING_INSTALLATION_START, TEST_SUMMARY, DOWNTIME,
-                PRIVILEGED_ACCESS_REQUIRED, RISK_BBH_USERS, REQUEST_DEPARTMENT FROM BEADLE_CHANGE_PROFILE
+                PRIVILEGED_ACCESS_REQUIRED, RISK_BBH_USERS, REQUEST_BUSINESS_SERVICE FROM BEADLE_CHANGE_PROFILE
                 WHERE PRODUCT_ID = ?''', product.id()) ==
                 [L1_MANAGER: 'Emma Brooks', L2_MANAGER: null, TIMING_INSTALLATION_START: '18:00',
                  TEST_SUMMARY: TEST_SUMMARY, DOWNTIME: 0, PRIVILEGED_ACCESS_REQUIRED: 1, RISK_BBH_USERS: '5-25',
-                 REQUEST_DEPARTMENT: null]
+                 REQUEST_BUSINESS_SERVICE: null]
         jdbc.queryForList('''SELECT u.POSITION, u.USER_NAME, u.ACCOUNT_NAME FROM BEADLE_CHANGE_PROFILE_PRIVILEGED_USER u
                 JOIN BEADLE_CHANGE_PROFILE p ON p.ID = u.PROFILE_ID WHERE p.PRODUCT_ID = ? ORDER BY u.POSITION''',
                 product.id()) == (1..3).collect { [POSITION: it - 1, USER_NAME: "User $it".toString(),
@@ -184,7 +184,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         summaries[1].version() == 0
     }
 
-    def "Beadle reads a product with its department and the Jira project of its profile, not its services"() {
+    def "Beadle reads a product with its business service and the Jira project of its profile, not its services"() {
         given:
         def ledger = save('LEDGER', 'Ledger', 4L)
         def access = save('ACCESS', 'Access Hub', 3L)
@@ -199,7 +199,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         changeProducts.get(ledger.id()).jiraProject() == 'LEDGER'
         changeProducts.findAll() == [new ChangeProduct(access.id(), 'ACCESS', 'Access Hub', null, null, null, null),
                                      changeProducts.get(product.id()), changeProducts.get(ledger.id())]
-        changeProducts.get(ledger.id()).departmentName() == 'Custody'
+        changeProducts.get(ledger.id()).businessServiceName() == 'Custody'
 
         when:
         changeProducts.get(99999L)
@@ -209,7 +209,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         missing.message == 'Product 99999 does not exist'
     }
 
-    def "a raised change is stored with its department, its draft stage, its Jira keys and its tasks in order"() {
+    def "a raised change is stored with its business service, its draft stage, its Jira keys and its tasks in order"() {
         given:
         def raised = raise('CHG0001001', 'CTASK0002001', 'CTASK0002002')
 
@@ -224,8 +224,8 @@ class ChangePersistenceAdaptersSpec extends Specification {
         saved.version() == 0
         loaded == saved
         loaded == raised.toBuilder().id(saved.id()).version(0L).build()
-        [loaded.productId(), loaded.productCode(), loaded.productName(), loaded.departmentId(),
-         loaded.departmentName(), loaded.openedBy()] == [product.id(), 'CERT', 'CertScanner', 3L,
+        [loaded.productId(), loaded.productCode(), loaded.productName(), loaded.businessServiceId(),
+         loaded.businessServiceName(), loaded.openedBy()] == [product.id(), 'CERT', 'CertScanner', 3L,
                                                          'Corporate Technology', 'Mateusz Matan']
         loaded.schedule() == DOWNTIME
         loaded.createdAt() == RAISED
@@ -246,12 +246,12 @@ class ChangePersistenceAdaptersSpec extends Specification {
         changes.load(9999L) == Optional.empty()
         jdbc.queryForObject('SELECT COUNT(*) FROM BEADLE_PRODUCTION_CHANGE_PRIVILEGED_USER WHERE CHANGE_ID = ?', Integer,
                 saved.id()) == 2
-        jdbc.queryForMap('''SELECT OPENED_BY, REQUESTED_FOR, REQUESTED_BY, REQUEST_DEPARTMENT, ASSIGNED_TO,
+        jdbc.queryForMap('''SELECT OPENED_BY, REQUESTED_FOR, REQUESTED_BY, REQUEST_BUSINESS_SERVICE, ASSIGNED_TO,
                 DIRECT_BUSINESS_SERVICE, USERS_AFFECTED, SECURE_CODING_TICKET, APO_NUMBER, BITBUCKET_URL, ARTIFACT_LINK,
                 QC_APPLICATION_LINK, CHANGE_TYPE, CATEGORY, RISK_BBH_USERS, RISK_BACKOUT_TESTING
                 FROM BEADLE_PRODUCTION_CHANGE WHERE ID = ?''', saved.id()) ==
                 [OPENED_BY: 'Mateusz Matan', REQUESTED_FOR: 'Ann Lee', REQUESTED_BY: 'Jane Smith',
-                 REQUEST_DEPARTMENT: 'Corporate Technology', ASSIGNED_TO: 'Grace Turner',
+                 REQUEST_BUSINESS_SERVICE: 'Corporate Technology', ASSIGNED_TO: 'Grace Turner',
                  DIRECT_BUSINESS_SERVICE: 'Certificate management', USERS_AFFECTED: 'Fund accountants',
                  SECURE_CODING_TICKET: 'SCP-2001', APO_NUMBER: 'APO-12345',
                  BITBUCKET_URL: 'https://bitbucket.bbh.com/projects/CERT/repos/cert',
@@ -271,7 +271,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         changes.findByNumber('CHG0009999') == Optional.empty()
     }
 
-    def "a change raised with the empty people of its template names the signed-in user and its department"() {
+    def "a change raised with the empty people of its template names the signed-in user and its business service"() {
         given:
         def bare = template(riskAssessment: RiskAssessment.DEFAULTS)
 
@@ -285,7 +285,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         with(changes.load(saved.id()).get()) {
             [it.template().requestedFor(), it.template().requestedBy(), it.template().assignedTo()] ==
                     ['Mateusz Matan'] * 3
-            it.template().department() == 'Corporate Technology'
+            it.template().businessService() == 'Corporate Technology'
             it.template().risk() == 'Low'
             it.schedule() == schedule()
         }
@@ -447,7 +447,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         changes.load(untouched.id()).get() == untouched
     }
 
-    def "the changes of a department are listed newest first and counted per department with its products"() {
+    def "the changes of a business service are listed newest first and counted per business service with its products"() {
         given:
         def custody = save('CUST', 'Custody Ledger', 4L)
         def first = changes.save(raise('CHG0001001', 'CTASK0002001'))
@@ -456,11 +456,11 @@ class ChangePersistenceAdaptersSpec extends Specification {
         entities.clear()
 
         expect:
-        changes.findByDepartment(3L)*.id() == [last.id(), first.id()]
-        changes.findByDepartment(4L)*.number() == ['CHG0001002']
-        changes.findByDepartment(5L) == []
+        changes.findByBusinessService(3L)*.id() == [last.id(), first.id()]
+        changes.findByBusinessService(4L)*.number() == ['CHG0001002']
+        changes.findByBusinessService(5L) == []
         changes.findAll()*.number() == ['CHG0001003', 'CHG0001002', 'CHG0001001']
-        usage.perDepartment() == [3L: new ChangeUsage(1, 2), 4L: new ChangeUsage(1, 1)]
+        usage.perBusinessService() == [3L: new ChangeUsage(1, 2), 4L: new ChangeUsage(1, 1)]
     }
 
     def "deleting a product deletes its template and keeps its raised changes"() {
@@ -479,7 +479,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         with(changes.load(saved.id()).get()) {
             productId() == null
             productName() == 'CertScanner'
-            departmentId() == 3L
+            businessServiceId() == 3L
             it.tasks()*.details()*.shortDescription() == ['Task 1 of the CertScanner release']
             it.workflow() == [new WorkflowStep(DRAFT, RAISED)]
             it.template().privilegedAccess().users().size() == 2
@@ -509,7 +509,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
                 changeId)
     }
 
-    private Product save(String code, String name, long departmentId) {
-        products.save(Product.create(details(code: code, name: name, departmentId: departmentId), products))
+    private Product save(String code, String name, long businessServiceId) {
+        products.save(Product.create(details(code: code, name: name, businessServiceId: businessServiceId), products))
     }
 }

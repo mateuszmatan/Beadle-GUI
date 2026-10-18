@@ -50,7 +50,7 @@ class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
 
         when:
         def ticket = api.post("/api/changes/$raised.id/secure-coding", [version: raised.version,
-                departmentId: raised.departmentId, implementationDate: '10202026'] + secureCodingJson())
+                businessServiceId: raised.businessServiceId, implementationDate: '10202026'] + secureCodingJson())
         def key = ticket.json.template.secureCodingTicket as String
 
         then:

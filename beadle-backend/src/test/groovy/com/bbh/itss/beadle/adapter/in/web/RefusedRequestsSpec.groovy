@@ -31,10 +31,10 @@ import java.time.DayOfWeek
 
 import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_PROTECH
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED
-import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_CREATED
-import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_RENAMED
+import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_CREATED
+import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_RENAMED
 import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE
-import static com.bbh.itss.beadle.domain.audit.ObjectType.DEPARTMENT
+import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT
 import static com.bbh.itss.beadle.support.Json.parse
 import static com.bbh.itss.beadle.support.Json.toJson
@@ -71,7 +71,7 @@ class RefusedRequestsSpec extends Specification {
 
         then:
         response.status == 400
-        recorded == [new RefusedRequest(DEPARTMENT_CREATED, ActionObject.keyed(DEPARTMENT, key), details, message)]
+        recorded == [new RefusedRequest(BUSINESS_SERVICE_CREATED, ActionObject.keyed(BUSINESS_SERVICE, key), details, message)]
         actors == ['the signed-in user']
         parse(response.contentAsString).detail != null
 
@@ -99,9 +99,9 @@ class RefusedRequestsSpec extends Specification {
 
         then:
         recorded == [
-                new RefusedRequest(DEPARTMENT_RENAMED, ActionObject.of(DEPARTMENT, 7), '{"id":7,"request":{"name":""}}',
+                new RefusedRequest(BUSINESS_SERVICE_RENAMED, ActionObject.of(BUSINESS_SERVICE, 7), '{"id":7,"request":{"name":""}}',
                         'name must not be blank'),
-                new RefusedRequest(DEPARTMENT_RENAMED, ActionObject.of(DEPARTMENT, null),
+                new RefusedRequest(BUSINESS_SERVICE_RENAMED, ActionObject.of(BUSINESS_SERVICE, null),
                         '{"id":"seven","request":null}', 'id must be a whole number')]
     }
 
@@ -220,13 +220,13 @@ class RefusedRequestsSpec extends Specification {
     static class AuditedSampleController {
 
         @PostMapping('/api/samples/named')
-        @AuditedRequest(value = DEPARTMENT_CREATED, objectKey = 'name')
+        @AuditedRequest(value = BUSINESS_SERVICE_CREATED, objectKey = 'name')
         String create(@Valid @RequestBody Named request) {
             request.name
         }
 
         @PutMapping('/api/samples/named/{id}')
-        @AuditedRequest(DEPARTMENT_RENAMED)
+        @AuditedRequest(BUSINESS_SERVICE_RENAMED)
         String rename(@PathVariable('id') long id, @Valid @RequestBody Named request) {
             "$id $request.name"
         }
@@ -244,7 +244,7 @@ class RefusedRequestsSpec extends Specification {
         }
 
         @PostMapping('/api/samples/refusing')
-        @AuditedRequest(DEPARTMENT_CREATED)
+        @AuditedRequest(BUSINESS_SERVICE_CREATED)
         String refusing(@Valid @RequestBody Named request) {
             throw new InvalidRequestException([new FieldProblem('name', 'is taken')])
         }

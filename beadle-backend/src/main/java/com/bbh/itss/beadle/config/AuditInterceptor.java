@@ -211,7 +211,7 @@ class AuditInterceptor implements MethodInterceptor {
 
     /**
      * A first argument of type long is the id of the action's object; else an argument that names its object; else
-     * the {@link AuditedKey} argument its key, such as the name of a department that could not be created.
+     * the {@link AuditedKey} argument its key, such as the name of a business service that could not be created.
      */
     static ActionObject fromArguments(Action action, Method method, Object[] arguments) {
         if (arguments.length > 0 && arguments[0] instanceof Long id) {

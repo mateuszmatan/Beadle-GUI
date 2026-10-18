@@ -45,7 +45,7 @@ class ChangeRegressionSpec extends ChangeRegressionSpecification {
                 [productId: created.id, productName: created.name, version: 1, updatedAt: changed.json.updatedAt]
     }
 
-    def "a change is previewed, raised from a FixVersion's epics, gets its change tasks in ProTech and is listed for its department"() {
+    def "a change is previewed, raised from a FixVersion's epics, gets its change tasks in ProTech and is listed for its business service"() {
         given:
         def created = createProduct(product(code: uniqueCode(), name: "Payments ${uniqueCode()}"))
         def key = 'PAY' + created.id
@@ -67,8 +67,8 @@ class ChangeRegressionSpec extends ChangeRegressionSpecification {
         stories*.epicKey == epics*.key
         preview.status == 200
         [preview.json.id, preview.json.number, preview.json.version] == [null, null, null]
-        preview.json.subMap('state', 'departmentId', 'departmentName', 'openedBy', 'fixVersion', 'tasks') ==
-                [state: 'DRAFT', departmentId: 3, departmentName: 'Corporate Technology', openedBy: SIGNED_IN,
+        preview.json.subMap('state', 'businessServiceId', 'businessServiceName', 'openedBy', 'fixVersion', 'tasks') ==
+                [state: 'DRAFT', businessServiceId: 3, businessServiceName: 'Corporate Technology', openedBy: SIGNED_IN,
                  fixVersion: fixVersion, tasks: []]
         preview.json.shortDescription == "$created.name $fixVersion: ${epics*.summary.join('; ')}"
         stories.every { preview.json.description.contains("- $it.key $it.summary") }
@@ -101,14 +101,14 @@ class ChangeRegressionSpec extends ChangeRegressionSpecification {
         expect:
         api.get("/api/changes/$raised.json.id").json.findAll { it.key != 'syncedAt' } ==
                 tasked.findAll { it.key != 'syncedAt' }
-        api.get('/api/changes?departmentId=3').json.find { it.id == raised.json.id }.tasks == tasked.tasks
-        !(raised.json.id in api.get('/api/changes?departmentId=4').json*.id)
+        api.get('/api/changes?businessServiceId=3').json.find { it.id == raised.json.id }.tasks == tasked.tasks
+        !(raised.json.id in api.get('/api/changes?businessServiceId=4').json*.id)
     }
 
     def "a secure coding ticket is created in CyberTrack through Beadle-Internal and shown on the change"() {
         given:
         def raised = raise(createProduct(product(code: uniqueCode(), name: "Secure ${uniqueCode()}")))
-        def request = [version: raised.version, departmentId: raised.departmentId, implementationDate: '10202026'] +
+        def request = [version: raised.version, businessServiceId: raised.businessServiceId, implementationDate: '10202026'] +
                 secureCodingJson()
 
         when:
@@ -133,7 +133,7 @@ class ChangeRegressionSpec extends ChangeRegressionSpecification {
         second.json.detail == "$raised.number already has the secure coding ticket $key"
     }
 
-    def "its department updates an open change and ProTech applies it"() {
+    def "its business service updates an open change and ProTech applies it"() {
         given:
         def raised = raise(createProduct(product(code: uniqueCode(), name: "Update ${uniqueCode()}")))
         def later = scheduleJson(START.plus(1, DAYS))
@@ -156,15 +156,15 @@ class ChangeRegressionSpec extends ChangeRegressionSpecification {
                                                           raised.tasks[1].details.shortDescription]
         updated.json.tasks*.state == ['OPEN', 'OPEN', 'CANCELED']
         updated.json.tasks*.number == [raised.tasks[0].number, updated.json.tasks[1].number, raised.tasks[1].number]
-        updated.json.update.subMap('status', 'departmentName', 'fields') ==
-                [status: 'APPLIED', departmentName: 'Corporate Technology', fields: []]
+        updated.json.update.subMap('status', 'businessServiceName', 'fields') ==
+                [status: 'APPLIED', businessServiceName: 'Corporate Technology', fields: []]
         SERVICES.proTechChange(raised.number as String).shortDescription == 'Renamed release'
 
         expect:
         api.get("/api/changes/$raised.id").json.findAll { it.key != 'syncedAt' } ==
                 updated.json.findAll { it.key != 'syncedAt' }
         api.put("/api/changes/$raised.id", edit).status == 409
-        api.put("/api/changes/$raised.id", editOf(updated.json as Map, [departmentId: 4])).status == 403
+        api.put("/api/changes/$raised.id", editOf(updated.json as Map, [businessServiceId: 4])).status == 403
     }
 
     def "the approvers who have not approved yet are reminded"() {
@@ -174,8 +174,8 @@ class ChangeRegressionSpec extends ChangeRegressionSpecification {
         SERVICES.proTechChange(raised.number as String).approvals[0].state = 'APPROVED'
 
         when:
-        def everyone = api.post("/api/changes/$raised.id/reminders", [departmentId: 3])
-        def one = api.post("/api/changes/$raised.id/reminders", [departmentId: 3, task: raised.tasks[1].number])
+        def everyone = api.post("/api/changes/$raised.id/reminders", [businessServiceId: 3])
+        def one = api.post("/api/changes/$raised.id/reminders", [businessServiceId: 3, task: raised.tasks[1].number])
 
         then:
         everyone.status == 200
@@ -185,6 +185,6 @@ class ChangeRegressionSpec extends ChangeRegressionSpecification {
         Instant.parse(one.json.tasks[1].reminder.sentAt).isAfter(Instant.parse(everyone.json.tasks[1].reminder.sentAt))
         one.json.tasks[0].reminder == everyone.json.tasks[0].reminder
         api.get("/api/changes/$raised.id").json.tasks*.reminder == one.json.tasks*.reminder
-        api.post("/api/changes/$raised.id/reminders", [departmentId: 3, approval: 'BUSINESS']).status == 409
+        api.post("/api/changes/$raised.id/reminders", [businessServiceId: 3, approval: 'BUSINESS']).status == 409
     }
 }

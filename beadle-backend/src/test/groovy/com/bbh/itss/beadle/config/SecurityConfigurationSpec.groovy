@@ -130,8 +130,8 @@ class SecurityConfigurationSpec extends Specification {
     def "with Ping a change needs the token of the XSRF-TOKEN cookie, which Angular reads, in X-XSRF-TOKEN"() {
         given:
         def session = signedIn([sub: 'u-7', name: 'Ann Lee'])
-        def cookie = answer(oidc, get('/api/departments').session(session)).getCookie('XSRF-TOKEN')
-        def department = { "Security ${System.nanoTime()}".toString() }
+        def cookie = answer(oidc, get('/api/business-services').session(session)).getCookie('XSRF-TOKEN')
+        def businessService = { "Security ${System.nanoTime()}".toString() }
 
         expect:
         cookie.value
@@ -139,8 +139,8 @@ class SecurityConfigurationSpec extends Specification {
         cookie.path == '/'
 
         when:
-        def without = answer(oidc, json(post('/api/departments'), [name: department()]).session(session))
-        def withToken = answer(oidc, json(post('/api/departments'), [name: department()]).session(session)
+        def without = answer(oidc, json(post('/api/business-services'), [name: businessService()]).session(session))
+        def withToken = answer(oidc, json(post('/api/business-services'), [name: businessService()]).session(session)
                 .cookie(cookie).header('X-XSRF-TOKEN', cookie.value))
 
         then:
@@ -174,7 +174,7 @@ class SecurityConfigurationSpec extends Specification {
         int before = count()
 
         when:
-        [get('/api/me'), get('/api/departments'), get('/api/me')].each { assert answer(mvc, it.session(session)).status == 200 }
+        [get('/api/me'), get('/api/business-services'), get('/api/me')].each { assert answer(mvc, it.session(session)).status == 200 }
 
         then:
         count() == before + 1
@@ -188,7 +188,7 @@ class SecurityConfigurationSpec extends Specification {
     def "locally everybody is beadle.signed-in-user without a session or a CSRF token, and can sign out"() {
         when:
         def me = answer(local, get('/api/me'))
-        def added = answer(local, json(post('/api/departments'), [name: "Local ${System.nanoTime()}".toString()]))
+        def added = answer(local, json(post('/api/business-services'), [name: "Local ${System.nanoTime()}".toString()]))
 
         then:
         me.status == 200

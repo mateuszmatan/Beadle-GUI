@@ -35,7 +35,7 @@ class ChangeTemplateSpec extends Specification {
     def "a template trims its texts to null, upper-cases the Jira key and fills in the optional sections"() {
         when:
         def trimmed = ChangeTemplate.builder().jiraProjectKey(' cert ').requestedFor(' Ann Lee ').requestedBy(' ')
-                .department(' Custody ').assignmentGroup(' TA ').category(' Application ').assignedTo(' Jane Smith ')
+                .businessService(' Custody ').assignmentGroup(' TA ').category(' Application ').assignedTo(' Jane Smith ')
                 .type(STANDARD).release(' ').configurationItem(' CertScanner ').incident(' INC0012345 ')
                 .directBusinessService(' Certificates ').problem('').affectedClients(' Clients ')
                 .usersAffected(' Operators ').approvers(new Approvers(' Ann ', ' ', null, ' Jane Smith '))
@@ -47,7 +47,7 @@ class ChangeTemplateSpec extends Specification {
         def empty = ChangeTemplate.builder().build()
 
         then:
-        trimmed == ChangeTemplate.builder().jiraProjectKey('CERT').requestedFor('Ann Lee').department('Custody')
+        trimmed == ChangeTemplate.builder().jiraProjectKey('CERT').requestedFor('Ann Lee').businessService('Custody')
                 .assignmentGroup('TA').category('Application').assignedTo('Jane Smith').type(STANDARD)
                 .configurationItem('CertScanner').incident('INC0012345').directBusinessService('Certificates')
                 .affectedClients('Clients').usersAffected('Operators')
@@ -112,14 +112,14 @@ class ChangeTemplateSpec extends Specification {
         template(release: 'R42').releasedAs('CERT 4.2') == template(release: 'R42')
     }
 
-    def "a raised template names the signed-in user for its empty people and the product's department"() {
+    def "a raised template names the signed-in user for its empty people and the product's business service"() {
         expect:
         template().openedBy('Mateusz Matan', 'Custody') == template(requestedFor: 'Mateusz Matan',
-                requestedBy: 'Mateusz Matan', department: 'Custody', assignedTo: 'Mateusz Matan')
-        template(requestedFor: 'Ann Lee', requestedBy: 'Jane Smith', department: 'AI Lab', assignedTo: 'Grace Turner')
+                requestedBy: 'Mateusz Matan', businessService: 'Custody', assignedTo: 'Mateusz Matan')
+        template(requestedFor: 'Ann Lee', requestedBy: 'Jane Smith', businessService: 'AI Lab', assignedTo: 'Grace Turner')
                 .openedBy('Mateusz Matan', 'Custody') == template(requestedFor: 'Ann Lee', requestedBy: 'Jane Smith',
-                department: 'AI Lab', assignedTo: 'Grace Turner')
-        template().openedBy('Mateusz Matan', null).department() == null
+                businessService: 'AI Lab', assignedTo: 'Grace Turner')
+        template().openedBy('Mateusz Matan', null).businessService() == null
     }
 
     def "a complete template has no problems, also with privileged access for up to seven users"() {
@@ -154,8 +154,8 @@ class ChangeTemplateSpec extends Specification {
         'a privileged user is incomplete'        | [privilegedAccess: new PrivilegedAccess(true, [new PrivilegedUser('Ann', 'adm_ann'), null, new PrivilegedUser(' ', null)])] || ['template.privilegedAccess.users[1] is required', 'template.privilegedAccess.users[2].user is required', 'template.privilegedAccess.users[2].account is required']
         'the category is not on the list'        | [category: 'Software']                                      || ['template.category must be one of Application, Hardware, Infrastructure, System Software, Network, Telecom, Data Amendment, Desktop Software, Storage, Facilities, Other, Database']
         'the risk answers are not on their lists' | [riskAssessment: risk(bbhWorkgroups: '1', changeComplexity: 'Low', bbhUsers: '10', validationComplexity: 'simple', bbhApplications: '2', backoutTesting: 'Tested on QC', clientsOutsideBbh: '0', platformStatus: 'Existing platform', businessImpact: 'Minor')] || ['template.riskAssessment.bbhWorkgroups must be one of Single, 2-3, More than 3', 'template.riskAssessment.changeComplexity must be one of Simple, Moderate, Very', 'template.riskAssessment.bbhUsers must be one of Less than 5, 5-25, 26-250, All users', 'template.riskAssessment.validationComplexity must be one of Simple, Moderate, Very', 'template.riskAssessment.bbhApplications must be one of Single, Two, More than 2', 'template.riskAssessment.backoutTesting must be one of Less than 30 minutes, 30 mins - 2 hours, Greater than 2 hours, Unable to test', 'template.riskAssessment.clientsOutsideBbh must be one of No clients, Single, More than one but not all, All clients', 'template.riskAssessment.platformStatus must be one of Existing, New, Decommissioned', 'template.riskAssessment.businessImpact must be one of None, Low, Medium, High']
-        'its texts fit in characters but not in bytes' | [requestedFor: 'ł' * 101, requestedBy: 'ł' * 101, department: 'é' * 51, assignmentGroup: 'ł' * 101, assignedTo: 'ł' * 101, incident: 'é' * 21, directBusinessService: 'ł' * 101, affectedClients: 'ą' * 1001, usersAffected: 'ą' * 1001, secureCodingTicket: 'é' * 21, approvers: new Approvers(null, 'Zoë', 'ż' * 101, 'ż' * 101), planning: new Planning('t', 'i', 'ś' * 1001, 'b', 'f'), privilegedAccess: new PrivilegedAccess(true, [new PrivilegedUser('Ann', 'ü' * 101)])] || ['template.requestedFor is too long: it may take at most 200 bytes', 'template.requestedBy is too long: it may take at most 200 bytes', 'template.department is too long: it may take at most 100 bytes', 'template.assignmentGroup is too long: it may take at most 200 bytes', 'template.assignedTo is too long: it may take at most 200 bytes', 'template.incident is too long: it may take at most 40 bytes', 'template.directBusinessService is too long: it may take at most 200 bytes', 'template.affectedClients is too long: it may take at most 2000 bytes', 'template.usersAffected is too long: it may take at most 2000 bytes', 'template.secureCodingTicket is too long: it may take at most 40 bytes', 'template.approvers.businessApprover is too long: it may take at most 200 bytes', 'template.approvers.supportApprover is too long: it may take at most 200 bytes', 'template.planning.validationPlan is too long: it may take at most 2000 bytes', 'template.privilegedAccess.users[0].account is too long: it may take at most 200 bytes']
-        'its texts fill their columns'           | [requestedFor: 'ł' * 100, department: 'é' * 50, assignmentGroup: 'ł' * 100, incident: 'é' * 20, usersAffected: 'ą' * 1000, secureCodingTicket: 'é' * 20, approvers: new Approvers('ż' * 100, 'ż' * 100, 'ż' * 100, 'ż' * 100)] || []
+        'its texts fit in characters but not in bytes' | [requestedFor: 'ł' * 101, requestedBy: 'ł' * 101, businessService: 'é' * 51, assignmentGroup: 'ł' * 101, assignedTo: 'ł' * 101, incident: 'é' * 21, directBusinessService: 'ł' * 101, affectedClients: 'ą' * 1001, usersAffected: 'ą' * 1001, secureCodingTicket: 'é' * 21, approvers: new Approvers(null, 'Zoë', 'ż' * 101, 'ż' * 101), planning: new Planning('t', 'i', 'ś' * 1001, 'b', 'f'), privilegedAccess: new PrivilegedAccess(true, [new PrivilegedUser('Ann', 'ü' * 101)])] || ['template.requestedFor is too long: it may take at most 200 bytes', 'template.requestedBy is too long: it may take at most 200 bytes', 'template.businessService is too long: it may take at most 100 bytes', 'template.assignmentGroup is too long: it may take at most 200 bytes', 'template.assignedTo is too long: it may take at most 200 bytes', 'template.incident is too long: it may take at most 40 bytes', 'template.directBusinessService is too long: it may take at most 200 bytes', 'template.affectedClients is too long: it may take at most 2000 bytes', 'template.usersAffected is too long: it may take at most 2000 bytes', 'template.secureCodingTicket is too long: it may take at most 40 bytes', 'template.approvers.businessApprover is too long: it may take at most 200 bytes', 'template.approvers.supportApprover is too long: it may take at most 200 bytes', 'template.planning.validationPlan is too long: it may take at most 2000 bytes', 'template.privilegedAccess.users[0].account is too long: it may take at most 200 bytes']
+        'its texts fill their columns'           | [requestedFor: 'ł' * 100, businessService: 'é' * 50, assignmentGroup: 'ł' * 100, incident: 'é' * 20, usersAffected: 'ą' * 1000, secureCodingTicket: 'é' * 20, approvers: new Approvers('ż' * 100, 'ż' * 100, 'ż' * 100, 'ż' * 100)] || []
     }
 
     def "a profile is created at version 0 with its tasks and changed only at the version it was read at"() {

@@ -132,7 +132,7 @@ class ChangeFixtures {
 
     static ProductionChange raised(Map changes = [:]) {
         copy(changes, ProductionChange.builder().id(7L).number('CHG0031001').productId(1L).productCode('CERTSCANNER')
-                .productName('CertScanner').departmentId(3L).departmentName('Corporate Technology')
+                .productName('CertScanner').businessServiceId(3L).businessServiceName('Corporate Technology')
                 .fixVersion(FIX_VERSION).schedule(schedule()).shortDescription('CertScanner CERT 4.2: Expiry alerts')
                 .description('Production release CERT 4.2 of CertScanner.').template(template(release: FIX_VERSION))
                 .epicKeys(['CERT-1']).storyKeys(['CERT-2'])
@@ -151,7 +151,7 @@ class ChangeFixtures {
     }
 
     static Map templateJson(Map changes = [:]) {
-        Map json = [jiraProjectKey    : 'CERT', requestedFor: null, requestedBy: null, department: null,
+        Map json = [jiraProjectKey    : 'CERT', requestedFor: null, requestedBy: null, businessService: null,
                     assignmentGroup   : 'Technology Architecture', category: 'Application', assignedTo: null,
                     type              : 'STANDARD', release: null, configurationItem: 'CertScanner',
                     incident          : null, directBusinessService: null, problem: null, risk: 'Moderate',

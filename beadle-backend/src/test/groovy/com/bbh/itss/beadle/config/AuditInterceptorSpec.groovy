@@ -7,11 +7,11 @@ import com.bbh.itss.beadle.application.CallContext
 import com.bbh.itss.beadle.application.audit.port.out.ActionHistoryPort
 import com.bbh.itss.beadle.application.audit.port.out.ObjectKeyPort
 import com.bbh.itss.beadle.application.callback.port.in.CallbacksUseCase
-import com.bbh.itss.beadle.application.catalog.port.in.DepartmentsUseCase
+import com.bbh.itss.beadle.application.catalog.port.in.BusinessServicesUseCase
 import com.bbh.itss.beadle.application.catalog.port.in.ProductCommand
 import com.bbh.itss.beadle.application.catalog.port.in.ProductsUseCase
-import com.bbh.itss.beadle.application.catalog.port.out.DepartmentRepositoryPort
-import com.bbh.itss.beadle.application.catalog.port.out.DepartmentUsagePort
+import com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceRepositoryPort
+import com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceUsagePort
 import com.bbh.itss.beadle.application.catalog.port.out.ProductRepositoryPort
 import com.bbh.itss.beadle.application.change.port.in.ChangeEditCommand
 import com.bbh.itss.beadle.application.change.port.in.ChangeProfilesUseCase
@@ -30,8 +30,8 @@ import com.bbh.itss.beadle.application.user.port.out.SignedInUserPort
 import com.bbh.itss.beadle.domain.audit.ActionRecord
 import com.bbh.itss.beadle.domain.callback.InternalCallback
 import com.bbh.itss.beadle.domain.callback.ProTechCallback
-import com.bbh.itss.beadle.domain.catalog.Department
-import com.bbh.itss.beadle.domain.catalog.DepartmentUsage
+import com.bbh.itss.beadle.domain.catalog.BusinessService
+import com.bbh.itss.beadle.domain.catalog.BusinessServiceUsage
 import com.bbh.itss.beadle.domain.change.ChangeProfile
 import com.bbh.itss.beadle.domain.change.ChangeTask
 import com.bbh.itss.beadle.domain.change.ProductionChange
@@ -63,8 +63,8 @@ import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_EDITED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_PROFILE_UPDATED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_SYNCED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_TASKS_CREATED
-import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_CREATED
-import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_DELETED
+import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_CREATED
+import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_DELETED
 import static com.bbh.itss.beadle.domain.audit.Action.PRODUCT_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.REMINDER_SENT
 import static com.bbh.itss.beadle.domain.audit.Action.USER_SIGNED_IN
@@ -72,7 +72,7 @@ import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.SUCCESS
 import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE_PROFILE
-import static com.bbh.itss.beadle.domain.audit.ObjectType.DEPARTMENT
+import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT
 import static com.bbh.itss.beadle.domain.audit.ObjectType.TICKET
 import static com.bbh.itss.beadle.domain.audit.ObjectType.USER
@@ -97,9 +97,9 @@ class AuditInterceptorSpec extends Specification {
     def transactions = new RecordingTransactionManager()
     List<ActionRecord> rows = []
     String signedIn = 'Mateusz Matan'
-    DepartmentRepositoryPort departments = Mock()
-    DepartmentUsagePort usage = Mock() {
-        unused() >> departmentUsage(0)
+    BusinessServiceRepositoryPort businessServices = Mock()
+    BusinessServiceUsagePort usage = Mock() {
+        unused() >> businessServiceUsage(0)
     }
     ProductRepositoryPort products = Mock()
     ProductionChangeRepositoryPort changes = Mock()
@@ -124,10 +124,8 @@ class AuditInterceptorSpec extends Specification {
             .withBean(ObjectKeyPort, { keys } as Supplier<ObjectKeyPort>)
             .withBean(JsonMapper, { JsonMapper.builder().build() } as Supplier<JsonMapper>)
             .withBean(ProductRepositoryPort, { products } as Supplier<ProductRepositoryPort>)
-            .withBean(DepartmentRepositoryPort, { departments } as Supplier<DepartmentRepositoryPort>)
-            .withBean(DepartmentUsagePort, { usage } as Supplier<DepartmentUsagePort>)
-            .withBean(com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceRepositoryPort, { Mock(com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceRepositoryPort) } as Supplier<com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceRepositoryPort>)
-            .withBean(com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceUsagePort, { Mock(com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceUsagePort) } as Supplier<com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceUsagePort>)
+            .withBean(BusinessServiceRepositoryPort, { businessServices } as Supplier<BusinessServiceRepositoryPort>)
+            .withBean(BusinessServiceUsagePort, { usage } as Supplier<BusinessServiceUsagePort>)
             .withBean(ChangeProductsPort, { changeProducts } as Supplier<ChangeProductsPort>)
             .withBean(ChangeProfileRepositoryPort, { profiles } as Supplier<ChangeProfileRepositoryPort>)
             .withBean(ProductionChangeRepositoryPort, { changes } as Supplier<ProductionChangeRepositoryPort>)
@@ -140,13 +138,13 @@ class AuditInterceptorSpec extends Specification {
 
     def "a use case that succeeds writes one SUCCESS row inside its own read-write transaction"() {
         given:
-        departments.findByName('Treasury') >> Optional.empty()
-        departments.save(_ as Department) >> new Department(4L, 'Treasury', 0)
-        departments.findAll() >> [new Department(4L, 'Treasury', 0)]
-        usage.perDepartment() >> [:]
+        businessServices.findByName('Treasury') >> Optional.empty()
+        businessServices.save(_ as BusinessService) >> new BusinessService(4L, 'Treasury', 0)
+        businessServices.findAll() >> [new BusinessService(4L, 'Treasury', 0)]
+        usage.perBusinessService() >> [:]
 
         when:
-        def created = use(DepartmentsUseCase) { it.create('Treasury') }
+        def created = use(BusinessServicesUseCase) { it.create('Treasury') }
 
         then:
         created.id() == 4L
@@ -155,8 +153,8 @@ class AuditInterceptorSpec extends Specification {
         with(rows[0]) {
             at() == NOW
             user() == 'Mateusz Matan'
-            action() == DEPARTMENT_CREATED
-            objectType() == DEPARTMENT
+            action() == BUSINESS_SERVICE_CREATED
+            objectType() == BUSINESS_SERVICE
             objectId() == 4L
             objectKey() == 'Treasury'
             details() == '{"name":"Treasury"}'
@@ -170,11 +168,11 @@ class AuditInterceptorSpec extends Specification {
 
     def "a use case that throws leaves a FAILURE row written in a transaction of its own while its transaction rolls back"() {
         given:
-        departments.findAll() >> [new Department(1L, 'AI Lab', 0)]
-        usage.perDepartment() >> [1L: departmentUsage(2)]
+        businessServices.findAll() >> [new BusinessService(1L, 'AI Lab', 0)]
+        usage.perBusinessService() >> [1L: businessServiceUsage(2)]
 
         when:
-        use(DepartmentsUseCase) { it.delete(1L) }
+        use(BusinessServicesUseCase) { it.delete(1L) }
 
         then:
         def refused = thrown(IllegalStateException)
@@ -182,30 +180,30 @@ class AuditInterceptorSpec extends Specification {
                              'resume', 'rollback']
         rows*.outcome() == [FAILURE]
         with(rows[0]) {
-            action() == DEPARTMENT_DELETED
-            objectType() == DEPARTMENT
+            action() == BUSINESS_SERVICE_DELETED
+            objectType() == BUSINESS_SERVICE
             objectId() == 1L
             objectKey() == 'AI Lab'
             details() == '{"id":1}'
             message() == refused.message
-            message() == 'AI Lab still has 2 product(s). Move them to another department first.'
+            message() == 'AI Lab still has 2 product(s). Move them to another business service first.'
         }
-        1 * keys.keyOf(DEPARTMENT, 1L) >> Optional.of('AI Lab')
-        0 * departments.delete(_)
+        1 * keys.keyOf(BUSINESS_SERVICE, 1L) >> Optional.of('AI Lab')
+        0 * businessServices.delete(_)
     }
 
     def "a deleted object keeps its key, read before the use case removed it"() {
         given:
-        departments.findAll() >> [new Department(5L, 'Treasury', 0)]
-        usage.perDepartment() >> [:]
+        businessServices.findAll() >> [new BusinessService(5L, 'Treasury', 0)]
+        usage.perBusinessService() >> [:]
         List<String> order = []
 
         when:
-        use(DepartmentsUseCase) { it.delete(5L) }
+        use(BusinessServicesUseCase) { it.delete(5L) }
 
         then:
-        1 * keys.keyOf(DEPARTMENT, 5L) >> { order << 'key'; Optional.of('Treasury') }
-        1 * departments.delete(5L) >> { order << 'delete' }
+        1 * keys.keyOf(BUSINESS_SERVICE, 5L) >> { order << 'key'; Optional.of('Treasury') }
+        1 * businessServices.delete(5L) >> { order << 'delete' }
         order == ['key', 'delete']
         rows*.objectKey() == ['Treasury']
         rows*.outcome() == [SUCCESS]
@@ -214,13 +212,13 @@ class AuditInterceptorSpec extends Specification {
     def "a SUCCESS row whose transaction does not commit is followed by a FAILURE row of its own"() {
         given:
         transactions.commitsToRefuse = 1
-        departments.findByName('Treasury') >> Optional.empty()
-        departments.save(_ as Department) >> new Department(4L, 'Treasury', 0)
-        departments.findAll() >> [new Department(4L, 'Treasury', 0)]
-        usage.perDepartment() >> [:]
+        businessServices.findByName('Treasury') >> Optional.empty()
+        businessServices.save(_ as BusinessService) >> new BusinessService(4L, 'Treasury', 0)
+        businessServices.findAll() >> [new BusinessService(4L, 'Treasury', 0)]
+        usage.perBusinessService() >> [:]
 
         when:
-        use(DepartmentsUseCase) { it.create('Treasury') }
+        use(BusinessServicesUseCase) { it.create('Treasury') }
 
         then:
         thrown(TransactionSystemException)
@@ -324,7 +322,7 @@ class AuditInterceptorSpec extends Specification {
         given:
         def moved = [state: BUSINESS_APPROVAL,
                      workflow: [new WorkflowStep(DRAFT, RAISED), new WorkflowStep(BUSINESS_APPROVAL, NOW)]]
-        changes.findByDepartment(3L) >> [raised(), raised(id: 8L, number: 'CHG0031002'),
+        changes.findByBusinessService(3L) >> [raised(), raised(id: 8L, number: 'CHG0031002'),
                                          raised(id: 9L, number: 'CHG0031003')]
         changes.save(_) >> { it[0] }
 
@@ -335,8 +333,8 @@ class AuditInterceptorSpec extends Specification {
         1 * proTech.read(_) >> [CHG0031001: raised(moved), CHG0031002: raised(id: 8L, number: 'CHG0031002'),
                                 CHG0031003: raised(moved + [id: 9L, number: 'CHG0031003'])]
         rows.collect { [it.action(), it.objectType(), it.objectId(), it.objectKey(), it.outcome(), it.details()] } == [
-                [CHANGE_SYNCED, CHANGE, 7L, 'CHG0031001', SUCCESS, '{"departmentId":3}'],
-                [CHANGE_SYNCED, CHANGE, 9L, 'CHG0031003', SUCCESS, '{"departmentId":3}']]
+                [CHANGE_SYNCED, CHANGE, 7L, 'CHG0031001', SUCCESS, '{"businessServiceId":3}'],
+                [CHANGE_SYNCED, CHANGE, 9L, 'CHG0031003', SUCCESS, '{"businessServiceId":3}']]
         rows*.user() == ['Mateusz Matan', 'Mateusz Matan']
         transactions.log == ['begin read-write', 'audit row read-write', 'commit'] * 2
 
@@ -393,10 +391,10 @@ class AuditInterceptorSpec extends Specification {
 
         where:
         refusal                                     | remote                | call                                                             || action        | message                                                                  | details
-        'a reminder of a change ProTech closed'     | raised(state: CLOSED) | { it.remind(7L, new ReminderCommand(3L, BUSINESS, null)) }       || REMINDER_SENT | 'CHG0031001 is closed in ProTech, so nobody is reminded to approve it'   | '{"id":7,"command":{"departmentId":3,"approval":"BUSINESS","task":null}}'
-        'a reminder of a task the change lacks'     | moved()               | { it.remind(7L, new ReminderCommand(3L, null, 'CTASK0049999')) } || REMINDER_SENT | 'task CTASK0049999 is not a change task of CHG0031001'                   | '{"id":7,"command":{"departmentId":3,"approval":null,"task":"CTASK0049999"}}'
-        'an edit of a change ProTech closed'        | raised(state: CLOSED) | { it.update(7L, unchangedEdit()) }                               || CHANGE_EDITED | 'CHG0031001 is closed in ProTech and can no longer be changed'           | '{"id":7,"command":{"version":0,"departmentId":3,"shortDescription":'
-        'change tasks for a change ProTech closed'  | raised(state: CLOSED) | { it.createTasks(7L, new ChangeTasksCommand(0L, 3L, [releaseTask([:], null)])) } || CHANGE_TASKS_CREATED | 'CHG0031001 is closed in ProTech and can no longer be changed' | '{"id":7,"command":{"version":0,"departmentId":3,"tasks":['
+        'a reminder of a change ProTech closed'     | raised(state: CLOSED) | { it.remind(7L, new ReminderCommand(3L, BUSINESS, null)) }       || REMINDER_SENT | 'CHG0031001 is closed in ProTech, so nobody is reminded to approve it'   | '{"id":7,"command":{"businessServiceId":3,"approval":"BUSINESS","task":null}}'
+        'a reminder of a task the change lacks'     | moved()               | { it.remind(7L, new ReminderCommand(3L, null, 'CTASK0049999')) } || REMINDER_SENT | 'task CTASK0049999 is not a change task of CHG0031001'                   | '{"id":7,"command":{"businessServiceId":3,"approval":null,"task":"CTASK0049999"}}'
+        'an edit of a change ProTech closed'        | raised(state: CLOSED) | { it.update(7L, unchangedEdit()) }                               || CHANGE_EDITED | 'CHG0031001 is closed in ProTech and can no longer be changed'           | '{"id":7,"command":{"version":0,"businessServiceId":3,"shortDescription":'
+        'change tasks for a change ProTech closed'  | raised(state: CLOSED) | { it.createTasks(7L, new ChangeTasksCommand(0L, 3L, [releaseTask([:], null)])) } || CHANGE_TASKS_CREATED | 'CHG0031001 is closed in ProTech and can no longer be changed' | '{"id":7,"command":{"version":0,"businessServiceId":3,"tasks":['
     }
 
     def "a reminder refused before ProTech is read leaves only its FAILURE row and the change as it was"() {
@@ -478,17 +476,17 @@ class AuditInterceptorSpec extends Specification {
         read.get('tasks')*.get('shortDescription')*.stringValue() == tasks*.shortDescription()
     }
 
-    def "a department that could not be created is filed under the name it was to have"() {
+    def "a business service that could not be created is filed under the name it was to have"() {
         given:
-        departments.findByName('Treasury') >> Optional.of(new Department(4L, 'Treasury', 0))
+        businessServices.findByName('Treasury') >> Optional.of(new BusinessService(4L, 'Treasury', 0))
 
         when:
-        use(DepartmentsUseCase) { it.create(' Treasury ') }
+        use(BusinessServicesUseCase) { it.create(' Treasury ') }
 
         then:
         thrown(IllegalStateException)
         rows.collect { [it.action(), it.objectType(), it.objectId(), it.objectKey(), it.outcome()] } ==
-                [[DEPARTMENT_CREATED, DEPARTMENT, null, 'Treasury', FAILURE]]
+                [[BUSINESS_SERVICE_CREATED, BUSINESS_SERVICE, null, 'Treasury', FAILURE]]
         0 * keys._
     }
 
@@ -521,7 +519,7 @@ class AuditInterceptorSpec extends Specification {
             objectType() == CHANGE
             objectKey() == 'CHG0031001'
             outcome() == (refused ? FAILURE : SUCCESS)
-            details().startsWith('{"id":7,"command":{"version":0,"departmentId":3,"tasks":[')
+            details().startsWith('{"id":7,"command":{"version":0,"businessServiceId":3,"tasks":[')
             details().endsWith(',"result":{"created":' + created + '}}')
         }
 
@@ -610,7 +608,7 @@ class AuditInterceptorSpec extends Specification {
         result
     }
 
-    private static DepartmentUsage departmentUsage(long products) {
-        [productCount: { -> products }, deletionRefusal: { String name -> Optional.empty() }] as DepartmentUsage
+    private static BusinessServiceUsage businessServiceUsage(long products) {
+        [productCount: { -> products }, deletionRefusal: { String name -> Optional.empty() }] as BusinessServiceUsage
     }
 }

@@ -6,9 +6,9 @@ import com.bbh.itss.beadle.application.UseCase;
 import com.bbh.itss.beadle.application.catalog.port.in.ProductCommand;
 import com.bbh.itss.beadle.application.catalog.port.in.ProductView;
 import com.bbh.itss.beadle.application.catalog.port.in.ProductsUseCase;
-import com.bbh.itss.beadle.application.catalog.port.out.DepartmentRepositoryPort;
+import com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceRepositoryPort;
 import com.bbh.itss.beadle.application.catalog.port.out.ProductRepositoryPort;
-import com.bbh.itss.beadle.domain.catalog.Department;
+import com.bbh.itss.beadle.domain.catalog.BusinessService;
 import com.bbh.itss.beadle.domain.catalog.Product;
 import com.bbh.itss.beadle.domain.catalog.ProductDetails;
 import lombok.RequiredArgsConstructor;
@@ -31,15 +31,15 @@ import static java.util.stream.Collectors.toMap;
 public class ProductService implements ProductsUseCase {
 
     private final ProductRepositoryPort products;
-    private final DepartmentRepositoryPort departments;
+    private final BusinessServiceRepositoryPort businessServices;
 
     @Override
     @ReadOnly
     public List<ProductView> list(String search) {
-        Map<Long, String> names = departmentNames();
+        Map<Long, String> names = businessServiceNames();
         return products.findAll().stream()
                 .map(product -> view(product, names))
-                .filter(view -> matches(search, view.name(), view.code(), view.ownerTeam(), view.departmentName()))
+                .filter(view -> matches(search, view.name(), view.code(), view.ownerTeam(), view.businessServiceName()))
                 .sorted(comparing(ProductView::name, CASE_INSENSITIVE_ORDER))
                 .toList();
     }
@@ -47,20 +47,20 @@ public class ProductService implements ProductsUseCase {
     @Override
     @ReadOnly
     public ProductView get(long id) {
-        return view(find(id), departmentNames());
+        return view(find(id), businessServiceNames());
     }
 
     @Override
     @Audited(PRODUCT_CREATED)
     public ProductView create(ProductCommand command) {
-        return view(products.save(Product.create(command.details(), products)), departmentNames());
+        return view(products.save(Product.create(command.details(), products)), businessServiceNames());
     }
 
     @Override
     @Audited(PRODUCT_UPDATED)
     public ProductView update(long id, ProductCommand command) {
         Product changed = find(id).change(command.version(), command.details(), products);
-        return view(products.save(changed), departmentNames());
+        return view(products.save(changed), businessServiceNames());
     }
 
     @Override
@@ -80,14 +80,14 @@ public class ProductService implements ProductsUseCase {
         return products.load(id).orElseThrow(() -> notFound("Product", id));
     }
 
-    private Map<Long, String> departmentNames() {
-        return departments.findAll().stream().collect(toMap(Department::id, Department::name));
+    private Map<Long, String> businessServiceNames() {
+        return businessServices.findAll().stream().collect(toMap(BusinessService::id, BusinessService::name));
     }
 
-    private static ProductView view(Product product, Map<Long, String> departmentNames) {
+    private static ProductView view(Product product, Map<Long, String> businessServiceNames) {
         ProductDetails details = product.details();
         return new ProductView(product.id(), details.code(), details.name(), details.ownerTeam(),
-                details.contactEmail(), details.departmentId(), departmentNames.get(details.departmentId()),
-                product.version(), product.updatedAt());
+                details.contactEmail(), details.businessServiceId(),
+                businessServiceNames.get(details.businessServiceId()), product.version(), product.updatedAt());
     }
 }

@@ -25,7 +25,7 @@ class StandInServices extends RecordingHttpServer {
                                     'Thomas Ashby', 'Emma Brooks', 'Ann Lee', 'Grace Turner'].collect {
                 [value: it, detail: it.toLowerCase(Locale.ROOT).replace(' ', '.') + '@bbh.com']
             },
-            'departments'        : [[value: 'Corporate Technology', detail: 'Cost centre 4310'],
+            'business-services'        : [[value: 'Corporate Technology', detail: 'Cost centre 4310'],
                                     [value: 'Custody', detail: 'Cost centre 4410'],
                                     [value: 'Fund Services', detail: 'Cost centre 4510']],
             'assignment-groups'  : [[value: 'Release Management', detail: 'Corporate Technology'],

@@ -26,7 +26,7 @@ public interface ProductionChangeJpaRepository extends JpaRepository<ProductionC
 
     @Query("select c.businessServiceId, count(c) from ProductionChangeEntity c where c.businessServiceId is not null"
             + " group by c.businessServiceId")
-    List<Object[]> countByDepartment();
+    List<Object[]> countByBusinessService();
 
     @Modifying
     @Query("update ProductionChangeEntity c set c.syncedAt = :syncedAt where c.id in :ids")

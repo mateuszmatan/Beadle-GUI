@@ -44,7 +44,7 @@ import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 @Builder(toBuilder = true)
 public record ProductionChange(Long id, String number, Long productId, String productCode, String productName,
-                               Long departmentId, String departmentName, String openedBy, String fixVersion,
+                               Long businessServiceId, String businessServiceName, String openedBy, String fixVersion,
                                ChangeSchedule schedule, String shortDescription, String description,
                                ChangeTemplate template, List<String> epicKeys, List<String> storyKeys,
                                List<ChangeTask> tasks, String url, ChangeState state, List<WorkflowStep> workflow,
@@ -58,14 +58,6 @@ public record ProductionChange(Long id, String number, Long productId, String pr
     public static final Duration APPLY_LIMIT = ofMinutes(1);
     static final int SECTION_MAX = 300;
 
-    public Long businessServiceId() {
-        return departmentId;
-    }
-
-    public String businessServiceName() {
-        return departmentName;
-    }
-
     private static final List<Edited> EDITED = List.of(
             new Edited("shortDescription", ProductionChange::shortDescription),
             new Edited("description", ProductionChange::description),
@@ -78,7 +70,7 @@ public record ProductionChange(Long id, String number, Long productId, String pr
             new Edited("schedule.downtimeEnd", change -> change.schedule.downtimeEnd()),
             new Edited("template.requestedFor", change -> change.template.requestedFor()),
             new Edited("template.requestedBy", change -> change.template.requestedBy()),
-            new Edited("template.department", change -> change.template.department()),
+            new Edited("template.businessService", change -> change.template.businessService()),
             new Edited("template.assignmentGroup", change -> change.template.assignmentGroup()),
             new Edited("template.category", change -> change.template.category()),
             new Edited("template.assignedTo", change -> change.template.assignedTo()),
@@ -110,7 +102,7 @@ public record ProductionChange(Long id, String number, Long productId, String pr
     public static ProductionChange draft(ChangeProduct product, String openedBy, String fixVersion,
                                          ChangeSchedule schedule, ChangeTemplate template, List<JiraIssue> epics,
                                          List<JiraIssue> stories, String shortDescription, String description) {
-        ChangeTemplate raised = template.releasedAs(fixVersion).openedBy(openedBy, product.departmentName())
+        ChangeTemplate raised = template.releasedAs(fixVersion).openedBy(openedBy, product.businessServiceName())
                 .toBuilder().secureCodingTicket(null).build();
         String summary = isBlank(shortDescription) ? shortDescriptionOf(product, fixVersion, epics)
                 : shortDescription.trim();
@@ -118,7 +110,8 @@ public record ProductionChange(Long id, String number, Long productId, String pr
                 ? descriptionOf(product, fixVersion, schedule, raised, epics, stories)
                 : description.trim();
         return builder().productId(product.id()).productCode(product.code()).productName(product.name())
-                .departmentId(product.departmentId()).departmentName(product.departmentName()).openedBy(openedBy)
+                .businessServiceId(product.businessServiceId()).businessServiceName(product.businessServiceName())
+                .openedBy(openedBy)
                 .fixVersion(fixVersion)
                 .schedule(schedule).shortDescription(summary).description(text).template(raised)
                 .epicKeys(epics.stream().map(JiraIssue::key).toList())
@@ -296,7 +289,7 @@ public record ProductionChange(Long id, String number, Long productId, String pr
     static String descriptionOf(ChangeProduct product, String fixVersion, ChangeSchedule schedule,
                                 ChangeTemplate template, List<JiraIssue> epics, List<JiraIssue> stories) {
         String head = "Production release " + fixVersion + " of " + product.name() + " (" + product.code() + ")"
-                + (product.departmentName() == null ? "" : " in " + product.departmentName()) + ".\n"
+                + (product.businessServiceName() == null ? "" : " in " + product.businessServiceName()) + ".\n"
                 + schedule.text() + "\n\n"
                 + "Scope from Jira project " + template.jiraProjectKey() + ", FixVersion " + fixVersion + ":\n";
         String tail = "\n" + detailsOf(template);

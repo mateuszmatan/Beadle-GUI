@@ -69,7 +69,7 @@ class DemoChangeProfilesSpec extends Specification {
             it.jiraProjectKey() == 'PAYHUB' && it.planning() == suggested.planning() &&
                     it.release() == null &&
                     it.directBusinessService() == 'Fund Accounting' &&
-                    [it.requestedFor(), it.requestedBy(), it.department(), it.assignedTo()] == [null] * 4
+                    [it.requestedFor(), it.requestedBy(), it.businessService(), it.assignedTo()] == [null] * 4
         }
         saved[2L].privilegedAccess() == new PrivilegedAccess(true, PRIVILEGED_USERS)
         saved[3L].privilegedAccess().users() == []
@@ -128,7 +128,7 @@ class DemoChangeProfilesSpec extends Specification {
         seeder.fillIn()
 
         then:
-        1 * profiles.save(1L, *_) >> { throw InvalidRequestException.of('template.department', 'is too long') }
+        1 * profiles.save(1L, *_) >> { throw InvalidRequestException.of('template.businessService', 'is too long') }
         1 * profiles.save(2L, *_)
         noExceptionThrown()
     }

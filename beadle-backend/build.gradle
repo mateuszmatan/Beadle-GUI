@@ -1,4 +1,4 @@
-description = 'Beadle service: ProTech changes, change tasks, change templates and their products, with the departments, the error handling, the use case transactions and the single page app forwarding'
+description = 'Beadle service: ProTech changes, change tasks, change templates and their products, with the business services, the error handling, the use case transactions and the single page app forwarding'
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
