@@ -17,8 +17,8 @@ class SignInSpec extends BeadleSpecification {
         open('/changes')
 
         then:
-        assertThat(page.locator('header .user-badge .user-name')).hasText(BeadleStubApi.SIGNED_IN_USER)
-        assertThat(buttonIn(page.locator('header .user-badge'), 'Sign out')).isEnabled()
+        assertThat(page.locator('header .account .user-name')).hasText(BeadleStubApi.SIGNED_IN_USER)
+        assertThat(buttonIn(page.locator('header .account'), 'Sign out')).isEnabled()
         assertThat(menuLinks()).hasText(MENU as String[])
         ownErrors().isEmpty()
     }
@@ -29,7 +29,7 @@ class SignInSpec extends BeadleSpecification {
         open('/action-history')
 
         when:
-        buttonIn(page.locator('header .user-badge'), 'Sign out').click()
+        buttonIn(page.locator('header .account'), 'Sign out').click()
 
         then: 'the browser posted the token, ended its Ping session and came back to / without a session'
         awaitRequest('POST', '/logout').header('X-XSRF-TOKEN') == 'browser-xsrf-token'
@@ -55,6 +55,6 @@ class SignInSpec extends BeadleSpecification {
 
         then:
         page.waitForURL('**/changes')
-        assertThat(page.locator('header .user-badge .user-name')).hasText(BeadleStubApi.SIGNED_IN_USER)
+        assertThat(page.locator('header .account .user-name')).hasText(BeadleStubApi.SIGNED_IN_USER)
     }
 }

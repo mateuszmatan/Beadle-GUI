@@ -83,7 +83,7 @@ def npmEnvironment = npmSettings
         .collectEntries { setting, variable -> [variable, findProperty(setting)] }
 def designSystemPackages = (findProperty('designSystem.packages') ?: '@v6/v6-themes@21 @v6/v6-table @v6/v6-icons').toString().tokenize()
 def npmInstalled = layout.buildDirectory.file('npm/installed.txt')
-def designSystemInstalled = layout.buildDirectory.file('npm/design-system.txt')
+def designSystemDirs = designSystemPackages.collect { file("node_modules/${it.replaceFirst(/(?<!^)@.*/, '')}") }
 def workspaceFiles = files('package.json', 'package-lock.json', '.npmrc', 'angular.json', 'tsconfig.json')
 
 tasks.register('installNpmCIDeps', Exec) {
@@ -109,13 +109,8 @@ tasks.register('installDesignSystem', Exec) {
     inputs.files('package.json', 'package-lock.json', '.npmrc')
     inputs.property('packages', designSystemPackages)
     commandLine = npmCmd + ['install', '--no-save', '--no-audit', '--no-fund'] + designSystemPackages
-    outputs.file(designSystemInstalled)
-    onlyIf { !designSystemInstalled.get().asFile.isFile() }
-    outputs.upToDateWhen { designSystemInstalled.get().asFile.isFile() }
-    doLast {
-        designSystemInstalled.get().asFile.parentFile.mkdirs()
-        designSystemInstalled.get().asFile.text = 'checked'
-    }
+    // npm ci removes them again, so look at node_modules itself rather than at a marker file.
+    onlyIf { designSystemDirs.any { !new File(it, 'package.json').isFile() } }
 }
 
 project(':beadle-gui') { frontend ->
