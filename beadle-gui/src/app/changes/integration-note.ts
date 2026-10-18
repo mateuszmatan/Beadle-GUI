@@ -75,6 +75,11 @@ export function unreachableText({
       <p class="note">The connection status of Jira, ProTech and CyberTrack could not be loaded.</p>
     }
   `,
+  styles: `
+    .note {
+      margin-bottom: 12px;
+    }
+  `,
 })
 export class IntegrationNote {
   private readonly api = inject(ChangesApi);
