@@ -370,9 +370,9 @@ class ProductionChangeServiceSpec extends Specification {
         def integrations = service.integrations()
 
         then:
-        1 * jira.connected() >> false
-        1 * proTech.connected() >> true
-        1 * cyberTrack.connected() >> false
+        1 * jira.jiraConnected() >> false
+        1 * proTech.proTechConnected() >> true
+        1 * cyberTrack.cyberTrackConnected() >> false
         integrations == new ChangeIntegrations(false, true, false, internal, proTechAnswered)
 
         where:
@@ -1034,7 +1034,8 @@ class ProductionChangeServiceSpec extends Specification {
         1 * changes.synced([7L], NOW)
 
         then:
-        1 * cyberTrack.create(new SecureCodingTicket('CHG0031001', 'CertScanner', '10102026', secureCoding())) >>
+        1 * cyberTrack.createTicket(new SecureCodingTicket('CHG0031001', 'CertScanner', LocalDate.parse('2026-10-10'),
+                secureCoding())) >>
                 'SCP-1001'
 
         then:
@@ -1069,7 +1070,7 @@ class ProductionChangeServiceSpec extends Specification {
         then:
         def refused = thrown(type)
         refused.message == message
-        0 * cyberTrack.create(_)
+        0 * cyberTrack.createTicket(_)
         0 * proTech.update(_)
 
         where:
@@ -1105,7 +1106,7 @@ class ProductionChangeServiceSpec extends Specification {
         changes.load(7L) >> Optional.of(raised())
         changes.save(_) >> { ProductionChange it -> it }
         proTech.read(_) >> [CHG0031001: raised()]
-        cyberTrack.create(_) >> 'SCP-1002'
+        cyberTrack.createTicket(_) >> 'SCP-1002'
 
         when:
         service.createSecureCodingTicket(7L, ticket())
@@ -1127,7 +1128,7 @@ class ProductionChangeServiceSpec extends Specification {
         service.createSecureCodingTicket(7L, ticket())
 
         then:
-        1 * cyberTrack.create(_) >> { throw new UncheckedIOException('CyberTrack is down', new IOException()) }
+        1 * cyberTrack.createTicket(_) >> { throw new UncheckedIOException('CyberTrack is down', new IOException()) }
         0 * changes.save(_)
         0 * proTech.update(_)
         def refused = thrown(UncheckedIOException)
@@ -1366,7 +1367,7 @@ class ProductionChangeServiceSpec extends Specification {
         changes.load(7L) >> Optional.of(raised())
         changes.save(_) >> { ProductionChange it -> it }
         proTech.read(_) >> [CHG0031001: raised()]
-        cyberTrack.create(_) >> 'SCP-1002'
+        cyberTrack.createTicket(_) >> 'SCP-1002'
         proTech.update(_) >> { throw new IllegalStateException(CLOSED_REFUSAL) }
 
         when:

@@ -178,9 +178,9 @@ class UseCaseConfigurationSpec extends Specification {
     def "Beadle asks Jira, ProTech and CyberTrack whether they are connected with no transaction"() {
         given:
         ChangeIntegrations integrations = null
-        jira.connected() >> { calls << 'Jira ' + transactionState(); true }
-        proTech.connected() >> { calls << 'ProTech ' + transactionState(); false }
-        cyberTrack.connected() >> { calls << 'CyberTrack ' + transactionState(); true }
+        jira.jiraConnected() >> { calls << 'Jira ' + transactionState(); true }
+        proTech.proTechConnected() >> { calls << 'ProTech ' + transactionState(); false }
+        cyberTrack.cyberTrackConnected() >> { calls << 'CyberTrack ' + transactionState(); true }
         jira.reachable() >> true
         cyberTrack.reachable() >> true
         proTech.reachable() >> true

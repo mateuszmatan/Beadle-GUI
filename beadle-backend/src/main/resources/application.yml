@@ -27,6 +27,10 @@ spring:
       cache:
         cachecontrol:
           no-cache: true
+  http:
+    clients:
+      connect-timeout: 5s
+      read-timeout: 30s
 
 server:
   port: ${PORT:8081}

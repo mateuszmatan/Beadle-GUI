@@ -135,8 +135,8 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @Override
     @WithoutTransaction
     public ChangeIntegrations integrations() {
-        return new ChangeIntegrations(jira.connected(), proTech.connected(), cyberTrack.connected(),
-                jira.reachable() && cyberTrack.reachable(), proTech.reachable());
+        return new ChangeIntegrations(jira.jiraConnected(), proTech.proTechConnected(),
+                cyberTrack.cyberTrackConnected(), jira.reachable() && cyberTrack.reachable(), proTech.reachable());
     }
 
     @Override
@@ -214,7 +214,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         if (existing != null) {
             throw new IllegalStateException(current.number() + " already has the secure coding ticket " + existing);
         }
-        String key = cyberTrack.create(ticket);
+        String key = cyberTrack.createTicket(ticket);
         AuditNotes.created(key);
         try {
             return published(current.withSecureCoding(command.secureCoding(), key), current, now(clock));

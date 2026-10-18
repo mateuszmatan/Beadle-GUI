@@ -74,9 +74,10 @@ class BeadleSmokeSpec extends Specification {
         departments.json.every { it.containsKey('productCount') && it.containsKey('changeCount') }
         changes.status == 200
         changes.json.every { it.syncProblem == null }
-        api.get('/api/changes/integrations').json.keySet() ==
-                ['jiraConnected', 'proTechConnected', 'cyberTrackConnected', 'internalReachable',
-                 'proTechReachable'] as Set
+        def integrations = api.get('/api/changes/integrations').json
+        integrations.keySet() == ['jiraConnected', 'proTechConnected', 'cyberTrackConnected', 'internalReachable',
+                                  'proTechReachable'] as Set
+        !started || integrations.values().every()
     }
 
     def "the wizard reads its options, a product's change template, its FixVersions and epics and one value per lookup"() {

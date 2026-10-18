@@ -12,8 +12,8 @@ import java.io.IOException;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.security.MessageDigest.isEqual;
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.removeStart;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
+import static org.apache.commons.lang3.Strings.CS;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.HttpHeaders.WWW_AUTHENTICATE;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
@@ -62,7 +62,7 @@ public class ServiceTokenFilter extends OncePerRequestFilter {
         if (token.length == 0 || isBlank(authorization) || !authorization.startsWith(BEARER)) {
             return false;
         }
-        return isEqual(token, removeStart(authorization, BEARER).trim().getBytes(UTF_8));
+        return isEqual(token, CS.removeStart(authorization, BEARER).trim().getBytes(UTF_8));
     }
 
     static void refuse(HttpServletResponse response) throws IOException {

@@ -4,6 +4,8 @@ import com.bbh.itss.beadle.domain.shared.InvalidRequestException
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException.FieldProblem
 import spock.lang.Specification
 
+import java.time.LocalDate
+
 import static com.bbh.itss.beadle.domain.change.SecureCodingTicket.DATE_MESSAGE
 import static com.bbh.itss.beadle.support.ChangeFixtures.raised
 import static com.bbh.itss.beadle.support.ChangeFixtures.secureCoding
@@ -15,7 +17,7 @@ class SecureCodingTicketSpec extends Specification {
         def ticket = SecureCodingTicket.of(raised(), secureCoding(), ' 10152026 ')
 
         then:
-        ticket == new SecureCodingTicket('CHG0031001', 'CertScanner', '10152026', secureCoding())
+        ticket == new SecureCodingTicket('CHG0031001', 'CertScanner', LocalDate.parse('2026-10-15'), secureCoding())
     }
 
     def "the implementation date #date is refused"() {
