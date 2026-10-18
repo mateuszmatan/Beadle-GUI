@@ -88,7 +88,7 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
           <p class="page-description">{{ section.description }}</p>
         </div>
         <div class="actions">
-          <a class="btn btn-primary" [routerLink]="newChange.path">Raise a change</a>
+          <a class="btn btn-primary" [routerLink]="newChange.path">Raise change</a>
         </div>
       </header>
       <beadle-integration-note />
@@ -183,12 +183,12 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
         </section>
         @if (changes.hasValue() && !all().length) {
           <div class="card empty-state">
-            <h3>No ProTech change of {{ businessServiceName() }} yet</h3>
+            <h3>No ProTech changes for {{ businessServiceName() }} yet</h3>
             <p>
               Raise one for a production release: choose the product and its Jira release, and
               Beadle writes the change and its change tasks for ProTech.
             </p>
-            <a class="btn btn-primary" [routerLink]="newChange.path">Raise a change</a>
+            <a class="btn btn-primary" [routerLink]="newChange.path">Raise change</a>
           </div>
         }
       }
@@ -223,7 +223,7 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
 
     .meaning {
       color: var(--beadle-muted);
-      font-size: 11.5px;
+      font-size: 12px;
       white-space: normal;
     }
 

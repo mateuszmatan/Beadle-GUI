@@ -39,7 +39,7 @@ const CODE_HELP = "2 to 50 characters: a letter first, then A-Z, 0-9, '-' or '_'
   template: `
     <div class="modal-header">
       <h2 beadleDialogTitle>
-        {{ product ? 'Edit the details of ' + product.name : 'Add product' }}
+        {{ product ? 'Edit details of ' + product.name : 'Add product' }}
       </h2>
     </div>
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
@@ -64,7 +64,7 @@ const CODE_HELP = "2 to 50 characters: a letter first, then A-Z, 0-9, '-' or '_'
               <beadle-label>Product code</beadle-label>
               <input beadleInput class="mono" formControlName="code" autocomplete="off" required />
               <beadle-hint
-                >Short unique name used in reports, for example PAYHUB. Made from the
+                >A short unique name used in reports, for example PAYHUB. Suggested from the product
                 name.</beadle-hint
               >
               <beadle-error>{{ errorText(form.controls.code, codeHelp) }}</beadle-error>
@@ -82,13 +82,13 @@ const CODE_HELP = "2 to 50 characters: a letter first, then A-Z, 0-9, '-' or '_'
           <beadle-form-field>
             <beadle-label>Owner team</beadle-label>
             <input beadleInput formControlName="ownerTeam" />
-            <beadle-hint>The team that looks after the product</beadle-hint>
+            <beadle-hint>The team responsible for the product</beadle-hint>
             <beadle-error>{{ errorText(form.controls.ownerTeam) }}</beadle-error>
           </beadle-form-field>
           <beadle-form-field>
             <beadle-label>Contact e-mail</beadle-label>
             <input beadleInput type="email" formControlName="contactEmail" />
-            <beadle-hint>Where questions about the product go</beadle-hint>
+            <beadle-hint>The address for questions about the product</beadle-hint>
             <beadle-error>{{ errorText(form.controls.contactEmail) }}</beadle-error>
           </beadle-form-field>
         </div>

@@ -68,7 +68,7 @@ describe('ChangeEdit', () => {
   }
 
   async function publish() {
-    buttonOf(page(), 'Publish the update to ProTech').click();
+    buttonOf(page(), 'Publish update to ProTech').click();
     await settle();
   }
 
@@ -92,8 +92,8 @@ describe('ChangeEdit', () => {
     expect(text(page().querySelector('h1'))).toBe('Edit CHG0012345');
     expect(text(page().querySelector('.breadcrumb'))).toBe('Changes/CHG0012345/Edit');
     expect(text(page().querySelector('.page-header p'))).toBe(
-      'Change any value and publish it: the update goes to ProTech at once, and the change page ' +
-        'then shows whether ProTech applied it. Fields marked * are required.',
+      'Change any value and publish the update: it goes to ProTech immediately, and the change ' +
+        'page then shows whether ProTech applied it. Fields marked * are required.',
     );
     expect([...page().querySelectorAll('h2')].map(text)).toEqual([
       'ProTech fields',
@@ -127,7 +127,7 @@ describe('ChangeEdit', () => {
     expect(inputOf(page(), 'Downtime start').value).toBe(
       inputOf(page(), 'Installation start').value,
     );
-    buttonOf(page(), 'Add a change task').click();
+    buttonOf(page(), 'Add change task').click();
     await settle();
     await type('Assignment group', 'Release Management', taskRows()[2]);
     await type('Short description', 'Tell the users', taskRows()[2]);
@@ -175,7 +175,7 @@ describe('ChangeEdit', () => {
 
     expect(TestBed.inject(PublishedChange).take(7)).toEqual(saved);
     expect(success).toHaveBeenCalledWith(
-      'Your update of CHG0012345 is published to ProTech. This page shows when ProTech has applied it.',
+      'Your update of CHG0012345 has been published to ProTech. This page shows when ProTech has applied it.',
     );
     expect(navigate).toHaveBeenCalledWith(['/changes', 7]);
     expect(edit().hasUnsavedChanges()).toBe(false);
@@ -281,7 +281,7 @@ describe('ChangeEdit', () => {
   it('does not offer a closed change or the change of another business service', async () => {
     await show(productionChange({ state: 'CLOSED' }));
     expect(text(page().querySelector('.banner.refused'))).toBe(
-      'CHG0012345 is closed in ProTech and can no longer be changedBack to the change',
+      'CHG0012345 is closed in ProTech and can no longer be changedBack to change',
     );
     expect(page().querySelector('form')).toBeNull();
     fixture.destroy();

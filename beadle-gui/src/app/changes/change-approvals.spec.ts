@@ -81,7 +81,7 @@ describe('the approvals of a change', () => {
       'No business service owns CHG0012345, so nobody can remind its approvers in Beadle',
     );
     expect(reminderHint(productionChange({ syncProblem: 'Read timed out' }), 3)).toBe(
-      'ProTech cannot be read just now, so no reminder can be sent',
+      'ProTech cannot be reached at the moment, so no reminder can be sent',
     );
   });
 
@@ -195,7 +195,7 @@ describe('ChangeApprovals', () => {
       ['L1 approverPrimary Approval', 'Olivia Bennett', 'Requested', '', 'Remind'],
       ['L2 approverSecondary Approval', 'James Carter', 'Not Approved', '', 'Remind'],
       ['Support approverSupport Approval', 'Jane Smith', 'Not Approved', '', 'Remind'],
-      ['CTASK approvals'],
+      ['Change task approvals'],
       [
         'CTASK0020001Technology Architecture',
         'Rebecca Lawson, Thomas Ashby',
@@ -252,7 +252,7 @@ describe('ChangeApprovals', () => {
     await settle();
 
     expect(changed).toEqual([reminded]);
-    expect(success).toHaveBeenCalledWith('Reminder sent to Olivia Bennett');
+    expect(success).toHaveBeenCalledWith('Reminder sent to Olivia Bennett.');
     expect(remindAll().disabled).toBe(false);
   });
 
@@ -319,7 +319,7 @@ describe('ChangeApprovals', () => {
     expect(text(page().querySelector('.no-tasks'))).toBe(
       'No change tasks yet. The change needs at least one approved change task to go In Progress.',
     );
-    expect(rows().some((row) => row[0] === 'CTASK approvals')).toBe(false);
+    expect(rows().some((row) => row[0] === 'Change task approvals')).toBe(false);
     fixture.destroy();
 
     await show(productionChange({ state: 'CLOSED', tasks: [] }));

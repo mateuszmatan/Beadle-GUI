@@ -7,15 +7,15 @@ import { HasUnsavedChanges } from './unsaved-changes';
 /** The draft of the page that was open when the session ended, kept in the tab while the browser signs in again. */
 export const DRAFT_KEY = 'beadle.signIn.draft';
 
-export const SESSION_ENDED = 'Your session ended';
+export const SESSION_ENDED = 'Your session has ended';
 
 export const DRAFT_KEPT =
-  'Beadle signed you out, for example after a while without activity, before your changes on this page were saved. ' +
-  'They are kept in this browser tab and come back on this page once you have signed in again.';
+  'Your session ended before the changes on this page were saved, for example after a period of inactivity. ' +
+  'They are kept in this browser tab and restored on this page after you sign in again.';
 
 export const DRAFT_LOST =
-  'Beadle signed you out, for example after a while without activity, before your changes on this page were saved. ' +
-  'Signing in again starts this page anew, so stay on it first to copy what you need.';
+  'Your session ended before the changes on this page were saved, for example after a period of inactivity. ' +
+  'Signing in again reloads this page without them, so stay on it first to copy anything you need.';
 
 /**
  * A page that keeps its unsaved entries over a new sign-in: {@link SessionEnd} keeps its draft in the tab under its

@@ -55,7 +55,7 @@ describe('ChangeSecureCoding', () => {
   }
 
   async function create() {
-    buttonOf(page(), 'Create the secure coding ticket in CyberTrack').click();
+    buttonOf(page(), 'Create secure coding ticket in CyberTrack').click();
     await settle();
   }
 
@@ -110,7 +110,7 @@ describe('ChangeSecureCoding', () => {
 
     expect(hand).toHaveBeenCalledWith(ticketed);
     expect(success).toHaveBeenCalledWith(
-      'SCP-1234 is created in CyberTrack and sent to ProTech as the secure coding ticket of CHG0012345.',
+      'SCP-1234 has been created in CyberTrack and sent to ProTech as the secure coding ticket of CHG0012345.',
     );
     expect(navigate).toHaveBeenCalledWith(['/changes', 7]);
     expect(fixture.componentInstance.hasUnsavedChanges()).toBe(false);

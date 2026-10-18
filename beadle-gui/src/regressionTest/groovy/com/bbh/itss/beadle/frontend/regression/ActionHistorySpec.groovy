@@ -47,7 +47,7 @@ class ActionHistorySpec extends BeadleSpecification {
         assertThat(details('User')).hasText('system:internal')
         assertThat(details('Outcome')).hasText('Failure')
         assertThat(details('Duration')).hasText('15 ms')
-        assertThat(details('Correlation id')).hasText('5b1e7c1a-2f4d-4c8e-9a10-000000000004')
+        assertThat(details('Correlation ID')).hasText('5b1e7c1a-2f4d-4c8e-9a10-000000000004')
         assertThat(dialog().locator('.message .banner')).hasText('No change waits for the ticket SCP-123')
         assertThat(dialog().locator('pre')).hasText('''{
   "callback": {
@@ -144,8 +144,8 @@ class ActionHistorySpec extends BeadleSpecification {
         input(filters(), 'To').fill('2026-10-13')
 
         then:
-        hasErrors(filters(), [To: 'The last day comes before the first'])
-        assertThat(page.locator('.beadle-grid-empty')).hasText('The last day comes before the first: change From or To.')
+        hasErrors(filters(), [To: 'The last day is before the first day'])
+        assertThat(page.locator('.beadle-grid-empty')).hasText('The last day is before the first day: change From or To.')
         assertThat(column('object')).hasCount(0)
         api.requests('GET', '/api/action-history').size() == asked
         ownErrors().isEmpty()

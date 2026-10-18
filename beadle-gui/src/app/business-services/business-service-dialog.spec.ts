@@ -44,10 +44,10 @@ describe('BusinessServiceDialog', () => {
 
   it('adds a business service with the trimmed name', async () => {
     await render(null);
-    expect(text(page().querySelector('h2'))).toBe('Add a business service');
+    expect(text(page().querySelector('h2'))).toBe('Add business service');
     expect(text(page().querySelector('button[type=submit]'))).toBe('Add business service');
     expect(text(page().querySelector('beadle-hint'))).toBe(
-      'The name people know the business service by, for example Fund Services',
+      'The name of the business service at BBH, for example Fund Services',
     );
     expect(page().querySelector('.intro')).toBeNull();
 
@@ -74,7 +74,7 @@ describe('BusinessServiceDialog', () => {
     await render(businessService({ version: 2 }));
     expect(text(page().querySelector('h2'))).toBe('Rename Corporate Technology');
     expect(text(page().querySelector('.intro'))).toBe(
-      'The new name shows everywhere in Beadle at once. The products of the business service stay as they are.',
+      'The new name applies throughout Beadle immediately. The products of the business service are not affected.',
     );
     expect(text(page().querySelector('button[type=submit]'))).toBe('Rename business service');
     expect(inputOf(page(), 'Name').value).toBe('Corporate Technology');

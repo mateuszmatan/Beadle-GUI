@@ -38,7 +38,7 @@ export const SECTIONS: readonly Section[] = [
     key: 'jira',
     step: 'Jira',
     title: 'Jira',
-    lead: 'Type the FixVersion, the Jira release this change delivers, and find its epics. Then pick the epics and stories the change delivers: they write the text of the change for ProTech.',
+    lead: 'Enter the FixVersion, the Jira release this change delivers, and find its epics. Then choose the epics and stories the change delivers; they provide the text of the change for ProTech.',
     adminLead: 'The Jira project the epics and stories of a release come from.',
   },
   {

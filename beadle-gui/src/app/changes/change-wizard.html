@@ -32,7 +32,7 @@
         <h2>{{ current()!.title }}</h2>
         <p class="lead">
           Choose your business service and the product that goes to production. The product's change
-          template fills in every step, and you can change any value for this change. Fields marked
+          template fills in every step, and any value can be changed for this change. Fields marked
           * are required.
         </p>
         @if (businessServicesError(); as error) {
@@ -92,9 +92,7 @@
                 filled in. An admin can set it in Beadle Admin.</span
               >
               <span class="spacer"></span>
-              <a class="btn btn-link" [routerLink]="templateLink(chosen.productId)"
-                >Set the template</a
-              >
+              <a class="btn btn-link" [routerLink]="templateLink(chosen.productId)">Set template</a>
             </div>
           }
           <beadle-template-section [form]="form" section="request" [facts]="facts()" />
@@ -245,8 +243,8 @@
               <div>
                 <h3>Text sent to ProTech</h3>
                 <p class="hint">
-                  Written from the chosen epics and stories. The description takes in the later
-                  steps as you fill them in, and you can change both texts.
+                  Written from the chosen epics and stories. The description includes the later
+                  steps as you complete them, and both texts can be edited.
                 </p>
               </div>
               <beadle-change-texts
@@ -263,7 +261,8 @@
         <h2>{{ current()!.title }}</h2>
         <p class="lead">
           The installation starts on the release date of the FixVersion while it is ahead, otherwise
-          on the next day, with the times of the change template. Change any of it.
+          on the next day, with the times of the change template. Any of these values can be
+          changed.
         </p>
         <beadle-change-schedule
           [schedule]="schedule()!"
@@ -271,11 +270,11 @@
         />
       }
       @case ('review') {
-        <h2>Check the change and create it in ProTech</h2>
+        <h2>Check the change and raise it in ProTech</h2>
         <p class="lead">
-          Check every value, then create the change: ProTech creates it and gives it its change
-          number (CHG). Two more steps then follow: you add its change tasks (CTASKs), which carry
-          that number, and create its secure coding ticket in CyberTrack.
+          Check every value, then raise the change: ProTech creates it and gives it its change
+          number (CHG). Two steps follow: adding its change tasks (CTASKs), which carry that number,
+          and creating its secure coding ticket in CyberTrack.
         </p>
         @if (previewing()) {
           <beadle-loading />
@@ -292,7 +291,7 @@
             <div>
               <h3>Text sent to ProTech</h3>
               <p class="hint">
-                Written from the values above. Change it if you like before you create the change.
+                Written from the values above. You can edit it before you raise the change.
               </p>
             </div>
             <beadle-change-texts
@@ -308,8 +307,8 @@
         @if (raised(); as change) {
           <div class="banner success raised-note" role="status">
             <span
-              ><strong>{{ change.number }} is created in ProTech.</strong> Now add its change tasks
-              to it.</span
+              ><strong>{{ change.number }} has been raised in ProTech.</strong> Add its change tasks
+              next.</span
             >
           </div>
           <h2>Change tasks of {{ change.number }}</h2>
@@ -340,7 +339,7 @@
       }
       @case ('raised') {
         @if (raised(); as change) {
-          <h2>{{ change.number }} is created</h2>
+          <h2>{{ change.number }} has been raised</h2>
           <p class="lead">{{ change.shortDescription }}</p>
           <div class="form-fields summary-numbers">
             <beadle-form-field class="span-6 read-only">
@@ -375,7 +374,7 @@
                     <span class="muted"> · {{ task.details.assignmentGroup }}</span>
                   </li>
                 } @empty {
-                  <li class="muted">None yet. Add them with Edit the change on its page.</li>
+                  <li class="muted">None yet. Add them with Edit change on the change page.</li>
                 }
               </ul>
             </dd>
@@ -449,10 +448,10 @@
     <div class="step-actions">
       @if (stepKey() === 'raised') {
         <button type="button" class="btn btn-outline-primary" (click)="restart()">
-          Create another change
+          Raise another change
         </button>
         <span class="spacer"></span>
-        <a class="btn btn-primary" [routerLink]="changeLink(raised()?.id ?? '')">Open the change</a>
+        <a class="btn btn-primary" [routerLink]="changeLink(raised()?.id ?? '')">Open change</a>
       } @else {
         @if (laterLabels[stepKey()]; as label) {
           <button

@@ -237,11 +237,11 @@ describe('ActionHistory', () => {
 
     http.expectNone((request) => request.url === '/api/action-history');
     expect(text(fieldOf(page(), 'To')?.querySelector('.invalid-feedback'))).toBe(
-      'The last day comes before the first',
+      'The last day is before the first day',
     );
     expect(gridRows(page())).toHaveLength(0);
     expect(text(page().querySelector('.beadle-grid-empty'))).toBe(
-      'The last day comes before the first: change From or To.',
+      'The last day is before the first day: change From or To.',
     );
 
     await type('To', '2026-10-15');
@@ -322,7 +322,7 @@ describe('ActionHistory', () => {
 
     const banners = [...page().querySelectorAll('.banner')].map(text);
     expect(banners).toEqual([
-      'The lists of users and actions could not be loaded. Try again in a moment; if it keeps failing, tell the Beadle administrator.Try again',
+      'The lists of users and actions could not be loaded. Try again in a moment. If the problem persists, contact the Beadle administrator.Try again',
       'The action history could not be loaded: The database is not answering.Try again',
     ]);
 

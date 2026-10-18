@@ -72,7 +72,7 @@ describe('ProductDialog', () => {
     ]);
     expect(form().controls.businessServiceId.value).toBe(5);
     expect(text(fieldOf(page(), 'Product code')?.querySelector('beadle-hint'))).toBe(
-      'Short unique name used in reports, for example PAYHUB. Made from the name.',
+      'A short unique name used in reports, for example PAYHUB. Suggested from the product name.',
     );
     expect(text(page().querySelector('button[type=submit]'))).toBe('Add product');
 
@@ -177,7 +177,7 @@ describe('ProductDialog', () => {
     const stored = product({ contactEmail: null });
     await render({ product: stored });
 
-    expect(text(page().querySelector('h2'))).toBe('Edit the details of CertScanner');
+    expect(text(page().querySelector('h2'))).toBe('Edit details of CertScanner');
     expect(text(page().querySelector('.intro'))).toBe(
       'Its product code, CERT, stays as it is. Fields marked * are required.',
     );

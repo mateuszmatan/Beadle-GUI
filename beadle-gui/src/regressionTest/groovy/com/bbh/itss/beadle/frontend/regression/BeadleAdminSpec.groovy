@@ -86,7 +86,7 @@ class BeadleAdminSpec extends BeadleSpecification {
         open('/admin/products')
 
         then:
-        assertThat(gridCell(productRow('CertScanner'), 'template')).hasText('Not known')
+        assertThat(gridCell(productRow('CertScanner'), 'template')).hasText('Unknown')
         assertThat(page.locator('.banner')).containsText('The products are listed, but the state of their change templates ' +
                 'could not be loaded. The change templates are not available')
 
@@ -118,7 +118,7 @@ class BeadleAdminSpec extends BeadleSpecification {
         assertThat(dialog().locator('h2')).hasText('Add product')
         assertThat(dialog().locator('beadle-label')).hasText(['Product name', 'Product code', 'Business service', 'Owner team',
                                                            'Contact e-mail'] as String[])
-        assertThat(hintOf(dialog(), 'Product code')).hasText('Short unique name used in reports, for example PAYHUB. Made from the name.')
+        assertThat(hintOf(dialog(), 'Product code')).hasText('A short unique name used in reports, for example PAYHUB. Suggested from the product name.')
         assertThat(selected(dialog(), 'Business service')).hasText('Custody')
 
         when:
@@ -149,7 +149,7 @@ class BeadleAdminSpec extends BeadleSpecification {
 
         then:
         page.waitForURL('**/admin/products/3')
-        assertThat(snackBar()).containsText('Trade Archive added. Now fill in its change template.')
+        assertThat(snackBar()).containsText('Trade Archive added. Fill in its change template next.')
         def request = awaitRequest('POST', '/api/products', 2)
         request.params() == [:]
         request.json() == [code        : 'TRADEARCHIVE', name: 'Trade Archive', ownerTeam: 'Custody Technology',

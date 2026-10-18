@@ -41,7 +41,7 @@ import {
 /** How long the page waits after the last key typed in the object key before it asks again. */
 export const TYPING_DELAY = 300;
 
-export const RANGE_PROBLEM = 'The last day comes before the first';
+export const RANGE_PROBLEM = 'The last day is before the first day';
 
 export interface ActionRow {
   record: ActionRecord;

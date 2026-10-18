@@ -133,7 +133,7 @@ export class ProductAdmin {
         if (result instanceof HttpErrorResponse) {
           this.reload(result, product);
         } else if (result) {
-          this.done(result, `${result.name} saved`);
+          this.done(result, `${result.name} saved.`);
         }
       });
   }
@@ -155,7 +155,7 @@ export class ProductAdmin {
       )
       .subscribe({
         next: () => {
-          this.notifier.success(`${product.name} deleted`);
+          this.notifier.success(`${product.name} deleted.`);
           this.deleted.emit(product);
         },
         error: (error) =>
@@ -179,7 +179,7 @@ export class ProductAdmin {
           this.notifier.error(
             latest.version === product.version
               ? `The details of ${product.name} could not be saved. ${errorMessage(conflict)}`
-              : `${product.name} was changed by someone else. Its latest version is shown now; make your change again.`,
+              : `${product.name} was changed by another user. Its latest version is now shown; apply your change again.`,
           );
         },
         error: (error) => this.notifier.error(error),

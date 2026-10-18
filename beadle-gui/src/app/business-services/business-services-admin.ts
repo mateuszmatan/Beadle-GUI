@@ -75,7 +75,7 @@ export class BusinessServicesAdmin {
   }
 
   protected rename(businessService: BusinessService): void {
-    this.edit(businessService, (saved) => `${businessService.name} renamed to ${saved.name}`);
+    this.edit(businessService, (saved) => `${businessService.name} renamed to ${saved.name}.`);
   }
 
   protected delete(businessService: BusinessService): void {
@@ -96,7 +96,7 @@ export class BusinessServicesAdmin {
       )
       .subscribe({
         next: () => {
-          this.notifier.success(`${businessService.name} deleted`);
+          this.notifier.success(`${businessService.name} deleted.`);
           this.businessServices.reload();
         },
         error: (error) => this.notifier.error(error),

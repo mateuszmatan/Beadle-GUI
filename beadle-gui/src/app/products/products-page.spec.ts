@@ -128,8 +128,8 @@ describe('ProductsPage', () => {
     expect(text(page().querySelector('.banner span'))).toBe(
       'The products are listed, but the state of their change templates could not be loaded. The change templates are not available',
     );
-    expect(text(gridCell(rowOf('CertScanner'), 'template'))).toBe('Not known');
-    expect(cells('Payments Hub')).toEqual(['Payments HubPAYHUB', '–', 'Not known']);
+    expect(text(gridCell(rowOf('CertScanner'), 'template'))).toBe('Unknown');
+    expect(cells('Payments Hub')).toEqual(['Payments HubPAYHUB', '–', 'Unknown']);
 
     buttonOf(page().querySelector('.banner')!, 'Try again').click();
     fixture.detectChanges();
@@ -225,7 +225,7 @@ describe('ProductsPage', () => {
     addToFund.click();
     expect(open.mock.calls[1][1]?.data).toMatchObject({ businessServiceId: 5 });
     await fixture.whenStable();
-    expect(snack()).toContain('Trade Archive added. Now fill in its change template.');
+    expect(snack()).toContain('Trade Archive added. Fill in its change template next.');
     expect(navigate).toHaveBeenCalledWith(['/admin/products', 7]);
   });
 });

@@ -71,8 +71,8 @@ export type EditForm = ReturnType<typeof editForm>;
           <div>
             <h1>Edit {{ c.number }}</h1>
             <p>
-              Change any value and publish it: the update goes to ProTech at once, and the change
-              page then shows whether ProTech applied it. Fields marked * are required.
+              Change any value and publish the update: it goes to ProTech immediately, and the
+              change page then shows whether ProTech applied it. Fields marked * are required.
             </p>
           </div>
         </header>
@@ -80,7 +80,7 @@ export type EditForm = ReturnType<typeof editForm>;
           <div class="banner refused" role="alert">
             <span>{{ message }}</span>
             <span class="spacer"></span>
-            <a class="btn btn-link" [routerLink]="changeLink(id())">Back to the change</a>
+            <a class="btn btn-link" [routerLink]="changeLink(id())">Back to change</a>
           </div>
         } @else if (form(); as f) {
           <form [formGroup]="f" (ngSubmit)="publish()" novalidate>
@@ -108,7 +108,7 @@ export type EditForm = ReturnType<typeof editForm>;
               <h2>Text sent to ProTech</h2>
               <p class="section-help">
                 The short description and description ProTech shows for the change. They are not
-                rewritten when you change the fields above, so bring them in line yourself.
+                rewritten when you change the fields above, so update them as needed.
               </p>
               <beadle-change-texts
                 [shortDescription]="f.controls.shortDescription"
@@ -116,7 +116,7 @@ export type EditForm = ReturnType<typeof editForm>;
               />
             </section>
             <beadle-save-bar
-              label="Publish the update to ProTech"
+              label="Publish update to ProTech"
               [cancelLink]="changeLink(id())"
               [failure]="failure()"
               [saving]="saving()"
@@ -214,7 +214,7 @@ export class ChangeEdit implements HasUnsavedChanges {
           form.markAsPristine();
           this.published.hand(saved);
           this.notifier.success(
-            `Your update of ${saved.number} is published to ProTech. This page shows when ProTech has applied it.`,
+            `Your update of ${saved.number} has been published to ProTech. This page shows when ProTech has applied it.`,
           );
           this.router.navigate(changePath(this.id()));
         },

@@ -51,12 +51,11 @@ import { TemplateForm } from './change-template-model';
         h3 {
           margin: 0;
           font-size: 14px;
-          font-weight: 600;
         }
 
         p {
           margin: 0;
-          font-size: 11.5px;
+          font-size: 12px;
           color: var(--beadle-muted);
         }
       }

@@ -193,11 +193,11 @@ describe('ChangesList', () => {
     await settle();
 
     expect(text(page().querySelector('.empty-state h3'))).toBe(
-      'No ProTech change of Fund Services yet',
+      'No ProTech changes for Fund Services yet',
     );
     expect(page().querySelector('.empty-state a')?.getAttribute('href')).toBe('/new-change');
-    expect(text(page().querySelector('.empty-state a'))).toBe('Raise a change');
-    expect(text(page().querySelector('.page-header .btn-primary'))).toBe('Raise a change');
+    expect(text(page().querySelector('.empty-state a'))).toBe('Raise change');
+    expect(text(page().querySelector('.page-header .btn-primary'))).toBe('Raise change');
     expect(page().querySelector('beadle-grid')?.closest('section')?.hidden).toBe(true);
   });
 
@@ -240,7 +240,7 @@ describe('ChangesList', () => {
       '1',
     ]);
     expect(text(gridCell(first, 'actions'))).toBe('Edit change');
-    expect(text(gridCell(second, 'state'))).toBe('ClosedDone');
+    expect(text(gridCell(second, 'state'))).toBe('ClosedCompleted');
     expect(text(gridCell(second, 'actions'))).toBe('');
     expect(gridCell(first, 'number').querySelector('a')?.getAttribute('href')).toBe('/changes/7');
     expect(text(page().querySelector('.shown'))).toBe('3 of 3 changes');
@@ -332,7 +332,7 @@ describe('ChangesList', () => {
 
     expect(text(page().querySelector('.banner[role="status"] span'))).toBe(
       'ProTech could not be reached: timed out. The table shows what Beadle last read from ProTech. ' +
-        'Try again in a moment; if it keeps failing, tell the Beadle administrator.',
+        'Try again in a moment. If the problem persists, contact the Beadle administrator.',
     );
 
     buttonOf(page(), 'Try again').click();
@@ -371,7 +371,7 @@ describe('ChangesList', () => {
     expect(text(page().querySelector('.banner[role="status"] span'))).toBe(
       'ProTech has no change CHG0012346. ProTech has no change CHG0012347. ' +
         'The table shows what Beadle last read from ProTech. ' +
-        'Try again in a moment; if it keeps failing, tell the Beadle administrator.',
+        'Try again in a moment. If the problem persists, contact the Beadle administrator.',
     );
   });
 

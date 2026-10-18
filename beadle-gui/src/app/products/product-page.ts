@@ -97,9 +97,9 @@ export type ProfileForm = ReturnType<typeof profileForm>;
             }
           </header>
           <p class="section-help">
-            Every new change of {{ productName() }} starts with these answers; whoever raises a
-            change can still change each of them for that change. A field left empty is filled in
-            when the change is raised, as the note under the field says.
+            Every new change of {{ productName() }} starts with these answers, and each answer can
+            be changed when a change is raised. A field left empty is filled in when the change is
+            raised, as described under the field.
           </p>
           @if (version() === null) {
             <div class="banner info" role="status">
@@ -120,7 +120,7 @@ export type ProfileForm = ReturnType<typeof profileForm>;
               <beadle-change-tasks-form [tasks]="group.controls.tasks" />
             </section>
             <beadle-save-bar
-              label="Save the template"
+              label="Save template"
               [cancelLink]="products.path"
               [failure]="failure()"
               [saving]="saving()"
@@ -142,6 +142,7 @@ export type ProfileForm = ReturnType<typeof profileForm>;
 
       h2 {
         margin: 0;
+        font-size: 18px;
       }
     }
 
@@ -167,12 +168,11 @@ export type ProfileForm = ReturnType<typeof profileForm>;
         h3 {
           margin: 0;
           font-size: 14px;
-          font-weight: 600;
         }
 
         p {
           margin: 0;
-          font-size: 11.5px;
+          font-size: 12px;
           color: var(--beadle-muted);
         }
       }
@@ -261,7 +261,7 @@ export class ProductPage implements HasUnsavedChanges {
           this.version.set(saved.version);
           this.savedAt.set(saved.updatedAt);
           form.markAsPristine();
-          this.notifier.success(`The change template of ${saved.productName} is saved`);
+          this.notifier.success(`The change template of ${saved.productName} has been saved.`);
         },
         error: (error) => {
           applyFieldProblems(form, nestedTaskProblems(fieldProblems(error)));

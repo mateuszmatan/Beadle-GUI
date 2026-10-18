@@ -32,7 +32,7 @@ describe('ProductPage', () => {
   const page = () => fixture.nativeElement as HTMLElement;
   const task = (index: number) => page().querySelectorAll('.task-row')[index];
   const chosen = (label: string) => text(selectOf(page(), label).selectedOptions[0]);
-  const save = () => buttonOf(page(), 'Save the template').click();
+  const save = () => buttonOf(page(), 'Save template').click();
 
   async function settle() {
     TestBed.tick();
@@ -129,7 +129,7 @@ describe('ProductPage', () => {
     request.flush(changeProfile({ version: 0, template: expected, tasks }));
     await settle();
 
-    expect(text(toast())).toContain('The change template of CertScanner is saved');
+    expect(text(toast())).toContain('The change template of CertScanner has been saved.');
     expect(editor().hasUnsavedChanges()).toBe(false);
     expect(page().querySelector('.banner.info')).toBeNull();
     expect(text(page().querySelector('.defaults-header .chip'))).toBe('Filled in');

@@ -38,7 +38,7 @@ import {
         </dd>
         <dt>Duration</dt>
         <dd>{{ duration }}</dd>
-        <dt>Correlation id</dt>
+        <dt>Correlation ID</dt>
         <dd class="mono">{{ record.correlationId ?? '–' }}</dd>
       </dl>
       @if (record.message; as message) {

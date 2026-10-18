@@ -355,14 +355,14 @@ describe('ChangeWizard', () => {
     expect(preview.request.body).toMatchObject({ productId: 1, storyKeys: ['CERT-2', 'CERT-3'] });
     preview.flush(DRAFT);
     await settle();
-    expect(heading()).toBe('Check the change and create it in ProTech');
+    expect(heading()).toBe('Check the change and raise it in ProTech');
     expect(shown('.scope')).toBe('1 epic and 1 story of FixVersion CERT 4.2');
     expect(shown('beadle-change-summary')).toContain('Change numberGiven by ProTech when raised');
   });
 
   it('raises the change with the texts of the review and offers the default change tasks', async () => {
     await toReview();
-    expect(nextLabel()).toBe('Create and add CTASKs and SecureCoding ticket');
+    expect(nextLabel()).toBe('Raise change in ProTech');
     expect(page().querySelector('beadle-change-tasks-form')).toBeNull();
     await type('Short description', 'CertScanner 4.2');
 
@@ -379,10 +379,10 @@ describe('ChangeWizard', () => {
 
     expect(heading()).toBe('Change tasks of CHG0012345');
     expect(shown('.raised-note')).toBe(
-      'CHG0012345 is created in ProTech. Now add its change tasks to it.',
+      'CHG0012345 has been raised in ProTech. Add its change tasks next.',
     );
     expect(stepCount()).toBe('Step 9 of 10');
-    expect(shown('.step-actions .btn-outline-primary')).toBe('Add CTASKs later');
+    expect(shown('.step-actions .btn-outline-primary')).toBe('Add change tasks later');
     expect(buttonOf(page(), 'Back')).toBeUndefined();
     expect(wizard().hasUnsavedChanges()).toBe(true);
     expect(rows().map((row) => text(row.querySelector('.kind')))).toEqual([
@@ -396,14 +396,14 @@ describe('ChangeWizard', () => {
 
   it('creates the change tasks once they are complete and goes on to the secure coding ticket', async () => {
     await toTasks();
-    expect(nextLabel()).toBe('Create the CTASKs in ProTech');
+    expect(nextLabel()).toBe('Create change tasks in ProTech');
     await type('Short description', ' ', rows()[1]);
     await next();
     expect(stepProblem()).toBe('Check the change tasks');
     http.expectNone({ method: 'POST', url: '/api/changes/7/tasks' });
 
     await type('Short description', 'Validate it', rows()[1]);
-    await click(buttonOf(page(), 'Add a change task'));
+    await click(buttonOf(page(), 'Add change task'));
     await type('Assignment group', 'Cloud Engineering', rows()[2]);
     await type('Short description', 'Tell the users', rows()[2]);
     await type('Description', 'Send the e-mail.', rows()[2]);
@@ -420,14 +420,14 @@ describe('ChangeWizard', () => {
 
     expect(heading()).toBe('Secure coding ticket of CHG0012345');
     expect(stepCount()).toBe('Step 10 of 10');
-    expect(nextLabel()).toBe('Create the secure coding ticket in CyberTrack');
+    expect(nextLabel()).toBe('Create secure coding ticket in CyberTrack');
   });
 
   it('creates the secure coding ticket from the defaults of the change and sums the change up', async () => {
     await toTasks();
-    await click(buttonOf(page(), 'Add CTASKs later'));
+    await click(buttonOf(page(), 'Add change tasks later'));
     const date = implementationDateOf(changeSchedule().installationStart);
-    expect(shown('.step-actions .btn-outline-primary')).toBe('Create the ticket later');
+    expect(shown('.step-actions .btn-outline-primary')).toBe('Create ticket later');
     expect(value('Ticket name in CyberTrack')).toBe(`APO-12345_CertScanner-${date}`);
     await type('APO number', ' ');
     await next();
@@ -442,7 +442,7 @@ describe('ChangeWizard', () => {
     ticket.flush(productionChange({ template, tasks: [changeTask()] }));
     await settle();
 
-    expect(heading()).toBe('CHG0012345 is created');
+    expect(heading()).toBe('CHG0012345 has been raised');
     expect(stepCount()).toBe('Step 11 of 11');
     expect(value('Secure coding ticket number')).toBe('SCP-1234');
     expect(shown('.review-list')).toBe(
@@ -452,7 +452,7 @@ describe('ChangeWizard', () => {
     expect(page().querySelector('.step-actions a')?.getAttribute('href')).toBe('/changes/7');
     expect(wizard().hasUnsavedChanges()).toBe(false);
 
-    await click(buttonOf(page(), 'Create another change'));
+    await click(buttonOf(page(), 'Raise another change'));
     expect(stepCount()).toBe('Step 1 of 8');
     expect(selectOf(page(), 'Product').value).toBe('');
   });
@@ -466,7 +466,7 @@ describe('ChangeWizard', () => {
       epicKeys: 'CERT-1 is not in Jira project CERT',
     });
 
-    expect(heading()).toBe('Check the change and create it in ProTech');
+    expect(heading()).toBe('Check the change and raise it in ProTech');
     expect(saveProblem()).toBe('The change could not be raised: 3 fields are invalid');
     expect(problems()).toEqual([
       'Installation end: must be after the start',
@@ -500,10 +500,10 @@ describe('ChangeWizard', () => {
     buttonOf(page(), 'Remove change task 2').click();
     buttonOf(page(), 'Remove change task 1').click();
     await next();
-    expect(stepProblem()).toBe('Add at least one change task, or choose Add CTASKs later');
+    expect(stepProblem()).toBe('Add at least one change task, or choose Add change tasks later');
     http.expectNone({ method: 'POST', url: '/api/changes/7/tasks' });
 
-    await click(buttonOf(page(), 'Add CTASKs later'));
+    await click(buttonOf(page(), 'Add change tasks later'));
     expect(heading()).toBe('Secure coding ticket of CHG0012345');
     expect(page().querySelector('.save-problem')).toBeNull();
     expect(wizard().hasUnsavedChanges()).toBe(true);
@@ -511,7 +511,7 @@ describe('ChangeWizard', () => {
 
   it('shows why CyberTrack refused the ticket and lets it be created later', async () => {
     await toTasks();
-    await click(buttonOf(page(), 'Add CTASKs later'));
+    await click(buttonOf(page(), 'Add change tasks later'));
     await next();
     await refuse('/api/changes/7/secure-coding', '2 fields are invalid', {
       apoNumber: 'is too long: it may take at most 40 bytes',
@@ -527,10 +527,10 @@ describe('ChangeWizard', () => {
       'must be a link starting with https:// or http://',
     );
 
-    await click(buttonOf(page(), 'Create the ticket later'));
-    expect(heading()).toBe('CHG0012345 is created');
+    await click(buttonOf(page(), 'Create ticket later'));
+    expect(heading()).toBe('CHG0012345 has been raised');
     expect(page().querySelector('.save-problem')).toBeNull();
-    expect(shown('.review-list')).toBe('None yet. Add them with Edit the change on its page.');
+    expect(shown('.review-list')).toBe('None yet. Add them with Edit change on the change page.');
     expect(inputOf(page(), 'Secure coding ticket number').placeholder).toBe(
       'Not created yet: create it on the change page',
     );
@@ -573,7 +573,7 @@ describe('ChangeWizard', () => {
 
   it('keeps a text the user edited when the change is previewed anew and offers the new text', async () => {
     await toReview();
-    expect(buttonOf(page(), 'Use the generated text')).toBeUndefined();
+    expect(buttonOf(page(), 'Use generated text')).toBeUndefined();
     await type('Description', 'Mine');
 
     await back();
@@ -586,8 +586,8 @@ describe('ChangeWizard', () => {
       'Release on 2 November',
       'Mine',
     ]);
-    expect(buttonOf(page(), 'Use the generated text for the short description')).toBeUndefined();
-    await click(buttonOf(page(), 'Use the generated text for the description'));
+    expect(buttonOf(page(), 'Use generated text for the short description')).toBeUndefined();
+    await click(buttonOf(page(), 'Use generated text for the description'));
     expect(value('Description')).toBe('On 2 November.');
 
     await back();
@@ -604,7 +604,7 @@ describe('ChangeWizard', () => {
     }
     fail(http.expectOne('/api/changes/preview'), 'Jira is down');
     await settle();
-    const raise = () => buttonOf(page(), 'Create and add CTASKs and SecureCoding ticket');
+    const raise = () => buttonOf(page(), 'Raise change in ProTech');
     expect(saveProblem()).toBe('The change could not be previewed: Jira is down');
     expect(raise().disabled).toBe(true);
 
@@ -864,7 +864,7 @@ describe('ChangeWizard', () => {
     expect(heading()).toBe('Change tasks of CHG0012345');
     expect(value('Short description', rows()[0])).toBe('Deploy CertScanner 4.2 with care');
     expect(wizard().hasUnsavedChanges()).toBe(true);
-    await click(buttonOf(page(), 'Add CTASKs later'));
+    await click(buttonOf(page(), 'Add change tasks later'));
     expect(heading()).toBe('Secure coding ticket of CHG0012345');
   });
 });

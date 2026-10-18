@@ -60,7 +60,7 @@ export function refusalOf(
           <div class="banner refused" role="alert">
             <span>{{ message }}</span>
             <span class="spacer"></span>
-            <a class="btn btn-link" [routerLink]="changeLink(id())">Back to the change</a>
+            <a class="btn btn-link" [routerLink]="changeLink(id())">Back to change</a>
           </div>
         } @else if (form(); as f) {
           <form [formGroup]="f" (ngSubmit)="create()" novalidate>
@@ -68,7 +68,7 @@ export function refusalOf(
               <beadle-secure-coding-form [form]="f" [applicationName]="c.productName" />
             </section>
             <beadle-save-bar
-              label="Create the secure coding ticket in CyberTrack"
+              label="Create secure coding ticket in CyberTrack"
               [cancelLink]="changeLink(id())"
               [failure]="failure()"
               [saving]="saving()"
@@ -141,7 +141,7 @@ export class ChangeSecureCoding implements HasUnsavedChanges {
           form.markAsPristine();
           this.published.hand(saved);
           this.notifier.success(
-            `${saved.template.secureCodingTicket} is created in CyberTrack and sent to ProTech as the secure coding ticket of ${saved.number}.`,
+            `${saved.template.secureCodingTicket} has been created in CyberTrack and sent to ProTech as the secure coding ticket of ${saved.number}.`,
           );
           this.router.navigate(changePath(this.id()));
         },

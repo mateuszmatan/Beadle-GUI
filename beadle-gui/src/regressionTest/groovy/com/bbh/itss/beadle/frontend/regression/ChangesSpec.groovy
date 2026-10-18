@@ -37,7 +37,7 @@ class ChangesSpec extends BeadleSpecification {
                 .hasText(['Change number', 'Product', 'FixVersion', 'State', 'Installation', 'Short description', 'Tasks', 'Raised', ''] as String[])
         assertThat(column('state').locator('.chip')).hasText(['Secondary Approval', 'In Progress', 'Closed'] as String[])
         assertThat(column('state').locator('.meaning'))
-                .hasText(['Waiting for the L2 approver', 'Every change task approved, installs in its window', 'Done'] as String[])
+                .hasText(['Waiting for the L2 approver', 'All change tasks approved; installs in its window', 'Completed'] as String[])
         assertThat(column('tasks')).hasText(['2', '2', '2'] as String[])
         assertThat(page.locator('.list .shown')).hasText('3 of 3 changes')
         assertThat(link('Edit CHG0031001', true)).hasAttribute('href', '/changes/4/edit')
@@ -97,8 +97,8 @@ class ChangesSpec extends BeadleSpecification {
         choose(page.locator('.toolbar'), 'Your business service', 'AI Lab')
 
         then:
-        assertThat(page.locator('.empty-state h3')).hasText('No ProTech change of AI Lab yet')
-        assertThat(link('Raise a change', true)).hasCount(2)
+        assertThat(page.locator('.empty-state h3')).hasText('No ProTech changes for AI Lab yet')
+        assertThat(link('Raise change', true)).hasCount(2)
 
         when:
         choose(page.locator('.toolbar'), 'Your business service', 'Fund Services')
@@ -108,7 +108,7 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(column('state').locator('.chip')).hasText(['Escalated approval'] as String[])
 
         when:
-        link('Raise a change', true).click()
+        link('Raise change', true).click()
         page.waitForURL('**/new-change')
 
         then:
@@ -139,8 +139,8 @@ class ChangesSpec extends BeadleSpecification {
         hasTaskNumbers('CTASK0310011', 'CTASK0310012')
         assertThat(taskRows().locator('.kind')).hasText(['Release Management', 'Change task'] as String[])
         assertThat(taskRows().locator('.chip')).hasText(['Open', 'Open'] as String[])
-        assertThat(taskRows().locator('.task-head .muted')).hasText(['Not done yet; not approved yet.',
-                                                                    'Not done yet; not approved yet.'] as String[])
+        assertThat(taskRows().locator('.task-head .muted')).hasText(['Not started; not approved yet.',
+                                                                    'Not started; not approved yet.'] as String[])
         assertThat(taskRows().nth(0).locator('beadle-label')).hasText(RELEASE_TASK_FIELDS as String[])
         assertThat(taskRows().nth(1).locator('beadle-label')).hasText(OTHER_TASK_FIELDS as String[])
         hasValues(taskRows().nth(0), ['Change number'    : 'CHG0031001', 'Assignment group': 'Release Management',
@@ -155,9 +155,9 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(taskRows().locator('input:enabled, select:enabled, textarea:enabled, button')).hasCount(0)
         assertThat(page.locator('.secure-coding-missing span').first())
                 .hasText('CHG0031001 has no secure coding ticket yet. Create it in CyberTrack, the Jira project SCP.')
-        assertThat(link('Create the secure coding ticket', true)).hasAttribute('href', '/changes/4/secure-coding')
+        assertThat(link('Create secure coding ticket', true)).hasAttribute('href', '/changes/4/secure-coding')
         assertThat(page.locator('.now')).hasText('Secondary Approval. Waiting for the L2 approver, James Carter, to approve the change in ProTech.')
-        assertThat(link('Edit the change', true)).hasAttribute('href', '/changes/4/edit')
+        assertThat(link('Edit change', true)).hasAttribute('href', '/changes/4/edit')
         awaitRequest('GET', '/api/changes/4')
 
         when:
@@ -166,7 +166,7 @@ class ChangesSpec extends BeadleSpecification {
         open('/changes/4')
 
         then:
-        assertThat(button('Edit the change', true)).isDisabled()
+        assertThat(button('Edit change', true)).isDisabled()
         assertThat(page.locator('.edit-hint')).hasText('Only Corporate Technology can change it')
         assertThat(page.locator('.secure-coding-missing')).hasCount(0)
 
@@ -178,13 +178,13 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(page.locator('form')).hasCount(0)
 
         when:
-        link('Back to the change', true).click()
+        link('Back to change', true).click()
         page.waitForURL('**/changes/4')
         newPage()
         open('/changes/4')
 
         then:
-        assertThat(button('Edit the change', true)).isDisabled()
+        assertThat(button('Edit change', true)).isDisabled()
         assertThat(page.locator('.edit-hint')).hasText('Choose your business service in Changes to change it')
         ownErrors().isEmpty()
     }
@@ -322,17 +322,17 @@ class ChangesSpec extends BeadleSpecification {
         choose(taskRows().first(), 'Platform', 'Distributed')
         fillIn(taskRows().first(), ['Task start'      : "${date}T17:30", 'Packages': 'certscanner-4.1.0.jar',
                                     'Backout packages': 'certscanner-4.0.3.jar'])
-        button('Add a change task', true).click()
+        button('Add change task', true).click()
         lookUp(taskRows().nth(2), 'Assignment group', 'ois', 'OIS Support')
         fillIn(taskRows().nth(2), ['Short description': 'Notify the users', 'Description': 'Send the release notes to the users.'])
         button('Remove change task 2', true).click()
         beadle.protech.applying = false
-        button('Publish the update to ProTech', true).click()
+        button('Publish update to ProTech', true).click()
         page.waitForURL('**/changes/4')
 
         then:
         page.evaluate('window.scrollY') == 0
-        assertThat(snackBar()).containsText('Your update of CHG0031001 is published to ProTech. This page shows when ProTech has applied it.')
+        assertThat(snackBar()).containsText('Your update of CHG0031001 has been published to ProTech. This page shows when ProTech has applied it.')
         assertThat(updateBanner()).hasClass(~/\binfo\b/)
         assertThat(updateBanner()).containsText('is waiting for ProTech: Downtime start, Downtime end, Assignment group, Incident, '
                 + 'Downtime, Risk assessment, Change tasks.')
@@ -377,7 +377,7 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(term(page.locator('beadle-change-summary'), 'Downtime')).hasText(~/, 17:00 to 18:00$/)
 
         when:
-        link('Edit the change', true).click()
+        link('Edit change', true).click()
         page.waitForURL('**/changes/4/edit')
 
         then:

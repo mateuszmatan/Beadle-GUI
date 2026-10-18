@@ -158,7 +158,7 @@ describe('ChangeTasksForm', () => {
     );
     expect(inputOf(rows()[0], 'Task start').disabled).toBe(true);
 
-    buttonOf(page(), 'Add a change task').click();
+    buttonOf(page(), 'Add change task').click();
     fixture.detectChanges();
     expect(rows()).toHaveLength(2);
     expect(text(page().querySelector('.task-actions .muted'))).toBe('2 change tasks');
@@ -179,7 +179,7 @@ describe('ChangeTasksForm', () => {
     );
 
     expect(text(rows()[0].querySelector('.task-head'))).toBe(
-      '1Change taskClosedClosed in ProTech, so it stays as it is Remove',
+      '1Change taskClosedClosed in ProTech and can no longer be changed Remove',
     );
     expect(rows()[0].classList).toContain('closed');
     expect(buttonOf(page(), 'Remove change task 1').disabled).toBe(true);
@@ -202,7 +202,7 @@ describe('ChangeTasksForm', () => {
     await render(form, true);
 
     expect(rows().map((row) => text(row.querySelector('.task-head')))).toEqual([
-      '1Release ManagementOpenNot done yet; approval requested.',
+      '1Release ManagementOpenNot started; approval requested.',
       '2Change taskCanceledCanceled; no longer part of the change.',
     ]);
     expect(rows()[1].classList).toContain('canceled');

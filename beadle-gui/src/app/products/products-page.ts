@@ -122,7 +122,7 @@ export class ProductsPage {
       })
       .closed.pipe(filter((product): product is Product => !!product))
       .subscribe((product) => {
-        this.notifier.success(`${product.name} added. Now fill in its change template.`);
+        this.notifier.success(`${product.name} added. Fill in its change template next.`);
         this.router.navigate(productPath(product.id));
       });
   }

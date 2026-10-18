@@ -237,13 +237,13 @@ export function summaryColumns(
 
       h4 {
         margin: 0 0 2px;
-        font-size: 12.5px;
+        font-size: 13px;
       }
     }
 
     .text {
       margin: 0;
-      font-size: 12.5px;
+      font-size: 13px;
       white-space: pre-wrap;
     }
 

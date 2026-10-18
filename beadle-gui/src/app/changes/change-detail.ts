@@ -101,12 +101,10 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
                   aria-describedby="edit-hint"
                   [attr.title]="message"
                 >
-                  Edit the change
+                  Edit change
                 </button>
               } @else {
-                <a class="btn btn-primary" [routerLink]="changeLink(c.id!, 'edit')"
-                  >Edit the change</a
-                >
+                <a class="btn btn-primary" [routerLink]="changeLink(c.id!, 'edit')">Edit change</a>
               }
             }
             @if (c.url) {
@@ -116,7 +114,7 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
             }
             @if (c.productId) {
               <a class="btn btn-outline-primary" [routerLink]="productLink(c.productId)"
-                >Open the product</a
+                >Open product</a
               >
             }
           </div>
@@ -166,7 +164,7 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
             >
             <span class="spacer"></span>
             <a class="btn btn-link" [routerLink]="changeLink(c.id!, 'secure-coding')"
-              >Create the secure coding ticket</a
+              >Create secure coding ticket</a
             >
           </div>
         }
@@ -196,7 +194,7 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
             <beadle-change-tasks-form [tasks]="list" [readonly]="true" />
           } @else {
             <p class="none muted">
-              {{ open() ? 'No change tasks yet. Add them with Edit the change.' : 'None' }}
+              {{ open() ? 'No change tasks yet. Add them with Edit change.' : 'None' }}
             </p>
           }
         </section>
@@ -253,14 +251,14 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
     .text {
       margin: 0;
       font: inherit;
-      font-size: 12.5px;
+      font-size: 13px;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
     }
 
     .none {
       margin: 0;
-      font-size: 12.5px;
+      font-size: 13px;
     }
 
     @media (max-width: 760px) {

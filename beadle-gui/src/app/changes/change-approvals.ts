@@ -97,7 +97,9 @@ export function reminderHint(
   if (businessServiceId !== change.businessServiceId) {
     return `Only ${change.businessServiceName ?? 'its business service'} can remind its approvers`;
   }
-  return change.syncProblem ? 'ProTech cannot be read just now, so no reminder can be sent' : null;
+  return change.syncProblem
+    ? 'ProTech cannot be reached at the moment, so no reminder can be sent'
+    : null;
 }
 
 export function reminderText(reminder: Reminder, now = Date.now()): string {
@@ -173,7 +175,7 @@ export function remindedNames(
           @for (row of rows(); track row.key; let first = $first) {
             @if (row.task && (first || !rows()[$index - 1].task)) {
               <tr class="group">
-                <th scope="rowgroup" colspan="5">CTASK approvals</th>
+                <th scope="rowgroup" colspan="5">Change task approvals</th>
               </tr>
             }
             <tr [class.task]="row.task">
@@ -242,7 +244,7 @@ export function remindedNames(
     .approvals-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 12.5px;
+      font-size: 13px;
 
       th,
       td {
@@ -271,7 +273,7 @@ export function remindedNames(
 
     .detail {
       display: block;
-      font-size: 11.5px;
+      font-size: 12px;
       font-weight: 400;
     }
 
@@ -287,13 +289,11 @@ export function remindedNames(
     .remind {
       --bs-btn-padding-x: 4px;
       --bs-btn-padding-y: 0;
-      --bs-btn-font-size: 11.5px;
-      --bs-btn-font-weight: 400;
     }
 
     .no-tasks {
       margin: 6px 0 0;
-      font-size: 12.5px;
+      font-size: 13px;
     }
   `,
 })
@@ -337,7 +337,7 @@ export class ChangeApprovals {
       next: (reminded) => {
         this.sending.set(false);
         this.changed.emit(reminded);
-        this.notifier.success(`Reminder sent to ${remindedNames(reminded, target).join(', ')}`);
+        this.notifier.success(`Reminder sent to ${remindedNames(reminded, target).join(', ')}.`);
       },
       error: (error) => {
         this.sending.set(false);

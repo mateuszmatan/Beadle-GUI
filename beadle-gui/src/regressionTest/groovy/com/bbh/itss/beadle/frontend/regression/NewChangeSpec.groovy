@@ -19,7 +19,7 @@ import static java.time.format.DateTimeFormatter.ofPattern
 class NewChangeSpec extends BeadleSpecification {
 
     static final List<String> STEPS = ['Request data', 'Jira', 'Approval', 'Schedule', 'Planning', 'Privileged access',
-                                       'Risk assessment', 'Review', 'Add CTASKs', 'Secure coding', 'Summary']
+                                       'Risk assessment', 'Review', 'Change tasks', 'Secure coding', 'Summary']
 
     static final String IMPLEMENTATION_DATE = parse(RELEASE_DATE).format(ofPattern('MMddyyyy'))
 
@@ -241,7 +241,7 @@ class NewChangeSpec extends BeadleSpecification {
         assertThat(input(texts(), 'Description')).hasValue(
                 'Production release of CertScanner (CERTSCANNER), FixVersion CERT 4.2.\n\nEpics:\n'
                         + 'CERT-120 Expiry alerts for certificates (In Review)\n\nStories:\nCERT-121 E-mail the certificate owner')
-        assertThat(step().locator('.lead')).containsText('Two more steps then follow: you add its change tasks (CTASKs)')
+        assertThat(step().locator('.lead')).containsText('Two steps follow: adding its change tasks (CTASKs)')
         assertThat(step().locator('h3:text-is("Text sent to ProTech")')).isVisible()
         assertThat(taskRows()).hasCount(0)
         assertThat(step().locator('beadle-change-summary h3')).hasText(['Request details', 'Jira', 'Schedule',
@@ -289,17 +289,17 @@ class NewChangeSpec extends BeadleSpecification {
 
         when:
         input(texts(), 'Short description').fill('CertScanner 4.2 release')
-        button('Create and add CTASKs and SecureCoding ticket', true).click()
+        button('Raise change in ProTech', true).click()
 
         then:
-        assertThat(currentStep()).hasText('Add CTASKs')
+        assertThat(currentStep()).hasText('Change tasks')
         assertThat(page.locator('.step-bar .step-label')).hasText(STEPS.take(10) as String[])
         assertThat(step().locator('.step-count')).hasText('Step 9 of 10')
         assertThat(step().locator('h2')).hasText('Change tasks of CHG0031002')
-        assertThat(step().locator('.raised-note')).hasText('CHG0031002 is created in ProTech. Now add its change tasks to it.')
+        assertThat(step().locator('.raised-note')).hasText('CHG0031002 has been raised in ProTech. Add its change tasks next.')
         assertThat(stepButton('Review')).isDisabled()
         assertThat(button('Back', true)).hasCount(0)
-        assertThat(button('Add CTASKs later', true)).isVisible()
+        assertThat(button('Add change tasks later', true)).isVisible()
         assertThat(taskRows().locator('.kind')).hasText(['Release Management', 'Change task'] as String[])
         assertThat(taskRows().locator('.chip')).hasCount(0)
         assertThat(taskRows().nth(0).locator('beadle-label')).hasText(RELEASE_TASK_FIELDS as String[])
@@ -333,16 +333,16 @@ class NewChangeSpec extends BeadleSpecification {
         when:
         choose(taskRows().nth(0), 'Platform', 'OpenShift')
         input(taskRows().nth(0), 'Task start').fill("${RELEASE_DATE}T18:00")
-        button('Add a change task', true).click()
+        button('Add change task', true).click()
         lookUp(taskRows().nth(2), 'Assignment group', 'cloud', 'Cloud Engineering')
         lookUp(taskRows().nth(2), 'Assigned to', 'jane', 'Jane Smith')
         choose(taskRows().nth(2), 'Importance', '2 - High')
         input(taskRows().nth(2), 'Short description').fill('Run the database scripts')
         button('Remove change task 2', true).click()
-        button('Create the CTASKs in ProTech', true).click()
+        button('Create change tasks in ProTech', true).click()
 
         then:
-        assertThat(currentStep()).hasText('Add CTASKs')
+        assertThat(currentStep()).hasText('Change tasks')
         assertThat(input(taskRows().nth(0), 'Application')).hasValue('OCP')
         assertThat(input(taskRows().nth(0), 'Application')).isDisabled()
         assertThat(errorOf(taskRows().nth(0), 'Task start')).hasText('At least a minute after the installation start')
@@ -368,7 +368,7 @@ class NewChangeSpec extends BeadleSpecification {
         when:
         input(taskRows().nth(0), 'Task start').fill("${RELEASE_DATE}T18:30")
         input(taskRows().nth(1), 'Description').fill('Run the Liquibase changesets of CertScanner.')
-        button('Create the CTASKs in ProTech', true).click()
+        button('Create change tasks in ProTech', true).click()
 
         then:
         assertThat(currentStep()).hasText('Secure coding')
@@ -380,7 +380,7 @@ class NewChangeSpec extends BeadleSpecification {
                            'QC application link'      : CERT_SECURE_CODING.qcApplicationLink,
                            'Ticket name in CyberTrack': "APO-31337_CertScanner-$IMPLEMENTATION_DATE".toString()])
         assertThat(input(step(), 'Implementation date')).not().isEditable()
-        assertThat(button('Create the ticket later', true)).isVisible()
+        assertThat(button('Create ticket later', true)).isVisible()
         with(awaitRequest('POST', '/api/changes/5/tasks').json()) {
             version == 0
             businessServiceId == 3
@@ -393,7 +393,7 @@ class NewChangeSpec extends BeadleSpecification {
 
         when:
         input(step(), 'APO number').fill(' ')
-        button('Create the secure coding ticket in CyberTrack', true).click()
+        button('Create secure coding ticket in CyberTrack', true).click()
 
         then:
         assertThat(errorOf(step(), 'APO number')).hasText('Required')
@@ -404,10 +404,10 @@ class NewChangeSpec extends BeadleSpecification {
         when:
         input(step(), 'APO number').fill('APO-24680')
         input(step(), 'QC application link').fill('https://certscanner-qc.bbh.com')
-        button('Create the secure coding ticket in CyberTrack', true).click()
+        button('Create secure coding ticket in CyberTrack', true).click()
 
         then:
-        assertThat(step().locator('h2')).hasText('CHG0031002 is created')
+        assertThat(step().locator('h2')).hasText('CHG0031002 has been raised')
         assertThat(currentStep()).hasText('Summary')
         assertThat(step().locator('.step-count')).hasText('Step 11 of 11')
         hasValues(step(), ['Change number': 'CHG0031002', 'Secure coding ticket number': 'SCP-4201'])
@@ -425,14 +425,14 @@ class NewChangeSpec extends BeadleSpecification {
                                                                         qcApplicationLink: 'https://certscanner-qc.bbh.com']
 
         when:
-        link('Open the change', true).click()
+        link('Open change', true).click()
 
         then:
         page.waitForURL('**/changes/5')
         assertThat(page.locator('h1')).hasText('CHG0031002')
         assertThat(taskRows().locator('.kind')).hasText(['Release Management', 'Change task'] as String[])
-        assertThat(taskRows().locator('.task-head .muted')).hasText(['Not done yet; not approved yet.',
-                                                                    'Not done yet; not approved yet.'] as String[])
+        assertThat(taskRows().locator('.task-head .muted')).hasText(['Not started; not approved yet.',
+                                                                    'Not started; not approved yet.'] as String[])
         assertThat(taskRows().nth(0).locator('beadle-label')).hasText(RELEASE_TASK_FIELDS as String[])
         assertThat(taskRows().locator('.chip')).hasText(['Open', 'Open'] as String[])
         assertThat(taskRows().locator('beadle-hint')).hasCount(0)
@@ -474,7 +474,7 @@ class NewChangeSpec extends BeadleSpecification {
         assertThat(review('Stories')).hasText('CERT-131')
 
         when:
-        button('Create and add CTASKs and SecureCoding ticket', true).click()
+        button('Raise change in ProTech', true).click()
 
         then:
         assertThat(page.locator('.save-problem strong')).hasText('The change could not be raised: 3 fields are invalid')

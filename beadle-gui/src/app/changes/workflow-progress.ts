@@ -19,8 +19,8 @@ export const STATE_MEANINGS: Record<ChangeState, string> = {
   SUPPORT_APPROVAL: 'Waiting for the support approver',
   CTASK_APPROVAL: 'Waiting for every change task to be approved',
   ESCALATED_APPROVAL: 'Short notice: waiting for an escalated approval',
-  IMPLEMENTATION: 'Every change task approved, installs in its window',
-  CLOSED: 'Done',
+  IMPLEMENTATION: 'All change tasks approved; installs in its window',
+  CLOSED: 'Completed',
 };
 
 const APPROVERS: Partial<Record<ChangeState, [string, keyof ChangeApprovers]>> = {
@@ -50,7 +50,7 @@ export function stateNow(
   const { installationStart, installationEnd } = change.schedule;
   switch (change.state) {
     case 'DRAFT':
-      return 'The change is written but not sent for approval yet. The business approver is asked first.';
+      return 'The change is drafted but not yet sent for approval. The business approver is asked first.';
     case 'CTASK_APPROVAL':
       return `Waiting for the approvers of each change task in ProTech: ${tasksText(change)}. The change goes In Progress once every change task is approved.`;
     case 'ESCALATED_APPROVAL':
@@ -58,7 +58,7 @@ export function stateNow(
     case 'IMPLEMENTATION':
       return `Every change task is approved. The teams carry out the change tasks in the installation window, ${windowText(installationStart, installationEnd)}.`;
     default:
-      return 'Done. The change is closed in ProTech and can no longer be changed.';
+      return 'The change is complete and can no longer be changed in ProTech.';
   }
 }
 

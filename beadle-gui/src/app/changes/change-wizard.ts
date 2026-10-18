@@ -94,7 +94,7 @@ const STEP_KEYS: readonly StepKey[] = [
 export const STEPS = [
   ...WIZARD_SECTIONS.map((section) => section.step),
   'Review',
-  'Add CTASKs',
+  'Change tasks',
   'Secure coding',
   'Summary',
 ];
@@ -105,14 +105,14 @@ const TICKET = STEP_KEYS.indexOf('ticket');
 const RAISED = STEP_KEYS.indexOf('raised');
 
 const NEXT_LABELS: Partial<Record<StepKey, string>> = {
-  review: 'Create and add CTASKs and SecureCoding ticket',
-  tasks: 'Create the CTASKs in ProTech',
-  ticket: 'Create the secure coding ticket in CyberTrack',
+  review: 'Raise change in ProTech',
+  tasks: 'Create change tasks in ProTech',
+  ticket: 'Create secure coding ticket in CyberTrack',
 };
 
 const LATER_LABELS: Partial<Record<StepKey, string>> = {
-  tasks: 'Add CTASKs later',
-  ticket: 'Create the ticket later',
+  tasks: 'Add change tasks later',
+  ticket: 'Create ticket later',
 };
 
 /** The name the wizard keeps its draft under while the browser signs in again, see {@link SessionEnd}. */
@@ -510,7 +510,7 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
           : null;
       case 'tasks':
         if (!this.tasks()!.length) {
-          return 'Add at least one change task, or choose Add CTASKs later';
+          return 'Add at least one change task, or choose Add change tasks later';
         }
         return this.tasks()!.invalid ? 'Check the change tasks' : null;
       case 'ticket':

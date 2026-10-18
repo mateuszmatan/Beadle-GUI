@@ -12,7 +12,7 @@ const answering = (integrations: Partial<ChangeIntegrations>): ChangeIntegration
 
 describe('demoText', () => {
   const demoProTech =
-    'A demo ProTech gives each change its number, moves it through the workflow on its own and applies an update a few seconds after it is published.';
+    'A demo ProTech gives each change its number, moves it through the workflow automatically and applies an update a few seconds after it is published.';
   const demoCyberTrack =
     'CyberTrack is not connected yet, so a secure coding ticket gets an example number and does not reach the real Jira project SCP.';
 
@@ -60,9 +60,9 @@ describe('demoText', () => {
 
 describe('unreachableText', () => {
   const proTech =
-    'Beadle-ProTech cannot be reached, so no change can be raised, changed or reminded in ProTech, and the changes show what Beadle stored last, until it answers again.';
+    'Beadle-ProTech cannot be reached, so no change can be raised, changed or reminded in ProTech, and the changes show what Beadle stored last, until it is reachable again.';
   const internal =
-    'Beadle-Internal cannot be reached, so the Jira FixVersions, epics and stories cannot be read and no secure coding ticket can be created, until it answers again.';
+    'Beadle-Internal cannot be reached, so the Jira FixVersions, epics and stories cannot be read and no secure coding ticket can be created, until it is reachable again.';
 
   it('names each service that does not answer and what cannot be done meanwhile', () => {
     expect(unreachableText(answering({}))).toBeNull();

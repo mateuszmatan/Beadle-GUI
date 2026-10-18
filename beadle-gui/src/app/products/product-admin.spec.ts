@@ -163,7 +163,7 @@ describe('ProductAdmin', () => {
     fixture.detectChanges();
 
     expect(snack()).toContain(
-      'CertScanner was changed by someone else. Its latest version is shown now; make your change again.',
+      'CertScanner was changed by another user. Its latest version is now shown; apply your change again.',
     );
     expect(facts()[2]).toBe('Security');
 

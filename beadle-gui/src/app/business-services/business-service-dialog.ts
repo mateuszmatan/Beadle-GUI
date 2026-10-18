@@ -17,15 +17,15 @@ import { FORM_FIELD } from '../ui/form-field';
   template: `
     <div class="modal-header">
       <h2 beadleDialogTitle>
-        {{ businessService ? 'Rename ' + businessService.name : 'Add a business service' }}
+        {{ businessService ? 'Rename ' + businessService.name : 'Add business service' }}
       </h2>
     </div>
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body">
         @if (businessService) {
           <p class="intro">
-            The new name shows everywhere in Beadle at once. The products of the business service
-            stay as they are.
+            The new name applies throughout Beadle immediately. The products of the business service
+            are not affected.
           </p>
         }
         <beadle-form-field class="full-width">
@@ -38,7 +38,7 @@ import { FORM_FIELD } from '../ui/form-field';
             required
           />
           <beadle-hint
-            >The name people know the business service by, for example Fund Services</beadle-hint
+            >The name of the business service at BBH, for example Fund Services</beadle-hint
           >
           <beadle-error>{{ errorText(name) }}</beadle-error>
         </beadle-form-field>

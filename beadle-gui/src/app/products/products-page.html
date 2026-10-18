@@ -95,7 +95,7 @@
           </ng-template>
           <ng-template beadleCell="template" let-product>
             @if (templates.error()) {
-              <span class="muted">Not known</span>
+              <span class="muted">Unknown</span>
             } @else if (templates.hasValue()) {
               @if (stored().get(product.id); as saved) {
                 <span class="chip success">Filled in</span
