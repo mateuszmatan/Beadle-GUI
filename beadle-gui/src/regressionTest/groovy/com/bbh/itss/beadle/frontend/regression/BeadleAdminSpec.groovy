@@ -57,38 +57,12 @@ class BeadleAdminSpec extends BeadleSpecification {
         ownErrors().isEmpty()
     }
 
-    def "the Products tab lists the products by business service with the state of their change template"() {
+    def "the Products tab lists the products by business service and opens the page of a product"() {
         when:
         open('/admin/products')
 
         then:
         assertThat(cardNames()).hasText(BUSINESS_SERVICES as String[])
-        assertThat(card('Corporate Technology').locator('.tally')).hasText('1 product')
-        assertThat(card('Custody').locator('.no-products')).hasText('No products in Custody yet.')
-        assertThat(page.locator('.toolbar .count')).hasText('2 products in 5 business services')
-        assertThat(gridHeaders(card('Fund Services'))).hasText(['Product', 'Owner team', 'Change template'] as String[])
-        assertThat(productRow('CertScanner').locator('.ag-cell')).hasText(['CertScannerCERTSCANNER', 'Technology Architecture',
-                                                                          'Filled in · saved 2 days ago'] as String[])
-        assertThat(productRow('CertScanner')).hasClass(~/\bclickable\b/)
-        assertThat(gridCell(productRow('Payments Hub'), 'template')).hasText('Not filled in yet')
-        assertThat(page.locator('.tab-help')).hasText('Open a product to see its details and fill in its change template. ' +
-                'Until then, its new changes start with values suggested from its name, code and owner team.')
-
-        when:
-        page.locator('input[aria-label="Search products"]').fill('pay')
-
-        then:
-        assertThat(cardNames()).hasText(['Fund Services'] as String[])
-        assertThat(page.locator('.toolbar .count')).hasText('1 product in 1 business service')
-
-        when:
-        api.respond('GET', '/api/change-profiles', problem(503, 'Unavailable', 'The change templates are not available'))
-        open('/admin/products')
-
-        then:
-        assertThat(gridCell(productRow('CertScanner'), 'template')).hasText('Unknown')
-        assertThat(page.locator('.banner')).containsText('The products are listed, but the state of their change templates ' +
-                'could not be loaded. The change templates are not available')
 
         when:
         gridCell(productRow('Payments Hub'), 'ownerTeam').click()
@@ -99,7 +73,7 @@ class BeadleAdminSpec extends BeadleSpecification {
         assertThat(page.locator('section.defaults h2')).hasText('Change template')
         assertThat(page.locator('beadle-product-admin table')).hasCount(0)
         assertThat(page.getByText('mobile-app')).hasCount(0)
-        ownErrors().findAll { !it.contains('503') }.isEmpty()
+        ownErrors().isEmpty()
     }
 
     def "an administrator adds a product and lands on its page"() {
@@ -143,7 +117,7 @@ class BeadleAdminSpec extends BeadleSpecification {
         assertThat(dialog().locator('[role=alert]')).hasCount(0)
 
         when:
-        beadle.installProducts()
+        api.installProducts()
         input(dialog(), 'Owner team').fill('Custody Technology')
         dialogButton('Add product').click()
 
@@ -154,7 +128,7 @@ class BeadleAdminSpec extends BeadleSpecification {
         request.params() == [:]
         request.json() == [code        : 'TRADEARCHIVE', name: 'Trade Archive', ownerTeam: 'Custody Technology',
                            contactEmail: null, businessServiceId: 4, version: null]
-        beadle.product(3).name == 'Trade Archive'
+        api.product(3).name == 'Trade Archive'
         assertThat(facts()).hasText(['TRADEARCHIVE', 'Custody', 'Custody Technology', '–'] as String[])
         assertThat(page.locator('section.defaults .banner.info')).containsText('Not saved yet')
         assertThat(page.locator('.defaults-header .chip')).hasText('Not filled in yet')

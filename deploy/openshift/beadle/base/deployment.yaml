@@ -34,9 +34,6 @@ spec:
                 name: beadle-services
             - secretRef:
                 name: beadle-oidc
-          env:
-            - name: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED
-              value: "true"
           resources:
             requests:
               cpu: 250m

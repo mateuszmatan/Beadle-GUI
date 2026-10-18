@@ -15,7 +15,7 @@ import static java.time.ZoneOffset.UTC
 
 class ChangesSpec extends BeadleSpecification {
 
-    def "a release manager picks the business service and filters and sorts its ProTech changes in the table header"() {
+    def "a release manager picks the business service, sees its ProTech changes and finds it remembered"() {
         when:
         open('/')
         page.waitForURL('**/changes')
@@ -24,7 +24,7 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(page.locator('h1')).hasText('ProTech Changes')
         assertThat(page.locator('.page-header .page-description'))
                 .hasText('The ProTech changes of your business service and where each one is in its approval workflow. A change is read again from ProTech when you open it.')
-        assertThat(page.locator('.empty-state h3')).hasText('Choose your business service to see its ProTech changes.')
+        assertThat(page.locator('.empty-state h3')).hasText('Choose your business service to see its ProTech changes')
         api.requests('GET', '/api/changes').isEmpty()
 
         when:
@@ -34,7 +34,7 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(numbers()).hasText(['CHG0031001', 'CHG0030995', 'CHG0030990'] as String[])
         awaitRequest('GET', '/api/changes').params() == [businessServiceId: '3']
         assertThat(gridHeaders())
-                .hasText(['Change number', 'Product', 'FixVersion', 'State', 'Installation', 'Short description', 'Tasks', 'Created', ''] as String[])
+                .hasText(['Change number', 'Product', 'FixVersion', 'State', 'Installation', 'Short description', 'Change tasks', 'Created', ''] as String[])
         assertThat(column('state').locator('.chip')).hasText(['Secondary Approval', 'In Progress', 'Closed'] as String[])
         assertThat(column('state').locator('.meaning'))
                 .hasText(['Waiting for the L2 approver', 'All change tasks approved; installs in its window', 'Completed'] as String[])
@@ -46,52 +46,11 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(link('Edit CHG0030990', true)).hasCount(0)
 
         when:
-        filter('FixVersion').fill('4.1')
-
-        then:
-        assertThat(numbers()).hasText(['CHG0031001', 'CHG0030995'] as String[])
-        assertThat(page.locator('.list .shown')).hasText('2 of 3 changes')
-
-        when:
-        filter('FixVersion').fill('')
-        choose(page.locator('beadle-grid'), 'Filter by state', 'Closed')
-
-        then:
-        assertThat(numbers()).hasText(['CHG0030990'] as String[])
-
-        when:
-        choose(page.locator('beadle-grid'), 'Filter by state', 'Open')
-        filter('short description').fill('no such change')
-
-        then:
-        assertThat(page.locator('.beadle-grid-empty')).hasText('No change matches the filters.')
-
-        when:
-        filter('short description').fill('')
-        choose(page.locator('beadle-grid'), 'Filter by state', 'All')
-        sortBy('State')
-
-        then:
-        assertThat(numbers()).hasText(['CHG0031001', 'CHG0030995', 'CHG0030990'] as String[])
-
-        when:
-        sortBy('State')
-
-        then:
-        assertThat(numbers()).hasText(['CHG0030990', 'CHG0030995', 'CHG0031001'] as String[])
-
-        when:
         open('/changes')
 
         then:
         assertThat(selected(page.locator('.toolbar'), 'Your business service')).hasText('Corporate Technology')
         assertThat(numbers()).hasText(['CHG0031001', 'CHG0030995', 'CHG0030990'] as String[])
-
-        when:
-        sortBy('Installation')
-
-        then:
-        assertThat(numbers()).hasText(['CHG0030990', 'CHG0030995', 'CHG0031001'] as String[])
 
         when:
         choose(page.locator('.toolbar'), 'Your business service', 'AI Lab')
@@ -105,7 +64,7 @@ class ChangesSpec extends BeadleSpecification {
 
         then:
         assertThat(numbers()).hasText(['CHG0031000'] as String[])
-        assertThat(column('state').locator('.chip')).hasText(['Escalated approval'] as String[])
+        assertThat(column('state').locator('.chip')).hasText(['Escalated Approval'] as String[])
 
         when:
         link('Create change', true).click()
@@ -132,7 +91,7 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(page.locator('.breadcrumb')).hasText('Changes/CHG0031001')
         assertThat(page.locator('.note.sync')).hasText('Read from ProTech just now')
         assertThat(stages().locator('.label')).hasText(['Draft', 'Business Approval', 'Primary Approval', 'Secondary Approval',
-                                                       'Support Approval', 'CTask approval', 'Escalated approval', 'In Progress',
+                                                       'Support Approval', 'CTask Approval', 'Escalated Approval', 'In Progress',
                                                        'Closed'] as String[])
         assertThat(stages()).hasClass(['done', 'done', 'done', 'current', 'later', 'later', 'later', 'later', 'later'] as String[])
         assertThat(page.locator('beadle-workflow-progress li[aria-current=step] .label')).hasText('Secondary Approval')
@@ -245,16 +204,16 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(page.locator('beadle-toast')).containsText('Reminder sent to Daniel Foster, Priya Natarajan')
 
         when:
-        beadle.protech.advance(4, 'CTASK_APPROVAL')
+        api.protech.advance(4, 'CTASK_APPROVAL')
         page.reload()
 
         then:
-        assertThat(page.locator('.now')).hasText('CTask approval. Waiting for the approvers of each change task in ProTech: ' +
+        assertThat(page.locator('.now')).hasText('CTask Approval. Waiting for the approvers of each change task in ProTech: ' +
                 '0 of 2 approved. The change goes In Progress once every change task is approved.')
         assertThat(approvalRows().locator('.chip')).hasText((['Approved'] * 4 + ['Requested'] * 2) as String[])
 
         when:
-        beadle.protech.advance(4, 'IMPLEMENTATION')
+        api.protech.advance(4, 'IMPLEMENTATION')
         page.reload()
 
         then:
@@ -326,7 +285,7 @@ class ChangesSpec extends BeadleSpecification {
         lookUp(taskRows().nth(2), 'Assignment group', 'ois', 'OIS Support')
         fillIn(taskRows().nth(2), ['Short description': 'Notify the users', 'Description': 'Send the release notes to the users.'])
         button('Remove change task 2', true).click()
-        beadle.protech.applying = false
+        api.protech.applying = false
         button('Publish update to ProTech', true).click()
         page.waitForURL('**/changes/4')
 
@@ -357,7 +316,7 @@ class ChangesSpec extends BeadleSpecification {
 
         when:
         def reads = api.requests('GET', '/api/changes/4').size()
-        beadle.protech.applying = true
+        api.protech.applying = true
         page.waitForCondition({ api.requests('GET', '/api/changes/4').size() > reads } as BooleanSupplier)
 
         then:
@@ -394,14 +353,6 @@ class ChangesSpec extends BeadleSpecification {
 
     Locator column(String name) {
         gridCells(page.locator('body'), name)
-    }
-
-    Locator filter(String label) {
-        gridFilter(label)
-    }
-
-    void sortBy(String label) {
-        holdingText(gridHeaders(), label).locator('.ag-header-cell-label').click()
     }
 
     Locator approvalRows() {

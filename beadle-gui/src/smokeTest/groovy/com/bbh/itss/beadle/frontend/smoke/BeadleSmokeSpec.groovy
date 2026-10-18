@@ -124,10 +124,11 @@ class BeadleSmokeSpec extends BeadleSpecification {
         page.addInitScript(CORPORATE_TECHNOLOGY)
         page.setViewportSize(1280, 900)
 
-        expect: 'the changes and the action history fit 1280 px without a horizontal scrollbar'
+        expect: 'the changes and the action history fit 1280 px in the BBH table theme without a horizontal scrollbar'
         ['/changes', '/action-history'].every { path ->
             open(path)
             page.locator('beadle-grid .ag-row').first().waitFor()
+            assertThat(page.locator('beadle-grid ag-grid-angular.ag-theme-balham.v6-table-theme--bbh')).isVisible()
             assert !(barOf('beadle-grid').wider as boolean)
             true
         }

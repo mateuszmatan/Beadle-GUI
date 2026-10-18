@@ -36,8 +36,8 @@ describe('workflow progress', () => {
       'Primary Approval',
       'Secondary Approval',
       'Support Approval',
-      'CTask approval',
-      'Escalated approval',
+      'CTask Approval',
+      'Escalated Approval',
       'In Progress',
       'Closed',
     ]);
@@ -76,7 +76,7 @@ describe('workflow progress', () => {
     ]);
     expect(text(items[0])).toMatch(/^1Draft 7 Oct, \d\d:\d\d$/);
     expect(text(items[4])).toMatch(/^5Support Approval 7 Oct, \d\d:\d\d$/);
-    expect(text(items[6])).toBe('7Escalated approval Skipped');
+    expect(text(items[6])).toBe('7Escalated Approval Skipped');
     expect(items[7].getAttribute('aria-current')).toBe('step');
     expect(text(items[7])).toMatch(/^8In Progress 7 Oct, \d\d:\d\d$/);
     expect(text(items[8])).toBe('9Closed');

@@ -1,5 +1,9 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { TestBed } from '@angular/core/testing';
+import { text } from '../testing/dom';
 import { ChangeIntegrations } from './change-api';
-import { demoText, unreachableText } from './integration-note';
+import { IntegrationNote, demoText, unreachableText } from './integration-note';
 
 const answering = (integrations: Partial<ChangeIntegrations>): ChangeIntegrations => ({
   jiraConnected: true,
@@ -72,6 +76,40 @@ describe('unreachableText', () => {
     expect(unreachableText(answering({ internalReachable: false }))).toBe(internal);
     expect(unreachableText(answering({ internalReachable: false, proTechReachable: false }))).toBe(
       `${proTech} ${internal}`,
+    );
+  });
+});
+
+describe('IntegrationNote', () => {
+  async function shown(answer: (http: HttpTestingController) => void) {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    const fixture = TestBed.createComponent(IntegrationNote);
+    fixture.detectChanges();
+    answer(TestBed.inject(HttpTestingController));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  it('says what demo mode means for the connections it reads', async () => {
+    const note = await shown((http) =>
+      http.expectOne('/api/changes/integrations').flush(answering({ jiraConnected: false })),
+    );
+    expect(text(note.querySelector('.banner.info'))).toContain('Demo mode. Jira is not connected');
+    expect(note.querySelector('.note')).toBeNull();
+  });
+
+  it('says in a muted note when the connections could not be loaded', async () => {
+    const note = await shown((http) =>
+      http
+        .expectOne('/api/changes/integrations')
+        .flush({ detail: 'Down' }, { status: 503, statusText: 'Unavailable' }),
+    );
+    expect(note.querySelector('.banner')).toBeNull();
+    expect(text(note.querySelector('.note'))).toBe(
+      'The connection status of Jira, ProTech and CyberTrack could not be loaded.',
     );
   });
 });

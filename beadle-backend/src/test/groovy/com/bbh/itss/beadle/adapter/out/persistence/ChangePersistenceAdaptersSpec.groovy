@@ -1,5 +1,6 @@
 package com.bbh.itss.beadle.adapter.out.persistence
 
+import com.bbh.itss.beadle.domain.catalog.BusinessServiceUsage
 import com.bbh.itss.beadle.domain.catalog.Product
 import com.bbh.itss.beadle.domain.change.ApprovalRef
 import com.bbh.itss.beadle.domain.change.ChangeProduct
@@ -13,7 +14,6 @@ import com.bbh.itss.beadle.domain.change.ChangeTemplate.PrivilegedAccess
 import com.bbh.itss.beadle.domain.change.ChangeTemplate.PrivilegedUser
 import com.bbh.itss.beadle.domain.change.ChangeTemplate.Timing
 import com.bbh.itss.beadle.domain.change.ChangeUpdate
-import com.bbh.itss.beadle.domain.change.ChangeUsage
 import com.bbh.itss.beadle.domain.change.ProductionChange
 import com.bbh.itss.beadle.domain.change.Reminder
 import com.bbh.itss.beadle.domain.change.RiskAssessment
@@ -82,7 +82,7 @@ class ChangePersistenceAdaptersSpec extends PersistenceSpecification {
     ProductPersistenceAdapter products
 
     @Autowired
-    ChangeUsageAdapter usage
+    BusinessServiceUsageAdapter usage
 
     @Autowired
     TestEntityManager entities
@@ -450,7 +450,7 @@ class ChangePersistenceAdaptersSpec extends PersistenceSpecification {
         changes.findByBusinessService(4L)*.number() == ['CHG0001002']
         changes.findByBusinessService(5L) == []
         changes.findAll()*.number() == ['CHG0001003', 'CHG0001002', 'CHG0001001']
-        usage.perBusinessService() == [3L: new ChangeUsage(1, 2), 4L: new ChangeUsage(1, 1)]
+        usage.perBusinessService() == [3L: new BusinessServiceUsage(1, 2), 4L: new BusinessServiceUsage(1, 1)]
     }
 
     def "deleting a product deletes its template and keeps its created changes"() {

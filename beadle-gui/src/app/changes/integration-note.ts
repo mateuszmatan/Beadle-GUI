@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { catchError, of } from 'rxjs';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { ChangeIntegrations, ChangesApi } from './change-api';
 
 const DEMO_PROTECH =
@@ -72,21 +71,23 @@ export function unreachableText({
         <span><strong>Demo mode.</strong> {{ demo }}</span>
       </div>
     }
+    @if (integrations.error()) {
+      <p class="note">The connection status of Jira, ProTech and CyberTrack could not be loaded.</p>
+    }
+  `,
+  styles: `
+    .note {
+      margin-bottom: 12px;
+    }
   `,
 })
 export class IntegrationNote {
-  private readonly integrations = toSignal(
-    inject(ChangesApi)
-      .integrations()
-      .pipe(catchError(() => of(null))),
-    { initialValue: null },
+  private readonly api = inject(ChangesApi);
+  protected readonly integrations = rxResource({ stream: () => this.api.integrations() });
+  protected readonly demo = computed(() =>
+    this.integrations.hasValue() ? demoText(this.integrations.value()) : null,
   );
-  protected readonly demo = computed(() => {
-    const integrations = this.integrations();
-    return integrations && demoText(integrations);
-  });
-  protected readonly unreachable = computed(() => {
-    const integrations = this.integrations();
-    return integrations && unreachableText(integrations);
-  });
+  protected readonly unreachable = computed(() =>
+    this.integrations.hasValue() ? unreachableText(this.integrations.value()) : null,
+  );
 }

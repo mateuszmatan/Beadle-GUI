@@ -1,4 +1,3 @@
-import org.springframework.boot.gradle.plugin.SpringBootPlugin
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
 
@@ -37,9 +36,6 @@ subprojects {
             toolchain {
                 languageVersion = JavaLanguageVersion.of(21)
             }
-        }
-        tasks.withType(JavaCompile).configureEach {
-            options.compilerArgs << '-parameters'
         }
     }
 
@@ -116,7 +112,7 @@ project(':beadle-gui') { frontend ->
     apply plugin: 'groovy'
     apply plugin: 'java-test-fixtures'
 
-    def sources = files(fileTree('src') { exclude 'smokeTest/**', 'regressionTest/**', 'performanceTest/**', 'testFixtures/**' },
+    def sources = files(fileTree('src') { exclude 'smokeTest/**', 'regressionTest/**', 'performanceTest/**', 'testFixtures/groovy/**' },
             'tsconfig.app.json', 'tsconfig.spec.json', workspaceFiles)
     def distDir = layout.projectDirectory.dir('dist')
 
@@ -236,12 +232,6 @@ project(':beadle-backend') { backend ->
         archivesName = 'beadle'
     }
 
-    dependencyManagement {
-        imports {
-            mavenBom SpringBootPlugin.BOM_COORDINATES
-        }
-    }
-
     configurations {
         testFixturesApi.extendsFrom implementation
     }
@@ -283,7 +273,8 @@ project(':beadle-backend') { backend ->
                 useJUnitJupiter()
                 targets.configureEach {
                     testTask.configure {
-                        jvmArgs '-XX:+EnableDynamicAgentLoading'
+                        // C1 only: the test JVMs are short-lived, so they start Spring faster than with full JIT.
+                        jvmArgs '-XX:+EnableDynamicAgentLoading', '-XX:TieredStopAtLevel=1'
                         systemProperty 'LOG_PATH', backend.layout.buildDirectory.dir('logs').get().asFile.absolutePath
                         testLogging {
                             events 'failed'
@@ -319,7 +310,8 @@ project(':beadle-backend') { backend ->
                                 shouldRunAfter tasks.named('test')
                                 forward(it, 'smoke.baseUrl', 'smoke.ui', 'smoke.cookie')
                                 systemProperty 'performance.factor', performanceFactor
-                                if (suiteName != 'regressionTest') {
+                                if (suiteName == 'smokeTest' && providers.systemProperty('smoke.baseUrl').isPresent()) {
+                                    // A deployed Beadle-GUI can change without any input of the build.
                                     outputs.upToDateWhen { false }
                                     outputs.cacheIf { false }
                                 }
@@ -355,7 +347,7 @@ project(':beadle-backend') { backend ->
                 limit {
                     counter = 'LINE'
                     value = 'COVEREDRATIO'
-                    minimum = providers.gradleProperty('coverage.minimum').getOrElse('0.60') as BigDecimal
+                    minimum = 0.60
                 }
             }
         }
@@ -393,7 +385,7 @@ project(':beadle-backend') { backend ->
                 limit {
                     counter = 'LINE'
                     value = 'COVEREDRATIO'
-                    minimum = providers.gradleProperty('coverage.suites.minimum').getOrElse('0.30') as BigDecimal
+                    minimum = 0.30
                 }
             }
         }

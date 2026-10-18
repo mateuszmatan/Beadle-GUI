@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.UnaryOperator;
@@ -107,12 +108,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @WithoutTransaction
     @Audited(value = CHANGE_SYNCED, onlyWhenNoted = true)
     public ProductionChange get(long id) {
-        ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
-        try {
-            return synced(stored);
-        } catch (UncheckedIOException e) {
-            return stored.withSyncProblem(unreachable(e));
-        }
+        return listed(List.of(changes.load(id).orElseThrow(() -> notFound("Change", id)))).get(0);
     }
 
     @Override
@@ -335,12 +331,18 @@ public class ProductionChangeService implements ProductionChangesUseCase {
                 .findFirst().orElse(version);
     }
 
+    /**
+     * The changes synced with one read of ProTech, or as stored with the sync problem when ProTech cannot be reached or
+     * refuses the read (a {@code 4xx} of Beadle-ProTech, such as for a number it does not know), so that one change
+     * cannot keep the others from being shown. The changes of a write are read with {@link #synced(ProductionChange)},
+     * which lets every failure through.
+     */
     private List<ProductionChange> listed(List<ProductionChange> open) {
         Map<String, ProductionChange> remote;
         try {
             remote = proTech.read(open);
-        } catch (UncheckedIOException e) {
-            String problem = unreachable(e);
+        } catch (UncheckedIOException | InvalidRequestException | IllegalStateException | NoSuchElementException e) {
+            String problem = syncProblem(e);
             return open.stream().map(change -> change.withSyncProblem(problem)).toList();
         }
         return synced(open, remote);
@@ -418,7 +420,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
             return remote == null ? published.unverified(current, missing(published))
                     : published.synced(remote, now);
         } catch (UncheckedIOException e) {
-            return published.unverified(current, unreachable(e));
+            return published.unverified(current, syncProblem(e));
         }
     }
 
@@ -452,8 +454,9 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         }
     }
 
-    private static String unreachable(UncheckedIOException e) {
-        return CS.appendIfMissing("ProTech could not be reached: " + e.getMessage(), ".");
+    private static String syncProblem(RuntimeException e) {
+        String reason = e instanceof UncheckedIOException ? "could not be reached" : "refused the read";
+        return CS.appendIfMissing("ProTech " + reason + ": " + e.getMessage(), ".");
     }
 
     private static String missing(ProductionChange change) {

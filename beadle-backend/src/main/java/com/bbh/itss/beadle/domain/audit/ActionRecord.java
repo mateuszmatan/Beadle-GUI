@@ -34,9 +34,4 @@ public record ActionRecord(Long id, Instant at, String user, Action action, Obje
         message = abbreviateBytes(message, MESSAGE_MAX);
         correlationId = abbreviateBytes(correlationId, CORRELATION_ID_MAX);
     }
-
-    public static ActionRecordBuilder about(Action action, ActionObject object) {
-        ActionObject about = object == null ? ActionObject.of(action.objectType(), null) : object;
-        return builder().action(action).objectType(about.type()).objectId(about.id()).objectKey(about.key());
-    }
 }

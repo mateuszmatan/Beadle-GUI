@@ -113,7 +113,7 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
       }
       @if (businessServiceId() === null) {
         <section class="card empty-state">
-          <h3>Choose your business service to see its ProTech changes.</h3>
+          <h3>Choose your business service to see its ProTech changes</h3>
           <p>Beadle remembers your business service in this browser.</p>
         </section>
       } @else {
@@ -334,9 +334,15 @@ export class ChangesList {
       filter: { control: this.filters.controls.shortDescription, label: 'short description' },
       wrap: true,
       flex: 2,
-      minWidth: 180,
+      minWidth: 150,
     },
-    { key: 'tasks', header: 'Tasks', value: (row) => row.tasks, numeric: true, width: 80 },
+    {
+      key: 'tasks',
+      header: 'Change tasks',
+      value: (row) => row.tasks,
+      numeric: true,
+      width: 120,
+    },
     {
       key: 'created',
       header: 'Created',

@@ -6,19 +6,16 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.trim;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
-public record ProductDetails(String code, String name, String description, String ownerTeam, String contactEmail,
-                             Long businessServiceId) {
+public record ProductDetails(String code, String name, String ownerTeam, String contactEmail, Long businessServiceId) {
 
     public static final String CODE_PATTERN = "^[A-Z][A-Z0-9_-]{1,49}$";
     public static final String CODE_RULE = "use 2 to 50 upper case letters, digits, '-' or '_', starting with a letter";
     public static final int NAME_MAX = 200;
-    public static final int DESCRIPTION_MAX = 4000;
     public static final int OWNER_TEAM_MAX = 200;
 
     public ProductDetails {
         code = trim(code);
         name = trim(name);
-        description = trimToNull(description);
         ownerTeam = trimToNull(ownerTeam);
         contactEmail = trimToNull(contactEmail);
     }
@@ -30,9 +27,7 @@ public record ProductDetails(String code, String name, String description, Strin
         if (isBlank(name)) {
             problems.add("name", "must not be blank");
         }
-        problems.fits("name", name, NAME_MAX)
-                .fits("description", description, DESCRIPTION_MAX)
-                .fits("ownerTeam", ownerTeam, OWNER_TEAM_MAX);
+        problems.fits("name", name, NAME_MAX).fits("ownerTeam", ownerTeam, OWNER_TEAM_MAX);
         if (businessServiceId == null) {
             problems.add("businessServiceId", "choose the product's business service");
         } else if (!directory.businessServiceExists(businessServiceId)) {

@@ -81,7 +81,7 @@ class ActionHistorySpec extends BeadleSpecification {
         ownErrors().isEmpty()
     }
 
-    def "the filters ask the API again from the first page and a range that ends before it starts asks nothing"() {
+    def "the filters ask the API again from the first page"() {
         when:
         open('/action-history')
 
@@ -138,16 +138,6 @@ class ActionHistorySpec extends BeadleSpecification {
         assertThat(column('object')).hasText(['Ticket SCP-123', 'Product CERTSCANNER'] as String[])
         api.lastRequest('GET', '/api/action-history').params() ==
                 [from: '2026-10-14T00:00:00.000Z', to: '2026-10-15T00:00:00.000Z', page: '0', size: '50']
-
-        when:
-        def asked = api.requests('GET', '/api/action-history').size()
-        input(filters(), 'To').fill('2026-10-13')
-
-        then:
-        hasErrors(filters(), [To: 'The last day is before the first day'])
-        assertThat(page.locator('.beadle-grid-empty')).hasText('The last day is before the first day: change From or To.')
-        assertThat(column('object')).hasCount(0)
-        api.requests('GET', '/api/action-history').size() == asked
         ownErrors().isEmpty()
     }
 

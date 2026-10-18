@@ -86,10 +86,6 @@ export function settleGrid(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve));
 }
 
-export function dialogElement(): HTMLElement | null {
-  return document.querySelector('.cdk-dialog-container');
-}
-
 export function toast(): HTMLElement | null {
   return document.querySelector('beadle-toast');
 }

@@ -16,14 +16,13 @@ class BusinessServiceServiceSpec extends Specification {
     static final BusinessService CORPORATE = new BusinessService(3L, 'corporate Technology', 1)
     static final BusinessService CUSTODY = new BusinessService(4L, 'Custody', 0)
     static final BusinessService FUND_SERVICES = new BusinessService(5L, 'Fund Services', 0)
-    static final BusinessServiceUsage UNUSED = new Usage(0, null)
-    static final BusinessServiceUsage TWO_PRODUCTS = new Usage(2, null)
-    static final BusinessServiceUsage IN_USE = new Usage(0, 'Custody is still in use')
+    static final BusinessServiceUsage UNUSED = BusinessServiceUsage.UNUSED
+    static final BusinessServiceUsage TWO_PRODUCTS = new BusinessServiceUsage(2, 3)
+    static final BusinessServiceUsage IN_USE = new BusinessServiceUsage(0, 1)
 
     BusinessServiceRepositoryPort businessServices = Mock(defaultResponse: INSTANCE)
     BusinessServiceUsagePort usage = Stub() {
         perBusinessService() >> [3L: TWO_PRODUCTS, 4L: IN_USE]
-        unused() >> UNUSED
     }
     def service = new BusinessServiceService(businessServices, usage)
 
@@ -94,7 +93,7 @@ class BusinessServiceServiceSpec extends Specification {
         'a rename to a name in use'                 | { it.rename(3L, 1L, 'fund services') }        || 'A business service named Fund Services already exists'
         'a rename of an old version'                | { it.rename(3L, 0L, 'Corporate Technology') } || STALE_VERSION
         'deleting a business service with products'       | { it.delete(3L) }                             || 'corporate Technology still has 2 product(s). Move them to another business service first.'
-        'deleting a business service the application uses' | { it.delete(4L) }                            || 'Custody is still in use'
+        'deleting a business service with changes'         | { it.delete(4L) }                            || 'Custody still owns 1 change(s), so it cannot be deleted.'
     }
 
     def "an unknown business service is not found, renamed or deleted"() {
@@ -109,13 +108,5 @@ class BusinessServiceServiceSpec extends Specification {
 
         where:
         action << [{ it.rename(9L, 0L, 'Custody') }, { it.delete(9L) }]
-    }
-
-    record Usage(long productCount, String refusal) implements BusinessServiceUsage {
-
-        @Override
-        Optional<String> deletionRefusal(String businessService) {
-            Optional.ofNullable(refusal)
-        }
     }
 }

@@ -34,10 +34,10 @@ import static com.bbh.itss.beadle.domain.change.TaskState.OPEN;
 import static com.bbh.itss.beadle.domain.shared.Text.abbreviateBytes;
 import static com.bbh.itss.beadle.domain.shared.Text.bytes;
 import static java.time.Duration.ofMinutes;
+import static java.util.Objects.requireNonNullElse;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
-import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 import static org.apache.commons.lang3.ObjectUtils.getIfNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -94,8 +94,8 @@ public record ProductionChange(Long id, String number, Long productId, String pr
         storyKeys = List.copyOf(storyKeys);
         tasks = List.copyOf(tasks);
         state = getIfNull(state, DRAFT);
-        workflow = List.copyOf(emptyIfNull(workflow));
-        approvals = List.copyOf(emptyIfNull(approvals));
+        workflow = List.copyOf(requireNonNullElse(workflow, List.of()));
+        approvals = List.copyOf(requireNonNullElse(approvals, List.of()));
         editedVersion = getIfNull(editedVersion, version);
     }
 
@@ -251,7 +251,7 @@ public record ProductionChange(Long id, String number, Long productId, String pr
     }
 
     public ProductionChange reminded(Map<ApprovalRef, Reminder> sent) {
-        return toBuilder().approvals(approvals.stream().map(approval -> approval.remindedBy(
+        return toBuilder().approvals(approvals.stream().map(approval -> approval.withReminder(
                         sent.getOrDefault(ApprovalRef.of(approval.role()), approval.reminder()))).toList())
                 .tasks(tasks.stream().map(task -> task.number() == null ? task : task.withReminder(
                         sent.getOrDefault(ApprovalRef.ofTask(task.number()), task.reminder()))).toList()).build();
@@ -386,7 +386,7 @@ public record ProductionChange(Long id, String number, Long productId, String pr
         Map<ApprovalRole, Reminder> sent = new EnumMap<>(ApprovalRole.class);
         approvals.stream().filter(approval -> approval.reminder() != null)
                 .forEach(approval -> sent.put(approval.role(), approval.reminder()));
-        return remote.approvals.stream().map(approval -> approval.remindedBy(sent.get(approval.role()))).toList();
+        return remote.approvals.stream().map(approval -> approval.withReminder(sent.get(approval.role()))).toList();
     }
 
     private List<ChangeTask> remindersKept(List<ChangeTask> synced) {

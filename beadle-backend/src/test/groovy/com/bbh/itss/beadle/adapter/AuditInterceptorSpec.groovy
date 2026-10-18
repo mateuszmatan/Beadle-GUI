@@ -92,9 +92,7 @@ class AuditInterceptorSpec extends Specification {
     List<ActionRecord> rows = []
     String signedIn = 'Mateusz Matan'
     BusinessServiceRepositoryPort businessServices = Mock()
-    BusinessServiceUsagePort usage = Mock() {
-        unused() >> businessServiceUsage(0)
-    }
+    BusinessServiceUsagePort usage = Mock()
     ProductRepositoryPort products = Mock()
     ProductionChangeRepositoryPort changes = Mock()
     ProTechPort proTech = Mock()
@@ -163,7 +161,7 @@ class AuditInterceptorSpec extends Specification {
     def "a use case that throws leaves a FAILURE row written in a transaction of its own while its transaction rolls back"() {
         given:
         businessServices.findAll() >> [new BusinessService(1L, 'AI Lab', 0)]
-        usage.perBusinessService() >> [1L: businessServiceUsage(2)]
+        usage.perBusinessService() >> [1L: new BusinessServiceUsage(2, 0)]
 
         when:
         use(BusinessServicesUseCase) { it.delete(1L) }
@@ -498,7 +496,7 @@ class AuditInterceptorSpec extends Specification {
 
     def "arguments too long for the details give way to their length, and the result stays whole after them"() {
         given:
-        def interceptor = new AuditInterceptor(null, null, Stub(ObjectProvider) {
+        def interceptor = new AuditInterceptor(null, Stub(ObjectProvider) {
             getIfUnique(_) >> JsonMapper.builder().build()
         }, null, null)
         def notes = AuditNotes.listen()
@@ -570,9 +568,5 @@ class AuditInterceptorSpec extends Specification {
         R result = null
         runner.run { ApplicationContext context -> result = work(context.getBean(useCase)) }
         result
-    }
-
-    private static BusinessServiceUsage businessServiceUsage(long products) {
-        [productCount: { -> products }, deletionRefusal: { String name -> Optional.empty() }] as BusinessServiceUsage
     }
 }

@@ -16,7 +16,7 @@ import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTest
         'spring.datasource.username=sa'])
 @AutoConfigureTestDatabase(replace = NONE)
 @Import([ActionHistoryPersistenceAdapter, BusinessServicePersistenceAdapter, ChangeProductPersistenceAdapter,
-        ChangeProfilePersistenceAdapter, ChangeUsageAdapter, ObjectKeyAdapter, ProductPersistenceAdapter,
+        ChangeProfilePersistenceAdapter, BusinessServiceUsageAdapter, ObjectKeyAdapter, ProductPersistenceAdapter,
         ProductionChangePersistenceAdapter])
 abstract class PersistenceSpecification extends Specification {
 }

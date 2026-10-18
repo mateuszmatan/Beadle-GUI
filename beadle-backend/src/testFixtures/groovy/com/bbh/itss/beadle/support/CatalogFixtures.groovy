@@ -11,7 +11,7 @@ class CatalogFixtures {
 
     static ProductDetails details(Map args = [:]) {
         new ProductDetails(args.code as String ?: 'CERT', args.name as String ?: 'CertScanner',
-                args.description as String, args.ownerTeam as String, args.contactEmail as String,
+                args.ownerTeam as String, args.contactEmail as String,
                 args.containsKey('businessServiceId') ? args.businessServiceId as Long : BUSINESS_SERVICE_ID)
     }
 

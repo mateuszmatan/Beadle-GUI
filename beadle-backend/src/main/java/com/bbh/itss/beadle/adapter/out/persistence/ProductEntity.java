@@ -43,7 +43,7 @@ public class ProductEntity extends AuditedEntity {
     private BusinessServiceEntity businessService;
 
     Product toDomain() {
-        return new Product(id, new ProductDetails(code, name, null, ownerTeam, contactEmail, businessServiceId), version(),
+        return new Product(id, new ProductDetails(code, name, ownerTeam, contactEmail, businessServiceId), version(),
                 updatedAt());
     }
 

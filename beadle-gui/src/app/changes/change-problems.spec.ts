@@ -1,10 +1,22 @@
-import { fieldLabels, problemText, requestLabel } from './change-problems';
+import { HttpErrorResponse } from '@angular/common/http';
+import {
+  ATTENTION,
+  NEEDS_ATTENTION,
+  failureOf,
+  fieldLabels,
+  problemText,
+  requestLabel,
+} from './change-problems';
+
+const refused = (status: number, body: object) =>
+  new HttpErrorResponse({ status, statusText: 'Refused', error: body });
 
 describe('change problems', () => {
   it('names the fields of a change request', () => {
     expect(requestLabel('fixVersion')).toBe('FixVersion');
     expect(requestLabel('businessServiceId')).toBe('Business service');
     expect(requestLabel('schedule.firstUsage')).toBe('First use');
+    expect(requestLabel('schedule.validationStart')).toBe('Post-install validation start');
     expect(requestLabel('schedule.downtimeEnd')).toBe('Downtime end');
     expect(requestLabel('template.approvers.l2Manager')).toBe('L2 approver');
     expect(requestLabel('template.secureCodingTicket')).toBe('Secure coding ticket number');
@@ -37,5 +49,40 @@ describe('change problems', () => {
     expect(fieldLabels(['shortDescription', 'template.planning', 'odd'])).toBe(
       'Short description, Planning, odd',
     );
+  });
+});
+
+describe('failureOf', () => {
+  it('leads with what could not be done, lists the field problems by their labels and offers no reload', () => {
+    expect(
+      failureOf(
+        refused(400, {
+          detail: '2 fields are invalid',
+          problems: [
+            { field: 'schedule.validationEnd', message: 'must be after the start' },
+            { field: 'tasks[0].details.shortDescription', message: 'is used twice' },
+          ],
+        }),
+        'The update could not be published',
+      ),
+    ).toEqual({
+      message: 'The update could not be published: 2 fields are invalid',
+      problems: [
+        'Validation end: must be after the start',
+        'Change task 1: short description: is used twice',
+      ],
+      reload: false,
+    });
+  });
+
+  it('offers to reload when someone else saved first, and only then', () => {
+    expect(failureOf(refused(409, { detail: 'Changed meanwhile' }), 'Not saved')).toEqual({
+      message: 'Not saved: Changed meanwhile',
+      problems: [],
+      reload: true,
+    });
+    expect(failureOf(refused(403, { detail: 'Only Custody' }), 'Not saved').reload).toBe(false);
+    expect(NEEDS_ATTENTION).toEqual({ message: ATTENTION, problems: [], reload: false });
+    expect(ATTENTION).toBe('Some fields need your attention.');
   });
 });

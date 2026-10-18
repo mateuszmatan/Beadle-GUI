@@ -2,7 +2,7 @@ package com.bbh.itss.beadle.performance
 
 import com.bbh.itss.beadle.support.BeadleSpecification
 import com.bbh.itss.beadle.support.LatencyStats
-import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.context.TestPropertySource
 
 import java.time.Instant
 
@@ -11,13 +11,9 @@ import static java.net.URLEncoder.encode
 import static java.nio.charset.StandardCharsets.UTF_8
 import static java.time.temporal.ChronoUnit.DAYS
 import static java.time.temporal.ChronoUnit.HOURS
-import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT
 
-@SpringBootTest(webEnvironment = RANDOM_PORT, properties = [
-        'spring.datasource.url=jdbc:h2:mem:beadle;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1;LOCK_TIMEOUT=10000',
-        'beadle.demo-data=true',
-        'beadle.services.internal.url=${beadle.stand-in.url}',
-        'beadle.services.protech.url=${beadle.stand-in.url}'])
+/** The suite's application of {@link BeadleSpecification} with the demo catalogue, which the calls are measured on. */
+@TestPropertySource(properties = 'beadle.demo-data=true')
 class BeadlePerformanceSpec extends BeadleSpecification {
 
     /** How much slower than a developer's machine the one running the suite may be ({@code -Dperformance.factor}). */

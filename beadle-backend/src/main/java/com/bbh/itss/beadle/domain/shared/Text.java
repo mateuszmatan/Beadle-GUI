@@ -8,8 +8,8 @@ import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Locale.ROOT;
+import static java.util.Objects.requireNonNullElse;
 import static lombok.AccessLevel.PRIVATE;
-import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 import static org.apache.commons.lang3.StringUtils.lowerCase;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 import static org.apache.commons.lang3.Strings.CS;
@@ -46,6 +46,7 @@ public final class Text {
 
     /** The values trimmed, without blanks and repeats, in their order. */
     public static List<String> clean(List<String> values) {
-        return emptyIfNull(values).stream().filter(StringUtils::isNotBlank).map(String::trim).distinct().toList();
+        return requireNonNullElse(values, List.<String>of()).stream().filter(StringUtils::isNotBlank).map(String::trim)
+                .distinct().toList();
     }
 }

@@ -135,8 +135,7 @@ class UseCaseConfigurationSpec extends Specification {
 
     def "business services are listed in a read-only transaction and created in a read-write one"() {
         given:
-        usage.perBusinessService() >> [1L: businessServiceUsage(2)]
-        usage.unused() >> businessServiceUsage(0)
+        usage.perBusinessService() >> [1L: new BusinessServiceUsage(2, 0)]
         businessServices.findAll() >> { calls << 'find all ' + transactionState(); [new BusinessService(1L, 'AI Lab', 0)] }
         businessServices.findByName(_) >> Optional.empty()
         businessServices.save(_ as BusinessService) >> { BusinessService businessService ->
@@ -157,8 +156,7 @@ class UseCaseConfigurationSpec extends Specification {
 
     def "a refused business service deletion rolls the transaction back"() {
         given:
-        usage.perBusinessService() >> [1L: businessServiceUsage(2)]
-        usage.unused() >> businessServiceUsage(0)
+        usage.perBusinessService() >> [1L: new BusinessServiceUsage(2, 0)]
         businessServices.findAll() >> { calls << 'find all ' + transactionState(); [new BusinessService(1L, 'AI Lab', 0)] }
 
         when:
@@ -195,9 +193,5 @@ class UseCaseConfigurationSpec extends Specification {
         integrations == new ChangeIntegrations(true, false, true, true, true)
         calls == ['Jira without transaction', 'ProTech without transaction', 'CyberTrack without transaction']
         transactions.log == []
-    }
-
-    private static BusinessServiceUsage businessServiceUsage(long products) {
-        [productCount: { -> products }] as BusinessServiceUsage
     }
 }

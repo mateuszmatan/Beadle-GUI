@@ -9,7 +9,6 @@ import com.bbh.itss.beadle.application.CallContext;
 import com.bbh.itss.beadle.application.CallContext.Scope;
 import com.bbh.itss.beadle.application.UseCase;
 import com.bbh.itss.beadle.application.audit.port.in.ActionHistoryUseCase;
-import com.bbh.itss.beadle.application.audit.port.out.ObjectKeyPort;
 import com.bbh.itss.beadle.domain.audit.Action;
 import com.bbh.itss.beadle.domain.audit.ActionObject;
 import com.bbh.itss.beadle.domain.audit.ActionRecord;
@@ -76,7 +75,6 @@ public class AuditInterceptor implements MethodInterceptor {
     static final String ROLLED_BACK = "The action ended, but its transaction did not commit";
 
     private final ObjectProvider<ActionHistoryUseCase> history;
-    private final ObjectProvider<ObjectKeyPort> keys;
     private final ObjectProvider<JsonMapper> json;
     private final ObjectProvider<PlatformTransactionManager> transactions;
     private final ObjectProvider<Clock> clock;
@@ -102,7 +100,7 @@ public class AuditInterceptor implements MethodInterceptor {
                     .action(action);
             ObjectNode argumentDetails = arguments(method, arguments);
             ActionObject removed = action.deletes()
-                    ? fromArguments(action, method, arguments).keyedBy(keys.getObject()::keyOf) : null;
+                    ? history.getObject().keyed(fromArguments(action, method, arguments)) : null;
             long started = System.nanoTime();
             Object result;
             try {

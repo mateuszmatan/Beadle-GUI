@@ -14,7 +14,6 @@ import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.List;
 
-import static com.bbh.itss.beadle.adapter.RecordMapper.map;
 import static com.bbh.itss.beadle.domain.change.ChangeTemplate.NUMBER_MAX;
 import static com.bbh.itss.beadle.domain.change.ProductionChange.DESCRIPTION_MAX;
 import static com.bbh.itss.beadle.domain.change.ProductionChange.SHORT_DESCRIPTION_MAX;
@@ -27,16 +26,7 @@ public record ChangeEditRequest(
         @NotBlank @Size(max = DESCRIPTION_MAX) String description,
         @NotNull ChangeSchedule schedule,
         @NotNull ChangeTemplate template,
-        @NotNull @Size(max = MAX_TASKS) List<@NotNull @Valid TaskDto> tasks) {
-
-    ChangeEditCommand toCommand() {
-        return new ChangeEditCommand(version, businessServiceId, shortDescription, description, schedule, template,
-                tasksOf(tasks));
-    }
-
-    static List<ChangeTask> tasksOf(List<TaskDto> tasks) {
-        return tasks.stream().map(task -> map(task, ChangeTask.class)).toList();
-    }
+        @NotNull @Size(max = MAX_TASKS) List<@NotNull @Valid TaskDto> tasks) implements Mirrors<ChangeEditCommand> {
 
     public record TaskDto(@Size(max = NUMBER_MAX) String number, @NotNull TaskDetails details, Instant start)
             implements Mirrors<ChangeTask> {

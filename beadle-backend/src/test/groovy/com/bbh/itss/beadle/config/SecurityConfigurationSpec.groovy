@@ -6,6 +6,7 @@ import com.bbh.itss.beadle.adapter.in.web.RefusedRequests
 import com.bbh.itss.beadle.adapter.in.web.ServiceTokenFilter
 import com.bbh.itss.beadle.support.RecordingHttpServer
 import com.bbh.itss.beadle.support.StandInServices
+import org.springframework.boot.ApplicationContextFactory
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.boot.context.TypeExcludeFilter
 import org.springframework.context.ApplicationContextInitializer
@@ -15,6 +16,7 @@ import org.springframework.core.type.classreading.MetadataReaderFactory
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.mock.web.MockHttpSession
+import org.springframework.mock.web.MockServletContext
 import org.springframework.security.core.authority.AuthorityUtils
 import org.springframework.security.core.context.SecurityContextImpl
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
@@ -24,6 +26,7 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder
 import org.springframework.web.context.WebApplicationContext
+import org.springframework.web.context.support.GenericWebApplicationContext
 import spock.lang.Shared
 import spock.lang.Specification
 
@@ -33,6 +36,7 @@ import static com.bbh.itss.beadle.support.Json.parse
 import static com.bbh.itss.beadle.support.Json.toJson
 import static org.springframework.http.MediaType.APPLICATION_JSON
 import static org.springframework.http.MediaType.TEXT_HTML
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -176,6 +180,19 @@ class SecurityConfigurationSpec extends Specification {
         latest(oidcContext, 'USER_SIGNED_OUT', 'SUCCESS') == ['Ann Lee', null]
     }
 
+    def "with Ping a POST /logout after the session ended, as after a redeployment, records no sign-out"() {
+        given:
+        int signedOutBefore = count(oidcContext, 'USER_SIGNED_OUT', 'SUCCESS')
+
+        when:
+        def signedOut = answer(oidc, post('/logout').with(csrf()))
+
+        then:
+        signedOut.status == 200
+        parse(signedOut.contentAsString) == [redirectUrl: '/']
+        count(oidcContext, 'USER_SIGNED_OUT', 'SUCCESS') == signedOutBefore
+    }
+
     def "with Ping a sign-in that fails on its way back from Ping is only logged, and the sign-in page says it failed"() {
         given:
         def session = new MockHttpSession()
@@ -291,14 +308,17 @@ class SecurityConfigurationSpec extends Specification {
         ["--spring.security.oauth2.client.provider.ping.issuer-uri=$server.url".toString()]
     }
 
+    /** Beadle on a mock servlet context, as @SpringBootTest's MOCK environment has it: MockMvc needs no server. */
     private static ConfigurableApplicationContext start(String name, List<String> arguments) {
         new SpringApplicationBuilder(BeadleApplication).profiles('local')
                 .logStartupInfo(false)
+                .contextFactory({ type -> new GenericWebApplicationContext(new MockServletContext()) }
+                        as ApplicationContextFactory)
                 .initializers({ ConfigurableApplicationContext context ->
                     context.beanFactory.registerSingleton('specClasses', new SpecClasses())
                 } as ApplicationContextInitializer<ConfigurableApplicationContext>)
                 .run(([
-                        '--server.port=0', '--beadle.demo-data=false', "--beadle.services.token=$TOKEN",
+                        '--beadle.demo-data=false', "--beadle.services.token=$TOKEN",
                         "--beadle.services.internal.url=$StandInServices.SHARED.url",
                         "--beadle.services.protech.url=$StandInServices.SHARED.url",
                         '--management.endpoint.health.probes.enabled=true',

@@ -446,6 +446,9 @@ class ProductionChangeServiceSpec extends Specification {
         'the list'           | true   | { it.list(null) }       | 'does not hold it'  | { [:] }                                                                     || 'ProTech has no change CHG0031001.'
         'an opened change'   | false  | { it.get(7L) }          | 'cannot be reached' | { throw new UncheckedIOException('Read timed out', new IOException()) }    || 'ProTech could not be reached: Read timed out.'
         'an opened change'   | false  | { it.get(7L) }          | 'does not hold it'  | { [:] }                                                                     || 'ProTech has no change CHG0031001.'
+        'the list'           | true   | { it.list(null) }       | 'refuses the read'  | { throw new NoSuchElementException('Beadle-ProTech refused to read the changes (404)') } || 'ProTech refused the read: Beadle-ProTech refused to read the changes (404).'
+        'an opened change'   | false  | { it.get(7L) }          | 'refuses the read'  | { throw InvalidRequestException.of('number', 'is not a ProTech change number') } || 'ProTech refused the read: is not a ProTech change number.'
+        'an opened change'   | false  | { it.get(7L) }          | 'refuses the read'  | { throw new IllegalStateException('Beadle-ProTech refused to read the changes (409)') } || 'ProTech refused the read: Beadle-ProTech refused to read the changes (409).'
     }
 
     def "a change #action is read from ProTech and saved only when ProTech #changed it"() {

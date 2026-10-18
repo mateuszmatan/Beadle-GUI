@@ -19,7 +19,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.commons.collections4.MapUtils.emptyIfNull;
+import static java.util.Objects.requireNonNullElse;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 /**
@@ -69,9 +69,9 @@ public class ProTechClient extends BeadleServiceClient<ProTechClient.Status> imp
 
     @Override
     public Map<String, ProductionChange> read(Collection<ProductionChange> known) {
-        return known.isEmpty() ? Map.of() : emptyIfNull(call("read the changes", client -> client.post()
+        return known.isEmpty() ? Map.of() : requireNonNullElse(call("read the changes", client -> client.post()
                 .uri("/api/protech/changes/read").contentType(APPLICATION_JSON).body(List.copyOf(known))
-                .retrieve().body(CHANGES)));
+                .retrieve().body(CHANGES)), Map.of());
     }
 
     @Override
@@ -95,9 +95,7 @@ public class ProTechClient extends BeadleServiceClient<ProTechClient.Status> imp
     @Override
     public List<Lookup> find(LookupKind kind, String query, int limit) {
         return list("look up " + kind.path(), client -> client.get()
-                .uri(uri -> query == null
-                        ? uri.path(LOOKUPS_PATH).queryParam("limit", "{limit}").build(kind.path(), limit)
-                        : uri.path(LOOKUPS_PATH).queryParam("q", "{q}").queryParam("limit", "{limit}")
+                .uri(uri -> uri.path(LOOKUPS_PATH).queryParam("q", "{q}").queryParam("limit", "{limit}")
                         .build(kind.path(), query, limit))
                 .retrieve().body(LOOKUPS));
     }

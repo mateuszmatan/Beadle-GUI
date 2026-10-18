@@ -9,11 +9,12 @@ import com.bbh.itss.beadle.adapter.in.web.SignInRecorder;
 import com.bbh.itss.beadle.adapter.out.http.ServicesProperties;
 import com.bbh.itss.beadle.application.user.port.in.SignedInUserUseCase;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
+import org.springframework.security.authentication.AuthenticationTrustResolver;
+import org.springframework.security.authentication.AuthenticationTrustResolverImpl;
 import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -50,13 +51,13 @@ import static org.springframework.security.config.http.SessionCreationPolicy.STA
  * ends its Ping session as well ({@link PingSignOut}).</li>
  * </ul>
  * The audit trail gets the sessions and what these chains refuse: {@link SignInRecorder} records the first API call of
- * every session as {@code USER_SIGNED_IN}, the sign-out is {@code USER_SIGNED_OUT}, and {@link RefusedRequests} files
- * a signed-in user's change refused for its CSRF token and a callback with the service token refused for its
- * correlation id as {@code FAILURE} rows; a caller who proved nothing, or whose Ping sign-in failed, is only logged.
+ * every session as {@code USER_SIGNED_IN}, the sign-out of a signed-in user is {@code USER_SIGNED_OUT} (a
+ * {@code POST /logout} after the session ended is not), and {@link RefusedRequests} files a signed-in user's change
+ * refused for its CSRF token and a callback with the service token refused for its correlation id as {@code FAILURE}
+ * rows; a caller who proved nothing, or whose Ping sign-in failed, is only logged.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableWebSecurity
-@EnableConfigurationProperties(AuthProperties.class)
 public class SecurityConfiguration {
 
     public static final String SIGN_IN = "/oauth2/authorization/ping";
@@ -69,6 +70,8 @@ public class SecurityConfiguration {
             + "PING_ISSUER_URI";
     static final String LOCAL_ONLY = "beadle.auth.mode=local signs everybody in without Ping: it is for profile local "
             + "only, not for rd, qc or prod";
+
+    private static final AuthenticationTrustResolver TRUST = new AuthenticationTrustResolverImpl();
 
     @Bean
     @Order(1)
@@ -97,7 +100,11 @@ public class SecurityConfiguration {
                 .requestCache(AbstractHttpConfigurer::disable)
                 .logout(logout -> logout
                         .logoutRequestMatcher(PathPatternRequestMatcher.withDefaults().matcher(POST, SIGN_OUT))
-                        .addLogoutHandler((request, response, authentication) -> users.signOut()))
+                        .addLogoutHandler((request, response, authentication) -> {
+                            if (TRUST.isAuthenticated(authentication)) {
+                                users.signOut();
+                            }
+                        }))
                 .addFilterAfter(new SignInRecorder(users), AuthorizationFilter.class);
         switch (auth.mode()) {
             case LOCAL -> {

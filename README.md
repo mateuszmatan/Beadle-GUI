@@ -36,6 +36,7 @@ The service is hexagonal, and `ArchitectureSpec` (ArchUnit) enforces the layers:
 com.bbh.itss.beadle
 ├── domain/<area>            records and rules, no framework: audit, callback, catalog, change, shared
 ├── application/<area>       use cases behind port/in, ports to the outside in port/out
+├── adapter                  what the adapters share: AuditInterceptor, RecordMapper, Secrets, ServiceHeaders
 ├── adapter/in/web           controllers, callbacks, security filters, error handling
 ├── adapter/in/startup       the demo data of the laptop
 ├── adapter/out/persistence  JPA entities and repositories
@@ -45,9 +46,10 @@ com.bbh.itss.beadle
 └── config                   Spring wiring only
 ```
 
-The interface (`beadle-gui/src/app`) has the same cut: `shell` (header, menu, user, footer), `core` (API clients,
-models, sign-in), `ui` (form fields, grid, dialogs, toasts), `shared` (field definitions, lookups),
-`business-services`, `products`, `admin`, `changes` (Changes and New Change) and `action-history`.
+The interface (`beadle-gui/src/app`) has the same cut: `shell` (header, menu, user, footer), `core` (the API clients
+the features share, models, sign-in), `ui` (form fields, grid, dialogs, toasts), `shared` (field definitions,
+lookups), `business-services`, `products`, `admin`, `changes` (Changes and New Change) and `action-history`; each
+feature keeps the client of its own endpoints (`changes/change-api.ts`, `action-history/action-history-api.ts`).
 
 ## Look
 
@@ -71,6 +73,7 @@ The `local` profile keeps an H2 file database in Oracle mode in `~/beadle/beadle
 it) with demo products, and signs everybody in as `Mateusz Matan` without Ping (`BEADLE_SIGNED_IN_USER` names
 someone else). Beadle-GUI also starts while the two services are down; its pages then say which one cannot be
 reached. For work on the interface, `npm start` serves it on http://localhost:4201 and proxies the API to port 8081.
+`npm ci` removes the V6 packages, so after `npm ci` run `./gradlew installDesignSystem` before `npm start`.
 
 ## Build and tests
 
@@ -96,18 +99,18 @@ machine.
 
 ## Configuration
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `SPRING_PROFILES_ACTIVE` | `local` | `local` on H2; `rd`, `qc`, `prod` on Oracle with Ping |
-| `PORT` | `8081` | HTTP port |
-| `BEADLE_DATA_DIR` | `~/beadle` | folder of the H2 database (`local`) |
-| `BEADLE_DEMO_DATA` | `true` with `local` | seed the demo products and change templates |
-| `BEADLE_SIGNED_IN_USER` | `Mateusz Matan` | the user everybody is signed in as with `local` (`beadle.auth.user`) |
-| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `DB_POOL_SIZE` | H2 with `local` | the Oracle database of `rd`, `qc`, `prod` (pool 5, 10, 20) |
-| `PING_ISSUER_URI`, `PING_CLIENT_ID`, `PING_CLIENT_SECRET` | none | Beadle's OpenID Connect client at Ping; required on `rd`, `qc`, `prod` |
-| `BEADLE_INTERNAL_URL`, `BEADLE_PROTECH_URL` | `http://localhost:8082`, `:8083` with `local` | where the two services answer |
-| `BEADLE_SERVICE_TOKEN` | blank: every call and callback refused | the token shared by the three services |
-| `LOG_PATH` | `./logs` | folder of the rolling log file `beadle.log` |
+| Property | Variable | Default | Meaning |
+|---|---|---|---|
+| `spring.profiles.active` | `SPRING_PROFILES_ACTIVE` | `local` | `local` on H2; `rd`, `qc`, `prod` on Oracle with Ping |
+| `server.port` | `PORT` | `8081` | HTTP port |
+| in `spring.datasource.url` | `BEADLE_DATA_DIR` | `~/beadle` | folder of the H2 database (`local`) |
+| `beadle.demo-data` | `BEADLE_DEMO_DATA` | `true` with `local` | seed the demo products and change templates |
+| `beadle.auth.user` | `BEADLE_SIGNED_IN_USER` | `Mateusz Matan` | the user everybody is signed in as with `local` |
+| `spring.datasource.url`, `.username`, `.password`, `.hikari.maximum-pool-size` | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `DB_POOL_SIZE` | H2 with `local` | the Oracle database of `rd`, `qc`, `prod` (pool 5, 10, 20) |
+| `spring.security.oauth2.client.*.ping.*` | `PING_ISSUER_URI`, `PING_CLIENT_ID`, `PING_CLIENT_SECRET` | none | Beadle's OpenID Connect client at Ping; required on `rd`, `qc`, `prod` |
+| `beadle.services.internal.url`, `.protech.url` | `BEADLE_INTERNAL_URL`, `BEADLE_PROTECH_URL` | `http://localhost:8082`, `:8083` with `local` | where the two services answer |
+| `beadle.services.token` | `BEADLE_SERVICE_TOKEN` | blank: every call and callback refused | the token shared by the three services |
+| `logging.file.path` | `LOG_PATH` | `./logs` | folder of the rolling log file `beadle.log` |
 
 On `rd`, `qc` and `prod` the service does not start without the database, the Ping client and the two service URLs,
 and it refuses the laptop's sign-in. `rd` logs Beadle at DEBUG. Liquibase updates the schema at every start and
@@ -116,11 +119,11 @@ Hibernate validates it; a changeset on `main` is never edited, a schema change i
 ## Sign-in and audit trail
 
 Users sign in with Ping (OpenID Connect); the name in the ID token is the user Beadle records. An API call without a
-session answers `401`, and the interface then sends the browser to Ping. Every action that changes something or
-calls another system writes one row to `BEADLE_ACTION_HISTORY`: who, what, on which object, when, how long, the
-request as JSON with secrets masked, and the outcome with the error. Sign-in and sign-out are recorded too, and a
-refused request of a signed-in user is a `FAILURE` row. The Action History page lists the rows newest first,
-filtered by user, action, object, outcome and day.
+session answers `401`, and the interface then sends the browser to Ping. Every action that changes something, in
+Beadle or in another system, writes one row to `BEADLE_ACTION_HISTORY`: who, what, on which object, when, how long,
+the request as JSON with secrets masked, and the outcome with the error; reads are not recorded. Sign-in and sign-out
+are recorded too, and a refused request of a signed-in user is a `FAILURE` row. The Action History page lists the
+rows newest first, filtered by user, action, object, outcome and day.
 
 ## Deployment
 
@@ -140,7 +143,7 @@ writes logs to `/application/logs`. The three services run in one OpenShift proj
 3. Create the secrets `beadle-db` (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`), `beadle-services`
    (`BEADLE_SERVICE_TOKEN`, shared by the three services) and `beadle-oidc` (`PING_CLIENT_ID`, `PING_CLIENT_SECRET`).
 
-Then `oc apply -k deploy/openshift/beadle/overlays/<env>`. The overlays point Beadle-GUI at
+Then `oc apply -k deploy/openshift/beadle/overlays/<env>`. The base ConfigMap `beadle-config` points Beadle-GUI at
 `http://beadle-internal:8082` and `http://beadle-protech:8083`. The probes use `/actuator/health/liveness` and
 `/readiness`, the startup probe allows three minutes for Liquibase, and the Route terminates TLS at the edge.
 

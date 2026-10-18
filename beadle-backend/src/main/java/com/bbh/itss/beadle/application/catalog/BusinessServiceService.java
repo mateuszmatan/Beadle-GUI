@@ -18,6 +18,7 @@ import java.util.Map;
 import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_CREATED;
 import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_DELETED;
 import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_RENAMED;
+import static com.bbh.itss.beadle.domain.catalog.BusinessServiceUsage.UNUSED;
 import static com.bbh.itss.beadle.domain.shared.Failures.notFound;
 import static java.lang.String.CASE_INSENSITIVE_ORDER;
 import static java.util.Comparator.comparing;
@@ -36,7 +37,7 @@ public class BusinessServiceService implements BusinessServicesUseCase {
         return businessServices.findAll().stream()
                 .sorted(comparing(BusinessService::name, CASE_INSENSITIVE_ORDER))
                 .map(service -> new BusinessServiceView(service.id(), service.name(), service.version(),
-                        perBusinessService.getOrDefault(service.id(), usage.unused())))
+                        perBusinessService.getOrDefault(service.id(), UNUSED)))
                 .toList();
     }
 
@@ -58,12 +59,7 @@ public class BusinessServiceService implements BusinessServicesUseCase {
     @Audited(BUSINESS_SERVICE_DELETED)
     public void delete(long id) {
         BusinessServiceView service = view(id);
-        long products = service.usage().productCount();
-        if (products > 0) {
-            throw new IllegalStateException(service.name() + " still has " + products
-                    + " product(s). Move them to another business service first.");
-        }
-        service.usage().deletionRefusal(service.name()).ifPresent(refusal -> {
+        service.usage().refusal(service.name()).ifPresent(refusal -> {
             throw new IllegalStateException(refusal);
         });
         businessServices.delete(id);
