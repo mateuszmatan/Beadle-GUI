@@ -94,6 +94,13 @@ import {
 
     .code-block {
       max-height: 50vh;
+      margin: 0;
+      padding: 10px 12px;
+      overflow: auto;
+      background: var(--beadle-neutral-bg);
+      color: var(--beadle-text);
+      font-family: var(--beadle-mono);
+      font-size: 12px;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
     }

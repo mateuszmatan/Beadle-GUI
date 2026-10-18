@@ -76,36 +76,33 @@
   }
 }
 
-.user-badge {
+.account {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-
-  .user-icon {
-    font-size: 14px;
-  }
+  column-gap: 14px;
+  min-height: 48px;
+  padding-left: 20px;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .user-name {
   max-width: 220px;
   overflow: hidden;
   color: #fff;
+  font-size: 13px;
+  font-weight: 500;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sign-out {
-  padding: 0 0 0 8px;
+  padding: 4px 0;
   border: 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.24);
   background: none;
   color: rgba(255, 255, 255, 0.78);
   font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
   cursor: pointer;
 
   &:hover,
@@ -159,8 +156,11 @@
     border-top: 1px solid rgba(255, 255, 255, 0.14);
   }
 
-  .user-badge {
+  .account {
+    min-height: 40px;
     margin-left: auto;
+    padding-left: 0;
+    border-left: 0;
   }
 
   .brand {

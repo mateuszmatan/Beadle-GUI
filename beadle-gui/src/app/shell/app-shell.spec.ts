@@ -45,8 +45,8 @@ describe('AppShell', () => {
     links()
       .filter((link) => link.classList.contains('active'))
       .map(text);
-  const userName = () => page().querySelector<HTMLElement>('.user-badge .user-name');
-  const signOut = () => page().querySelector<HTMLButtonElement>('.user-badge button.sign-out');
+  const userName = () => page().querySelector<HTMLElement>('.account .user-name');
+  const signOut = () => page().querySelector<HTMLButtonElement>('.account button.sign-out');
 
   async function signedIn(user: object = { name: 'Ann Smith', email: 'ann.smith@bbh.com' }) {
     http.expectOne({ method: 'GET', url: '/api/me' }).flush(user);
@@ -111,12 +111,12 @@ describe('AppShell', () => {
   });
 
   it('shows the signed-in user with a Sign out control once Beadle has named them', async () => {
-    expect(page().querySelector('.user-badge')).toBeNull();
+    expect(page().querySelector('.account')).toBeNull();
 
     await signedIn();
 
     expect(text(userName())).toBe('Ann Smith');
-    expect(page().querySelector('.user-badge')?.getAttribute('title')).toBe('ann.smith@bbh.com');
+    expect(userName()?.getAttribute('title')).toBe('ann.smith@bbh.com');
     expect(text(signOut())).toBe('Sign out');
     expect(signOut()?.disabled).toBe(false);
   });
@@ -134,7 +134,7 @@ describe('AppShell', () => {
       .flush({ detail: 'Down' }, { status: 503, statusText: 'Service Unavailable' });
     await fixture.whenStable();
 
-    expect(page().querySelector('.user-badge')).toBeNull();
+    expect(page().querySelector('.account')).toBeNull();
     expect(links()).toHaveLength(4);
   });
 
