@@ -127,7 +127,7 @@ class StandInServices extends RecordingHttpServer {
 
     private synchronized Map raised(Map draft) {
         String number = 'CHG' + String.format('%07d', ++numbers)
-        String link = "https://protech.bbh.com/$number".toString()
+        String link = ChangeFixtures.changeUrl(number)
         changes[number] = draft + [number: number, url: link]
         [number: number, url: link]
     }

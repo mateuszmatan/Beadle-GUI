@@ -1,6 +1,7 @@
 package com.bbh.itss.beadle.adapter.out.persistence
 
 import com.bbh.itss.beadle.domain.catalog.Product
+import com.bbh.itss.beadle.domain.change.ApprovalRef
 import com.bbh.itss.beadle.domain.change.ChangeProduct
 import com.bbh.itss.beadle.domain.change.ChangeProfile
 import com.bbh.itss.beadle.domain.change.ChangeProfileSummary
@@ -9,7 +10,6 @@ import com.bbh.itss.beadle.domain.change.ChangeTask
 import com.bbh.itss.beadle.domain.change.ChangeTemplate
 import com.bbh.itss.beadle.domain.change.ChangeTemplate.Approvers
 import com.bbh.itss.beadle.domain.change.ChangeTemplate.PrivilegedAccess
-import com.bbh.itss.beadle.domain.change.ApprovalRef
 import com.bbh.itss.beadle.domain.change.ChangeTemplate.PrivilegedUser
 import com.bbh.itss.beadle.domain.change.ChangeTemplate.Timing
 import com.bbh.itss.beadle.domain.change.ChangeUpdate
@@ -17,7 +17,6 @@ import com.bbh.itss.beadle.domain.change.ChangeUsage
 import com.bbh.itss.beadle.domain.change.ProductionChange
 import com.bbh.itss.beadle.domain.change.Reminder
 import com.bbh.itss.beadle.domain.change.RiskAssessment
-import com.bbh.itss.beadle.domain.change.TaskDetails
 import com.bbh.itss.beadle.domain.change.WorkflowStep
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
@@ -41,8 +40,10 @@ import static com.bbh.itss.beadle.domain.change.TaskState.CANCELED
 import static com.bbh.itss.beadle.domain.change.TaskState.OPEN
 import static com.bbh.itss.beadle.domain.change.TaskState.WORK_IN_PROGRESS
 import static com.bbh.itss.beadle.domain.shared.Failures.STALE_VERSION
+import static com.bbh.itss.beadle.support.CatalogFixtures.details
 import static com.bbh.itss.beadle.support.ChangeFixtures.FIX_VERSION
 import static com.bbh.itss.beadle.support.ChangeFixtures.RAISED
+import static com.bbh.itss.beadle.support.ChangeFixtures.changeUrl
 import static com.bbh.itss.beadle.support.ChangeFixtures.ctask
 import static com.bbh.itss.beadle.support.ChangeFixtures.details as taskDetails
 import static com.bbh.itss.beadle.support.ChangeFixtures.epic
@@ -55,7 +56,6 @@ import static com.bbh.itss.beadle.support.ChangeFixtures.story
 import static com.bbh.itss.beadle.support.ChangeFixtures.task
 import static com.bbh.itss.beadle.support.ChangeFixtures.tasks
 import static com.bbh.itss.beadle.support.ChangeFixtures.template
-import static com.bbh.itss.beadle.support.CatalogFixtures.details
 import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 
 @DataJpaTest(properties = [
@@ -239,7 +239,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         loaded.tasks() == [ctask('CTASK0002001', 'Task 1 of the CertScanner release',
                 'Step 1 of the CertScanner release.', OPEN), ctask('CTASK0002002',
                 'Task 2 of the CertScanner release', 'Step 2 of the CertScanner release.', OPEN)]
-        loaded.url() == 'https://snow/CHG0001001'
+        loaded.url() == changeUrl('CHG0001001')
         changes.findAll()*.number() == ['CHG0001002', 'CHG0001001']
         changes.findAll()*.template().every { it == RAISED_TEMPLATE }
         changes.load(later.id()).get().tasks()*.number() == ['CTASK0002003', 'CTASK0002004']
@@ -498,7 +498,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         ProductionChange.draft(changeProducts.get(owner.id()), 'Mateusz Matan', FIX_VERSION, DOWNTIME, FULL,
                 [epic('CERT-1', 'Expiry alerts')], [story('CERT-2', 'E-mail', 'CERT-1')], null, null)
                 .withSecureCoding(FULL.secureCoding(), 'SCP-2001')
-                .raisedAt(RAISED).numbered(number, "https://snow/$number".toString())
+                .raisedAt(RAISED).numbered(number, changeUrl(number))
                 .withTasks(taskNumbers.withIndex().collect { String taskNumber, int index ->
                     task(index + 1).withNumber(taskNumber)
                 })

@@ -34,6 +34,11 @@ class ChangeFixtures {
     static final String FIX_VERSION = 'CERT 4.2'
     static final Instant RAISED = Instant.parse('2026-10-05T09:00:00Z')
 
+    /** Where ProTech shows a change it raised. */
+    static String changeUrl(String number) {
+        "https://protech.bbh.com/$number"
+    }
+
     static ChangeProduct changeProduct(Map changes = [:]) {
         copy(changes, new ChangeProduct(1L, 'CERTSCANNER', 'CertScanner', 'Technology Architecture', 3L,
                 'Corporate Technology', null))

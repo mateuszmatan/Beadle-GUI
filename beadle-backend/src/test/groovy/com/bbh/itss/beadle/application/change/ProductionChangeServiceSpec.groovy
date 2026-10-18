@@ -61,6 +61,7 @@ import static com.bbh.itss.beadle.domain.shared.Failures.staleVersion
 import static com.bbh.itss.beadle.support.ChangeFixtures.FIX_VERSION
 import static com.bbh.itss.beadle.support.ChangeFixtures.RAISED
 import static com.bbh.itss.beadle.support.ChangeFixtures.changeProduct
+import static com.bbh.itss.beadle.support.ChangeFixtures.changeUrl
 import static com.bbh.itss.beadle.support.ChangeFixtures.ctask
 import static com.bbh.itss.beadle.support.ChangeFixtures.details
 import static com.bbh.itss.beadle.support.ChangeFixtures.epic
@@ -171,7 +172,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * proTech.raise({ it.number() == null && it.shortDescription() == 'Mine' && it.createdAt() == NOW }) >>
-                new RaisedChange('CHG0012345', 'https://bbh.service-now.com/CHG0012345')
+                new RaisedChange('CHG0012345', changeUrl('CHG0012345'))
         1 * changes.save({ it.number() == 'CHG0012345' }) >> { ProductionChange change -> change }
         0 * proTech._
         raised.number() == 'CHG0012345'
@@ -183,7 +184,7 @@ class ProductionChangeServiceSpec extends Specification {
         raised.syncedAt() == NOW
         raised.createdAt() == NOW
         raised.update() == null
-        raised.url() == 'https://bbh.service-now.com/CHG0012345'
+        raised.url() == changeUrl('CHG0012345')
         raised.fixVersion() == FIX_VERSION
         raised.schedule() == schedule()
     }

@@ -41,6 +41,7 @@ import static com.bbh.itss.beadle.support.ChangeFixtures.FIX_VERSION
 import static com.bbh.itss.beadle.support.ChangeFixtures.RAISED
 import static com.bbh.itss.beadle.support.ChangeFixtures.at
 import static com.bbh.itss.beadle.support.ChangeFixtures.changeProduct
+import static com.bbh.itss.beadle.support.ChangeFixtures.changeUrl
 import static com.bbh.itss.beadle.support.ChangeFixtures.ctask
 import static com.bbh.itss.beadle.support.ChangeFixtures.details
 import static com.bbh.itss.beadle.support.ChangeFixtures.epic
@@ -201,11 +202,11 @@ class ProductionChangeSpec extends Specification {
                 epics, [], null, null)
 
         when:
-        def raised = drafted.raisedAt(RAISED).numbered('CHG0001', 'https://snow/CHG0001')
+        def raised = drafted.raisedAt(RAISED).numbered('CHG0001', changeUrl('CHG0001'))
 
         then:
         raised.number() == 'CHG0001'
-        raised.url() == 'https://snow/CHG0001'
+        raised.url() == changeUrl('CHG0001')
         raised.tasks() == []
         [raised.state(), raised.workflow(), raised.syncedAt(), raised.createdAt()] ==
                 [DRAFT, [new WorkflowStep(DRAFT, RAISED)], RAISED, RAISED]
