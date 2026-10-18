@@ -24,7 +24,7 @@ class CallbackServiceSpec extends Specification {
         def change = raised(state: SUPPORT_APPROVAL)
 
         when:
-        def read = service.proTech(new ProTechCallback(number, APPROVAL_CHANGED, SUPPORT_APPROVAL, AT, null))
+        def read = service.proTech(new ProTechCallback(number, APPROVAL_CHANGED, SUPPORT_APPROVAL, AT))
 
         then:
         1 * changes.resync(number) >> Optional.ofNullable(known ? change : null)
@@ -38,7 +38,7 @@ class CallbackServiceSpec extends Specification {
 
     def "an Internal callback asks no other system"() {
         when:
-        service.internal(new InternalCallback(CYBERTRACK, 'SCP-123', 'Done', AT, null))
+        service.internal(new InternalCallback(CYBERTRACK, 'SCP-123', 'Done', AT))
 
         then:
         0 * changes._

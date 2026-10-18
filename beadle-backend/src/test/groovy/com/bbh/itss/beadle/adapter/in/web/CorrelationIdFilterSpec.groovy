@@ -1,5 +1,6 @@
-package com.bbh.itss.beadle.config
+package com.bbh.itss.beadle.adapter.in.web
 
+import com.bbh.itss.beadle.adapter.in.web.CorrelationIdFilter
 import com.bbh.itss.beadle.application.CallContext
 import jakarta.servlet.FilterChain
 import org.slf4j.MDC

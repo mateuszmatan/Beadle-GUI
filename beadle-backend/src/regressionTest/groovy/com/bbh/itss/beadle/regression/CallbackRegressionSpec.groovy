@@ -16,11 +16,10 @@ class CallbackRegressionSpec extends ChangeRegressionSpecification {
 
         when:
         def proTech = callback('/api/callbacks/protech', [number: raised.number, event: 'STATE_CHANGED',
-                                                          state: 'BUSINESS_APPROVAL', at: Instant.now().toString(),
-                                                          correlationId: CORRELATION], headers)
-        def internal = callback('/api/callbacks/internal', [system: 'CYBERTRACK', key: 'SCP-8888', status: 'Done',
-                                                            at: Instant.now().toString(), correlationId: CORRELATION],
+                                                          state: 'BUSINESS_APPROVAL', at: Instant.now().toString()],
                 headers)
+        def internal = callback('/api/callbacks/internal', [system: 'CYBERTRACK', key: 'SCP-8888', status: 'Done',
+                                                            at: Instant.now().toString()], headers)
 
         then:
         [proTech, internal]*.status == [202, 202]

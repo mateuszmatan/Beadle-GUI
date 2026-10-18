@@ -1,6 +1,8 @@
 package com.bbh.itss.beadle.config
 
 import com.bbh.itss.beadle.BeadleApplication
+import com.bbh.itss.beadle.adapter.in.web.CorrelationIdFilter
+import com.bbh.itss.beadle.adapter.in.web.ServiceTokenFilter
 import com.bbh.itss.beadle.support.RecordingHttpServer
 import com.bbh.itss.beadle.support.StandInServices
 import org.springframework.boot.builder.SpringApplicationBuilder
@@ -185,7 +187,7 @@ class SecurityConfigurationSpec extends Specification {
         localContext | local | new MockHttpSession()                           | 'Mateusz Matan'
     }
 
-    def "locally everybody is beadle.signed-in-user without a session or a CSRF token, and can sign out"() {
+    def "locally everybody is beadle.auth.user without a session or a CSRF token, and can sign out"() {
         when:
         def me = answer(local, get('/api/me'))
         def added = answer(local, json(post('/api/business-services'), [name: "Local ${System.nanoTime()}".toString()]))
@@ -220,13 +222,19 @@ class SecurityConfigurationSpec extends Specification {
         local | '/actuator/health/liveness'
     }
 
-    def "Ping without its registration stops Beadle at the start with what to set"() {
+    def "Beadle stops at the start, saying why, with #wrong"() {
         when:
-        start('no-ping', ['--beadle.auth.mode=oidc']).close()
+        start(name, arguments).close()
 
         then:
         def e = thrown(Exception)
-        causes(e).any { it.message == SecurityConfiguration.NO_PING }
+        causes(e).any { it.message == message }
+
+        where:
+        wrong                                   | name           | arguments                                  || message
+        'Ping but no Ping registration'         | 'no-ping'      | ['--beadle.auth.mode=oidc']                || SecurityConfiguration.NO_PING
+        'the local sign-in on an Oracle profile' | 'local-oracle' | ['--spring.profiles.include=oracle',
+                                                                    '--DB_USERNAME=sa', '--DB_PASSWORD=']       || SecurityConfiguration.LOCAL_ONLY
     }
 
     private static List<String> discoveredAt(RecordingHttpServer server) {

@@ -4,6 +4,8 @@ import lombok.Getter;
 
 import java.util.List;
 
+import static java.util.stream.Collectors.joining;
+
 @Getter
 public class InvalidRequestException extends IllegalArgumentException {
 
@@ -16,6 +18,11 @@ public class InvalidRequestException extends IllegalArgumentException {
 
     public static InvalidRequestException of(String field, String message) {
         return new InvalidRequestException(List.of(new FieldProblem(field, message)));
+    }
+
+    /** The problems as one line, {@code "name must not be blank; code is too long"}, as the audit trail keeps them. */
+    public static String summary(List<FieldProblem> problems) {
+        return problems.stream().map(problem -> problem.field() + " " + problem.message()).collect(joining("; "));
     }
 
     public record FieldProblem(String field, String message) {

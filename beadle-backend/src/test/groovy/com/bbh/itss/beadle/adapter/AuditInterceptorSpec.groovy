@@ -1,7 +1,5 @@
-package com.bbh.itss.beadle.config
+package com.bbh.itss.beadle.adapter
 
-import com.bbh.itss.beadle.adapter.AuditDetails
-import com.bbh.itss.beadle.adapter.Secrets
 import com.bbh.itss.beadle.application.AuditNotes
 import com.bbh.itss.beadle.application.CallContext
 import com.bbh.itss.beadle.application.audit.port.out.ActionHistoryPort
@@ -27,6 +25,7 @@ import com.bbh.itss.beadle.application.change.port.out.ProTechPort
 import com.bbh.itss.beadle.application.change.port.out.ProductionChangeRepositoryPort
 import com.bbh.itss.beadle.application.user.port.in.SignedInUserUseCase
 import com.bbh.itss.beadle.application.user.port.out.SignedInUserPort
+import com.bbh.itss.beadle.config.UseCaseConfiguration
 import com.bbh.itss.beadle.domain.audit.ActionRecord
 import com.bbh.itss.beadle.domain.callback.InternalCallback
 import com.bbh.itss.beadle.domain.callback.ProTechCallback
@@ -57,22 +56,22 @@ import java.time.Instant
 import java.time.ZoneOffset
 import java.util.function.Supplier
 
+import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_CREATED
+import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_DELETED
 import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_INTERNAL
 import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_PROTECH
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_EDITED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_PROFILE_UPDATED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_SYNCED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_TASKS_CREATED
-import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_CREATED
-import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_DELETED
 import static com.bbh.itss.beadle.domain.audit.Action.PRODUCT_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.REMINDER_SENT
 import static com.bbh.itss.beadle.domain.audit.Action.USER_SIGNED_IN
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.SUCCESS
+import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE_PROFILE
-import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT
 import static com.bbh.itss.beadle.domain.audit.ObjectType.TICKET
 import static com.bbh.itss.beadle.domain.audit.ObjectType.USER
@@ -231,12 +230,12 @@ class AuditInterceptorSpec extends Specification {
 
     def "a use case without a transaction writes its row in a transaction of its own, as the system that called back"() {
         given:
-        def callback = new InternalCallback(CYBERTRACK, 'SCP-123', 'Done', NOW, CORRELATION_ID)
+        def callback = new InternalCallback(CYBERTRACK, 'SCP-123', 'Done', NOW)
 
         when:
         use(CallbacksUseCase) { useCase ->
             try (def system = CallContext.actingAs('system:internal');
-                 def correlation = CallContext.correlatedBy(callback.correlationId())) {
+                 def correlation = CallContext.correlatedBy(CORRELATION_ID)) {
                 useCase.internal(callback)
             }
         }
@@ -251,7 +250,7 @@ class AuditInterceptorSpec extends Specification {
             objectKey() == 'SCP-123'
             correlationId() == CORRELATION_ID
             details() == '{"callback":{"system":"CYBERTRACK","key":"SCP-123","status":"Done",' +
-                    '"at":"2026-10-15T09:00:00Z","correlationId":"' + CORRELATION_ID + '"}}'
+                    '"at":"2026-10-15T09:00:00Z"}}'
             outcome() == SUCCESS
         }
     }
@@ -264,7 +263,7 @@ class AuditInterceptorSpec extends Specification {
         when:
         use(CallbacksUseCase) { useCase ->
             try (def system = CallContext.actingAs('system:protech')) {
-                useCase.proTech(new ProTechCallback('CHG0031001', STATE_CHANGED, BUSINESS_APPROVAL, NOW, null))
+                useCase.proTech(new ProTechCallback('CHG0031001', STATE_CHANGED, BUSINESS_APPROVAL, NOW))
             }
         }
 
@@ -288,7 +287,7 @@ class AuditInterceptorSpec extends Specification {
         proTech.read(_) >> [CHG0031001: raised()]
 
         when:
-        use(CallbacksUseCase) { it.proTech(new ProTechCallback('CHG0031001', STATE_CHANGED, DRAFT, NOW, null)) }
+        use(CallbacksUseCase) { it.proTech(new ProTechCallback('CHG0031001', STATE_CHANGED, DRAFT, NOW)) }
 
         then:
         rows.collect { [it.objectType(), it.objectId(), it.objectKey(), it.outcome()] } ==
@@ -531,7 +530,7 @@ class AuditInterceptorSpec extends Specification {
 
     def "long arguments are trimmed inside the JSON, and the result stays whole at the end of the details"() {
         given:
-        def interceptor = new AuditInterceptor(null, null, null, Stub(ObjectProvider) {
+        def interceptor = new AuditInterceptor(null, null, Stub(ObjectProvider) {
             getIfUnique(_) >> JsonMapper.builder().build()
         }, null, null)
         def notes = AuditNotes.listen()

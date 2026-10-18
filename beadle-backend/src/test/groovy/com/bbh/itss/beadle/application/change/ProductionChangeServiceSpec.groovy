@@ -11,11 +11,10 @@ import com.bbh.itss.beadle.application.change.port.in.SecureCodingCommand
 import com.bbh.itss.beadle.application.change.port.out.ChangeProductsPort
 import com.bbh.itss.beadle.application.change.port.out.CyberTrackPort
 import com.bbh.itss.beadle.application.change.port.out.JiraPort
-import com.bbh.itss.beadle.application.change.port.out.ProductionChangeRepositoryPort
 import com.bbh.itss.beadle.application.change.port.out.ProTechPort
 import com.bbh.itss.beadle.application.change.port.out.ProTechPort.RaisedChange
-import com.bbh.itss.beadle.application.user.port.in.SignedInUser
-import com.bbh.itss.beadle.application.user.port.in.SignedInUserUseCase
+import com.bbh.itss.beadle.application.change.port.out.ProductionChangeRepositoryPort
+import com.bbh.itss.beadle.application.user.port.out.SignedInUserPort
 import com.bbh.itss.beadle.domain.audit.ActionObject
 import com.bbh.itss.beadle.domain.change.ApprovalRef
 import com.bbh.itss.beadle.domain.change.ChangeApproval
@@ -90,8 +89,8 @@ class ProductionChangeServiceSpec extends Specification {
     JiraPort jira = Mock()
     ProTechPort proTech = Mock()
     CyberTrackPort cyberTrack = Mock()
-    SignedInUserUseCase users = Stub() {
-        signedInUser() >> new SignedInUser('Mateusz Matan', null)
+    SignedInUserPort users = Stub() {
+        name() >> 'Mateusz Matan'
     }
     def service = new ProductionChangeService(products, changes, jira, proTech, cyberTrack, users, fixed(NOW, UTC))
     def certScanner = changeProduct(jiraProjectKey: 'CSCAN')

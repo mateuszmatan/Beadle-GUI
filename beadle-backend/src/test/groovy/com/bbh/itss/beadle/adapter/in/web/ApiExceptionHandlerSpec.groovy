@@ -41,7 +41,7 @@ class ApiExceptionHandlerSpec extends Specification {
     static final String UNEXPECTED = "Beadle could not handle the request. The failure is in Beadle's log."
     static final String DAYS = 'must be one of MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY'
 
-    def handler = new ApiExceptionHandler()
+    def handler = new ApiExceptionHandler(Mock(RefusedRequests))
 
     MockMvc mvc = standaloneSetup(new SampleController()).setControllerAdvice(handler).build()
 

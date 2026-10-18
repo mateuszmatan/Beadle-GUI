@@ -1,4 +1,4 @@
-package com.bbh.itss.beadle.config;
+package com.bbh.itss.beadle.adapter.in.web;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -13,7 +13,7 @@ import java.io.IOException;
  * Loads the CSRF token on every request, so the {@code XSRF-TOKEN} cookie the Angular app copies into
  * {@code X-XSRF-TOKEN} is there before its first change; Spring Security would otherwise only write it on demand.
  */
-class CsrfCookieFilter extends OncePerRequestFilter {
+public class CsrfCookieFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)

@@ -30,7 +30,7 @@ class ActionHistoryControllerSpec extends Specification {
             .correlationId(CORRELATION).durationMs(5012).build()
 
     ActionHistoryUseCase history = Mock()
-    MockMvc mvc = standaloneSetup(new ActionHistoryController(history)).setControllerAdvice(new ApiExceptionHandler())
+    MockMvc mvc = standaloneSetup(new ActionHistoryController(history)).setControllerAdvice(new ApiExceptionHandler(Mock(RefusedRequests)))
             .build()
 
     def "the audit trail answers a page of rows, newest first, in the shape of the contract"() {

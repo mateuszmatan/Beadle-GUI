@@ -1,12 +1,18 @@
 package com.bbh.itss.beadle.config;
 
+import com.bbh.itss.beadle.adapter.in.web.CsrfCookieFilter;
+import com.bbh.itss.beadle.adapter.in.web.LocalUserFilter;
+import com.bbh.itss.beadle.adapter.in.web.PingSignOut;
+import com.bbh.itss.beadle.adapter.in.web.ServiceTokenFilter;
 import com.bbh.itss.beadle.adapter.in.web.SignInRecorder;
+import com.bbh.itss.beadle.adapter.out.http.ServicesProperties;
 import com.bbh.itss.beadle.application.user.port.in.SignedInUserUseCase;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -35,7 +41,8 @@ import static org.springframework.security.config.http.SessionCreationPolicy.STA
  * files are public. With {@code beadle.auth.mode=oidc} people sign in with Ping (OAuth2 login, registration
  * {@code ping}); an API call without a session is answered {@code 401}, which sends the Angular app to
  * {@value #SIGN_IN}, and every change needs the CSRF token of the {@code XSRF-TOKEN} cookie in
- * {@code X-XSRF-TOKEN}. With {@code local} everybody is {@code beadle.signed-in-user} and there is no CSRF check.
+ * {@code X-XSRF-TOKEN}. With {@code local}, which the Oracle profiles refuse, everybody is {@code beadle.auth.user}
+ * and there is no CSRF check.
  * {@code POST /logout} ends the session in both: locally with {@code 204}, with Ping by answering where the browser
  * ends its Ping session as well ({@link PingSignOut}). {@link SignInRecorder} records the first API call of every
  * session as {@code USER_SIGNED_IN}.</li>
@@ -43,32 +50,33 @@ import static org.springframework.security.config.http.SessionCreationPolicy.STA
  */
 @Configuration(proxyBeanMethods = false)
 @EnableWebSecurity
-@EnableConfigurationProperties({AuthProperties.class, SignedInUserProperties.class})
+@EnableConfigurationProperties(AuthProperties.class)
 public class SecurityConfiguration {
 
     public static final String SIGN_IN = "/oauth2/authorization/ping";
     public static final String SIGN_OUT = "/logout";
     static final String API = "/api/**";
-    static final String CALLBACKS = "/api/callbacks/**";
     static final String NO_PING = "beadle.auth.mode=oidc needs the Ping registration "
             + "spring.security.oauth2.client.registration.ping: set PING_CLIENT_ID, PING_CLIENT_SECRET and "
-            + "PING_ISSUER_URI, or BEADLE_AUTH_MODE=local";
+            + "PING_ISSUER_URI";
+    static final String LOCAL_ONLY = "beadle.auth.mode=local signs everybody in without Ping: it is for profile local "
+            + "only, not for rd, qc or prod";
 
     @Bean
     @Order(1)
     SecurityFilterChain serviceFilterChain(HttpSecurity http, ServicesProperties services) throws Exception {
-        return http.securityMatcher(CALLBACKS, "/actuator/health", "/actuator/health/**")
+        return http.securityMatcher(ServiceTokenFilter.CALLBACKS, "/actuator/health", "/actuator/health/**")
                 .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
                 .csrf(AbstractHttpConfigurer::disable)
                 .requestCache(AbstractHttpConfigurer::disable)
-                .addFilterBefore(new ServiceTokenFilter(services), AuthorizationFilter.class)
+                .addFilterBefore(new ServiceTokenFilter(services.token()), AuthorizationFilter.class)
                 .authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
                 .build();
     }
 
     @Bean
     @Order(2)
-    SecurityFilterChain userFilterChain(HttpSecurity http, AuthProperties auth, SignedInUserProperties local,
+    SecurityFilterChain userFilterChain(HttpSecurity http, AuthProperties auth, Environment environment,
                                         SignedInUserUseCase users,
                                         ObjectProvider<ClientRegistrationRepository> registrations) throws Exception {
         http.authorizeHttpRequests(requests -> requests
@@ -81,10 +89,15 @@ public class SecurityConfiguration {
                         .logoutRequestMatcher(PathPatternRequestMatcher.withDefaults().matcher(POST, SIGN_OUT)))
                 .addFilterAfter(new SignInRecorder(users), AuthorizationFilter.class);
         switch (auth.mode()) {
-            case LOCAL -> http.csrf(AbstractHttpConfigurer::disable)
-                    .logout(logout -> logout
-                            .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler(NO_CONTENT)))
-                    .addFilterBefore(new LocalUserFilter(local.signedInUser()), AnonymousAuthenticationFilter.class);
+            case LOCAL -> {
+                if (environment.matchesProfiles("oracle")) {
+                    throw new IllegalStateException(LOCAL_ONLY);
+                }
+                http.csrf(AbstractHttpConfigurer::disable)
+                        .logout(logout -> logout
+                                .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler(NO_CONTENT)))
+                        .addFilterBefore(new LocalUserFilter(auth.user()), AnonymousAuthenticationFilter.class);
+            }
             case OIDC -> {
                 ClientRegistrationRepository ping = registrations.getIfAvailable();
                 if (ping == null) {

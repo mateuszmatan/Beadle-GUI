@@ -16,7 +16,7 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 
 class ChangeProfileRequestValidationSpec extends Specification {
 
-    MockMvc mvc = standaloneSetup(new ProfileController()).setControllerAdvice(new ApiExceptionHandler()).build()
+    MockMvc mvc = standaloneSetup(new ProfileController()).setControllerAdvice(new ApiExceptionHandler(Mock(RefusedRequests))).build()
 
     def "a change profile with #refusal is refused against the path of each field"() {
         when:

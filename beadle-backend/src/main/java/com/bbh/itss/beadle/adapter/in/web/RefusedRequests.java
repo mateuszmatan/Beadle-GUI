@@ -2,20 +2,19 @@ package com.bbh.itss.beadle.adapter.in.web;
 
 import com.bbh.itss.beadle.adapter.AuditDetails;
 import com.bbh.itss.beadle.adapter.Secrets;
-import com.bbh.itss.beadle.application.CallContext;
-import com.bbh.itss.beadle.application.CallContext.Scope;
-import com.bbh.itss.beadle.application.audit.port.in.RefusedRequest;
-import com.bbh.itss.beadle.application.audit.port.in.RefusedRequestsUseCase;
+import com.bbh.itss.beadle.application.audit.port.in.ActionHistoryUseCase;
 import com.bbh.itss.beadle.domain.audit.ActionObject;
+import com.bbh.itss.beadle.domain.audit.ActionRecord;
 import com.bbh.itss.beadle.domain.audit.ObjectType;
+import com.bbh.itss.beadle.domain.shared.InvalidRequestException;
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException.FieldProblem;
-import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.DefaultParameterNameDiscoverer;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.ParameterNameDiscoverer;
 import org.springframework.http.ProblemDetail;
+import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.HandlerMethod;
@@ -27,10 +26,12 @@ import tools.jackson.databind.node.NullNode;
 import tools.jackson.databind.node.ObjectNode;
 import tools.jackson.databind.node.StringNode;
 
+import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 
-import static java.util.stream.Collectors.joining;
+import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE;
+import static com.bbh.itss.beadle.domain.shared.Timestamps.now;
 import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 import static org.apache.commons.lang3.StringUtils.isNumeric;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
@@ -40,20 +41,22 @@ import static org.springframework.web.servlet.HandlerMapping.URI_TEMPLATE_VARIAB
 
 /**
  * Files a request to an {@link AuditedRequest} endpoint that the API refused before the action's use case ran as a
- * {@code FAILURE} row of the audit trail ({@link RefusedRequestsUseCase}): the action of the endpoint, the object its
- * path or body names, the path values and the body as sent ({@link KeptRequestBodies}) with their secrets masked, and
- * the field problems of the answer as the message, or its detail when it names no field. A row that cannot be written
- * is logged and does not change the answer.
+ * {@code FAILURE} row of the audit trail: the action of the endpoint, the object its path or body names, the path
+ * values and the body as sent ({@link KeptRequestBodies}) with their secrets masked, and the field problems of the
+ * answer as the message, or its detail when it names no field. It takes no time of a use case, so its duration is 0.
+ * A row that cannot be written is logged and does not change the answer.
  */
 @Slf4j
-@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
-final class RefusedRequests {
+@Component
+@RequiredArgsConstructor
+class RefusedRequests {
 
     static final String KEPT_BODY = RefusedRequests.class.getName() + ".BODY";
     static final String ID = "id";
 
-    private final RefusedRequestsUseCase refusals;
+    private final ActionHistoryUseCase history;
     private final JsonMapper json;
+    private final Clock clock;
     private final ParameterNameDiscoverer parameterNames = new DefaultParameterNameDiscoverer();
 
     /** Records the refusal of a request, when it was for an audited endpoint, with the problem it was answered. */
@@ -65,19 +68,15 @@ final class RefusedRequests {
         if (audited == null) {
             return;
         }
-        try (Scope actor = actingFor(audited)) {
+        try {
             Map<String, String> variables = pathVariables(request);
             JsonNode body = body(request);
-            refusals.refused(new RefusedRequest(audited.value(), objectOf(audited, variables, body),
-                    details(handler, variables, body), messageOf(problem)));
+            history.record(ActionRecord.builder().at(now(clock)).action(audited.value())
+                    .details(details(handler, variables, body)).outcome(FAILURE).message(messageOf(problem)),
+                    objectOf(audited, variables, body));
         } catch (RuntimeException e) {
             log.warn("The refused {} could not be written to the audit trail: {}", audited.value(), e.getMessage());
         }
-    }
-
-    private static Scope actingFor(AuditedRequest audited) {
-        return audited.actor().isEmpty() ? () -> {
-        } : CallContext.actingAs(audited.actor());
     }
 
     /** The object the path names by its {@code {id}}, else the one the body names, else none. */
@@ -169,8 +168,7 @@ final class RefusedRequests {
         Map<String, Object> properties = problem.getProperties();
         if (properties != null && properties.get(ApiExceptionHandler.PROBLEMS) instanceof List<?> problems
                 && !problems.isEmpty()) {
-            return problems.stream().map(each -> each instanceof FieldProblem field
-                    ? field.field() + " " + field.message() : String.valueOf(each)).collect(joining("; "));
+            return InvalidRequestException.summary(problems.stream().map(FieldProblem.class::cast).toList());
         }
         return defaultIfBlank(problem.getDetail(), problem.getTitle());
     }

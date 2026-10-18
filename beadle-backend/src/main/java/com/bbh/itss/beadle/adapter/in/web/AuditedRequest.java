@@ -37,7 +37,4 @@ public @interface AuditedRequest {
 
     /** The type of the object the body names when it is not the type of the action: a raise is filed by product. */
     ObjectType[] objectType() default {};
-
-    /** The system the endpoint acts for, such as {@code system:protech} for a callback; the signed-in user if empty. */
-    String actor() default "";
 }

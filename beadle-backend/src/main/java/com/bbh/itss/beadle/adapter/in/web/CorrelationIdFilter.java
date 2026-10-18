@@ -1,5 +1,6 @@
-package com.bbh.itss.beadle.config;
+package com.bbh.itss.beadle.adapter.in.web;
 
+import com.bbh.itss.beadle.adapter.ServiceHeaders;
 import com.bbh.itss.beadle.application.CallContext;
 import com.bbh.itss.beadle.application.CallContext.Scope;
 import jakarta.servlet.FilterChain;
@@ -24,7 +25,7 @@ import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
  * Gives every request the correlation id of the user action it is. A request of a user gets a new UUID, whatever it
  * sends in {@code X-Correlation-Id}: Beadle-GUI mints the id of every user action (docs/CONTRACTS.md), so a user cannot
  * file an action under the id of another. Only a callback of Beadle-Internal or Beadle-ProTech
- * ({@value SecurityConfiguration#CALLBACKS}, which needs the service token) keeps the id it brings, the one Beadle-GUI
+ * ({@value ServiceTokenFilter#CALLBACKS}, which needs the service token) keeps the id it brings, the one Beadle-GUI
  * minted for the action that started the work. The id is bound to the request's thread for the calls to the other
  * services and the audit trail, put in the log context as {@code correlationId} and sent back in the response header.
  */
@@ -35,7 +36,7 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
     public static final String LOG_KEY = "correlationId";
 
     private static final RequestMatcher CALLBACKS =
-            PathPatternRequestMatcher.withDefaults().matcher(SecurityConfiguration.CALLBACKS);
+            PathPatternRequestMatcher.withDefaults().matcher(ServiceTokenFilter.CALLBACKS);
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)

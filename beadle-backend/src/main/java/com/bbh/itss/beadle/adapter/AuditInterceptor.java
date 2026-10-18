@@ -1,7 +1,5 @@
-package com.bbh.itss.beadle.config;
+package com.bbh.itss.beadle.adapter;
 
-import com.bbh.itss.beadle.adapter.AuditDetails;
-import com.bbh.itss.beadle.adapter.Secrets;
 import com.bbh.itss.beadle.application.AuditNotes;
 import com.bbh.itss.beadle.application.AuditNotes.Listening;
 import com.bbh.itss.beadle.application.AuditNotes.Stored;
@@ -10,9 +8,8 @@ import com.bbh.itss.beadle.application.AuditedKey;
 import com.bbh.itss.beadle.application.CallContext;
 import com.bbh.itss.beadle.application.CallContext.Scope;
 import com.bbh.itss.beadle.application.UseCase;
-import com.bbh.itss.beadle.application.audit.port.out.ActionHistoryPort;
+import com.bbh.itss.beadle.application.audit.port.in.ActionHistoryUseCase;
 import com.bbh.itss.beadle.application.audit.port.out.ObjectKeyPort;
-import com.bbh.itss.beadle.application.user.port.out.SignedInUserPort;
 import com.bbh.itss.beadle.domain.audit.Action;
 import com.bbh.itss.beadle.domain.audit.ActionObject;
 import com.bbh.itss.beadle.domain.audit.ActionRecord;
@@ -50,7 +47,6 @@ import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE;
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.SUCCESS;
 import static com.bbh.itss.beadle.domain.shared.Timestamps.now;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import static java.util.stream.Collectors.joining;
 import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 import static org.springframework.core.annotation.AnnotatedElementUtils.findMergedAnnotation;
@@ -75,20 +71,18 @@ import static org.springframework.transaction.support.TransactionSynchronization
  */
 @Slf4j
 @RequiredArgsConstructor
-class AuditInterceptor implements MethodInterceptor {
+public class AuditInterceptor implements MethodInterceptor {
 
     static final String ROLLED_BACK = "The action ended, but its transaction did not commit";
-    static final String UNKNOWN_USER = SignedInUserPort.UNKNOWN;
 
-    private final ObjectProvider<ActionHistoryPort> history;
+    private final ObjectProvider<ActionHistoryUseCase> history;
     private final ObjectProvider<ObjectKeyPort> keys;
-    private final ObjectProvider<SignedInUserPort> users;
     private final ObjectProvider<JsonMapper> json;
     private final ObjectProvider<PlatformTransactionManager> transactions;
     private final ObjectProvider<Clock> clock;
     private final ParameterNameDiscoverer parameterNames = new DefaultParameterNameDiscoverer();
 
-    static Pointcut pointcut() {
+    public static Pointcut pointcut() {
         return new ComposablePointcut(new AnnotationClassFilter(UseCase.class, true),
                 new AnnotationMethodMatcher(Audited.class, true));
     }
@@ -105,9 +99,10 @@ class AuditInterceptor implements MethodInterceptor {
         try (Scope correlation = CallContext.correlated();
              Listening notes = AuditNotes.listen()) {
             ActionRecordBuilder row = ActionRecord.builder().at(now(clock.getIfAvailable(Clock::systemUTC)))
-                    .user(user()).action(action).correlationId(CallContext.correlationId().orElse(null));
+                    .action(action);
             ObjectNode argumentDetails = arguments(method, arguments);
-            ActionObject removed = action.deletes() ? keyed(fromArguments(action, method, arguments)) : null;
+            ActionObject removed = action.deletes()
+                    ? fromArguments(action, method, arguments).keyedBy(keys.getObject()::keyOf) : null;
             long started = System.nanoTime();
             Object result;
             try {
@@ -164,16 +159,17 @@ class AuditInterceptor implements MethodInterceptor {
             inOwnTransaction(row, object);
             return;
         }
-        ActionRecord recorded = about(row, object.get());
-        history.getObject().record(recorded);
+        ActionRecord recorded = history.getObject().record(row, object.get());
         if (isSynchronizationActive()) {
             registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCompletion(int status) {
                     if (status != STATUS_COMMITTED) {
-                        inOwnTransaction(recorded.toBuilder().outcome(FAILURE).message(ROLLED_BACK),
-                                () -> new ActionObject(recorded.objectType(), recorded.objectId(),
-                                        recorded.objectKey()));
+                        try (Scope correlation = CallContext.correlatedBy(recorded.correlationId())) {
+                            inOwnTransaction(recorded.toBuilder().id(null).outcome(FAILURE).message(ROLLED_BACK),
+                                    () -> new ActionObject(recorded.objectType(), recorded.objectId(),
+                                            recorded.objectKey()));
+                        }
                     }
                 }
             });
@@ -184,22 +180,12 @@ class AuditInterceptor implements MethodInterceptor {
         try {
             TransactionTemplate own = new TransactionTemplate(transactions.getObject());
             own.setPropagationBehavior(PROPAGATION_REQUIRES_NEW);
-            own.executeWithoutResult(status -> history.getObject().record(about(row, object.get())));
+            own.executeWithoutResult(status -> history.getObject().record(row, object.get()));
         } catch (RuntimeException e) {
             ActionRecord lost = row.build();
-            log.warn("The {} {} of {} could not be written to the audit trail: {}", lost.outcome(), lost.action(),
-                    lost.user(), e.getMessage());
+            log.warn("The {} {} could not be written to the audit trail: {}", lost.outcome(), lost.action(),
+                    e.getMessage());
         }
-    }
-
-    private ActionRecord about(ActionRecordBuilder row, ActionObject object) {
-        ActionObject keyed = keyed(object);
-        return row.objectType(keyed.type()).objectId(keyed.id()).objectKey(keyed.key()).build();
-    }
-
-    private ActionObject keyed(ActionObject object) {
-        return object.lacksKey() ? object.withKey(keys.getObject().keyOf(object.type(), object.id()).orElse(null))
-                : object;
     }
 
     /** The object a call was about: what its result says, else what its arguments say. */
@@ -281,22 +267,9 @@ class AuditInterceptor implements MethodInterceptor {
 
     static String messageOf(Throwable failure) {
         if (failure instanceof InvalidRequestException invalid && !invalid.problems().isEmpty()) {
-            return invalid.problems().stream().map(problem -> problem.field() + " " + problem.message())
-                    .collect(joining("; "));
+            return InvalidRequestException.summary(invalid.problems());
         }
         return defaultIfBlank(failure.getMessage(), failure.getClass().getSimpleName());
-    }
-
-    private String user() {
-        Optional<String> system = CallContext.systemActor();
-        if (system.isPresent()) {
-            return system.get();
-        }
-        try {
-            return defaultIfBlank(users.getObject().name(), UNKNOWN_USER);
-        } catch (RuntimeException e) {
-            return UNKNOWN_USER;
-        }
     }
 
     /**

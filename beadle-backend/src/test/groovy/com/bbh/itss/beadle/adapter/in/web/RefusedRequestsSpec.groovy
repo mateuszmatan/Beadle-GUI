@@ -1,11 +1,11 @@
 package com.bbh.itss.beadle.adapter.in.web
 
 import com.bbh.itss.beadle.adapter.AuditDetails
-import com.bbh.itss.beadle.application.CallContext
-import com.bbh.itss.beadle.application.audit.port.in.RefusedRequest
-import com.bbh.itss.beadle.application.audit.port.in.RefusedRequestsUseCase
+import com.bbh.itss.beadle.application.audit.port.in.ActionHistoryUseCase
+import com.bbh.itss.beadle.domain.audit.Action
 import com.bbh.itss.beadle.domain.audit.ActionObject
 import com.bbh.itss.beadle.domain.audit.ActionRecord
+import com.bbh.itss.beadle.domain.audit.ActionRecord.ActionRecordBuilder
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException.FieldProblem
 import jakarta.validation.Valid
@@ -27,13 +27,15 @@ import spock.lang.Specification
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.json.JsonMapper
 
+import java.time.Clock
 import java.time.DayOfWeek
+import java.time.Instant
+import java.time.ZoneOffset
 
-import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_PROTECH
-import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED
 import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_RENAMED
-import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED
+import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT
 import static com.bbh.itss.beadle.support.Json.parse
@@ -49,19 +51,19 @@ class RefusedRequestsSpec extends Specification {
 
     static final String DAYS = 'must be one of MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY'
 
-    RefusedRequestsUseCase refusals = Mock()
-    List<RefusedRequest> recorded = []
-    List<String> actors = []
+    static final Instant NOW = Instant.parse('2026-10-15T09:00:00Z')
 
-    MockMvc mvc = standaloneSetup(new AuditedSampleController())
-            .setControllerAdvice(new ApiExceptionHandler(new RefusedRequests(refusals, JsonMapper.builder().build())),
-                    new KeptRequestBodies(), new NormalizedRequestBodies())
-            .build()
+    ActionHistoryUseCase history = Mock()
+    List<Refused> recorded = []
+
+    MockMvc mvc = mvc(history)
 
     def setup() {
-        refusals.refused(_) >> { RefusedRequest refused ->
-            recorded << refused
-            actors << CallContext.systemActor().orElse('the signed-in user')
+        history.record(_, _) >> { ActionRecordBuilder row, ActionObject object ->
+            def built = row.build()
+            assert built.at() == NOW && built.outcome() == FAILURE && built.durationMs() == 0
+            recorded << new Refused(built.action(), object, built.details(), built.message())
+            built
         }
     }
 
@@ -71,8 +73,7 @@ class RefusedRequestsSpec extends Specification {
 
         then:
         response.status == 400
-        recorded == [new RefusedRequest(BUSINESS_SERVICE_CREATED, ActionObject.keyed(BUSINESS_SERVICE, key), details, message)]
-        actors == ['the signed-in user']
+        recorded == [new Refused(BUSINESS_SERVICE_CREATED, ActionObject.keyed(BUSINESS_SERVICE, key), details, message)]
         parse(response.contentAsString).detail != null
 
         where:
@@ -99,9 +100,9 @@ class RefusedRequestsSpec extends Specification {
 
         then:
         recorded == [
-                new RefusedRequest(BUSINESS_SERVICE_RENAMED, ActionObject.of(BUSINESS_SERVICE, 7), '{"id":7,"request":{"name":""}}',
+                new Refused(BUSINESS_SERVICE_RENAMED, ActionObject.of(BUSINESS_SERVICE, 7), '{"id":7,"request":{"name":""}}',
                         'name must not be blank'),
-                new RefusedRequest(BUSINESS_SERVICE_RENAMED, ActionObject.of(BUSINESS_SERVICE, null),
+                new Refused(BUSINESS_SERVICE_RENAMED, ActionObject.of(BUSINESS_SERVICE, null),
                         '{"id":"seven","request":null}', 'id must be a whole number')]
     }
 
@@ -137,17 +138,6 @@ class RefusedRequestsSpec extends Specification {
         request.get('epicKeys')*.stringValue() == ['CERT-1', 'CERT-2']
     }
 
-    def "a refused callback is recorded as the system it acts for"() {
-        when:
-        mvc.perform(json(post('/api/samples/callback'), '{"number": "CHG0031001"}'))
-
-        then:
-        recorded == [new RefusedRequest(CALLBACK_PROTECH, ActionObject.keyed(CHANGE, 'CHG0031001'),
-                '{"request":{"number":"CHG0031001"}}', 'name must not be blank')]
-        actors == ['system:protech']
-        !CallContext.systemActor().present
-    }
-
     def "a body of another content type is refused and recorded as well"() {
         when:
         def response = mvc.perform(post('/api/samples/named').contentType(TEXT_PLAIN).content('Ops')).andReturn().response
@@ -174,12 +164,10 @@ class RefusedRequestsSpec extends Specification {
 
     def "a row that cannot be written leaves the answer as it is"() {
         given:
-        def failing = Mock(RefusedRequestsUseCase) {
-            refused(_) >> { throw new IllegalStateException('the database is down') }
+        def failing = Mock(ActionHistoryUseCase) {
+            record(_, _) >> { throw new IllegalStateException('the database is down') }
         }
-        def mvc = standaloneSetup(new AuditedSampleController())
-                .setControllerAdvice(new ApiExceptionHandler(new RefusedRequests(failing, JsonMapper.builder().build())),
-                        new KeptRequestBodies()).build()
+        def mvc = mvc(failing)
 
         when:
         def response = mvc.perform(json(post('/api/samples/named'), '{"name": ""}')).andReturn().response
@@ -211,8 +199,20 @@ class RefusedRequestsSpec extends Specification {
         unaudited == []
     }
 
+    private static MockMvc mvc(ActionHistoryUseCase history) {
+        def refusals = new RefusedRequests(history, JsonMapper.builder().build(), Clock.fixed(NOW, ZoneOffset.UTC))
+        standaloneSetup(new AuditedSampleController())
+                .setControllerAdvice(new ApiExceptionHandler(refusals), new KeptRequestBodies(),
+                        new NormalizedRequestBodies())
+                .build()
+    }
+
     private static MockHttpServletRequestBuilder json(MockHttpServletRequestBuilder request, String body) {
         request.contentType(APPLICATION_JSON).content(body)
+    }
+
+    /** What a refused request recorded. */
+    record Refused(Action action, ActionObject object, String details, String message) {
     }
 
     /** Endpoints of every kind of {@link AuditedRequest}. */
@@ -237,12 +237,6 @@ class RefusedRequestsSpec extends Specification {
             request.fixVersion
         }
 
-        @PostMapping('/api/samples/callback')
-        @AuditedRequest(value = CALLBACK_PROTECH, objectKey = 'number', actor = 'system:protech')
-        String callback(@Valid @RequestBody Named request) {
-            request.name
-        }
-
         @PostMapping('/api/samples/refusing')
         @AuditedRequest(BUSINESS_SERVICE_CREATED)
         String refusing(@Valid @RequestBody Named request) {
@@ -262,7 +256,6 @@ class RefusedRequestsSpec extends Specification {
         String name
         String apiToken
         DayOfWeek day
-        String number
     }
 
     static class Raised {

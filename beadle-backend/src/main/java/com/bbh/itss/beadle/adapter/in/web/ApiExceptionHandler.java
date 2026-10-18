@@ -1,11 +1,10 @@
 package com.bbh.itss.beadle.adapter.in.web;
 
-import com.bbh.itss.beadle.application.audit.port.in.RefusedRequestsUseCase;
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException;
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException.FieldProblem;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.TypeMismatchException;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
@@ -23,7 +22,6 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
-import tools.jackson.databind.json.JsonMapper;
 
 import java.io.UncheckedIOException;
 import java.util.List;
@@ -38,7 +36,9 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.ProblemDetail.forStatusAndDetail;
 
+@Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     /** The member of a problem that lists the fields of a refused request, as the contract of the services names it. */
@@ -51,20 +51,6 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             HttpMediaTypeNotSupportedException.class);
 
     private final RefusedRequests refusals;
-
-    /** Answers without recording refused requests, for a controller tested without the audit trail. */
-    public ApiExceptionHandler() {
-        this((RefusedRequests) null);
-    }
-
-    @Autowired
-    public ApiExceptionHandler(RefusedRequestsUseCase refusals, ObjectProvider<JsonMapper> json) {
-        this(new RefusedRequests(refusals, json.getIfUnique(() -> JsonMapper.builder().build())));
-    }
-
-    ApiExceptionHandler(RefusedRequests refusals) {
-        this.refusals = refusals;
-    }
 
     @ExceptionHandler(NoSuchElementException.class)
     ProblemDetail notFound(NoSuchElementException e) {
@@ -94,7 +80,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(UncheckedIOException.class)
     ProblemDetail unavailable(UncheckedIOException e) {
-        logger.warn("A system Beadle relies on could not be reached: " + e.getMessage());
+        log.warn("A system Beadle relies on could not be reached: {}", e.getMessage());
         return problem(SERVICE_UNAVAILABLE, "Service Unavailable", e.getMessage());
     }
 
@@ -107,7 +93,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ProblemDetail unexpected(Exception e) {
-        logger.error("Beadle could not serve a request", e);
+        log.error("Beadle could not serve a request", e);
         return problem(INTERNAL_SERVER_ERROR, "Request failed",
                 "Beadle could not handle the request. The failure is in Beadle's log.");
     }
@@ -161,7 +147,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                 HttpStatus resolved = HttpStatus.resolve(status.value());
                 detail.setTitle(resolved == null ? "Request failed" : resolved.getReasonPhrase());
             }
-            if (refusals != null && status.is4xxClientError()
+            if (status.is4xxClientError()
                     && REFUSED_BEFORE_USE_CASE.stream().anyMatch(type -> type.isInstance(e))) {
                 refusals.record(request, detail);
             }

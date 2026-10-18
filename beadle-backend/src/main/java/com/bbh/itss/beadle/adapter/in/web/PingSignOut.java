@@ -1,4 +1,4 @@
-package com.bbh.itss.beadle.config;
+package com.bbh.itss.beadle.adapter.in.web;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -28,7 +28,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  * PingFederate that advertises only {@value #PING_END_SESSION}, that one with {@code TargetResource}. Without either
  * the answer is {@code /}: Beadle's session has ended, Ping's has not.
  */
-final class PingSignOut extends OidcClientInitiatedLogoutSuccessHandler {
+public final class PingSignOut extends OidcClientInitiatedLogoutSuccessHandler {
 
     static final String POST_LOGOUT_REDIRECT_URI = "{baseUrl}/";
     static final String PING_END_SESSION = "ping_end_session_endpoint";
@@ -38,7 +38,7 @@ final class PingSignOut extends OidcClientInitiatedLogoutSuccessHandler {
 
     private final ClientRegistrationRepository registrations;
 
-    PingSignOut(ClientRegistrationRepository registrations) {
+    public PingSignOut(ClientRegistrationRepository registrations) {
         super(registrations);
         this.registrations = registrations;
         setPostLogoutRedirectUri(POST_LOGOUT_REDIRECT_URI);

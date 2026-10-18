@@ -1,4 +1,4 @@
-package com.bbh.itss.beadle.config;
+package com.bbh.itss.beadle.adapter.out.http;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;

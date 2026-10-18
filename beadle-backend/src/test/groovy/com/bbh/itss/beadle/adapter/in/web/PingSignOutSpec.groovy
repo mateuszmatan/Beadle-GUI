@@ -1,5 +1,6 @@
-package com.bbh.itss.beadle.config
+package com.bbh.itss.beadle.adapter.in.web
 
+import com.bbh.itss.beadle.adapter.in.web.PingSignOut
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.security.authentication.TestingAuthenticationToken

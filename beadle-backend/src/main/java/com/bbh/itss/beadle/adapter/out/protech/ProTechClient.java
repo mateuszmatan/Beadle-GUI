@@ -2,9 +2,9 @@ package com.bbh.itss.beadle.adapter.out.protech;
 
 import com.bbh.itss.beadle.adapter.out.http.BeadleServiceClient;
 import com.bbh.itss.beadle.adapter.out.http.CallerHeaders;
+import com.bbh.itss.beadle.adapter.out.http.ServicesProperties;
 import com.bbh.itss.beadle.application.change.port.out.ProTechLookupPort;
 import com.bbh.itss.beadle.application.change.port.out.ProTechPort;
-import com.bbh.itss.beadle.config.ServicesProperties;
 import com.bbh.itss.beadle.domain.change.ApprovalRef;
 import com.bbh.itss.beadle.domain.change.ChangeTask;
 import com.bbh.itss.beadle.domain.change.Lookup;

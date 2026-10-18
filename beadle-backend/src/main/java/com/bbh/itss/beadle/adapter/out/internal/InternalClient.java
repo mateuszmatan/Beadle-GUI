@@ -2,9 +2,9 @@ package com.bbh.itss.beadle.adapter.out.internal;
 
 import com.bbh.itss.beadle.adapter.out.http.BeadleServiceClient;
 import com.bbh.itss.beadle.adapter.out.http.CallerHeaders;
+import com.bbh.itss.beadle.adapter.out.http.ServicesProperties;
 import com.bbh.itss.beadle.application.change.port.out.CyberTrackPort;
 import com.bbh.itss.beadle.application.change.port.out.JiraPort;
-import com.bbh.itss.beadle.config.ServicesProperties;
 import com.bbh.itss.beadle.domain.change.JiraIssue;
 import com.bbh.itss.beadle.domain.change.JiraVersion;
 import com.bbh.itss.beadle.domain.change.SecureCodingTicket;

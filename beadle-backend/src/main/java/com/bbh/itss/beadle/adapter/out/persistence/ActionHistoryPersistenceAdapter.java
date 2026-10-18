@@ -7,6 +7,7 @@ import com.bbh.itss.beadle.domain.audit.ActionHistoryQuery;
 import com.bbh.itss.beadle.domain.audit.ActionRecord;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -20,6 +21,7 @@ import java.util.List;
 import static java.util.Locale.ROOT;
 import static org.springframework.data.domain.Sort.Direction.DESC;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 class ActionHistoryPersistenceAdapter implements ActionHistoryPort {
@@ -35,9 +37,14 @@ class ActionHistoryPersistenceAdapter implements ActionHistoryPort {
 
     private final ActionHistoryJpaRepository rows;
 
+    /** Stores the row and logs it, one line per audited action. */
     @Override
     public ActionRecord record(ActionRecord record) {
-        return rows.save(ActionHistoryEntity.of(record)).toDomain();
+        ActionRecord stored = rows.save(ActionHistoryEntity.of(record)).toDomain();
+        log.info("{} {} {} {} by {} in {} ms", stored.outcome(), stored.action(), stored.objectType(),
+                stored.objectKey() != null ? stored.objectKey() : stored.objectId(), stored.user(),
+                stored.durationMs());
+        return stored;
     }
 
     @Override

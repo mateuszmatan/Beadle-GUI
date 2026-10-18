@@ -1,8 +1,8 @@
 package com.bbh.itss.beadle.adapter.out.http
 
+import com.bbh.itss.beadle.adapter.out.http.ServicesProperties
+import com.bbh.itss.beadle.adapter.out.http.ServicesProperties.Endpoint
 import com.bbh.itss.beadle.application.user.port.out.SignedInUserPort
-import com.bbh.itss.beadle.config.ServicesProperties
-import com.bbh.itss.beadle.config.ServicesProperties.Endpoint
 import com.bbh.itss.beadle.support.RecordingHttpServer
 import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter
 import org.springframework.web.client.RestClient

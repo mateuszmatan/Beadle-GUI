@@ -1,8 +1,8 @@
 package com.bbh.itss.beadle.config
 
+import com.bbh.itss.beadle.adapter.AuditInterceptor
 import com.bbh.itss.beadle.application.UseCase
-import com.bbh.itss.beadle.application.audit.port.in.RefusedRequest
-import com.bbh.itss.beadle.application.audit.port.in.RefusedRequestsUseCase
+import com.bbh.itss.beadle.application.audit.port.in.ActionHistoryUseCase
 import com.bbh.itss.beadle.application.audit.port.out.ActionHistoryPort
 import com.bbh.itss.beadle.application.audit.port.out.ObjectKeyPort
 import com.bbh.itss.beadle.application.catalog.port.in.BusinessServicesUseCase
@@ -18,12 +18,13 @@ import com.bbh.itss.beadle.application.change.port.out.ChangeProfileRepositoryPo
 import com.bbh.itss.beadle.application.change.port.out.CyberTrackPort
 import com.bbh.itss.beadle.application.change.port.out.JiraPort
 import com.bbh.itss.beadle.application.change.port.out.ProTechLookupPort
-import com.bbh.itss.beadle.application.change.port.out.ProductionChangeRepositoryPort
 import com.bbh.itss.beadle.application.change.port.out.ProTechPort
+import com.bbh.itss.beadle.application.change.port.out.ProductionChangeRepositoryPort
 import com.bbh.itss.beadle.application.user.port.out.SignedInUserPort
+import com.bbh.itss.beadle.domain.audit.ActionObject
+import com.bbh.itss.beadle.domain.audit.ActionRecord
 import com.bbh.itss.beadle.domain.catalog.BusinessService
 import com.bbh.itss.beadle.domain.catalog.BusinessServiceUsage
-import com.bbh.itss.beadle.domain.audit.ActionRecord
 import com.bbh.itss.beadle.domain.catalog.Product
 import com.bbh.itss.beadle.support.RecordingTransactionManager
 import org.springframework.aop.framework.Advised
@@ -40,14 +41,15 @@ import java.time.Clock
 import java.util.function.Supplier
 
 import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_CREATED
+import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE
+import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE
 import static com.bbh.itss.beadle.support.RecordingTransactionManager.transactionState
 import static java.time.Clock.systemUTC
 import static org.springframework.aop.support.AopUtils.isAopProxy
 
 class UseCaseConfigurationSpec extends Specification {
 
-    static final List<String> UNAUDITED = ['changeOptionsService', 'lookupService', 'actionHistoryService',
-                                           'refusedRequestService']
+    static final List<String> UNAUDITED = ['changeOptionsService', 'lookupService', 'actionHistoryService']
 
     def transactions = new RecordingTransactionManager()
     List<String> calls = []
@@ -86,8 +88,7 @@ class UseCaseConfigurationSpec extends Specification {
             def useCases = context.getBeansWithAnnotation(UseCase)
             assert useCases.keySet() == ['businessServiceService', 'productService', 'changeProfileService',
                                          'productionChangeService', 'changeOptionsService', 'lookupService',
-                                         'signedInUserService', 'callbackService', 'actionHistoryService',
-                                         'refusedRequestService'] as Set
+                                         'signedInUserService', 'callbackService', 'actionHistoryService'] as Set
             useCases.each { name, useCase ->
                 assert isAopProxy(useCase)
                 assert (useCase as Advised).advisors*.advice*.class == (name in UNAUDITED ? [TransactionInterceptor]
@@ -96,11 +97,11 @@ class UseCaseConfigurationSpec extends Specification {
         }
     }
 
-    def "a request refused before its use case ran is written as its FAILURE row in a read-write transaction"() {
+    def "a row written outside an audited use case, for a refused request, gets a read-write transaction"() {
         when:
         runner.run { ApplicationContext context ->
-            context.getBean(RefusedRequestsUseCase).refused(new RefusedRequest(BUSINESS_SERVICE_CREATED, null,
-                    '{"request":{"name":""}}', 'name must not be blank'))
+            context.getBean(ActionHistoryUseCase).record(ActionRecord.builder().action(BUSINESS_SERVICE_CREATED)
+                    .outcome(FAILURE).message('name must not be blank'), ActionObject.of(BUSINESS_SERVICE, null))
         }
 
         then:
@@ -112,7 +113,6 @@ class UseCaseConfigurationSpec extends Specification {
         given:
         businessServices.findAll() >> { calls << 'business services ' + transactionState(); [new BusinessService(3L, 'Custody', 0)] }
         products.findAll() >> { calls << 'products ' + transactionState(); [] }
-        products.businessServiceExists(3L) >> true
         products.businessServiceExists(3L) >> true
         products.findProductByCode(_) >> Optional.empty()
         products.findProductByName(_) >> Optional.empty()

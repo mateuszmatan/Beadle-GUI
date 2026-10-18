@@ -111,10 +111,9 @@ class ApplicationProfilesSpec extends Specification {
 
         then:
         env.getProperty('beadle.auth.mode') == 'local'
-        env.getProperty('beadle.signed-in-user') == 'Mateusz Matan'
+        env.getProperty('beadle.auth.user') == 'Mateusz Matan'
         env.getProperty('spring.security.oauth2.client.registration.ping.client-id') == null
-        environment([], [BEADLE_SIGNED_IN_USER: 'Ann Lee']).getProperty('beadle.signed-in-user') == 'Ann Lee'
-        environment([], [BEADLE_AUTH_MODE: 'oidc']).getProperty('beadle.auth.mode') == 'oidc'
+        environment([], [BEADLE_SIGNED_IN_USER: 'Ann Lee']).getProperty('beadle.auth.user') == 'Ann Lee'
     }
 
     def "the #profile profile signs people in with Ping as the environment says"() {

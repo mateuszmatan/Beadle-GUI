@@ -1,10 +1,9 @@
-package com.bbh.itss.beadle.config;
+package com.bbh.itss.beadle.adapter.in.web;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -17,9 +16,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-/** Signs every request in as {@code beadle.signed-in-user}: the auth mode {@code local}, where there is no Ping. */
-@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
-class LocalUserFilter extends OncePerRequestFilter {
+/** Signs every request in as {@code beadle.auth.user}: the auth mode {@code local}, where there is no Ping. */
+@RequiredArgsConstructor
+public class LocalUserFilter extends OncePerRequestFilter {
 
     static final String ROLE = "ROLE_USER";
 

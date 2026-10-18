@@ -17,7 +17,7 @@ import com.bbh.itss.beadle.application.change.port.out.JiraPort;
 import com.bbh.itss.beadle.application.change.port.out.ProTechPort;
 import com.bbh.itss.beadle.application.change.port.out.ProTechPort.RaisedChange;
 import com.bbh.itss.beadle.application.change.port.out.ProductionChangeRepositoryPort;
-import com.bbh.itss.beadle.application.user.port.in.SignedInUserUseCase;
+import com.bbh.itss.beadle.application.user.port.out.SignedInUserPort;
 import com.bbh.itss.beadle.domain.change.ApprovalRef;
 import com.bbh.itss.beadle.domain.change.ChangeProduct;
 import com.bbh.itss.beadle.domain.change.ChangeSchedule;
@@ -84,7 +84,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     private final JiraPort jira;
     private final ProTechPort proTech;
     private final CyberTrackPort cyberTrack;
-    private final SignedInUserUseCase users;
+    private final SignedInUserPort users;
     private final Clock clock;
 
     @Override
@@ -329,7 +329,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         problems.fits("shortDescription", command.shortDescription(), SHORT_DESCRIPTION_MAX)
                 .fits("description", command.description(), DESCRIPTION_MAX);
         problems.throwIfAny();
-        return ProductionChange.draft(product, users.signedInUser().name(), version,
+        return ProductionChange.draft(product, users.name(), version,
                 getIfNull(schedule, UNPLANNED), template, epics, stories, command.shortDescription(),
                 command.description());
     }

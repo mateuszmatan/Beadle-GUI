@@ -1,8 +1,8 @@
 package com.bbh.itss.beadle.adapter.out.http;
 
+import com.bbh.itss.beadle.adapter.ServiceHeaders;
 import com.bbh.itss.beadle.application.CallContext;
 import com.bbh.itss.beadle.application.user.port.out.SignedInUserPort;
-import com.bbh.itss.beadle.config.ServiceHeaders;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpRequest;
 import org.springframework.http.client.ClientHttpRequestExecution;

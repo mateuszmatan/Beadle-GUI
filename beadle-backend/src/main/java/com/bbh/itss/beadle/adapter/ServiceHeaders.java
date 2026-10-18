@@ -1,4 +1,4 @@
-package com.bbh.itss.beadle.config;
+package com.bbh.itss.beadle.adapter;
 
 import lombok.NoArgsConstructor;
 
