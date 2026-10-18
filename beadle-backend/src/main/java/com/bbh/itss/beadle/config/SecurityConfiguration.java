@@ -51,7 +51,8 @@ import static org.springframework.security.config.http.SessionCreationPolicy.STA
  * </ul>
  * The audit trail gets the sessions and what these chains refuse: {@link SignInRecorder} records the first API call of
  * every session as {@code USER_SIGNED_IN}, the sign-out is {@code USER_SIGNED_OUT}, and {@link RefusedRequests} files
- * a failed Ping sign-in, a change refused for its CSRF token and a refused callback as {@code FAILURE} rows.
+ * a signed-in user's change refused for its CSRF token and a callback with the service token refused for its
+ * correlation id as {@code FAILURE} rows; a caller who proved nothing, or whose Ping sign-in failed, is only logged.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableWebSecurity

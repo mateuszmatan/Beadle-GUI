@@ -16,6 +16,8 @@ import org.springframework.context.support.GenericApplicationContext
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException
 import org.springframework.security.oauth2.core.OAuth2Error
 import org.springframework.security.web.authentication.AuthenticationFailureHandler
@@ -39,11 +41,9 @@ import java.time.ZoneOffset
 import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_RENAMED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED
-import static com.bbh.itss.beadle.domain.audit.Action.USER_SIGNED_IN
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT
-import static com.bbh.itss.beadle.domain.audit.ObjectType.USER
 import static org.springframework.http.HttpStatus.UNAUTHORIZED
 import static org.springframework.http.ProblemDetail.forStatusAndDetail
 import static com.bbh.itss.beadle.support.Json.parse
@@ -199,9 +199,10 @@ class RefusedRequestsSpec extends Specification {
                 '{"id":7,"request":null}', 'The call needs a token.')]
     }
 
-    def "a change refused for its CSRF token is filed as such and answered 403 as Spring does"() {
+    def "a signed-in user's change refused for its CSRF token is filed as such and answered 403 as Spring does"() {
         given:
         def response = new MockHttpServletResponse()
+        SecurityContextHolder.context.authentication = UsernamePasswordAuthenticationToken.authenticated('Ann Lee', null, [])
 
         when:
         refusals(history).forbidden().handle(new MockHttpServletRequest('POST', '/api/samples/named'), response,
@@ -212,24 +213,31 @@ class RefusedRequestsSpec extends Specification {
         recorded*.action() == [BUSINESS_SERVICE_CREATED]
         recorded*.message() == [message]
 
+        cleanup:
+        SecurityContextHolder.clearContext()
+
         where:
         denied                                         || message
         new MissingCsrfTokenException(null)            || RefusedRequests.NO_CSRF_TOKEN
         new AccessDeniedException('Not for you.')      || 'Not for you.'
     }
 
-    def "a failed sign-in is a USER_SIGNED_IN failure with Ping's error, and then the sign-in page says it failed"() {
+    def "a refusal without a session, or a failed sign-in, is answered but not filed"() {
         given:
+        def response = new MockHttpServletResponse()
         def page = Mock(AuthenticationFailureHandler)
         def failure = new OAuth2AuthenticationException(new OAuth2Error('access_denied', 'Not entitled', null))
 
         when:
+        refusals(history).forbidden().handle(new MockHttpServletRequest('POST', '/api/samples/named'), response,
+                new MissingCsrfTokenException(null))
         refusals(history).signInFailures(page).onAuthenticationFailure(new MockHttpServletRequest(),
                 new MockHttpServletResponse(), failure)
 
         then:
-        recorded == [new Refused(USER_SIGNED_IN, ActionObject.of(USER, null), null, '[access_denied] Not entitled')]
+        response.status == 403
         1 * page.onAuthenticationFailure(_, _, failure)
+        recorded.empty
     }
 
     /** The endpoints of the controller, found as Spring MVC finds them. */

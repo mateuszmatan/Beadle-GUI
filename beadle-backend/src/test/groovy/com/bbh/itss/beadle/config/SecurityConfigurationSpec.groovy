@@ -135,6 +135,7 @@ class SecurityConfigurationSpec extends Specification {
         def session = signedIn([sub: 'u-7', name: 'Ann Lee'])
         def cookie = answer(oidc, get('/api/business-services').session(session)).getCookie('XSRF-TOKEN')
         def businessService = { "Security ${System.nanoTime()}".toString() }
+        int refusedBefore = count(oidcContext, 'BUSINESS_SERVICE_CREATED', 'FAILURE')
 
         expect:
         cookie.value
@@ -142,13 +143,16 @@ class SecurityConfigurationSpec extends Specification {
         cookie.path == '/'
 
         when:
+        def anonymous = answer(oidc, json(post('/api/business-services'), [name: businessService()]))
         def without = answer(oidc, json(post('/api/business-services'), [name: businessService()]).session(session))
         def withToken = answer(oidc, json(post('/api/business-services'), [name: businessService()]).session(session)
                 .cookie(cookie).header('X-XSRF-TOKEN', cookie.value))
 
         then:
+        anonymous.status == 403
         without.status == 403
         withToken.status == 201
+        count(oidcContext, 'BUSINESS_SERVICE_CREATED', 'FAILURE') == refusedBefore + 1
         latest(oidcContext, 'BUSINESS_SERVICE_CREATED', 'FAILURE') == ['Ann Lee', RefusedRequests.NO_CSRF_TOKEN]
     }
 
@@ -172,7 +176,7 @@ class SecurityConfigurationSpec extends Specification {
         latest(oidcContext, 'USER_SIGNED_OUT', 'SUCCESS') == ['Ann Lee', null]
     }
 
-    def "with Ping a sign-in that fails on its way back from Ping is recorded, and the sign-in page says it failed"() {
+    def "with Ping a sign-in that fails on its way back from Ping is only logged, and the sign-in page says it failed"() {
         given:
         def session = new MockHttpSession()
 
@@ -183,7 +187,7 @@ class SecurityConfigurationSpec extends Specification {
         then:
         failed.status == 302
         failed.redirectedUrl == SecurityConfiguration.SIGN_IN_FAILED
-        latest(oidcContext, 'USER_SIGNED_IN', 'FAILURE') == ['unknown', '[authorization_request_not_found] ']
+        count(oidcContext, 'USER_SIGNED_IN', 'FAILURE') == 0
         answer(oidc, get(SecurityConfiguration.SIGN_IN_FAILED).session(session)).contentAsString
                 .contains('Invalid credentials')
     }
@@ -221,7 +225,10 @@ class SecurityConfigurationSpec extends Specification {
         latest(localContext, 'USER_SIGNED_OUT', 'SUCCESS') == ['Mateusz Matan', null]
     }
 
-    def "in both modes a callback needs the service token, is recorded when refused, and keeps no session"() {
+    def "in both modes a callback needs the service token, is only logged without it, and keeps no session"() {
+        given:
+        int refusedBefore = count(context, 'CALLBACK_PROTECH', 'FAILURE')
+
         when:
         def refused = answer(mvc, json(post('/api/callbacks/protech'), [number: 'CHG7777777', event: 'TASK_CHANGED']))
         def taken = mvc.perform(json(post('/api/callbacks/protech'), [number: 'CHG7777777', event: 'TASK_CHANGED'])
@@ -231,7 +238,7 @@ class SecurityConfigurationSpec extends Specification {
         then:
         refused.status == 401
         parse(refused.contentAsString).detail == ServiceTokenFilter.DETAIL
-        latest(context, 'CALLBACK_PROTECH', 'FAILURE') == ['unknown', ServiceTokenFilter.DETAIL]
+        count(context, 'CALLBACK_PROTECH', 'FAILURE') == refusedBefore
         taken.response.status == 202
         taken.request.getSession(false) == null
         health.response.status == 200
@@ -263,6 +270,11 @@ class SecurityConfigurationSpec extends Specification {
         context.getBean(JdbcTemplate).queryForList('''SELECT USER_NAME, MESSAGE FROM BEADLE_ACTION_HISTORY
                 WHERE ACTION = ? AND OUTCOME = ? ORDER BY ID DESC FETCH FIRST 1 ROWS ONLY''', action, outcome)
                 .collectMany { [it.USER_NAME, it.MESSAGE] }
+    }
+
+    private static int count(ConfigurableApplicationContext context, String action, String outcome) {
+        context.getBean(JdbcTemplate).queryForObject(
+                'SELECT COUNT(*) FROM BEADLE_ACTION_HISTORY WHERE ACTION = ? AND OUTCOME = ?', Integer, action, outcome)
     }
 
     private static List<String> discoveredAt(RecordingHttpServer server) {

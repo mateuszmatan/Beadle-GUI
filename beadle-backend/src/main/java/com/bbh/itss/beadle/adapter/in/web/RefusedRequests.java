@@ -17,6 +17,9 @@ import org.springframework.core.DefaultParameterNameDiscoverer;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.ParameterNameDiscoverer;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.authentication.AuthenticationTrustResolver;
+import org.springframework.security.authentication.AuthenticationTrustResolverImpl;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.access.AccessDeniedHandlerImpl;
@@ -41,9 +44,7 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 
-import static com.bbh.itss.beadle.domain.audit.Action.USER_SIGNED_IN;
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE;
-import static com.bbh.itss.beadle.domain.audit.ObjectType.USER;
 import static com.bbh.itss.beadle.domain.shared.Timestamps.now;
 import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 import static org.apache.commons.lang3.StringUtils.isNumeric;
@@ -59,9 +60,10 @@ import static org.springframework.web.servlet.HandlerMapping.URI_TEMPLATE_VARIAB
  * {@link AuditedRequest} endpoint is filed under the action of the endpoint and the object its path or body names,
  * with the path values and the body as sent ({@link KeptRequestBodies}) with their secrets masked, and the field
  * problems of the answer as the message, or its detail when it names no field. A request the security filters refused,
- * for its CSRF token or a callback for its token or correlation id, is filed the same way, without the body nobody
- * read. A failed sign-in at Ping is a {@code USER_SIGNED_IN} row with Ping's error. Such a row takes no time of a use
- * case, so its duration is 0. A row that cannot be written is logged and does not change the answer.
+ * a signed-in user's change for its CSRF token or a callback with the service token for its correlation id, is filed
+ * the same way, without the body nobody read. A caller who proved nothing, without a session or the service token, or
+ * whose sign-in at Ping failed, is only logged, so that nobody can fill the audit trail anonymously. Such a row takes
+ * no time of a use case, so its duration is 0. A row that cannot be written is logged and does not change the answer.
  */
 @Slf4j
 @Component
@@ -77,6 +79,7 @@ public class RefusedRequests {
     private final Clock clock;
     private final ObjectProvider<RequestMappingHandlerMapping> mappings;
     private final ParameterNameDiscoverer parameterNames = new DefaultParameterNameDiscoverer();
+    private final AuthenticationTrustResolver trust = new AuthenticationTrustResolverImpl();
 
     /** Records a request the security filters refused before Spring MVC chose its endpoint, which it looks up. */
     public void record(HttpServletRequest request, ProblemDetail problem) {
@@ -88,22 +91,28 @@ public class RefusedRequests {
         }
     }
 
-    /** Answers {@code 403} as Spring does once the request is filed: what the users' chain denies is a CSRF token. */
+    /**
+     * Answers {@code 403} as Spring does once the request is filed, when a user is signed in: what the users' chain
+     * denies is a CSRF token.
+     */
     public AccessDeniedHandler forbidden() {
         AccessDeniedHandler forbidden = new AccessDeniedHandlerImpl();
         return (request, response, denied) -> {
-            record(request, forStatusAndDetail(FORBIDDEN,
-                    denied instanceof CsrfException ? NO_CSRF_TOKEN : denied.getMessage()));
+            String why = denied instanceof CsrfException ? NO_CSRF_TOKEN : denied.getMessage();
+            if (trust.isAuthenticated(SecurityContextHolder.getContext().getAuthentication())) {
+                record(request, forStatusAndDetail(FORBIDDEN, why));
+            } else {
+                log.warn("Refused {} {} without a session: {}", request.getMethod(), request.getRequestURI(), why);
+            }
             forbidden.handle(request, response, denied);
         };
     }
 
-    /** Files a sign-in that failed at Ping, or on its way back, with the error, then lets the page say it failed. */
+    /** Logs a sign-in that failed at Ping, or on its way back, with the error, then lets the page say it failed. */
     public AuthenticationFailureHandler signInFailures(AuthenticationFailureHandler page) {
         return (request, response, failure) -> {
-            write(ActionRecord.builder().at(now(clock)).action(USER_SIGNED_IN).outcome(FAILURE)
-                    .message(failure instanceof OAuth2AuthenticationException oauth ? oauth.getError().toString()
-                            : failure.getMessage()), ActionObject.of(USER, null));
+            log.warn("A sign-in with Ping failed: {}", failure instanceof OAuth2AuthenticationException oauth
+                    ? oauth.getError().toString() : failure.getMessage());
             page.onAuthenticationFailure(request, response, failure);
         };
     }

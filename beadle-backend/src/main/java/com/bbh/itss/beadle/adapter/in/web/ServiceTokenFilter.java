@@ -31,9 +31,9 @@ import static org.springframework.http.ProblemDetail.forStatusAndDetail;
  * token the three Beadle services share as {@code Authorization: Bearer <token>}, or it is answered {@code 401}; a
  * blank token refuses every callback. As in Beadle-Internal and Beadle-ProTech, an {@code X-Correlation-Id} longer than
  * {@value #CORRELATION_MAX} characters is answered {@code 400}. What an accepted callback causes runs for the system
- * that called, named after its path: {@code system:protech} for {@code /api/callbacks/protech}. A refused callback is
- * a {@code FAILURE} row of the audit trail ({@link RefusedRequests}): by {@code unknown} without the token, else by
- * the system.
+ * that called, named after its path: {@code system:protech} for {@code /api/callbacks/protech}. A callback without the
+ * token is only logged; one refused for its correlation id is a {@code FAILURE} row of the audit trail by the system
+ * ({@link RefusedRequests}).
  */
 @Slf4j
 public class ServiceTokenFilter extends OncePerRequestFilter {
@@ -75,7 +75,6 @@ public class ServiceTokenFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         if (!accepts(request.getHeader(AUTHORIZATION))) {
             log.warn("Refused {} {}: missing or wrong service token", request.getMethod(), request.getRequestURI());
-            refusals.record(request, forStatusAndDetail(UNAUTHORIZED, DETAIL));
             response.setHeader(WWW_AUTHENTICATE, "Bearer");
             problem(response, UNAUTHORIZED.value(), PROBLEM);
             return;

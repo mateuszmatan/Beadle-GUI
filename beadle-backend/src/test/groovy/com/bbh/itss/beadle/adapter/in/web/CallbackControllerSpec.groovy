@@ -68,17 +68,13 @@ class CallbackControllerSpec extends Specification {
         calledAs == ['system:internal']
     }
 
-    def "a callback #without is refused with 401, never reaches Beadle and is filed as refused for nobody known"() {
+    def "a callback #without is refused with 401, never reaches Beadle and leaves no row, since nobody is known"() {
         when:
         def response = callback(path, PROTECH, authorization)
 
         then:
         0 * callbacks._
-        1 * history.record({ ActionRecordBuilder row -> row.build().message() == ServiceTokenFilter.DETAIL }, _) >> {
-            calledAs << CallContext.systemActor().orElse(null)
-            null
-        }
-        calledAs == [null]
+        0 * history._
         response.status == 401
         response.getHeader('WWW-Authenticate') == 'Bearer'
         response.contentType == 'application/problem+json;charset=UTF-8'
