@@ -11,7 +11,7 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { Subscription, of } from 'rxjs';
-import { MyDepartment } from '../business-services/my-business-service';
+import { MyBusinessService } from '../business-services/my-business-service';
 import { RETRY } from '../core/errors';
 import { beadleChange, beadleProduct } from '../core/sections';
 import { RelativeTimePipe, formatRelative } from '../shared/formatting';
@@ -54,7 +54,7 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
     case 'APPLIED':
       return [
         `ProTech applied the update of ${at}`,
-        update.departmentName ? ` by ${update.departmentName}` : '',
+        update.businessServiceName ? ` by ${update.businessServiceName}` : '',
         '.',
         update.checkedAt ? ` Checked ${formatRelative(update.checkedAt, now)}.` : '',
       ].join('');
@@ -279,7 +279,7 @@ export class ChangeDetail {
 
   private readonly api = inject(ChangesApi);
   private readonly published = inject(PublishedChange);
-  private readonly myDepartment = inject(MyDepartment);
+  private readonly myBusinessService = inject(MyBusinessService);
 
   protected readonly productLink = beadleProduct;
   protected readonly changeLink = beadleChange;
@@ -305,7 +305,9 @@ export class ChangeDetail {
     return form;
   });
   protected readonly hint = computed(() =>
-    this.change.hasValue() ? editHint(this.change.value(), this.myDepartment.departmentId()) : null,
+    this.change.hasValue()
+      ? editHint(this.change.value(), this.myBusinessService.businessServiceId())
+      : null,
   );
   private readonly polls = linkedSignal({ source: this.id, computation: () => 0 });
   protected readonly polling = computed(() => this.polls() < MAX_POLLS);

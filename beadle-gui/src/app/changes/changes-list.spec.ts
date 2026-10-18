@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { MY_DEPARTMENT_KEY } from '../business-services/my-business-service';
+import { MY_BUSINESS_SERVICE_KEY } from '../business-services/my-business-service';
 import {
   changeSchedule,
   changeTask,
@@ -21,7 +21,7 @@ import {
   sortBy,
   text,
 } from '../testing/dom';
-import { department } from '../testing/fixtures';
+import { businessService } from '../testing/fixtures';
 import { ProductionChange } from './change-api';
 import { ChangeFilters, ChangesList, changeRow, matches } from './changes-list';
 
@@ -76,7 +76,7 @@ describe('the rows of the changes table', () => {
     expect(row(draft)).toMatchObject({ open: true, state: 'Draft', tasks: 2 });
   });
 
-  it('lets the department edit an open change unless its last update still waits for ProTech', () => {
+  it('lets the business service edit an open change unless its last update still waits for ProTech', () => {
     expect(row(draft).editable).toBe(true);
     expect(row(payments).editable).toBe(false);
     expect(row({ ...draft, update: changeUpdate() }).editable).toBe(false);
@@ -116,11 +116,11 @@ describe('ChangesList', () => {
     fixture.detectChanges();
   }
 
-  async function open(departmentId: string | null) {
-    if (departmentId === null) {
-      localStorage.removeItem(MY_DEPARTMENT_KEY);
+  async function open(businessServiceId: string | null) {
+    if (businessServiceId === null) {
+      localStorage.removeItem(MY_BUSINESS_SERVICE_KEY);
     } else {
-      localStorage.setItem(MY_DEPARTMENT_KEY, departmentId);
+      localStorage.setItem(MY_BUSINESS_SERVICE_KEY, businessServiceId);
     }
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
@@ -136,8 +136,8 @@ describe('ChangesList', () => {
       proTechReachable: true,
     });
     http
-      .expectOne('/api/departments')
-      .flush([department(), department({ id: 5, name: 'Fund Services' })]);
+      .expectOne('/api/business-services')
+      .flush([businessService(), businessService({ id: 5, name: 'Fund Services' })]);
     await settle();
   }
 
@@ -146,7 +146,8 @@ describe('ChangesList', () => {
     await settle();
   }
 
-  const chooseDepartment = (option: string) => pick(selectOf(page(), 'Your department'), option);
+  const chooseBusinessService = (option: string) =>
+    pick(selectOf(page(), 'Your business service'), option);
   const state = (option: string) => pick(gridFilter(page(), 'state'), option);
 
   async function filter(label: string, value: string) {
@@ -165,30 +166,30 @@ describe('ChangesList', () => {
 
   async function listed() {
     await open('3');
-    http.expectOne('/api/changes?departmentId=3').flush([certScanner, payments, draft]);
+    http.expectOne('/api/changes?businessServiceId=3').flush([certScanner, payments, draft]);
     await settle();
   }
 
   afterEach(() => {
     http.verify();
-    localStorage.removeItem(MY_DEPARTMENT_KEY);
+    localStorage.removeItem(MY_BUSINESS_SERVICE_KEY);
   });
 
-  it('asks for the department first and remembers the one chosen', async () => {
+  it('asks for the business service first and remembers the one chosen', async () => {
     await open(null);
 
     expect(text(page().querySelector('h1'))).toBe('ProTech Changes');
     expect(text(page().querySelector('.empty-state h3'))).toBe(
-      'Choose your department to see its ProTech changes.',
+      'Choose your business service to see its ProTech changes.',
     );
     expect(page().querySelector('beadle-grid')).toBeNull();
     expect(text(page().querySelector('beadle-integration-note'))).toContain(
       'ProTech is not connected yet',
     );
 
-    await chooseDepartment('Fund Services');
-    expect(localStorage.getItem(MY_DEPARTMENT_KEY)).toBe('5');
-    http.expectOne('/api/changes?departmentId=5').flush([]);
+    await chooseBusinessService('Fund Services');
+    expect(localStorage.getItem(MY_BUSINESS_SERVICE_KEY)).toBe('5');
+    http.expectOne('/api/changes?businessServiceId=5').flush([]);
     await settle();
 
     expect(text(page().querySelector('.empty-state h3'))).toBe(
@@ -200,10 +201,10 @@ describe('ChangesList', () => {
     expect(page().querySelector('beadle-grid')?.closest('section')?.hidden).toBe(true);
   });
 
-  it('lists the changes of the remembered department with their state, tasks and an edit link when open', async () => {
+  it('lists the changes of the remembered business service with their state, tasks and an edit link when open', async () => {
     await listed();
 
-    expect(text(selectOf(page(), 'Your department').selectedOptions[0])).toBe(
+    expect(text(selectOf(page(), 'Your business service').selectedOptions[0])).toBe(
       'Corporate Technology',
     );
     expect(gridHeaders(page())).toEqual([
@@ -302,14 +303,14 @@ describe('ChangesList', () => {
     expect(await sort('installation')).toEqual(['CHG0012346', 'CHG0012345', 'CHG0012347']);
   });
 
-  it('keeps the sort when the department changes', async () => {
+  it('keeps the sort when the business service changes', async () => {
     await listed();
     const installation = () =>
       page().querySelector('.ag-header-cell[col-id="installation"]')?.getAttribute('aria-sort');
 
     await sort('installation');
-    await chooseDepartment('Fund Services');
-    http.expectOne('/api/changes?departmentId=5').flush([certScanner, payments, draft]);
+    await chooseBusinessService('Fund Services');
+    http.expectOne('/api/changes?businessServiceId=5').flush([certScanner, payments, draft]);
     await settle();
 
     expect(installation()).toBe('ascending');
@@ -321,7 +322,7 @@ describe('ChangesList', () => {
   it('says when ProTech could not be reached and the table shows what Beadle last read', async () => {
     await open('3');
     http
-      .expectOne('/api/changes?departmentId=3')
+      .expectOne('/api/changes?businessServiceId=3')
       .flush([
         payments,
         productionChange({ syncProblem: 'ProTech could not be reached: timed out.' }),
@@ -336,14 +337,16 @@ describe('ChangesList', () => {
 
     buttonOf(page(), 'Try again').click();
     await settle();
-    http.expectOne('/api/changes?departmentId=3').flush([payments, productionChange()]);
+    http.expectOne('/api/changes?businessServiceId=3').flush([payments, productionChange()]);
     await settle();
     expect(page().querySelector('.banner[role="status"]')).toBeNull();
   });
 
   it('says when the last update of a change still waits for ProTech instead of offering to edit it', async () => {
     await open('3');
-    http.expectOne('/api/changes?departmentId=3').flush([{ ...draft, update: changeUpdate() }]);
+    http
+      .expectOne('/api/changes?businessServiceId=3')
+      .flush([{ ...draft, update: changeUpdate() }]);
     await settle();
 
     const pending = gridCell(gridRows(page())[0], 'actions').querySelector('.pending');
@@ -357,7 +360,7 @@ describe('ChangesList', () => {
   it('names each change ProTech does not hold', async () => {
     await open('3');
     http
-      .expectOne('/api/changes?departmentId=3')
+      .expectOne('/api/changes?businessServiceId=3')
       .flush([
         { ...payments, syncProblem: 'ProTech has no change CHG0012346.' },
         productionChange(),
@@ -372,8 +375,8 @@ describe('ChangesList', () => {
     );
   });
 
-  it('says why the changes or the departments could not be loaded', async () => {
-    localStorage.setItem(MY_DEPARTMENT_KEY, '3');
+  it('says why the changes or the business services could not be loaded', async () => {
+    localStorage.setItem(MY_BUSINESS_SERVICE_KEY, '3');
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
@@ -388,27 +391,27 @@ describe('ChangesList', () => {
       proTechReachable: true,
     });
     http
-      .expectOne('/api/departments')
+      .expectOne('/api/business-services')
       .flush({ detail: 'Database unavailable' }, { status: 500, statusText: 'Server Error' });
     http
-      .expectOne('/api/changes?departmentId=3')
+      .expectOne('/api/changes?businessServiceId=3')
       .flush({ detail: 'ProTech is down' }, { status: 503, statusText: 'Service Unavailable' });
     await settle();
 
     expect([...page().querySelectorAll('.banner > span:first-child')].map(text)).toEqual([
-      'The departments could not be loaded: Database unavailable',
+      'The business services could not be loaded: Database unavailable',
       'The changes could not be loaded: ProTech is down',
     ]);
     expect(page().querySelector('beadle-integration-note .banner')).toBeNull();
 
-    const [departments, changes] = [...page().querySelectorAll<HTMLElement>('.banner')].map(
+    const [businessServices, changes] = [...page().querySelectorAll<HTMLElement>('.banner')].map(
       (banner) => buttonOf(banner, 'Try again'),
     );
-    departments.click();
+    businessServices.click();
     changes.click();
     await settle();
-    http.expectOne('/api/departments').flush([department()]);
-    http.expectOne('/api/changes?departmentId=3').flush([certScanner]);
+    http.expectOne('/api/business-services').flush([businessService()]);
+    http.expectOne('/api/changes?businessServiceId=3').flush([certScanner]);
     await settle();
     expect(page().querySelector('.banner')).toBeNull();
     expect(shownNumbers()).toEqual(['CHG0012345']);

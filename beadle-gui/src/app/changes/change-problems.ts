@@ -6,7 +6,7 @@ import { FieldProblem } from '../core/models';
 
 const REQUEST_LABELS: Record<string, string> = {
   productId: 'Product',
-  departmentId: 'Department',
+  businessServiceId: 'Business service',
   fixVersion: 'FixVersion',
   epicKeys: 'Epics',
   storyKeys: 'Stories',

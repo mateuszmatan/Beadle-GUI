@@ -31,44 +31,46 @@
       @case ('request') {
         <h2>{{ current()!.title }}</h2>
         <p class="lead">
-          Choose your department and the product that goes to production. The product's change
+          Choose your business service and the product that goes to production. The product's change
           template fills in every step, and you can change any value for this change. Fields marked
           * are required.
         </p>
-        @if (departmentsError(); as error) {
-          <p class="choice-error">The departments could not be loaded: {{ error }}</p>
+        @if (businessServicesError(); as error) {
+          <p class="choice-error">The business services could not be loaded: {{ error }}</p>
         }
         @if (productsError(); as error) {
           <p class="choice-error">The products could not be loaded: {{ error }}</p>
         }
         <div class="fields">
           <beadle-form-field>
-            <beadle-label>Your department</beadle-label>
-            <select beadleInput [formControl]="departmentId">
-              @for (group of groups(); track group.department.id) {
-                <option [ngValue]="group.department.id">{{ group.department.name }}</option>
+            <beadle-label>Your business service</beadle-label>
+            <select beadleInput [formControl]="businessServiceId">
+              @for (group of groups(); track group.businessService.id) {
+                <option [ngValue]="group.businessService.id">
+                  {{ group.businessService.name }}
+                </option>
               }
             </select>
           </beadle-form-field>
           <beadle-form-field>
             <beadle-label>Product</beadle-label>
             <select beadleInput [formControl]="productId">
-              @for (product of productsInDepartment(); track product.id) {
+              @for (product of productsOfBusinessService(); track product.id) {
                 <option [ngValue]="product.id">{{ product.name }} ({{ product.code }})</option>
               }
             </select>
-            @if (chosenDepartment() !== null) {
+            @if (chosenBusinessService() !== null) {
               <beadle-hint
-                >{{ counted(productsInDepartment().length, 'product') }} in the
-                department</beadle-hint
+                >{{ counted(productsOfBusinessService().length, 'product') }} in the business
+                service</beadle-hint
               >
             }
           </beadle-form-field>
         </div>
         @if (unplaced(); as names) {
           <p class="hint unplaced">
-            Products without a department are not listed; an admin must place them in a department
-            in Beadle Admin first: {{ names }}.
+            Products without a business service are not listed; an admin must place them in a
+            business service in Beadle Admin first: {{ names }}.
           </p>
         }
         @if (profile.isLoading()) {
@@ -243,8 +245,8 @@
               <div>
                 <h3>Text sent to ProTech</h3>
                 <p class="hint">
-                  Written from the chosen epics and stories. The description takes in the later steps
-                  as you fill them in, and you can change both texts.
+                  Written from the chosen epics and stories. The description takes in the later
+                  steps as you fill them in, and you can change both texts.
                 </p>
               </div>
               <beadle-change-texts
@@ -405,7 +407,7 @@
                 <a [routerLink]="changeLink(change.id!)">{{ change.number }}</a> shows the
                 approvals, the workflow and the change tasks as ProTech holds them, and
                 <a [routerLink]="changes.path">{{ changes.label }}</a> lists every change of your
-                department.
+                business service.
               </p>
             </li>
           </ol>

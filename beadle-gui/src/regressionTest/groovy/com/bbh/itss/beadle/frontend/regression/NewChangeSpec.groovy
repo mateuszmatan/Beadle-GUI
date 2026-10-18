@@ -50,13 +50,13 @@ class NewChangeSpec extends BeadleSpecification {
         assertThat(choiceError()).hasText('Choose the product')
 
         when:
-        choose(step(), 'Your department', 'Corporate Technology')
+        choose(step(), 'Your business service', 'Corporate Technology')
         choose(step(), 'Product', 'CertScanner (CERTSCANNER)')
 
         then:
         hasValues(step(), ['Change number'   : '', 'Approval': 'Not Approved', 'Opened by': SIGNED_IN_USER, 'State': 'Draft',
                            'Requested for'   : SIGNED_IN_USER, 'Requested by': SIGNED_IN_USER, 'Assigned to': SIGNED_IN_USER,
-                           'Department'      : 'Corporate Technology', 'Assignment group': 'Technology Architecture',
+                           'Business service': 'Corporate Technology', 'Assignment group': 'Technology Architecture',
                            'Release'         : '', 'Affected CI': 'CertScanner', 'Direct business service': 'Certificate Management',
                            'Risk'            : 'Moderate', 'Affected clients': ''])
         assertThat(input(step(), 'Change number')).hasAttribute('placeholder', 'Given by ProTech when raised')
@@ -273,7 +273,7 @@ class NewChangeSpec extends BeadleSpecification {
                          downtimeStart    : "${RELEASE_DATE}T18:00:00.000Z".toString(),
                          downtimeEnd      : "${RELEASE_DATE}T19:30:00.000Z".toString()]
             template.requestedFor == SIGNED_IN_USER
-            template.department == 'Corporate Technology'
+            template.businessService == 'Corporate Technology'
             template.release == 'CERT 4.2'
             template.configurationItem == 'CertScanner'
             template.directBusinessService == 'Certificate Management'
@@ -387,7 +387,7 @@ class NewChangeSpec extends BeadleSpecification {
         assertThat(button('Create the ticket later', true)).isVisible()
         with(awaitRequest('POST', '/api/changes/5/tasks').json()) {
             version == 0
-            departmentId == 3
+            businessServiceId == 3
             tasks == [[number : null, start: "${RELEASE_DATE}T18:30:00.000Z".toString(),
                        details: CERT_TASKS[0] + [configurationItem: 'CertScanner', platform: 'OpenShift', application: 'OCP']],
                       [number : null, start: null,
@@ -422,7 +422,7 @@ class NewChangeSpec extends BeadleSpecification {
                 'change task is approved.')
         assertThat(step().locator('.next-steps a')).hasText(['CHG0031002', 'Changes'] as String[])
         assertThat(step().locator('.next-steps a').first()).hasAttribute('href', '/changes/5')
-        awaitRequest('POST', '/api/changes/5/secure-coding').json() == [version          : 1, departmentId: 3, apoNumber: 'APO-24680',
+        awaitRequest('POST', '/api/changes/5/secure-coding').json() == [version          : 1, businessServiceId: 3, apoNumber: 'APO-24680',
                                                                         implementationDate: IMPLEMENTATION_DATE,
                                                                         bitbucketUrl     : CERT_SECURE_CODING.bitbucketUrl,
                                                                         artifactLink     : CERT_SECURE_CODING.artifactLink,
@@ -519,7 +519,7 @@ class NewChangeSpec extends BeadleSpecification {
 
     void reviewCertScanner() {
         open('/new-change')
-        choose(step(), 'Your department', 'Corporate Technology')
+        choose(step(), 'Your business service', 'Corporate Technology')
         choose(step(), 'Product', 'CertScanner (CERTSCANNER)')
         button('Next: Jira', true).click()
         select(step(), 'FixVersion').fill('CERT 4.2')

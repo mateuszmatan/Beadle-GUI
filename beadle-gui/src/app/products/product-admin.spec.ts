@@ -5,7 +5,7 @@ import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { buttonOf, text, toast } from '../testing/dom';
-import { department, product } from '../testing/fixtures';
+import { businessService, product } from '../testing/fixtures';
 import { ProductAdmin } from './product-admin';
 import { Product } from '../core/models';
 import { ProductDialog } from './product-dialog';
@@ -49,8 +49,8 @@ describe('ProductAdmin', () => {
     await settle();
     http.expectOne('/api/products/1').flush(loaded);
     http
-      .expectOne('/api/departments')
-      .flush([department(), department({ id: 5, name: 'Fund Services' })]);
+      .expectOne('/api/business-services')
+      .flush([businessService(), businessService({ id: 5, name: 'Fund Services' })]);
     await settle();
   }
 
@@ -77,7 +77,7 @@ describe('ProductAdmin', () => {
     expect(text(page().querySelector('.facts h2'))).toBe('Product details');
     expect([...page().querySelectorAll('.facts dt')].map((dt) => text(dt))).toEqual([
       'Product code',
-      'Department',
+      'Business service',
       'Owner team',
       'Contact e-mail',
     ]);
@@ -87,12 +87,17 @@ describe('ProductAdmin', () => {
     ]);
   });
 
-  it('shows a product without team, e-mail or department', async () => {
+  it('shows a product without team, e-mail or business service', async () => {
     await load(
-      product({ ownerTeam: null, contactEmail: null, departmentId: null, departmentName: null }),
+      product({
+        ownerTeam: null,
+        contactEmail: null,
+        businessServiceId: null,
+        businessServiceName: null,
+      }),
     );
 
-    expect(facts()).toEqual(['CERT', 'Not in a department', '–', '–']);
+    expect(facts()).toEqual(['CERT', 'No business service', '–', '–']);
   });
 
   it('says why the product could not be loaded', async () => {
@@ -101,7 +106,7 @@ describe('ProductAdmin', () => {
     http
       .expectOne('/api/products/1')
       .flush({ detail: 'Product 1 was not found' }, { status: 404, statusText: 'Not Found' });
-    http.expectOne('/api/departments').flush([]);
+    http.expectOne('/api/business-services').flush([]);
     await settle();
 
     expect(text(page().querySelector('.banner span'))).toBe(
@@ -120,8 +125,8 @@ describe('ProductAdmin', () => {
     await load();
     const renamed = product({
       name: 'Cert Scanner',
-      departmentId: 5,
-      departmentName: 'Fund Services',
+      businessServiceId: 5,
+      businessServiceName: 'Fund Services',
       version: 4,
     });
     const open = dialogClosing(renamed, undefined);
@@ -131,8 +136,8 @@ describe('ProductAdmin', () => {
 
     expect(open.mock.calls[0][0]).toBe(ProductDialog);
     expect(open.mock.calls[0][1]?.data).toEqual({
-      departments: [department(), department({ id: 5, name: 'Fund Services' })],
-      departmentId: null,
+      businessServices: [businessService(), businessService({ id: 5, name: 'Fund Services' })],
+      businessServiceId: null,
       product: stored,
     });
     expect(facts()[1]).toBe('Fund Services');

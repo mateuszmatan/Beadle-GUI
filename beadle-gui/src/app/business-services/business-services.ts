@@ -1,26 +1,27 @@
-import { Department } from '../core/models';
+import { BusinessService } from '../core/models';
 
-export const NOT_IN_A_DEPARTMENT = 'Not in a department';
+export const NO_BUSINESS_SERVICE = 'No business service';
 
-export interface DepartmentGroup<T, D extends Department = Department> {
-  department: D | null;
+export interface BusinessServiceGroup<T, D extends BusinessService = BusinessService> {
+  businessService: D | null;
   name: string;
   products: T[];
 }
 
-export function byDepartment<T extends { departmentId: number | null }, D extends Department>(
-  departments: readonly D[],
-  products: readonly T[],
-): DepartmentGroup<T, D>[] {
-  const groups = departments.map((department) => ({
-    department,
-    name: department.name,
-    products: products.filter((product) => product.departmentId === department.id),
+export function byBusinessService<
+  T extends { businessServiceId: number | null },
+  D extends BusinessService,
+>(businessServices: readonly D[], products: readonly T[]): BusinessServiceGroup<T, D>[] {
+  const groups = businessServices.map((businessService) => ({
+    businessService,
+    name: businessService.name,
+    products: products.filter((product) => product.businessServiceId === businessService.id),
   }));
   const unassigned = products.filter(
-    (product) => !departments.some((department) => department.id === product.departmentId),
+    (product) =>
+      !businessServices.some((businessService) => businessService.id === product.businessServiceId),
   );
   return unassigned.length
-    ? [...groups, { department: null, name: NOT_IN_A_DEPARTMENT, products: unassigned }]
+    ? [...groups, { businessService: null, name: NO_BUSINESS_SERVICE, products: unassigned }]
     : groups;
 }

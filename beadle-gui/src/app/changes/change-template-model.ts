@@ -58,7 +58,7 @@ export function templateForm(template: ChangeTemplate) {
     jiraProjectKey: text(template.jiraProjectKey, filled, Validators.pattern(JIRA_KEY)),
     requestedFor: text(template.requestedFor, fits(200)),
     requestedBy: text(template.requestedBy, fits(200)),
-    department: text(template.department, fits(100)),
+    businessService: text(template.businessService, fits(100)),
     assignmentGroup: required(template.assignmentGroup, 200),
     category: text(template.category, filled),
     assignedTo: text(template.assignedTo, fits(200)),
@@ -160,14 +160,14 @@ export function toTemplate(form: TemplateForm): ChangeTemplate {
 export function withDefaults(
   template: ChangeTemplate,
   openedBy: string | null,
-  department: string | null,
+  businessService: string | null,
 ): ChangeTemplate {
   return {
     ...template,
     requestedFor: template.requestedFor ?? openedBy,
     requestedBy: template.requestedBy ?? openedBy,
     assignedTo: template.assignedTo ?? openedBy,
-    department: template.department ?? department,
+    businessService: template.businessService ?? businessService,
   };
 }
 

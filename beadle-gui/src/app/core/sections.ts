@@ -15,7 +15,7 @@ export const CHANGES: AppSection = {
   label: 'Changes',
   heading: 'ProTech Changes',
   description:
-    'The ProTech changes of your department and where each one is in its approval workflow. A change is read again from ProTech when you open it.',
+    'The ProTech changes of your business service and where each one is in its approval workflow. A change is read again from ProTech when you open it.',
 };
 
 export const NEW_CHANGE: AppSection = {
@@ -31,7 +31,7 @@ export const ADMIN: AppSection = {
   label: 'Admin',
   heading: 'Beadle Admin',
   description:
-    "Departments, products and each product's change template: the answers every new change of the product starts with.",
+    "Business services, products and each product's change template: the answers every new change of the product starts with.",
 };
 
 export const ACTION_HISTORY: AppSection = {
@@ -44,10 +44,13 @@ export const ACTION_HISTORY: AppSection = {
 
 export const SECTIONS: readonly AppSection[] = [CHANGES, NEW_CHANGE, ADMIN, ACTION_HISTORY];
 
-export const ADMIN_DEPARTMENTS: AppTab = { path: '/admin/departments', label: 'Departments' };
+export const ADMIN_BUSINESS_SERVICES: AppTab = {
+  path: '/admin/business-services',
+  label: 'Business services',
+};
 export const ADMIN_PRODUCTS: AppTab = { path: '/admin/products', label: 'Products' };
 
-export const ADMIN_TABS: readonly AppTab[] = [ADMIN_DEPARTMENTS, ADMIN_PRODUCTS];
+export const ADMIN_TABS: readonly AppTab[] = [ADMIN_BUSINESS_SERVICES, ADMIN_PRODUCTS];
 
 export function beadleProduct(id: number | string): (string | number)[] {
   return [ADMIN_PRODUCTS.path, id];

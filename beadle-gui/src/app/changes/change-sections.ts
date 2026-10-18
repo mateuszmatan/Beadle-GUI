@@ -102,7 +102,7 @@ export function changeFacts(
 
 export const OPENER_HINT = 'If left empty: the user who opens the change';
 
-const DEPARTMENT_HINT = 'If left empty: the department of the product';
+const BUSINESS_SERVICE_HINT = 'If left empty: the business service of the product';
 
 const find = (kind: LookupKind, more: Partial<Lookup> = {}) => ({ lookup: { kind, ...more } });
 
@@ -111,7 +111,7 @@ const person = (key: string, label: string, span = 6) => line(key, label, '', sp
 export const REQUEST_FIELDS: readonly Field[] = [
   person('requestedFor', 'Requested for'),
   person('requestedBy', 'Requested by'),
-  line('department', 'Department', '', 6, find('departments')),
+  line('businessService', 'Business service', '', 6, find('business-services')),
   line('assignmentGroup', 'Assignment group', '', 6, find('assignment-groups')),
   choice('category', 'Category', []),
   person('assignedTo', 'Assigned to'),
@@ -143,7 +143,7 @@ export const ADMIN_HINTS: Record<string, string> = {
   requestedFor: OPENER_HINT,
   requestedBy: OPENER_HINT,
   assignedTo: OPENER_HINT,
-  department: DEPARTMENT_HINT,
+  businessService: BUSINESS_SERVICE_HINT,
 };
 
 export const JIRA_FIELDS: readonly Field[] = [

@@ -297,7 +297,7 @@ export class ActionHistory {
     ),
     line('objectKey', 'Object key', '', 3, {
       placeholder: 'CHG0031001',
-      hint: 'the start of a change number, product code, ticket key or department name',
+      hint: 'the start of a change number, product code, ticket key or business service name',
     }),
     choice('outcome', 'Outcome', everything('Any', optionsOf(OUTCOMES)), '', 3),
     line('from', 'From', '', 3, { type: 'date', hint: 'the first day, in your time zone' }),

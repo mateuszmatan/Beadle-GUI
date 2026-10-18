@@ -87,7 +87,7 @@ export function summaryColumns(
         ...changeFacts(change).map(factRow),
         row('requestedFor', t.requestedFor),
         row('requestedBy', t.requestedBy),
-        row('department', t.department),
+        row('businessService', t.businessService),
         row('assignmentGroup', t.assignmentGroup),
         row('category', t.category),
         row('assignedTo', t.assignedTo),
@@ -105,7 +105,7 @@ export function summaryColumns(
     jira: {
       rows: [
         { term: 'Product', value: `${change.productName} (${change.productCode})` },
-        { term: 'Product department', value: change.departmentName },
+        { term: 'Business service of the product', value: change.businessServiceName },
         { term: 'FixVersion', value: change.fixVersion, mono: true },
         row('jiraProjectKey', t.jiraProjectKey, true),
         { term: 'Epics', value: keys(change.epicKeys), mono: true },

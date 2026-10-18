@@ -1,58 +1,58 @@
-<section class="card departments">
+<section class="card business-services">
   <header class="list-header">
     <div class="list-title">
-      <h2>Departments</h2>
-      @if (departments.hasValue()) {
+      <h2>Business services</h2>
+      @if (businessServices.hasValue()) {
         <span class="summary">{{ summary() }}</span>
       }
     </div>
     @if (!empty()) {
-      <button type="button" class="btn btn-primary" (click)="add()">Add department</button>
+      <button type="button" class="btn btn-primary" (click)="add()">Add business service</button>
     }
   </header>
   <p class="section-help">
-    Every product belongs to one department, and people choose their department to see its changes.
-    Only an empty department can be deleted.
+    Every product belongs to one business service, and people choose their business service to see
+    its changes. Only an empty business service can be deleted.
   </p>
 
-  @if (departments.isLoading()) {
+  @if (businessServices.isLoading()) {
     <beadle-loading />
   }
 
-  @if (departments.error(); as error) {
+  @if (businessServices.error(); as error) {
     <div class="banner" role="alert">
       <span class="banner-text"
-        >The departments could not be loaded: {{ errorMessage(error) }}</span
+        >The business services could not be loaded: {{ errorMessage(error) }}</span
       >
-      <button type="button" class="btn btn-outline-primary" (click)="departments.reload()">
+      <button type="button" class="btn btn-outline-primary" (click)="businessServices.reload()">
         Try again
       </button>
     </div>
-  } @else if (departments.hasValue()) {
+  } @else if (businessServices.hasValue()) {
     @if (empty()) {
       <div class="empty-state">
-        <h3>No departments yet</h3>
-        <p>Add the first department, then add its products on the Products tab.</p>
-        <button type="button" class="btn btn-primary" (click)="add()">Add department</button>
+        <h3>No business services yet</h3>
+        <p>Add the first business service, then add its products on the Products tab.</p>
+        <button type="button" class="btn btn-primary" (click)="add()">Add business service</button>
       </div>
     } @else {
       <beadle-grid
-        label="Departments"
-        [rows]="departments.value()"
+        label="Business services"
+        [rows]="businessServices.value()"
         [columns]="columns"
-        [rowId]="departmentId"
+        [rowId]="businessServiceId"
       >
-        <ng-template beadleCell="name" let-department>
-          <span class="name">{{ department.name }}</span>
+        <ng-template beadleCell="name" let-businessService>
+          <span class="name">{{ businessService.name }}</span>
         </ng-template>
-        <ng-template beadleCell="actions" let-department>
-          @let reason = deleteHint(department);
+        <ng-template beadleCell="actions" let-businessService>
+          @let reason = deleteHint(businessService);
           <span class="actions">
             <button
               type="button"
               class="btn btn-link"
-              [attr.aria-label]="'Rename ' + department.name"
-              (click)="rename(department)"
+              [attr.aria-label]="'Rename ' + businessService.name"
+              (click)="rename(businessService)"
             >
               Rename
             </button>
@@ -60,15 +60,15 @@
               <button
                 type="button"
                 class="btn btn-link danger"
-                [attr.aria-label]="'Delete ' + department.name"
-                [attr.aria-describedby]="reason ? 'delete-reason-' + department.id : null"
+                [attr.aria-label]="'Delete ' + businessService.name"
+                [attr.aria-describedby]="reason ? 'delete-reason-' + businessService.id : null"
                 [disabled]="reason !== null"
-                (click)="delete(department)"
+                (click)="delete(businessService)"
               >
                 Delete
               </button>
               @if (reason) {
-                <span class="visually-hidden" [id]="'delete-reason-' + department.id">{{
+                <span class="visually-hidden" [id]="'delete-reason-' + businessService.id">{{
                   reason
                 }}</span>
               }

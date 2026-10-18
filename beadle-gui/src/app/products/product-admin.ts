@@ -12,10 +12,10 @@ import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter, switchMap } from 'rxjs';
 import { errorMessage } from '../core/errors';
 import { Notifier } from '../core/notifier';
-import { NOT_IN_A_DEPARTMENT } from '../business-services/business-services';
+import { NO_BUSINESS_SERVICE } from '../business-services/business-services';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
 import { BeadleLoading } from '../ui/loading';
-import { DepartmentsApi } from '../core/api';
+import { BusinessServicesApi } from '../core/api';
 import { ProductsApi } from '../core/api';
 import { Product } from '../core/models';
 import { ProductDialog, ProductDialogData, ProductDialogResult } from './product-dialog';
@@ -53,8 +53,8 @@ import { ProductDialog, ProductDialogData, ProductDialogResult } from './product
             <dd class="mono">{{ p.code }}</dd>
           </div>
           <div>
-            <dt>Department</dt>
-            <dd>{{ p.departmentName ?? notInADepartment }}</dd>
+            <dt>Business service</dt>
+            <dd>{{ p.businessServiceName ?? noBusinessService }}</dd>
           </div>
           <div>
             <dt>Owner team</dt>
@@ -104,27 +104,29 @@ export class ProductAdmin {
   readonly deleted = output<Product>();
 
   private readonly api = inject(ProductsApi);
-  private readonly departmentsApi = inject(DepartmentsApi);
+  private readonly businessServicesApi = inject(BusinessServicesApi);
   private readonly dialog = inject(Dialog);
   private readonly notifier = inject(Notifier);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly errorMessage = errorMessage;
-  protected readonly notInADepartment = NOT_IN_A_DEPARTMENT;
+  protected readonly noBusinessService = NO_BUSINESS_SERVICE;
 
   protected readonly product = rxResource({
     params: () => this.id(),
     stream: ({ params }) => this.api.get(params),
   });
-  protected readonly departments = rxResource({ stream: () => this.departmentsApi.list() });
+  protected readonly businessServices = rxResource({
+    stream: () => this.businessServicesApi.list(),
+  });
 
   protected change(): void {
     const product = this.product.value()!;
     this.dialog
       .open<ProductDialogResult, ProductDialogData, ProductDialog>(ProductDialog, {
         data: {
-          departments: this.departments.hasValue() ? this.departments.value() : [],
-          departmentId: null,
+          businessServices: this.businessServices.hasValue() ? this.businessServices.value() : [],
+          businessServiceId: null,
           product,
         },
       })

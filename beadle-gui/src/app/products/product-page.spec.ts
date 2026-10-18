@@ -46,7 +46,7 @@ describe('BeadleProduct', () => {
     await settle();
     http.expectOne('/api/products/1/change-profile').flush(profile);
     http.expectOne('/api/products/1').flush(product());
-    http.expectOne('/api/departments').flush([]);
+    http.expectOne('/api/business-services').flush([]);
     await settle();
     http.expectOne('/api/changes/options').flush(changeOptions());
     await settle();
@@ -147,7 +147,7 @@ describe('BeadleProduct', () => {
       .expectOne('/api/products/1/change-profile')
       .flush({ detail: 'The database is busy' }, { status: 503, statusText: 'Unavailable' });
     http.expectOne('/api/products/1').flush(product());
-    http.expectOne('/api/departments').flush([]);
+    http.expectOne('/api/business-services').flush([]);
     await settle();
 
     expect(text(page().querySelector('.banner span'))).toBe(

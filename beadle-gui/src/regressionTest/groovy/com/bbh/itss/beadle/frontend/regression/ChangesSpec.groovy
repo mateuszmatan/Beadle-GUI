@@ -21,7 +21,7 @@ class ChangesSpec extends BeadleSpecification {
     static final String SYNC_PROBLEM = 'ProTech could not be reached: Connection refused.'
     static final String RETRY = 'Try again in a moment; if it keeps failing, tell the Beadle administrator.'
 
-    def "a release manager picks the department and filters and sorts its ProTech changes in the table header"() {
+    def "a release manager picks the business service and filters and sorts its ProTech changes in the table header"() {
         when:
         open('/')
         page.waitForURL('**/changes')
@@ -29,16 +29,16 @@ class ChangesSpec extends BeadleSpecification {
         then:
         assertThat(page.locator('h1')).hasText('ProTech Changes')
         assertThat(page.locator('.page-header .page-description'))
-                .hasText('The ProTech changes of your department and where each one is in its approval workflow. A change is read again from ProTech when you open it.')
-        assertThat(page.locator('.empty-state h3')).hasText('Choose your department to see its ProTech changes.')
+                .hasText('The ProTech changes of your business service and where each one is in its approval workflow. A change is read again from ProTech when you open it.')
+        assertThat(page.locator('.empty-state h3')).hasText('Choose your business service to see its ProTech changes.')
         api.requests('GET', '/api/changes').isEmpty()
 
         when:
-        choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
+        choose(page.locator('.toolbar'), 'Your business service', 'Corporate Technology')
 
         then:
         assertThat(numbers()).hasText(['CHG0031001', 'CHG0030995', 'CHG0030990'] as String[])
-        awaitRequest('GET', '/api/changes').params() == [departmentId: '3']
+        awaitRequest('GET', '/api/changes').params() == [businessServiceId: '3']
         assertThat(gridHeaders())
                 .hasText(['Change number', 'Product', 'FixVersion', 'State', 'Installation', 'Short description', 'Tasks', 'Raised', ''] as String[])
         assertThat(column('state').locator('.chip')).hasText(['Secondary Approval', 'In Progress', 'Closed'] as String[])
@@ -90,7 +90,7 @@ class ChangesSpec extends BeadleSpecification {
         open('/changes')
 
         then:
-        assertThat(selected(page.locator('.toolbar'), 'Your department')).hasText('Corporate Technology')
+        assertThat(selected(page.locator('.toolbar'), 'Your business service')).hasText('Corporate Technology')
         assertThat(numbers()).hasText(['CHG0031001', 'CHG0030995', 'CHG0030990'] as String[])
 
         when:
@@ -100,14 +100,14 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(numbers()).hasText(['CHG0030990', 'CHG0030995', 'CHG0031001'] as String[])
 
         when:
-        choose(page.locator('.toolbar'), 'Your department', 'AI Lab')
+        choose(page.locator('.toolbar'), 'Your business service', 'AI Lab')
 
         then:
         assertThat(page.locator('.empty-state h3')).hasText('No ProTech change of AI Lab yet')
         assertThat(link('Raise a change', true)).hasCount(2)
 
         when:
-        choose(page.locator('.toolbar'), 'Your department', 'Fund Services')
+        choose(page.locator('.toolbar'), 'Your business service', 'Fund Services')
 
         then:
         assertThat(numbers()).hasText(['CHG0031000'] as String[])
@@ -118,18 +118,18 @@ class ChangesSpec extends BeadleSpecification {
         page.waitForURL('**/new-change')
 
         then:
-        assertThat(selected(page.locator('section.step'), 'Your department')).hasText('Fund Services')
-        assertThat(hintOf(page.locator('section.step'), 'Product')).hasText('1 product in the department')
+        assertThat(selected(page.locator('section.step'), 'Your business service')).hasText('Fund Services')
+        assertThat(hintOf(page.locator('section.step'), 'Product')).hasText('1 product in the business service')
         ownErrors().isEmpty()
     }
 
-    def "the change page shows the workflow read from ProTech and only the department of the change can edit it"() {
+    def "the change page shows the workflow read from ProTech and only the business service of the change can edit it"() {
         given:
         def date = now(UTC).plusDays(3).toString()
 
         when:
         open('/changes')
-        choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
+        choose(page.locator('.toolbar'), 'Your business service', 'Corporate Technology')
         gridCell(gridRow(page.locator('body'), 'CHG0031001'), 'product').click()
         page.waitForURL('**/changes/4')
 
@@ -168,7 +168,7 @@ class ChangesSpec extends BeadleSpecification {
 
         when:
         open('/changes')
-        choose(page.locator('.toolbar'), 'Your department', 'Fund Services')
+        choose(page.locator('.toolbar'), 'Your business service', 'Fund Services')
         open('/changes/4')
 
         then:
@@ -191,14 +191,14 @@ class ChangesSpec extends BeadleSpecification {
 
         then:
         assertThat(button('Edit the change', true)).isDisabled()
-        assertThat(page.locator('.edit-hint')).hasText('Choose your department in Changes to change it')
+        assertThat(page.locator('.edit-hint')).hasText('Choose your business service in Changes to change it')
         ownErrors().isEmpty()
     }
 
-    def "the department reminds the approvers who have not approved yet and the change goes In Progress once every change task is approved"() {
+    def "the business service reminds the approvers who have not approved yet and the change goes In Progress once every change task is approved"() {
         when:
         open('/changes')
-        choose(page.locator('.toolbar'), 'Your department', 'Fund Services')
+        choose(page.locator('.toolbar'), 'Your business service', 'Fund Services')
         open('/changes/4')
 
         then:
@@ -208,7 +208,7 @@ class ChangesSpec extends BeadleSpecification {
 
         when:
         open('/changes')
-        choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
+        choose(page.locator('.toolbar'), 'Your business service', 'Corporate Technology')
         open('/changes/4')
 
         then:
@@ -228,7 +228,7 @@ class ChangesSpec extends BeadleSpecification {
         button('Remind the approvers of L2 approver', true).click()
 
         then:
-        awaitRequest('POST', '/api/changes/4/reminders').json() == [departmentId: 3, approval: 'L2']
+        awaitRequest('POST', '/api/changes/4/reminders').json() == [businessServiceId: 3, approval: 'L2']
         assertThat(page.locator('beadle-toast')).containsText('Reminder sent to James Carter')
         assertThat(approvalRows().locator('.reminder')).hasText(['', '', 'James Carter, just now', '', '', ''] as String[])
 
@@ -236,7 +236,7 @@ class ChangesSpec extends BeadleSpecification {
         button('Remind everyone who has not approved', true).click()
 
         then:
-        awaitRequest('POST', '/api/changes/4/reminders', 2).json() == [departmentId: 3]
+        awaitRequest('POST', '/api/changes/4/reminders', 2).json() == [businessServiceId: 3]
         assertThat(page.locator('beadle-toast')).containsText('Reminder sent to James Carter, Jane Smith, Rebecca Lawson, ' +
                 'Thomas Ashby, Daniel Foster, Priya Natarajan')
         assertThat(approvalRows().locator('.reminder')).hasText(['', '', 'James Carter, just now', 'Jane Smith, just now',
@@ -247,7 +247,7 @@ class ChangesSpec extends BeadleSpecification {
         button('Remind the approvers of CTASK0310012', true).click()
 
         then:
-        awaitRequest('POST', '/api/changes/4/reminders', 3).json() == [departmentId: 3, task: 'CTASK0310012']
+        awaitRequest('POST', '/api/changes/4/reminders', 3).json() == [businessServiceId: 3, task: 'CTASK0310012']
         assertThat(page.locator('beadle-toast')).containsText('Reminder sent to Daniel Foster, Priya Natarajan')
 
         when:
@@ -273,13 +273,13 @@ class ChangesSpec extends BeadleSpecification {
         ownErrors().isEmpty()
     }
 
-    def "a member of the department publishes an update to ProTech and sees that ProTech applied it"() {
+    def "a member of the business service publishes an update to ProTech and sees that ProTech applied it"() {
         given:
         def date = now(UTC).plusDays(3).toString()
 
         when:
         open('/changes')
-        choose(page.locator('.toolbar'), 'Your department', 'Corporate Technology')
+        choose(page.locator('.toolbar'), 'Your business service', 'Corporate Technology')
         link('Edit CHG0031001', true).click()
         page.waitForURL('**/changes/4/edit')
 
@@ -291,7 +291,7 @@ class ChangesSpec extends BeadleSpecification {
                                                                   'Secure coding'] as String[])
         hasValues(request(), ['Change number'   : 'CHG0031001', 'Approval': 'Requested', 'Opened by': SIGNED_IN_USER,
                               'State'           : 'Secondary Approval', 'Requested for': SIGNED_IN_USER,
-                              'Department'      : 'Corporate Technology', 'Assignment group': 'Technology Architecture',
+                              'Business service': 'Corporate Technology', 'Assignment group': 'Technology Architecture',
                               'Release'         : 'CERT 4.1', 'Risk': 'Moderate'])
         assertThat(select(request(), 'Type')).isDisabled()
         hasValues(schedule(), ['Installation start'           : "${date}T17:00", 'Installation hours': '2',
@@ -344,14 +344,14 @@ class ChangesSpec extends BeadleSpecification {
                 + 'Downtime, Risk assessment, Change tasks.')
         with(awaitRequest('PUT', '/api/changes/4').json()) {
             version == 3
-            departmentId == 3
+            businessServiceId == 3
             shortDescription == 'CertScanner CERT 4.1: Upgrade to Java 21'
             schedule == [installationStart: "${date}T17:00:00.000Z".toString(), installationEnd: "${date}T19:00:00.000Z".toString(),
                          validationStart  : "${date}T19:00:00.000Z".toString(), validationEnd: "${date}T20:00:00.000Z".toString(),
                          firstUsage       : "${date}T20:00:00.000Z".toString(), downtimeStart: "${date}T17:00:00.000Z".toString(),
                          downtimeEnd      : "${date}T18:00:00.000Z".toString()]
             template == CERT_TEMPLATE + [release       : 'CERT 4.1', requestedFor: SIGNED_IN_USER, requestedBy: SIGNED_IN_USER,
-                                         assignedTo    : SIGNED_IN_USER, department: 'Corporate Technology', risk: null,
+                                         assignedTo    : SIGNED_IN_USER, businessService: 'Corporate Technology', risk: null,
                                          assignmentGroup: 'Certificate Services', incident: 'INC0105126', downtime: true,
                                          riskAssessment: (CERT_TEMPLATE.riskAssessment as Map) + [businessImpact: 'High']]
             tasks == [[number : 'CTASK0310011', start: "${date}T17:30:00.000Z".toString(),

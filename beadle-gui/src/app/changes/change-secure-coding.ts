@@ -13,7 +13,7 @@ import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
-import { MyDepartment } from '../business-services/my-business-service';
+import { MyBusinessService } from '../business-services/my-business-service';
 import { fieldProblems } from '../core/errors';
 import { Notifier } from '../core/notifier';
 import { beadleChange } from '../core/sections';
@@ -27,11 +27,14 @@ import { PublishedChange } from './published-change';
 import { SecureCodingFields } from './secure-coding-form';
 import { SecureCodingForm, secureCodingForm, secureCodingRequest } from './secure-coding-model';
 
-export function refusalOf(change: ProductionChange, departmentId: number | null): string | null {
+export function refusalOf(
+  change: ProductionChange,
+  businessServiceId: number | null,
+): string | null {
   const ticket = change.template.secureCodingTicket;
   return isOpen(change) && ticket
     ? `${change.number} already has the secure coding ticket ${ticket}`
-    : editRefusal(change, departmentId);
+    : editRefusal(change, businessServiceId);
 }
 
 @Component({
@@ -81,7 +84,7 @@ export class ChangeSecureCoding implements HasUnsavedChanges {
   readonly id = input.required({ transform: numberAttribute });
 
   private readonly api = inject(ChangesApi);
-  private readonly myDepartment = inject(MyDepartment);
+  private readonly myBusinessService = inject(MyBusinessService);
   private readonly published = inject(PublishedChange);
   private readonly notifier = inject(Notifier);
   private readonly router = inject(Router);
@@ -95,7 +98,7 @@ export class ChangeSecureCoding implements HasUnsavedChanges {
   });
   protected readonly refusal = computed(() =>
     this.change.hasValue()
-      ? refusalOf(this.change.value(), this.myDepartment.departmentId())
+      ? refusalOf(this.change.value(), this.myBusinessService.businessServiceId())
       : null,
   );
   protected readonly form = signal<SecureCodingForm | null>(null);
@@ -127,7 +130,7 @@ export class ChangeSecureCoding implements HasUnsavedChanges {
     this.api
       .createSecureCodingTicket(
         this.id(),
-        secureCodingRequest(form, change, this.myDepartment.departmentId()!),
+        secureCodingRequest(form, change, this.myBusinessService.businessServiceId()!),
       )
       .pipe(
         finalize(() => this.saving.set(false)),

@@ -2,28 +2,30 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
-import { DepartmentsApi } from '../core/api';
+import { BusinessServicesApi } from '../core/api';
 import { errorMessage } from '../core/errors';
-import { Department } from '../core/models';
+import { BusinessService } from '../core/models';
 import { filled, max, text } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { DIALOG } from '../ui/dialog';
 import { FORM_FIELD } from '../ui/form-field';
 
 @Component({
-  selector: 'beadle-department-dialog',
+  selector: 'beadle-business-service-dialog',
   imports: [ReactiveFormsModule, DIALOG, FORM_FIELD],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="modal-header">
-      <h2 beadleDialogTitle>{{ department ? 'Rename ' + department.name : 'Add a department' }}</h2>
+      <h2 beadleDialogTitle>
+        {{ businessService ? 'Rename ' + businessService.name : 'Add a business service' }}
+      </h2>
     </div>
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="modal-body">
-        @if (department) {
+        @if (businessService) {
           <p class="intro">
-            The new name shows everywhere in Beadle at once. The products of the department stay
-            as they are.
+            The new name shows everywhere in Beadle at once. The products of the business service
+            stay as they are.
           </p>
         }
         <beadle-form-field class="full-width">
@@ -35,7 +37,9 @@ import { FORM_FIELD } from '../ui/form-field';
             autocomplete="off"
             required
           />
-          <beadle-hint>The name people know the department by, for example Fund Services</beadle-hint>
+          <beadle-hint
+            >The name people know the business service by, for example Fund Services</beadle-hint
+          >
           <beadle-error>{{ errorText(name) }}</beadle-error>
         </beadle-form-field>
         @if (error(); as message) {
@@ -45,7 +49,7 @@ import { FORM_FIELD } from '../ui/form-field';
       <div class="modal-footer">
         <button type="button" class="btn btn-link" beadleDialogClose>Cancel</button>
         <button type="submit" class="btn btn-primary" [disabled]="saving()">
-          {{ department ? 'Rename department' : 'Add department' }}
+          {{ businessService ? 'Rename business service' : 'Add business service' }}
         </button>
       </div>
     </form>
@@ -63,13 +67,13 @@ import { FORM_FIELD } from '../ui/form-field';
     }
   `,
 })
-export class DepartmentDialog {
-  protected readonly department = inject<Department | null>(DIALOG_DATA);
-  private readonly dialogRef = inject<DialogRef<Department, DepartmentDialog>>(DialogRef);
-  private readonly api = inject(DepartmentsApi);
+export class BusinessServiceDialog {
+  protected readonly businessService = inject<BusinessService | null>(DIALOG_DATA);
+  private readonly dialogRef = inject<DialogRef<BusinessService, BusinessServiceDialog>>(DialogRef);
+  private readonly api = inject(BusinessServicesApi);
 
   protected readonly form = new FormGroup({
-    name: text(this.department?.name, filled, max(100)),
+    name: text(this.businessService?.name, filled, max(100)),
   });
   protected readonly name = this.form.controls.name;
   protected readonly saving = signal(false);
@@ -84,8 +88,8 @@ export class DepartmentDialog {
     const name = this.name.value.trim();
     this.saving.set(true);
     this.error.set(null);
-    (this.department
-      ? this.api.rename(this.department.id, { name, version: this.department.version })
+    (this.businessService
+      ? this.api.rename(this.businessService.id, { name, version: this.businessService.version })
       : this.api.create(name)
     )
       .pipe(finalize(() => this.saving.set(false)))

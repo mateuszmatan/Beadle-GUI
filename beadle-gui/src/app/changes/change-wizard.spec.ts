@@ -8,12 +8,15 @@ import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { MY_DEPARTMENT_KEY, MyDepartment } from '../business-services/my-business-service';
+import {
+  MY_BUSINESS_SERVICE_KEY,
+  MyBusinessService,
+} from '../business-services/my-business-service';
 import { DRAFT_KEY, DRAFT_KEPT, SessionEnd } from '../core/session-end';
 import * as fixtures from '../testing/change-fixtures';
 import { buttonOf, checkboxOf, choose, enter, errorOf, fieldOf } from '../testing/dom';
 import { inputOf, optionsOf, selectOf, text } from '../testing/dom';
-import { department, product } from '../testing/fixtures';
+import { businessService, product } from '../testing/fixtures';
 import { isoDate } from './change-model';
 import { localInput } from './change-schedule-model';
 import { ChangeWizard } from './change-wizard';
@@ -22,7 +25,12 @@ import { implementationDateOf } from './secure-coding-model';
 const { changeOptions, changeProfile, changeSchedule, changeTask, changeTemplate } = fixtures;
 const { epic, jiraVersion, productionChange, story } = fixtures;
 const CERT_SCANNER = 'CertScanner (CERT)';
-const PAYMENTS = product({ id: 2, name: 'Payments Hub', departmentId: null, departmentName: null });
+const PAYMENTS = product({
+  id: 2,
+  name: 'Payments Hub',
+  businessServiceId: null,
+  businessServiceName: null,
+});
 const DRAFT = productionChange({ id: null, number: null });
 
 describe('ChangeWizard', () => {
@@ -56,11 +64,13 @@ describe('ChangeWizard', () => {
     fixture.detectChanges();
   }
 
-  /** Opens the wizard, which first asks for the departments, the products and the signed-in user. */
+  /** Opens the wizard, which first asks for the business services, the products and the signed-in user. */
   async function open(products: object | null = [product(), PAYMENTS], signedIn = true) {
     fixture = TestBed.createComponent(ChangeWizard);
     fixture.detectChanges();
-    http.expectOne('/api/departments').flush([department(), department({ id: 5, name: 'Funds' })]);
+    http
+      .expectOne('/api/business-services')
+      .flush([businessService(), businessService({ id: 5, name: 'Funds' })]);
     const catalogue = http.expectOne('/api/products');
     products ? catalogue.flush(products) : fail(catalogue, 'Database unavailable', 500);
     http.expectOne('/api/changes/integrations').flush({ internalReachable: true });
@@ -71,7 +81,7 @@ describe('ChangeWizard', () => {
   }
 
   beforeEach(async () => {
-    localStorage.removeItem(MY_DEPARTMENT_KEY);
+    localStorage.removeItem(MY_BUSINESS_SERVICE_KEY);
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
@@ -82,7 +92,7 @@ describe('ChangeWizard', () => {
   afterEach(() => {
     http.verify();
     sessionStorage.clear();
-    localStorage.removeItem(MY_DEPARTMENT_KEY);
+    localStorage.removeItem(MY_BUSINESS_SERVICE_KEY);
   });
 
   async function click(element: HTMLElement) {
@@ -123,7 +133,7 @@ describe('ChangeWizard', () => {
   }
 
   async function chooseCertScanner(profile = changeProfile()) {
-    await pick('Your department', 'Corporate Technology');
+    await pick('Your business service', 'Corporate Technology');
     await pick('Product', CERT_SCANNER);
     http.expectOne('/api/products/1/change-profile').flush(profile);
     await settle();
@@ -182,7 +192,7 @@ describe('ChangeWizard', () => {
     await settle();
   }
 
-  it('shows the steps of a new change and lists only the products of the chosen department', async () => {
+  it('shows the steps of a new change and lists only the products of the chosen business service', async () => {
     expect(shown('beadle-integration-note')).toContain('Demo mode.');
     expect(stepCount()).toBe('Step 1 of 8');
     expect([...page().querySelectorAll('.step-label')].map(text).join(', ')).toBe(
@@ -191,23 +201,23 @@ describe('ChangeWizard', () => {
     expect(nextLabel()).toBe('Next: Jira');
     expect(buttonOf(page(), 'Back')).toBeUndefined();
     expect(shown('.unplaced')).toBe(
-      'Products without a department are not listed; an admin must place them in a department in Beadle Admin first: Payments Hub.',
+      'Products without a business service are not listed; an admin must place them in a business service in Beadle Admin first: Payments Hub.',
     );
-    expect(optionsOf(selectOf(page(), 'Your department'))).toEqual(['Corporate Technology']);
+    expect(optionsOf(selectOf(page(), 'Your business service'))).toEqual(['Corporate Technology']);
     expect(optionsOf(selectOf(page(), 'Product'))).toEqual([]);
 
-    await pick('Your department', 'Corporate Technology');
+    await pick('Your business service', 'Corporate Technology');
     expect(optionsOf(selectOf(page(), 'Product'))).toEqual([CERT_SCANNER]);
     expect(shown('beadle-form-field:has(select) + beadle-form-field beadle-hint')).toBe(
-      '1 product in the department',
+      '1 product in the business service',
     );
-    expect(TestBed.inject(MyDepartment).departmentId()).toBe(3);
+    expect(TestBed.inject(MyBusinessService).businessServiceId()).toBe(3);
     await next();
     expect(stepProblem()).toBe('Choose the product');
   });
 
   it('waits for the product, says why it could not be loaded and loads it again', async () => {
-    await pick('Your department', 'Corporate Technology');
+    await pick('Your business service', 'Corporate Technology');
     await pick('Product', CERT_SCANNER);
     await next();
     expect(stepProblem()).toBe('Wait until the product is loaded');
@@ -227,7 +237,7 @@ describe('ChangeWizard', () => {
     expect(page().querySelector('.step-problem')).toBeNull();
   });
 
-  it('fills in the request data with the signed-in user, the product department and the template', async () => {
+  it('fills in the request data with the signed-in user, the product business service and the template', async () => {
     const template = changeTemplate({ requestedBy: 'Grace Turner' });
     await chooseCertScanner(changeProfile({ version: null, template }));
 
@@ -236,7 +246,14 @@ describe('ChangeWizard', () => {
       '/admin/products/1',
     );
     expect(inputOf(page(), 'Change number').placeholder).toBe('Given by ProTech when raised');
-    const facts = ['Approval', 'Opened by', 'State', 'Requested for', 'Requested by', 'Department'];
+    const facts = [
+      'Approval',
+      'Opened by',
+      'State',
+      'Requested for',
+      'Requested by',
+      'Business service',
+    ];
     expect(facts.map((label) => value(label))).toEqual([
       'Not Approved',
       'Mateusz Matan',
@@ -259,18 +276,18 @@ describe('ChangeWizard', () => {
     fixture.destroy();
     await open([product()], false);
     await chooseCertScanner();
-    expect([value('Opened by'), value('Requested for'), value('Department')]).toEqual([
+    expect([value('Opened by'), value('Requested for'), value('Business service')]).toEqual([
       '',
       '',
       'Corporate Technology',
     ]);
   });
 
-  it('preselects the department chosen in Changes and says why products could not be loaded', async () => {
-    TestBed.inject(MyDepartment).choose(3);
+  it('preselects the business service chosen in Changes and says why products could not be loaded', async () => {
+    TestBed.inject(MyBusinessService).choose(3);
     fixture.destroy();
     await open();
-    expect(text(selectOf(page(), 'Your department').selectedOptions[0])).toBe(
+    expect(text(selectOf(page(), 'Your business service').selectedOptions[0])).toBe(
       'Corporate Technology',
     );
     fixture.destroy();
@@ -382,7 +399,7 @@ describe('ChangeWizard', () => {
     await type('Description', 'Send the e-mail.', rows()[2]);
     await next();
     const created = http.expectOne({ method: 'POST', url: '/api/changes/7/tasks' });
-    expect(created.request.body).toMatchObject({ version: 4, departmentId: 3 });
+    expect(created.request.body).toMatchObject({ version: 4, businessServiceId: 3 });
     expect(
       created.request.body.tasks.map(
         (task: { details: { shortDescription: string } }) => task.details.shortDescription,
@@ -590,7 +607,7 @@ describe('ChangeWizard', () => {
   });
 
   it('asks Jira about the project of the product and keeps the epics found until they are found again', async () => {
-    await pick('Your department', 'Corporate Technology');
+    await pick('Your business service', 'Corporate Technology');
     await pick('Product', CERT_SCANNER);
     http.expectOne('/api/products/1/change-profile').flush(changeProfile());
     await settle();

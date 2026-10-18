@@ -9,17 +9,17 @@ class BeadleSmokeSpec extends BeadleSpecification {
 
     static final List<Map<String, String>> SECTIONS = [
             [label      : 'Changes', heading: 'ProTech Changes', path: '/changes',
-             description: 'The ProTech changes of your department and where each one is in its approval workflow. A change is read again from ProTech when you open it.'],
+             description: 'The ProTech changes of your business service and where each one is in its approval workflow. A change is read again from ProTech when you open it.'],
             [label      : 'New Change', heading: 'New ProTech Change', path: '/new-change',
              description: 'Raise a ProTech change for a production release in guided steps. The product\'s change template fills in the answers and Jira provides the scope.'],
             [label      : 'Admin', heading: 'Beadle Admin', path: '/admin/products',
-             description: 'Departments, products and each product\'s change template: the answers every new change of the product starts with.'],
+             description: 'Business services, products and each product\'s change template: the answers every new change of the product starts with.'],
             [label      : 'Action History', heading: 'Action History', path: '/action-history',
              description: 'What people did in Beadle and what Beadle-ProTech and Beadle-Internal reported back, newest first, with the request and the outcome of every action.']]
 
-    static final Map<String, String> ADMIN_TABS = [Departments: '/admin/departments', Products: '/admin/products']
+    static final Map<String, String> ADMIN_TABS = ['Business services': '/admin/business-services', Products: '/admin/products']
 
-    static final String CORPORATE_TECHNOLOGY = "localStorage.setItem('beadle.department', '3')"
+    static final String CORPORATE_TECHNOLOGY = "localStorage.setItem('beadle.business-service', '3')"
 
     def "Beadle shows its title, only its own sections in the menu, the signed-in user and the footer"() {
         when:

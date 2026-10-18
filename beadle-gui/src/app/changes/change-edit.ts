@@ -13,7 +13,7 @@ import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
-import { MyDepartment } from '../business-services/my-business-service';
+import { MyBusinessService } from '../business-services/my-business-service';
 import { fieldProblems } from '../core/errors';
 import { Notifier } from '../core/notifier';
 import { beadleChange } from '../core/sections';
@@ -143,7 +143,7 @@ export class ChangeEdit implements HasUnsavedChanges {
   readonly id = input.required({ transform: numberAttribute });
 
   private readonly api = inject(ChangesApi);
-  private readonly myDepartment = inject(MyDepartment);
+  private readonly myBusinessService = inject(MyBusinessService);
   private readonly published = inject(PublishedChange);
   private readonly notifier = inject(Notifier);
   private readonly router = inject(Router);
@@ -157,7 +157,7 @@ export class ChangeEdit implements HasUnsavedChanges {
   });
   protected readonly refusal = computed(() =>
     this.change.hasValue()
-      ? editRefusal(this.change.value(), this.myDepartment.departmentId())
+      ? editRefusal(this.change.value(), this.myBusinessService.businessServiceId())
       : null,
   );
   protected readonly facts = computed(() =>
@@ -198,7 +198,7 @@ export class ChangeEdit implements HasUnsavedChanges {
     this.api
       .update(this.id(), {
         version: change.version!,
-        departmentId: this.myDepartment.departmentId()!,
+        businessServiceId: this.myBusinessService.businessServiceId()!,
         shortDescription: value.shortDescription.trim(),
         description: value.description,
         schedule: scheduleValue(form.controls.schedule, value.template.downtime),

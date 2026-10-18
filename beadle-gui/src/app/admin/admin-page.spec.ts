@@ -47,24 +47,24 @@ describe('AdminPage', () => {
       .map(text);
 
   it('shows the heading, the description and the tabs of Beadle Admin', async () => {
-    await harness.navigateByUrl('/admin/departments');
+    await harness.navigateByUrl('/admin/business-services');
 
     expect(text(page().querySelector('h1'))).toBe('Beadle Admin');
     expect(text(page().querySelector('.page-header .page-description'))).toBe(
-      "Departments, products and each product's change template: the answers every new change of the product starts with.",
+      "Business services, products and each product's change template: the answers every new change of the product starts with.",
     );
     expect(page().querySelector('nav.tab-bar')?.getAttribute('aria-label')).toBe('Beadle Admin');
-    expect(tabs().map(text)).toEqual(['Departments', 'Products']);
+    expect(tabs().map(text)).toEqual(['Business services', 'Products']);
     expect(tabs().map((link) => link.getAttribute('href'))).toEqual([
-      '/admin/departments',
+      '/admin/business-services',
       '/admin/products',
     ]);
-    expect(text(page().querySelector('.tab-content'))).toBe('Departments');
+    expect(text(page().querySelector('.tab-content'))).toBe('Business services');
     expect(page().querySelector('svg-icon')).toBeNull();
   });
 
   it.each([
-    ['/admin/departments', 'Departments'],
+    ['/admin/business-services', 'Business services'],
     ['/admin/products', 'Products'],
   ])('marks the tab of %s as the current page', async (url, label) => {
     await harness.navigateByUrl(url);
@@ -84,13 +84,13 @@ describe('AdminPage', () => {
   it('moves the mark to the tab that is clicked', async () => {
     await harness.navigateByUrl('/admin/products');
 
-    tab('Departments').click();
+    tab('Business services').click();
     await harness.fixture.whenStable();
 
-    expect(TestBed.inject(Router).url).toBe('/admin/departments');
-    expect(active()).toEqual(['Departments']);
-    expect(current()).toEqual(['Departments']);
+    expect(TestBed.inject(Router).url).toBe('/admin/business-services');
+    expect(active()).toEqual(['Business services']);
+    expect(current()).toEqual(['Business services']);
     expect(text(page().querySelector('h1'))).toBe('Beadle Admin');
-    expect(text(page().querySelector('.tab-content'))).toBe('Departments');
+    expect(text(page().querySelector('.tab-content'))).toBe('Business services');
   });
 });

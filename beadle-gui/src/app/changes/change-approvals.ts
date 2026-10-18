@@ -7,7 +7,7 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { MyDepartment } from '../business-services/my-business-service';
+import { MyBusinessService } from '../business-services/my-business-service';
 import { Notifier } from '../core/notifier';
 import { errorMessage } from '../core/errors';
 import { formatRelative } from '../shared/formatting';
@@ -40,7 +40,7 @@ export interface ApprovalRow {
 
 type ReminderScope = Pick<
   ProductionChange,
-  'number' | 'departmentId' | 'departmentName' | 'syncProblem'
+  'number' | 'businessServiceId' | 'businessServiceName' | 'syncProblem'
 >;
 
 const STAGES: Record<ApprovalRole, ChangeState> = {
@@ -84,15 +84,18 @@ export function approvalRows(change: Pick<ProductionChange, 'approvals' | 'tasks
   return [...approvals, ...tasks];
 }
 
-export function reminderHint(change: ReminderScope, departmentId: number | null): string | null {
-  if (change.departmentId === null) {
-    return `No department owns ${change.number}, so nobody can remind its approvers in Beadle`;
+export function reminderHint(
+  change: ReminderScope,
+  businessServiceId: number | null,
+): string | null {
+  if (change.businessServiceId === null) {
+    return `No business service owns ${change.number}, so nobody can remind its approvers in Beadle`;
   }
-  if (departmentId === null) {
-    return 'Choose your department in Changes to remind the approvers';
+  if (businessServiceId === null) {
+    return 'Choose your business service in Changes to remind the approvers';
   }
-  if (departmentId !== change.departmentId) {
-    return `Only ${change.departmentName ?? 'its department'} can remind its approvers`;
+  if (businessServiceId !== change.businessServiceId) {
+    return `Only ${change.businessServiceName ?? 'its business service'} can remind its approvers`;
   }
   return change.syncProblem ? 'ProTech cannot be read just now, so no reminder can be sent' : null;
 }
@@ -300,7 +303,7 @@ export class ChangeApprovals {
 
   private readonly api = inject(ChangesApi);
   private readonly notifier = inject(Notifier);
-  private readonly myDepartment = inject(MyDepartment);
+  private readonly myBusinessService = inject(MyBusinessService);
 
   protected readonly tones = TONES;
   protected readonly reminderText = reminderText;
@@ -309,7 +312,7 @@ export class ChangeApprovals {
   protected readonly rows = computed(() => approvalRows(this.change()));
   protected readonly taskCount = computed(() => this.rows().filter((row) => row.task).length);
   protected readonly hint = computed(() =>
-    reminderHint(this.change(), this.myDepartment.departmentId()),
+    reminderHint(this.change(), this.myBusinessService.businessServiceId()),
   );
   protected readonly allHint = computed(
     () =>
@@ -324,13 +327,13 @@ export class ChangeApprovals {
   }
 
   protected remind(target: ApprovalRow['target']): void {
-    const departmentId = this.myDepartment.departmentId();
+    const businessServiceId = this.myBusinessService.businessServiceId();
     const change = this.change();
-    if (departmentId === null || change.id === null || this.sending()) {
+    if (businessServiceId === null || change.id === null || this.sending()) {
       return;
     }
     this.sending.set(true);
-    this.api.remind(change.id, { departmentId, ...target }).subscribe({
+    this.api.remind(change.id, { businessServiceId, ...target }).subscribe({
       next: (reminded) => {
         this.sending.set(false);
         this.changed.emit(reminded);

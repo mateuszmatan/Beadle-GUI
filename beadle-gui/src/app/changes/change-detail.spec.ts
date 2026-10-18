@@ -2,7 +2,10 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { MY_DEPARTMENT_KEY, MyDepartment } from '../business-services/my-business-service';
+import {
+  MY_BUSINESS_SERVICE_KEY,
+  MyBusinessService,
+} from '../business-services/my-business-service';
 import {
   changeOptions,
   changeSchedule,
@@ -41,7 +44,7 @@ describe('the text of an update', () => {
     );
     expect(
       updateText(
-        changeUpdate({ status: 'APPLIED', fields: [], departmentName: null, checkedAt: null }),
+        changeUpdate({ status: 'APPLIED', fields: [], businessServiceName: null, checkedAt: null }),
         NOW,
       ),
     ).toBe(`ProTech applied the update of ${requested}.`);
@@ -80,8 +83,8 @@ describe('ChangeDetail', () => {
     fixture.detectChanges();
   }
 
-  async function show(change: ProductionChange | null, departmentId: number | null = 3) {
-    TestBed.inject(MyDepartment).choose(departmentId);
+  async function show(change: ProductionChange | null, businessServiceId: number | null = 3) {
+    TestBed.inject(MyBusinessService).choose(businessServiceId);
     fixture = TestBed.createComponent(ChangeDetail);
     fixture.componentRef.setInput('id', 7);
     await settle();
@@ -104,7 +107,7 @@ describe('ChangeDetail', () => {
     vi.useRealTimers();
     http.match('/api/changes/options').forEach((request) => request.flush(changeOptions()));
     http.verify();
-    localStorage.removeItem(MY_DEPARTMENT_KEY);
+    localStorage.removeItem(MY_BUSINESS_SERVICE_KEY);
   });
 
   it('shows where a change is, who approves it, when it installs, what it delivers, its tasks and the rest folded away', async () => {
@@ -200,7 +203,7 @@ describe('ChangeDetail', () => {
       'State: Primary Approval',
       'Requested for: not set',
       'Requested by: not set',
-      'Department: not set',
+      'Business service: not set',
       'Assignment group: Technology Architecture',
       'Category: Application',
       'Assigned to: not set',
@@ -216,7 +219,7 @@ describe('ChangeDetail', () => {
     ]);
     expect(rows('What it delivers')).toEqual([
       'Product: CertScanner (CERT)',
-      'Product department: Corporate Technology',
+      'Business service of the product: Corporate Technology',
       'FixVersion: CERT 4.2',
       'Jira project: CERT',
       'Epics: CERT-1',
@@ -307,7 +310,7 @@ describe('ChangeDetail', () => {
     expect(text(page().querySelector('.none'))).toBe('None');
   });
 
-  it('asks for the secure coding ticket of an open change of your department that has none', async () => {
+  it('asks for the secure coding ticket of an open change of your business service that has none', async () => {
     const unticketed = productionChange({
       template: changeTemplate({ secureCodingTicket: null }),
     });
@@ -366,11 +369,11 @@ describe('ChangeDetail', () => {
     );
   }, 15000);
 
-  it('lets only the department of an open change edit it', async () => {
+  it('lets only the business service of an open change edit it', async () => {
     await show(productionChange(), null);
     expect(buttonOf(page(), 'Edit the change').disabled).toBe(true);
     expect(text(page().querySelector('.edit-hint'))).toBe(
-      'Choose your department in Changes to change it',
+      'Choose your business service in Changes to change it',
     );
     expect(buttonOf(page(), 'Edit the change').getAttribute('aria-describedby')).toBe('edit-hint');
     fixture.destroy();

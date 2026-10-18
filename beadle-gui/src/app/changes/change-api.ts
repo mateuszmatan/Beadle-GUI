@@ -91,7 +91,7 @@ export interface ChangeTemplate {
   jiraProjectKey: string;
   requestedFor: string | null;
   requestedBy: string | null;
-  department: string | null;
+  businessService: string | null;
   assignmentGroup: string;
   category: string;
   assignedTo: string | null;
@@ -203,7 +203,7 @@ export interface WorkflowStep {
 export interface ChangeUpdate {
   status: UpdateStatus;
   requestedAt: string;
-  departmentName: string | null;
+  businessServiceName: string | null;
   fields: string[];
   message: string | null;
   checkedAt: string | null;
@@ -215,8 +215,8 @@ export interface ProductionChange {
   productId: number | null;
   productCode: string;
   productName: string;
-  departmentId: number | null;
-  departmentName: string | null;
+  businessServiceId: number | null;
+  businessServiceName: string | null;
   fixVersion: string;
   schedule: ChangeSchedule;
   shortDescription: string;
@@ -250,7 +250,7 @@ export interface ChangeRequest {
 
 export interface ChangeEditRequest {
   version: number;
-  departmentId: number;
+  businessServiceId: number;
   shortDescription: string;
   description: string;
   schedule: ChangeSchedule;
@@ -260,13 +260,13 @@ export interface ChangeEditRequest {
 
 export interface ChangeTasksRequest {
   version: number;
-  departmentId: number;
+  businessServiceId: number;
   tasks: TaskRequest[];
 }
 
 export interface SecureCodingRequest {
   version: number;
-  departmentId: number;
+  businessServiceId: number;
   apoNumber: string;
   implementationDate: string;
   bitbucketUrl: string;
@@ -275,7 +275,7 @@ export interface SecureCodingRequest {
 }
 
 export interface ReminderRequest {
-  departmentId: number;
+  businessServiceId: number;
   approval?: ApprovalRole;
   task?: string;
 }
@@ -349,11 +349,11 @@ function jira(fixVersion: string, epicKeys?: readonly string[]) {
 export class ChangesApi {
   private readonly http = inject(HttpClient);
 
-  list(departmentId?: number): Observable<ProductionChange[]> {
+  list(businessServiceId?: number): Observable<ProductionChange[]> {
     const params =
-      departmentId === undefined
+      businessServiceId === undefined
         ? undefined
-        : new HttpParams().set('departmentId', String(departmentId));
+        : new HttpParams().set('businessServiceId', String(businessServiceId));
     return this.http.get<ProductionChange[]>('/api/changes', { params });
   }
 

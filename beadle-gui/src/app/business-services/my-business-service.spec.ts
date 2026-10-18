@@ -1,29 +1,29 @@
 import { TestBed } from '@angular/core/testing';
-import { MY_DEPARTMENT_KEY, MyDepartment } from './my-business-service';
+import { MY_BUSINESS_SERVICE_KEY, MyBusinessService } from './my-business-service';
 
-describe('MyDepartment', () => {
+describe('MyBusinessService', () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    localStorage.removeItem(MY_DEPARTMENT_KEY);
+    localStorage.removeItem(MY_BUSINESS_SERVICE_KEY);
   });
 
-  it('remembers the chosen department in the browser', () => {
-    localStorage.setItem(MY_DEPARTMENT_KEY, '5');
-    const department = TestBed.inject(MyDepartment);
-    expect(department.departmentId()).toBe(5);
+  it('remembers the chosen business service in the browser', () => {
+    localStorage.setItem(MY_BUSINESS_SERVICE_KEY, '5');
+    const businessService = TestBed.inject(MyBusinessService);
+    expect(businessService.businessServiceId()).toBe(5);
 
-    department.choose(3);
-    expect(department.departmentId()).toBe(3);
-    expect(localStorage.getItem(MY_DEPARTMENT_KEY)).toBe('3');
+    businessService.choose(3);
+    expect(businessService.businessServiceId()).toBe(3);
+    expect(localStorage.getItem(MY_BUSINESS_SERVICE_KEY)).toBe('3');
 
-    department.choose(null);
-    expect(department.departmentId()).toBeNull();
-    expect(localStorage.getItem(MY_DEPARTMENT_KEY)).toBeNull();
+    businessService.choose(null);
+    expect(businessService.businessServiceId()).toBeNull();
+    expect(localStorage.getItem(MY_BUSINESS_SERVICE_KEY)).toBeNull();
   });
 
-  it('ignores what is not a department id', () => {
-    localStorage.setItem(MY_DEPARTMENT_KEY, 'x1');
-    expect(TestBed.inject(MyDepartment).departmentId()).toBeNull();
+  it('ignores what is not a business service id', () => {
+    localStorage.setItem(MY_BUSINESS_SERVICE_KEY, 'x1');
+    expect(TestBed.inject(MyBusinessService).businessServiceId()).toBeNull();
   });
 
   it('works without the storage of the browser', () => {
@@ -33,10 +33,10 @@ describe('MyDepartment', () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('blocked');
     });
-    const department = TestBed.inject(MyDepartment);
-    expect(department.departmentId()).toBeNull();
+    const businessService = TestBed.inject(MyBusinessService);
+    expect(businessService.businessServiceId()).toBeNull();
 
-    department.choose(3);
-    expect(department.departmentId()).toBe(3);
+    businessService.choose(3);
+    expect(businessService.businessServiceId()).toBe(3);
   });
 });

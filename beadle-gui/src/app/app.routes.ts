@@ -4,7 +4,7 @@ import { unsavedChangesGuard } from './core/unsaved-changes';
 import {
   ACTION_HISTORY,
   ADMIN,
-  ADMIN_DEPARTMENTS,
+  ADMIN_BUSINESS_SERVICES,
   ADMIN_PRODUCTS,
   CHANGES,
   NEW_CHANGE,
@@ -53,10 +53,12 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'products' },
       {
-        path: 'departments',
-        title: `${ADMIN_DEPARTMENTS.label} · ${ADMIN.heading}`,
+        path: 'business-services',
+        title: `${ADMIN_BUSINESS_SERVICES.label} · ${ADMIN.heading}`,
         loadComponent: () =>
-          import('./business-services/business-services-admin').then((m) => m.DepartmentsAdmin),
+          import('./business-services/business-services-admin').then(
+            (m) => m.BusinessServicesAdmin,
+          ),
       },
       {
         path: 'products',

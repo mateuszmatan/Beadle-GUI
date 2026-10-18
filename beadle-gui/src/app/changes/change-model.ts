@@ -109,24 +109,27 @@ export const PENDING_HINT =
   'The last update is still waiting for ProTech; change it again once ProTech has applied it';
 
 export function editHint(
-  change: Pick<ProductionChange, 'number' | 'departmentId' | 'departmentName' | 'update'>,
-  departmentId: number | null,
+  change: Pick<ProductionChange, 'number' | 'businessServiceId' | 'businessServiceName' | 'update'>,
+  businessServiceId: number | null,
 ): string | null {
-  if (change.departmentId === null) {
-    return `No department owns ${change.number}, so nobody can change it in Beadle`;
+  if (change.businessServiceId === null) {
+    return `No business service owns ${change.number}, so nobody can change it in Beadle`;
   }
-  if (departmentId === null) {
-    return 'Choose your department in Changes to change it';
+  if (businessServiceId === null) {
+    return 'Choose your business service in Changes to change it';
   }
-  if (departmentId !== change.departmentId) {
-    return `Only ${change.departmentName ?? 'its department'} can change it`;
+  if (businessServiceId !== change.businessServiceId) {
+    return `Only ${change.businessServiceName ?? 'its business service'} can change it`;
   }
   return change.update?.status === 'PENDING' ? PENDING_HINT : null;
 }
 
 /** Why the user cannot change this change in Beadle: it is closed, or {@link editHint} says why not. */
-export function editRefusal(change: ProductionChange, departmentId: number | null): string | null {
+export function editRefusal(
+  change: ProductionChange,
+  businessServiceId: number | null,
+): string | null {
   return isOpen(change)
-    ? editHint(change, departmentId)
+    ? editHint(change, businessServiceId)
     : `${change.number} is closed in ProTech and can no longer be changed`;
 }

@@ -1,7 +1,7 @@
 import { ActionHistoryPage, ActionRecord } from '../action-history/action-history-model';
-import { Department, Product } from '../core/models';
+import { BusinessService, Product } from '../core/models';
 
-export function department(overrides: Partial<Department> = {}): Department {
+export function businessService(overrides: Partial<BusinessService> = {}): BusinessService {
   return {
     id: 3,
     name: 'Corporate Technology',
@@ -19,8 +19,8 @@ export function product(overrides: Partial<Product> = {}): Product {
     name: 'CertScanner',
     ownerTeam: 'Technology Architecture',
     contactEmail: 'arch@bbh.com',
-    departmentId: 3,
-    departmentName: 'Corporate Technology',
+    businessServiceId: 3,
+    businessServiceName: 'Corporate Technology',
     version: 3,
     updatedAt: '2026-10-04T08:00:00Z',
     ...overrides,

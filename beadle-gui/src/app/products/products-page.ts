@@ -10,16 +10,16 @@ import { errorMessage } from '../core/errors';
 import { Product } from '../core/models';
 import { Notifier } from '../core/notifier';
 import { beadleProduct } from '../core/sections';
-import { DepartmentGroup, byDepartment } from '../business-services/business-services';
+import { BusinessServiceGroup, byBusinessService } from '../business-services/business-services';
 import { RelativeTimePipe, counted } from '../shared/formatting';
 import { BeadleInput } from '../ui/form-field';
 import { GRID, GridColumn } from '../ui/grid';
 import { BeadleLoading } from '../ui/loading';
 import { ProductDialog, ProductDialogData } from './product-dialog';
-import { DepartmentsApi } from '../core/api';
+import { BusinessServicesApi } from '../core/api';
 
-function tally(group: DepartmentGroup<Product>): string {
-  return counted(group.department?.productCount ?? group.products.length, 'product');
+function tally(group: BusinessServiceGroup<Product>): string {
+  return counted(group.businessService?.productCount ?? group.products.length, 'product');
 }
 
 @Component({
@@ -31,7 +31,7 @@ function tally(group: DepartmentGroup<Product>): string {
 })
 export class BeadleProducts {
   private readonly api = inject(ProductsApi);
-  private readonly departmentsApi = inject(DepartmentsApi);
+  private readonly businessServicesApi = inject(BusinessServicesApi);
   private readonly changesApi = inject(ChangesApi);
   private readonly dialog = inject(Dialog);
   private readonly notifier = inject(Notifier);
@@ -64,7 +64,9 @@ export class BeadleProducts {
     params: () => this.query(),
     stream: ({ params }) => this.api.list(params),
   });
-  protected readonly departments = rxResource({ stream: () => this.departmentsApi.list() });
+  protected readonly businessServices = rxResource({
+    stream: () => this.businessServicesApi.list(),
+  });
   protected readonly templates = rxResource({
     stream: () => this.changesApi.profiles(),
   });
@@ -79,8 +81,8 @@ export class BeadleProducts {
   );
 
   protected readonly groups = computed(() =>
-    this.products.hasValue() && this.departments.hasValue()
-      ? byDepartment(this.departments.value(), this.products.value()).filter(
+    this.products.hasValue() && this.businessServices.hasValue()
+      ? byBusinessService(this.businessServices.value(), this.products.value()).filter(
           (group) => group.products.length || !this.query(),
         )
       : null,
@@ -90,18 +92,18 @@ export class BeadleProducts {
   );
   protected readonly total = computed(() => {
     const groups = this.groups() ?? [];
-    const placed = groups.filter((group) => group.department);
+    const placed = groups.filter((group) => group.businessService);
     const products = placed.reduce((sum, group) => sum + group.products.length, 0);
-    const unassigned = groups.find((group) => !group.department)?.products.length ?? 0;
-    const total = `${counted(products, 'product')} in ${counted(placed.length, 'department')}`;
-    return unassigned ? `${total} · ${unassigned} not in a department` : total;
+    const unassigned = groups.find((group) => !group.businessService)?.products.length ?? 0;
+    const total = `${counted(products, 'product')} in ${counted(placed.length, 'business service')}`;
+    return unassigned ? `${total} · ${unassigned} without a business service` : total;
   });
 
   protected readonly errorMessage = errorMessage;
   protected readonly tally = tally;
 
   protected reload(): void {
-    [this.products, this.departments]
+    [this.products, this.businessServices]
       .filter((resource) => resource.error())
       .forEach((resource) => resource.reload());
   }
@@ -110,12 +112,12 @@ export class BeadleProducts {
     this.router.navigate(beadleProduct(product.id));
   }
 
-  protected add(departmentId: number | null = null): void {
+  protected add(businessServiceId: number | null = null): void {
     this.dialog
       .open<Product, ProductDialogData, ProductDialog>(ProductDialog, {
         data: {
-          departments: this.departments.hasValue() ? this.departments.value() : [],
-          departmentId,
+          businessServices: this.businessServices.hasValue() ? this.businessServices.value() : [],
+          businessServiceId,
           product: null,
         },
       })

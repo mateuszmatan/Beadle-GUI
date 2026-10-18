@@ -17,7 +17,7 @@ abstract class StubApi {
 
     private final List<Route> routes = new CopyOnWriteArrayList<>()
     private final List<RecordedRequest> recorded = new CopyOnWriteArrayList<>()
-    List<Map> departments
+    List<Map> businessServices
 
     /**
      * The parsed fixture as plain {@code LinkedHashMap}s and {@code ArrayList}s. The handlers share these maps across the
@@ -42,27 +42,27 @@ abstract class StubApi {
 
     abstract void install()
 
-    void installDepartments(Map blank) {
-        departments = new CopyOnWriteArrayList<Map>(fixture('departments.json') as List<Map>)
-        get('/api/departments') { departments.sort(false) { (it.name as String).toLowerCase() } }
-        on('POST', '/api/departments') { RecordedRequest request ->
-            def added = [id: (departments*.id.max() as int) + 1, name: request.json().name, version: 0, productCount: 0] + blank
-            departments << added
+    void installBusinessServices(Map blank) {
+        businessServices = new CopyOnWriteArrayList<Map>(fixture('business-services.json') as List<Map>)
+        get('/api/business-services') { businessServices.sort(false) { (it.name as String).toLowerCase() } }
+        on('POST', '/api/business-services') { RecordedRequest request ->
+            def added = [id: (businessServices*.id.max() as int) + 1, name: request.json().name, version: 0, productCount: 0] + blank
+            businessServices << added
             json(added, 201)
         }
-        on('PUT', '/api/departments/(\\d+)') { RecordedRequest request, List<String> ids ->
-            def department = departments.find { it.id == ids[0] as int }
-            department.putAll(name: request.json().name, version: (department.version as int) + 1)
-            department
+        on('PUT', '/api/business-services/(\\d+)') { RecordedRequest request, List<String> ids ->
+            def businessService = businessServices.find { it.id == ids[0] as int }
+            businessService.putAll(name: request.json().name, version: (businessService.version as int) + 1)
+            businessService
         }
-        on('DELETE', '/api/departments/(\\d+)') { RecordedRequest request, List<String> ids ->
-            departments.removeIf { it.id == ids[0] as int }
+        on('DELETE', '/api/business-services/(\\d+)') { RecordedRequest request, List<String> ids ->
+            businessServices.removeIf { it.id == ids[0] as int }
             StubResponse.empty()
         }
     }
 
-    String departmentName(Object id) {
-        departments.find { it.id == id }?.name
+    String businessServiceName(Object id) {
+        businessServices.find { it.id == id }?.name
     }
 
     StubApi get(String path, Closure handler) {

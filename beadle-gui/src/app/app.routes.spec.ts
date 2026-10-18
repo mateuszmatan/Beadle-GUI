@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { Route, Router, Routes, provideRouter } from '@angular/router';
 import { ActionHistory } from './action-history/action-history';
 import { AdminPage } from './admin/admin-page';
-import { DepartmentsAdmin } from './business-services/business-services-admin';
+import { BusinessServicesAdmin } from './business-services/business-services-admin';
 import { routes } from './app.routes';
 import { BeadleProduct } from './products/product-page';
 import { BeadleProducts } from './products/products-page';
@@ -46,7 +46,7 @@ describe('routes', () => {
       'changes/:id/secure-coding': ChangeSecureCoding,
       'admin/products/:id': BeadleProduct,
       admin: AdminPage,
-      'admin/departments': DepartmentsAdmin,
+      'admin/business-services': BusinessServicesAdmin,
       'admin/products': BeadleProducts,
       'action-history': ActionHistory,
     });

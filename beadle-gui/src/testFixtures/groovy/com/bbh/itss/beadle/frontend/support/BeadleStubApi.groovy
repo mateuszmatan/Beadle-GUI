@@ -26,7 +26,7 @@ class BeadleStubApi extends StubApi {
 
     @Override
     void install() {
-        installDepartments(changeCount: 0)
+        installBusinessServices(changeCount: 0)
         products = new CopyOnWriteArrayList<Map>(fixture('products.json') as List<Map>)
         installSignIn()
         installProducts()
@@ -115,7 +115,7 @@ class BeadleStubApi extends StubApi {
         get('/api/products') { RecordedRequest request ->
             def search = request.params().search?.toLowerCase()
             json(search ? products.findAll {
-                [it.code, it.name, it.ownerTeam, it.departmentName].any { value -> value?.toString()?.toLowerCase()?.contains(search) }
+                [it.code, it.name, it.ownerTeam, it.businessServiceName].any { value -> value?.toString()?.toLowerCase()?.contains(search) }
             } : products)
         }
         get('/api/products/code-suggestion') { RecordedRequest request ->
@@ -153,7 +153,7 @@ class BeadleStubApi extends StubApi {
 
     private Map stored(Map sent, int id, int version) {
         [id          : id, code: sent.code, name: sent.name, ownerTeam: sent.ownerTeam, contactEmail: sent.contactEmail,
-         departmentId: sent.departmentId, departmentName: departmentName(sent.departmentId), version: version,
+         businessServiceId: sent.businessServiceId, businessServiceName: businessServiceName(sent.businessServiceId), version: version,
          updatedAt   : SAVED_AT]
     }
 }

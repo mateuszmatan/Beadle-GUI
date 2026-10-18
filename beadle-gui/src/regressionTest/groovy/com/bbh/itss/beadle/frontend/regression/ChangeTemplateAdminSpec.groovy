@@ -27,7 +27,7 @@ class ChangeTemplateAdminSpec extends BeadleSpecification {
                                                                      'Schedule', 'Planning', 'Privileged access',
                                                                      'Risk assessment', 'Secure coding'] as String[])
         assertThat(input(defaults(), 'Change number')).hasCount(0)
-        hasValues(defaults(), ['Requested for'     : '', 'Department': '', 'Assignment group': 'Technology Architecture',
+        hasValues(defaults(), ['Requested for'     : '', 'Business service': '', 'Assignment group': 'Technology Architecture',
                                'Affected CI'       : 'CertScanner', 'Direct business service': 'Certificate Management',
                                'Risk'              : 'Moderate', 'Jira project': 'CERT', 'Business approver': 'Grace Turner',
                                'L1 approver'       : 'Olivia Bennett', 'L2 approver': 'James Carter',
@@ -35,7 +35,7 @@ class ChangeTemplateAdminSpec extends BeadleSpecification {
                                'Installation start': '18:00', 'Installation hours': '2', 'Validation hours': '1'])
         assertThat(hintOf(defaults(), 'Requested for')).hasText('If left empty: the user who opens the change')
         assertThat(hintOf(defaults(), 'Assigned to')).hasText('If left empty: the user who opens the change')
-        assertThat(hintOf(defaults(), 'Department')).hasText('If left empty: the department of the product')
+        assertThat(hintOf(defaults(), 'Business service')).hasText('If left empty: the business service of the product')
         assertThat(selected(defaults(), 'Downtime')).hasText('No')
         assertThat(selected(defaults(), 'How many privileged accounts')).hasText('None')
         assertThat(defaults().locator('.accounts')).hasCount(0)
