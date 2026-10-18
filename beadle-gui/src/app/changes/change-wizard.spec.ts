@@ -8,7 +8,7 @@ import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { MY_DEPARTMENT_KEY, MyDepartment } from '../departments/my-department';
+import { MY_DEPARTMENT_KEY, MyDepartment } from '../business-services/my-business-service';
 import { DRAFT_KEY, DRAFT_KEPT, SessionEnd } from '../core/session-end';
 import * as fixtures from '../testing/change-fixtures';
 import { buttonOf, checkboxOf, choose, enter, errorOf, fieldOf } from '../testing/dom';

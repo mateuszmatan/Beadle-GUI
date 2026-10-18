@@ -3,7 +3,7 @@ import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-int
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
-import { MyDepartment } from '../departments/my-department';
+import { MyDepartment } from '../business-services/my-business-service';
 import { RETRY, errorMessage } from '../core/errors';
 import { CHANGES, NEW_CHANGE, beadleChange } from '../core/sections';
 import { text } from '../shared/form-controls';

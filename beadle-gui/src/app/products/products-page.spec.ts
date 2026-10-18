@@ -8,7 +8,7 @@ import { Product } from '../core/models';
 import { buttonOf, gridCell, gridHeaders, gridRows, settleGrid, text, toast } from '../testing/dom';
 import { department, product } from '../testing/fixtures';
 import { ChangeProfileSummary } from '../changes/change-api';
-import { BeadleProducts } from './beadle-products';
+import { BeadleProducts } from './products-page';
 import { ProductDialog } from './product-dialog';
 import { Department } from '../core/models';
 

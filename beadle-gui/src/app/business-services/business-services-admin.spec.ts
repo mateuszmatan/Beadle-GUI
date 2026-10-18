@@ -4,11 +4,11 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { Department } from '../core/models';
-import { DepartmentDialog } from '../departments/department-dialog';
+import { DepartmentDialog } from './business-service-dialog';
 import { ConfirmDialog } from '../shared/confirm-dialog';
 import { buttonOf, gridHeaders, gridRows, text, toast } from '../testing/dom';
 import { department } from '../testing/fixtures';
-import { DepartmentsAdmin } from './departments-admin';
+import { DepartmentsAdmin } from './business-services-admin';
 
 describe('DepartmentsAdmin', () => {
   let fixture: ComponentFixture<DepartmentsAdmin>;

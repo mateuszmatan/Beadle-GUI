@@ -6,7 +6,7 @@ import { DepartmentsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { Department } from '../core/models';
 import { Notifier } from '../core/notifier';
-import { DepartmentDialog } from '../departments/department-dialog';
+import { DepartmentDialog } from './business-service-dialog';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
 import { counted } from '../shared/formatting';
 import { GRID, GridColumn } from '../ui/grid';
@@ -16,8 +16,8 @@ import { BeadleLoading } from '../ui/loading';
   selector: 'beadle-departments-admin',
   imports: [GRID, BeadleLoading],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './departments-admin.html',
-  styleUrl: './departments-admin.scss',
+  templateUrl: './business-services-admin.html',
+  styleUrl: './business-services-admin.scss',
 })
 export class DepartmentsAdmin {
   private readonly api = inject(DepartmentsApi);

@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { MyDepartment } from '../departments/my-department';
+import { MyDepartment } from '../business-services/my-business-service';
 import { Notifier } from '../core/notifier';
 import { changeTemplate, changeUpdate, productionChange } from '../testing/change-fixtures';
 import { buttonOf, enter, errorOf, inputOf, text } from '../testing/dom';

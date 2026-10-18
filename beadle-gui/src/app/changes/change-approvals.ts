@@ -7,7 +7,7 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { MyDepartment } from '../departments/my-department';
+import { MyDepartment } from '../business-services/my-business-service';
 import { Notifier } from '../core/notifier';
 import { errorMessage } from '../core/errors';
 import { formatRelative } from '../shared/formatting';

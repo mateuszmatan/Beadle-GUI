@@ -22,7 +22,7 @@ import {
   toast,
 } from '../testing/dom';
 import { product } from '../testing/fixtures';
-import { BeadleProduct } from './beadle-product';
+import { BeadleProduct } from './product-page';
 
 describe('BeadleProduct', () => {
   let fixture: ComponentFixture<BeadleProduct>;

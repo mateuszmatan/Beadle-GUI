@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MyDepartment } from '../departments/my-department';
+import { MyDepartment } from '../business-services/my-business-service';
 import { Notifier } from '../core/notifier';
 import { changeApproval, changeTask, productionChange } from '../testing/change-fixtures';
 import { buttonOf, text } from '../testing/dom';

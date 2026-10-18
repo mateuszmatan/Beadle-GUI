@@ -45,7 +45,7 @@ export const routes: Routes = [
     path: 'admin/products/:id',
     title: `Product · ${ADMIN.heading}`,
     canDeactivate: [unsavedChangesGuard],
-    loadComponent: () => import('./beadle/beadle-product').then((m) => m.BeadleProduct),
+    loadComponent: () => import('./products/product-page').then((m) => m.BeadleProduct),
   },
   {
     path: 'admin',
@@ -55,12 +55,13 @@ export const routes: Routes = [
       {
         path: 'departments',
         title: `${ADMIN_DEPARTMENTS.label} · ${ADMIN.heading}`,
-        loadComponent: () => import('./admin/departments-admin').then((m) => m.DepartmentsAdmin),
+        loadComponent: () =>
+          import('./business-services/business-services-admin').then((m) => m.DepartmentsAdmin),
       },
       {
         path: 'products',
         title: `${ADMIN_PRODUCTS.label} · ${ADMIN.heading}`,
-        loadComponent: () => import('./beadle/beadle-products').then((m) => m.BeadleProducts),
+        loadComponent: () => import('./products/products-page').then((m) => m.BeadleProducts),
       },
     ],
   },

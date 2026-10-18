@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { MY_DEPARTMENT_KEY } from '../departments/my-department';
+import { MY_DEPARTMENT_KEY } from '../business-services/my-business-service';
 import {
   changeSchedule,
   changeTask,

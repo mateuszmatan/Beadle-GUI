@@ -11,7 +11,7 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { Subscription, of } from 'rxjs';
-import { MyDepartment } from '../departments/my-department';
+import { MyDepartment } from '../business-services/my-business-service';
 import { RETRY } from '../core/errors';
 import { beadleChange, beadleProduct } from '../core/sections';
 import { RelativeTimePipe, formatRelative } from '../shared/formatting';

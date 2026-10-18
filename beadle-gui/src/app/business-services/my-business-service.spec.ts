@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { MY_DEPARTMENT_KEY, MyDepartment } from './my-department';
+import { MY_DEPARTMENT_KEY, MyDepartment } from './my-business-service';
 
 describe('MyDepartment', () => {
   afterEach(() => {

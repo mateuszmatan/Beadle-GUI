@@ -5,7 +5,7 @@ import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { Department } from '../core/models';
 import { inputOf, text } from '../testing/dom';
 import { department } from '../testing/fixtures';
-import { DepartmentDialog } from './department-dialog';
+import { DepartmentDialog } from './business-service-dialog';
 
 describe('DepartmentDialog', () => {
   let fixture: ComponentFixture<DepartmentDialog>;

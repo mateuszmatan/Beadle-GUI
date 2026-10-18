@@ -13,7 +13,7 @@ import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
-import { MyDepartment } from '../departments/my-department';
+import { MyDepartment } from '../business-services/my-business-service';
 import { fieldProblems } from '../core/errors';
 import { Notifier } from '../core/notifier';
 import { beadleChange } from '../core/sections';

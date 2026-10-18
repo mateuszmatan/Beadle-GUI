@@ -13,13 +13,13 @@ import { rxResource, takeUntilDestroyed, toObservable, toSignal } from '@angular
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { EMPTY, Observable, Subject, catchError, finalize, of, switchMap } from 'rxjs';
-import { MyDepartment } from '../departments/my-department';
+import { MyDepartment } from '../business-services/my-business-service';
 import { ProductsApi, UserApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
 import { CHANGES, NEW_CHANGE, beadleChange, beadleProduct } from '../core/sections';
 import { KeepsDraft, SessionEnd } from '../core/session-end';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
-import { byDepartment } from '../departments/departments';
+import { byDepartment } from '../business-services/business-services';
 import { applyFieldProblems, applyProblemsAt, filled } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';

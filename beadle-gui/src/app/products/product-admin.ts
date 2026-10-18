@@ -12,7 +12,7 @@ import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter, switchMap } from 'rxjs';
 import { errorMessage } from '../core/errors';
 import { Notifier } from '../core/notifier';
-import { NOT_IN_A_DEPARTMENT } from '../departments/departments';
+import { NOT_IN_A_DEPARTMENT } from '../business-services/business-services';
 import { ConfirmDialog, ConfirmDialogData } from '../shared/confirm-dialog';
 import { BeadleLoading } from '../ui/loading';
 import { DepartmentsApi } from '../core/api';

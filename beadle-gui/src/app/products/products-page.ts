@@ -10,7 +10,7 @@ import { errorMessage } from '../core/errors';
 import { Product } from '../core/models';
 import { Notifier } from '../core/notifier';
 import { beadleProduct } from '../core/sections';
-import { DepartmentGroup, byDepartment } from '../departments/departments';
+import { DepartmentGroup, byDepartment } from '../business-services/business-services';
 import { RelativeTimePipe, counted } from '../shared/formatting';
 import { BeadleInput } from '../ui/form-field';
 import { GRID, GridColumn } from '../ui/grid';
@@ -26,8 +26,8 @@ function tally(group: DepartmentGroup<Product>): string {
   selector: 'beadle-products',
   imports: [ReactiveFormsModule, RouterLink, BeadleInput, GRID, BeadleLoading, RelativeTimePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './beadle-products.html',
-  styleUrl: './beadle-products.scss',
+  templateUrl: './products-page.html',
+  styleUrl: './products-page.scss',
 })
 export class BeadleProducts {
   private readonly api = inject(ProductsApi);

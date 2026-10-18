@@ -1,5 +1,5 @@
 import { department } from '../testing/fixtures';
-import { NOT_IN_A_DEPARTMENT, byDepartment } from './departments';
+import { NOT_IN_A_DEPARTMENT, byDepartment } from './business-services';
 
 describe('departments', () => {
   const custody = department({ id: 4, name: 'Custody' });
