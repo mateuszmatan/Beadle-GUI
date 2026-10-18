@@ -15,7 +15,9 @@ import jakarta.persistence.Converter
 import jakarta.persistence.Embeddable
 import jakarta.persistence.Entity
 import jakarta.persistence.MappedSuperclass
+import org.springframework.context.annotation.Configuration
 import org.springframework.data.repository.Repository
+import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Controller
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PatchMapping
@@ -28,7 +30,9 @@ import spock.lang.Specification
 
 import java.util.function.Predicate
 
+import static com.tngtech.archunit.base.DescribedPredicate.alwaysTrue
 import static com.tngtech.archunit.base.DescribedPredicate.describe
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage
 import static com.tngtech.archunit.lang.SimpleConditionEvent.violated
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods
@@ -44,13 +48,14 @@ class ArchitectureSpec extends Specification {
     static final String ADAPTER_OUT = 'com.bbh.itss.beadle.adapter.out..'
     static final String WEB = 'com.bbh.itss.beadle.adapter.in.web..'
     static final String PERSISTENCE = 'com.bbh.itss.beadle.adapter.out.persistence..'
+    static final String HTTP = 'com.bbh.itss.beadle.adapter.out.http..'
     static final String ADAPTER = 'com.bbh.itss.beadle.adapter..'
+    /** The shared parts of the adapters, such as the audit interceptor and the record mapper. */
+    static final String ADAPTER_ROOT = 'com.bbh.itss.beadle.adapter'
     static final String CONFIG = 'com.bbh.itss.beadle.config..'
-    static final String[] HTTP_ADAPTERS = ['com.bbh.itss.beadle.adapter.out.http..',
-                                           'com.bbh.itss.beadle.adapter.out.internal..',
+    static final String PORT_OUT = 'com.bbh.itss.beadle.application..port.out..'
+    static final String[] HTTP_ADAPTERS = [HTTP, 'com.bbh.itss.beadle.adapter.out.internal..',
                                            'com.bbh.itss.beadle.adapter.out.protech..']
-    static final String[] FRAMEWORKS = ['jakarta..', 'org.springframework..', 'org.hibernate..', 'tools.jackson..',
-                                        'com.fasterxml..', 'org.slf4j..']
     static final String[] HELPERS = ['org.apache.commons.lang3..', 'org.apache.commons.collections4..', 'lombok..']
 
     @Shared
@@ -73,18 +78,28 @@ class ArchitectureSpec extends Specification {
          classes().that().resideInAPackage(DOMAIN)
                  .should().onlyDependOnClassesThat().resideInAnyPackage('java..', DOMAIN, *HELPERS),
          classes().that().resideInAPackage(APPLICATION)
-                 .should().onlyDependOnClassesThat().resideInAnyPackage('java..', DOMAIN, APPLICATION, *HELPERS),
-         noClasses().that().resideInAnyPackage(DOMAIN, APPLICATION)
-                 .should().dependOnClassesThat().resideInAnyPackage(FRAMEWORKS),
+                 .should().onlyDependOnClassesThat()
+                 .resideInAnyPackage('java..', DOMAIN, APPLICATION, 'org.slf4j..', *HELPERS),
          noClasses().that().resideInAPackage(ADAPTER)
                  .should().dependOnClassesThat().resideInAPackage(CONFIG),
          noClasses().that().resideInAPackage(ADAPTER_IN)
                  .should().dependOnClassesThat().resideInAPackage(ADAPTER_OUT),
          noClasses().that().resideInAPackage(ADAPTER_OUT)
                  .should().dependOnClassesThat().resideInAPackage(ADAPTER_IN),
-         noClasses().that().resideInAPackage(ADAPTER_IN)
-                 .should().dependOnClassesThat()
-                 .resideInAPackage('com.bbh.itss.beadle.application..port.out..'),
+         noClasses().that().resideInAnyPackage(ADAPTER_IN, ADAPTER_ROOT)
+                 .should().dependOnClassesThat().resideInAPackage(PORT_OUT),
+         slices().matching('com.bbh.itss.beadle.adapter.out.(*)..').should().notDependOnEachOther()
+                 .ignoreDependency(alwaysTrue(), resideInAPackage(HTTP))
+                 .because('the out adapters of different systems share only the HTTP client'),
+         classes().that(describedAs('implement an out port') { JavaClass type ->
+             !type.isInterface() && type.allRawInterfaces.any { it.packageName.contains('.port.out') }
+         }).should().resideInAPackage(ADAPTER_OUT),
+         classes().that().areMetaAnnotatedWith(Configuration).and().doNotHaveFullyQualifiedName(BeadleApplication.name)
+                 .should().resideInAPackage(CONFIG),
+         noClasses().that().resideOutsideOfPackage(PERSISTENCE)
+                 .should().dependOnClassesThat().resideInAnyPackage('jakarta.persistence..', 'org.springframework.data..'),
+         methods().that().areAnnotatedWith(Scheduled).should().beDeclaredInClassesThat().resideInAPackage(ADAPTER_IN)
+                 .because('a schedule calls the use cases from outside, as a request does').allowEmptyShould(true),
          classes().that(describedAs('are controllers or controller advice') { JavaClass type ->
              [RestController, RestControllerAdvice, Controller].any { type.isAnnotatedWith(it) }
          }).should().resideInAPackage(WEB),
