@@ -1,14 +1,12 @@
 package com.bbh.itss.beadle.domain.change;
 
 import com.bbh.itss.beadle.domain.shared.ValidationProblems;
-import lombok.Builder;
 
 import static com.bbh.itss.beadle.domain.change.ChangeTemplate.NUMBER_MAX;
 import static com.bbh.itss.beadle.domain.change.ChangeTemplate.REQUIRED;
 import static com.bbh.itss.beadle.domain.shared.Text.isUrl;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
-@Builder(toBuilder = true)
 public record SecureCoding(String apoNumber, String bitbucketUrl, String artifactLink, String qcApplicationLink) {
 
     public static final SecureCoding NONE = new SecureCoding(null, null, null, null);

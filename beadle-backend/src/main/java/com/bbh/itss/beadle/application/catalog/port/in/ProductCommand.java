@@ -15,6 +15,6 @@ public record ProductCommand(String code, String name, Long businessServiceId, S
     }
 
     public ProductDetails details() {
-        return new ProductDetails(code, name, null, ownerTeam, contactEmail, businessServiceId);
+        return new ProductDetails(code, name, ownerTeam, contactEmail, businessServiceId);
     }
 }

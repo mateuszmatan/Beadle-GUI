@@ -17,8 +17,6 @@ groovy-json = { module = "org.apache.groovy:groovy-json" }
 spock-bom = { module = "org.spockframework:spock-bom", version.ref = "spock" }
 spock-core = { module = "org.spockframework:spock-core" }
 spock-spring = { module = "org.spockframework:spock-spring" }
-junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
-junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 playwright = { module = "com.microsoft.playwright:playwright", version.ref = "playwright" }
 archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 commons-collections4 = { module = "org.apache.commons:commons-collections4", version.ref = "commons-collections4" }
