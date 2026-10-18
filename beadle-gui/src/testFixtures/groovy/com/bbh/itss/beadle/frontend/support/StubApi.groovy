@@ -9,7 +9,6 @@ import java.util.regex.Pattern
 
 import static com.bbh.itss.beadle.frontend.support.StubResponse.json
 import static com.bbh.itss.beadle.frontend.support.StubResponse.problem
-import static com.bbh.itss.beadle.frontend.support.StubResponse.yaml
 
 abstract class StubApi {
 
@@ -17,7 +16,7 @@ abstract class StubApi {
 
     private final List<Route> routes = new CopyOnWriteArrayList<>()
     private final List<RecordedRequest> recorded = new CopyOnWriteArrayList<>()
-    List<Map> departments
+    List<Map> businessServices
 
     /**
      * The parsed fixture as plain {@code LinkedHashMap}s and {@code ArrayList}s. The handlers share these maps across the
@@ -25,44 +24,36 @@ abstract class StubApi {
      * threads at once: one thread can see a map that another is still filling in and answer a 500.
      */
     static Object fixture(String name) {
-        new JsonSlurperClassic().parseText(fixtureText(name))
-    }
-
-    static String fixtureText(String name) {
         def resource = StubApi.getResource(FIXTURES + name)
         if (!resource) {
             throw new IllegalArgumentException("No API fixture $name")
         }
-        resource.getText('UTF-8')
-    }
-
-    static boolean hasFixture(String name) {
-        StubApi.getResource(FIXTURES + name) != null
+        new JsonSlurperClassic().parseText(resource.getText('UTF-8'))
     }
 
     abstract void install()
 
-    void installDepartments(Map blank) {
-        departments = new CopyOnWriteArrayList<Map>(fixture('departments.json') as List<Map>)
-        get('/api/departments') { departments.sort(false) { (it.name as String).toLowerCase() } }
-        on('POST', '/api/departments') { RecordedRequest request ->
-            def added = [id: (departments*.id.max() as int) + 1, name: request.json().name, version: 0, productCount: 0] + blank
-            departments << added
+    void installBusinessServices(Map blank) {
+        businessServices = new CopyOnWriteArrayList<Map>(fixture('business-services.json') as List<Map>)
+        get('/api/business-services') { businessServices.sort(false) { (it.name as String).toLowerCase() } }
+        on('POST', '/api/business-services') { RecordedRequest request ->
+            def added = [id: (businessServices*.id.max() as int) + 1, name: request.json().name, version: 0, productCount: 0] + blank
+            businessServices << added
             json(added, 201)
         }
-        on('PUT', '/api/departments/(\\d+)') { RecordedRequest request, List<String> ids ->
-            def department = departments.find { it.id == ids[0] as int }
-            department.putAll(name: request.json().name, version: (department.version as int) + 1)
-            department
+        on('PUT', '/api/business-services/(\\d+)') { RecordedRequest request, List<String> ids ->
+            def businessService = businessServices.find { it.id == ids[0] as int }
+            businessService.putAll(name: request.json().name, version: (businessService.version as int) + 1)
+            businessService
         }
-        on('DELETE', '/api/departments/(\\d+)') { RecordedRequest request, List<String> ids ->
-            departments.removeIf { it.id == ids[0] as int }
+        on('DELETE', '/api/business-services/(\\d+)') { RecordedRequest request, List<String> ids ->
+            businessServices.removeIf { it.id == ids[0] as int }
             StubResponse.empty()
         }
     }
 
-    String departmentName(Object id) {
-        departments.find { it.id == id }?.name
+    String businessServiceName(Object id) {
+        businessServices.find { it.id == id }?.name
     }
 
     StubApi get(String path, Closure handler) {
@@ -80,16 +71,6 @@ abstract class StubApi {
 
     StubApi respond(String method, String path, StubResponse response) {
         on(method, path) { response }
-    }
-
-    StubApi failOnce(String method, String path, StubResponse failure) {
-        Route route
-        route = new Route(method, Pattern.compile(path), { ->
-            routes.remove(route)
-            failure
-        })
-        routes.add(0, route)
-        this
     }
 
     StubResponse handle(String method, String path, String query, String body, Map<String, String> headers = [:]) {
@@ -135,13 +116,6 @@ abstract class StubApi {
         routes.clear()
         recorded.clear()
         install()
-    }
-
-    static StubResponse fixtureOr404(String name, String detail) {
-        if (!hasFixture(name)) {
-            return problem(404, 'Not found', detail)
-        }
-        name.endsWith('.yaml') ? yaml(fixtureText(name)) : json(fixture(name))
     }
 
     @TupleConstructor(defaults = false)

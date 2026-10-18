@@ -22,17 +22,17 @@ import {
   toast,
 } from '../testing/dom';
 import { product } from '../testing/fixtures';
-import { BeadleProduct } from './beadle-product';
+import { ProductPage } from './product-page';
 
-describe('BeadleProduct', () => {
-  let fixture: ComponentFixture<BeadleProduct>;
+describe('ProductPage', () => {
+  let fixture: ComponentFixture<ProductPage>;
   let http: HttpTestingController;
 
   const editor = () => fixture.componentInstance;
   const page = () => fixture.nativeElement as HTMLElement;
   const task = (index: number) => page().querySelectorAll('.task-row')[index];
   const chosen = (label: string) => text(selectOf(page(), label).selectedOptions[0]);
-  const save = () => buttonOf(page(), 'Save the template').click();
+  const save = () => buttonOf(page(), 'Save template').click();
 
   async function settle() {
     TestBed.tick();
@@ -46,7 +46,7 @@ describe('BeadleProduct', () => {
     await settle();
     http.expectOne('/api/products/1/change-profile').flush(profile);
     http.expectOne('/api/products/1').flush(product());
-    http.expectOne('/api/departments').flush([]);
+    http.expectOne('/api/business-services').flush([]);
     await settle();
     http.expectOne('/api/changes/options').flush(changeOptions());
     await settle();
@@ -63,11 +63,11 @@ describe('BeadleProduct', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [BeadleProduct],
+      imports: [ProductPage],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     http = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent(BeadleProduct);
+    fixture = TestBed.createComponent(ProductPage);
   });
 
   afterEach(() => http.verify());
@@ -129,7 +129,7 @@ describe('BeadleProduct', () => {
     request.flush(changeProfile({ version: 0, template: expected, tasks }));
     await settle();
 
-    expect(text(toast())).toContain('The change template of CertScanner is saved');
+    expect(text(toast())).toContain('The change template of CertScanner has been saved.');
     expect(editor().hasUnsavedChanges()).toBe(false);
     expect(page().querySelector('.banner.info')).toBeNull();
     expect(text(page().querySelector('.defaults-header .chip'))).toBe('Filled in');
@@ -147,7 +147,7 @@ describe('BeadleProduct', () => {
       .expectOne('/api/products/1/change-profile')
       .flush({ detail: 'The database is busy' }, { status: 503, statusText: 'Unavailable' });
     http.expectOne('/api/products/1').flush(product());
-    http.expectOne('/api/departments').flush([]);
+    http.expectOne('/api/business-services').flush([]);
     await settle();
 
     expect(text(page().querySelector('.banner span'))).toBe(

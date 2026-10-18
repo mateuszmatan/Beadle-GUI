@@ -3,14 +3,14 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { fieldOf, inputOf, text } from '../testing/dom';
-import { department, product } from '../testing/fixtures';
+import { businessService, product } from '../testing/fixtures';
 import { ProductDialog, ProductDialogData } from './product-dialog';
 
 describe('ProductDialog', () => {
   let fixture: ComponentFixture<ProductDialog>;
   let http: HttpTestingController;
   const close = vi.fn();
-  const departments = [department(), department({ id: 5, name: 'Fund Services' })];
+  const businessServices = [businessService(), businessService({ id: 5, name: 'Fund Services' })];
 
   async function render(data: Partial<ProductDialogData> = {}) {
     TestBed.configureTestingModule({
@@ -20,7 +20,7 @@ describe('ProductDialog', () => {
         provideHttpClientTesting(),
         {
           provide: DIALOG_DATA,
-          useValue: { departments, departmentId: null, product: null, ...data },
+          useValue: { businessServices, businessServiceId: null, product: null, ...data },
         },
         { provide: DialogRef, useValue: { close } },
       ],
@@ -57,7 +57,7 @@ describe('ProductDialog', () => {
   }
 
   it('adds a product whose code follows its name', async () => {
-    await render({ departmentId: 5 });
+    await render({ businessServiceId: 5 });
 
     expect(text(page().querySelector('h2'))).toBe('Add product');
     expect(text(page().querySelector('.intro'))).toBe(
@@ -66,13 +66,13 @@ describe('ProductDialog', () => {
     expect(labels()).toEqual([
       'Product name',
       'Product code',
-      'Department',
+      'Business service',
       'Owner team',
       'Contact e-mail',
     ]);
-    expect(form().controls.departmentId.value).toBe(5);
+    expect(form().controls.businessServiceId.value).toBe(5);
     expect(text(fieldOf(page(), 'Product code')?.querySelector('beadle-hint'))).toBe(
-      'Short unique name used in reports, for example PAYHUB. Made from the name.',
+      'A short unique name used in reports, for example PAYHUB. Suggested from the product name.',
     );
     expect(text(page().querySelector('button[type=submit]'))).toBe('Add product');
 
@@ -100,7 +100,7 @@ describe('ProductDialog', () => {
       name: 'Trade Archive 3',
       ownerTeam: 'Custody Technology',
       contactEmail: null,
-      departmentId: 5,
+      businessServiceId: 5,
       version: null,
     });
     const created = product({ id: 7, name: 'Trade Archive 3' });
@@ -110,8 +110,8 @@ describe('ProductDialog', () => {
   });
 
   it('keeps an empty code when no code can be suggested and asks for the missing values', async () => {
-    await render({ departmentId: 99 });
-    expect(form().controls.departmentId.value).toBeNull();
+    await render({ businessServiceId: 99 });
+    expect(form().controls.businessServiceId.value).toBeNull();
 
     await typeName('Archive');
     http
@@ -123,7 +123,7 @@ describe('ProductDialog', () => {
 
     http.expectNone('/api/products');
     expect(errorOf('Product code')).toBe('Required');
-    expect(errorOf('Department')).toBe('Required');
+    expect(errorOf('Business service')).toBe('Required');
     expect(errorOf('Contact e-mail')).toBe('Enter an e-mail address');
 
     type('Product code', '1ARCHIVE');
@@ -134,7 +134,7 @@ describe('ProductDialog', () => {
   });
 
   it('shows the problems Beadle found on their fields and the rest above the buttons', async () => {
-    await render({ departmentId: 3 });
+    await render({ businessServiceId: 3 });
     form().patchValue({ name: 'Archive', code: 'ARCHIVE' });
 
     await submit();
@@ -177,19 +177,19 @@ describe('ProductDialog', () => {
     const stored = product({ contactEmail: null });
     await render({ product: stored });
 
-    expect(text(page().querySelector('h2'))).toBe('Edit the details of CertScanner');
+    expect(text(page().querySelector('h2'))).toBe('Edit details of CertScanner');
     expect(text(page().querySelector('.intro'))).toBe(
       'Its product code, CERT, stays as it is. Fields marked * are required.',
     );
-    expect(labels()).toEqual(['Product name', 'Department', 'Owner team', 'Contact e-mail']);
+    expect(labels()).toEqual(['Product name', 'Business service', 'Owner team', 'Contact e-mail']);
     expect(text(page().querySelector('button[type=submit]'))).toBe('Save details');
     expect(inputOf(page(), 'Product name').value).toBe('CertScanner');
     expect(inputOf(page(), 'Owner team').value).toBe('Technology Architecture');
-    expect(form().controls.departmentId.value).toBe(3);
+    expect(form().controls.businessServiceId.value).toBe(3);
 
     form().patchValue({
       name: ' Cert Scanner ',
-      departmentId: 5,
+      businessServiceId: 5,
       ownerTeam: ' ',
       contactEmail: 'certs@bbh.com',
     });
@@ -201,12 +201,12 @@ describe('ProductDialog', () => {
     expect(request.request.body).toEqual({
       code: null,
       name: 'Cert Scanner',
-      departmentId: 5,
+      businessServiceId: 5,
       ownerTeam: null,
       contactEmail: 'certs@bbh.com',
       version: 3,
     });
-    const saved = product({ name: 'Cert Scanner', departmentId: 5, version: 4 });
+    const saved = product({ name: 'Cert Scanner', businessServiceId: 5, version: 4 });
     request.flush(saved);
 
     expect(close).toHaveBeenCalledWith(saved);

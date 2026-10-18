@@ -26,7 +26,7 @@ final class ChangeStubs {
     static final List<String> SCHEDULE = ['installationStart', 'installationEnd', 'validationStart', 'validationEnd', 'firstUsage',
                                           'downtimeStart', 'downtimeEnd']
 
-    static final List<String> EDITABLE = ['requestedFor', 'requestedBy', 'department', 'assignmentGroup', 'category',
+    static final List<String> EDITABLE = ['requestedFor', 'requestedBy', 'businessService', 'assignmentGroup', 'category',
                                           'assignedTo', 'release', 'configurationItem', 'incident', 'directBusinessService',
                                           'problem', 'affectedClients', 'usersAffected', 'approvers', 'downtime',
                                           'planning', 'privilegedAccess', 'riskAssessment', 'secureCodingTicket']
@@ -69,7 +69,7 @@ final class ChangeStubs {
             firstUsePlan      : 'The business owner confirms the first use of the release in production.']
 
     static final Map CERT_TEMPLATE = withRisk([
-            jiraProjectKey   : 'CERT', requestedFor: null, requestedBy: null, department: null,
+            jiraProjectKey   : 'CERT', requestedFor: null, requestedBy: null, businessService: null,
             assignmentGroup  : 'Technology Architecture', category: 'Application', assignedTo: null, type: 'STANDARD',
             release          : null, configurationItem: 'CertScanner', incident: null,
             directBusinessService: 'Certificate Management', problem: null, affectedClients: null, usersAffected: null,
@@ -119,7 +119,7 @@ final class ChangeStubs {
         }
         api.get('/api/changes/options') { OPTIONS }
         api.get('/api/lookups/([^/]+)') { RecordedRequest request, List<String> kinds -> lookup(kinds[0], request.params().q) }
-        api.get('/api/changes') { RecordedRequest request -> protech.list(request.params().departmentId) }
+        api.get('/api/changes') { RecordedRequest request -> protech.list(request.params().businessServiceId) }
         api.get('/api/changes/(\\d+)') { RecordedRequest request, List<String> ids ->
             def found = protech.find(ids[0])
             found ? json(protech.read(found)) : problem(404, 'Not found', "Change ${ids[0]} does not exist")
@@ -193,7 +193,7 @@ final class ChangeStubs {
         def product = product(id)
         def letters = (product.code as String).replaceAll(/[^A-Z0-9]/, '')
         withRisk([jiraProjectKey    : letters.size() <= 6 ? letters : letters.take(4), requestedFor: null,
-                  requestedBy       : null, department: null,
+                  requestedBy       : null, businessService: null,
                   assignmentGroup   : product.ownerTeam ?: "$product.name Support", category: 'Application',
                   assignedTo        : null, type: 'STANDARD', release: null, configurationItem: product.name,
                   incident          : null, directBusinessService: null, problem: null, affectedClients: null,
@@ -286,9 +286,9 @@ final class ChangeStubs {
         def issues = issuesOf(template.jiraProjectKey as String)
         def epics = issues.findAll { it.key in asked.epicKeys }
         def stories = issues.findAll { it.key in asked.storyKeys }
-        def department = departmentName(product.departmentId)
+        def businessService = businessServiceName(product.businessServiceId)
         [id              : null, number: null, productId: product.id, productCode: product.code, productName: product.name,
-         departmentId    : product.departmentId, departmentName: department,
+         businessServiceId    : product.businessServiceId, businessServiceName: businessService,
          fixVersion      : asked.fixVersion, schedule: asked.schedule,
          shortDescription: "$product.name $asked.fixVersion: ${epics*.summary.join('; ')}".toString(),
          description     : "Production release of $product.name ($product.code), FixVersion $asked.fixVersion.\n\nEpics:\n"
@@ -299,7 +299,7 @@ final class ChangeStubs {
                                                 requestedFor: template.requestedFor ?: SIGNED_IN_USER,
                                                 requestedBy : template.requestedBy ?: SIGNED_IN_USER,
                                                 assignedTo  : template.assignedTo ?: SIGNED_IN_USER,
-                                                department  : template.department ?: department]),
+                                                businessService  : template.businessService ?: businessService]),
          epicKeys        : asked.epicKeys, storyKeys: asked.storyKeys,
          tasks           : [],
          url             : null, state: 'DRAFT', workflow: [], approvals: [], syncedAt: null, syncProblem: null, update: null,
@@ -327,8 +327,8 @@ final class ChangeStubs {
         (fixture('products.json') as List<Map>).find { it.id == id as int }
     }
 
-    private static String departmentName(Object id) {
-        (fixture('departments.json') as List<Map>).find { it.id == id }?.name
+    private static String businessServiceName(Object id) {
+        (fixture('business-services.json') as List<Map>).find { it.id == id }?.name
     }
 
     private static List<Map> issuesOf(String project) {
@@ -383,7 +383,7 @@ final class ChangeStubs {
             changes << seed(2, 'CHG0030995', 1, 'CERT 4.1.1', at.minus(3, DAYS), at.minus(1, HOURS),
                     ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL', 'SUPPORT_APPROVAL', 'CTASK_APPROVAL',
                      'IMPLEMENTATION'], 'WORK_IN_PROGRESS', 5) + [update: [status       : 'NOT_APPLIED', requestedAt: stamp(at.minus(30, MINUTES)),
-                                                      departmentName: 'Corporate Technology',
+                                                      businessServiceName: 'Corporate Technology',
                                                       fields        : ['schedule.installationStart', 'schedule.installationEnd'],
                                                       message       : NOT_APPLIED, checkedAt: stamp(at.minus(29, MINUTES))]]
             changes << seed(3, 'CHG0031000', 2, 'PAYHUB 4.2', at.minus(30, MINUTES), at.plus(20, HOURS),
@@ -393,8 +393,8 @@ final class ChangeStubs {
                     ['DRAFT', 'BUSINESS_APPROVAL', 'PRIMARY_APPROVAL', 'SECONDARY_APPROVAL'], 'OPEN', 3)
         }
 
-        List<Map> list(String departmentId) {
-            changes.findAll { !departmentId || it.departmentId == departmentId as int }
+        List<Map> list(String businessServiceId) {
+            changes.findAll { !businessServiceId || it.businessServiceId == businessServiceId as int }
                     .collect { it.state == 'CLOSED' ? it : read(it) }
                     .sort { a, b -> b.id <=> a.id }
         }
@@ -420,8 +420,8 @@ final class ChangeStubs {
             if (asked.version != null && (asked.version < change.editedVersion || asked.version > change.version)) {
                 return problem(409, 'Conflict', STALE)
             }
-            if (asked.departmentId != change.departmentId) {
-                return problem(403, 'Forbidden', "Only $change.departmentName can change $change.number")
+            if (asked.businessServiceId != change.businessServiceId) {
+                return problem(403, 'Forbidden', "Only $change.businessServiceName can change $change.number")
             }
             if ((change.update as Map)?.status == 'PENDING') {
                 return problem(409, 'Conflict', "The last update of $change.number is still waiting for ProTech; " +
@@ -447,7 +447,7 @@ final class ChangeStubs {
             def fields = unapplied(requested, change)
             canceling[change.id as int] = held.findAll { it.number && !(it.number in numbers) }.collect { it + [state: 'CANCELED'] }
             def version = (change.version as int) + 1
-            change.putAll(requested + [update       : [status : 'PENDING', requestedAt: stamp(), departmentName: change.departmentName,
+            change.putAll(requested + [update       : [status : 'PENDING', requestedAt: stamp(), businessServiceName: change.businessServiceName,
                                                        fields : fields, message: null, checkedAt: stamp()],
                                        version      : version, editedVersion: fields ? version : change.editedVersion,
                                        syncedAt     : stamp()])
@@ -458,8 +458,8 @@ final class ChangeStubs {
             if (asked.version != null && (asked.version < change.editedVersion || asked.version > change.version)) {
                 return problem(409, 'Conflict', STALE)
             }
-            if (asked.departmentId != change.departmentId) {
-                return problem(403, 'Forbidden', "Only $change.departmentName can change $change.number")
+            if (asked.businessServiceId != change.businessServiceId) {
+                return problem(403, 'Forbidden', "Only $change.businessServiceName can change $change.number")
             }
             if (change.state == 'CLOSED') {
                 return problem(409, 'Conflict', "$change.number is closed in ProTech and can no longer be changed")
@@ -477,12 +477,12 @@ final class ChangeStubs {
         }
 
         Object remind(Map change, Map asked) {
-            if (asked.departmentId == null) {
+            if (asked.businessServiceId == null) {
                 return problem(400, 'Validation failed', 'must not be null',
-                        [problems: [[field: 'departmentId', message: 'must not be null']]])
+                        [problems: [[field: 'businessServiceId', message: 'must not be null']]])
             }
-            if (asked.departmentId != change.departmentId) {
-                return problem(403, 'Forbidden', "Only $change.departmentName can remind the approvers of $change.number")
+            if (asked.businessServiceId != change.businessServiceId) {
+                return problem(403, 'Forbidden', "Only $change.businessServiceName can remind the approvers of $change.number")
             }
             if (change.state == 'CLOSED') {
                 return problem(409, 'Conflict', "$change.number is closed in ProTech, so nobody is reminded to approve it")
@@ -513,8 +513,8 @@ final class ChangeStubs {
             if (asked.version != null && (asked.version < change.editedVersion || asked.version > change.version)) {
                 return problem(409, 'Conflict', STALE)
             }
-            if (asked.departmentId != change.departmentId) {
-                return problem(403, 'Forbidden', "Only $change.departmentName can change $change.number")
+            if (asked.businessServiceId != change.businessServiceId) {
+                return problem(403, 'Forbidden', "Only $change.businessServiceName can change $change.number")
             }
             def errors = (SECURE_CODING + 'implementationDate').findResults { String field ->
                 String value = (asked[field] as String)?.trim()
@@ -539,7 +539,7 @@ final class ChangeStubs {
             def version = (change.version as int) + 1
             change.putAll([template: template + [secureCodingTicket: ticket,
                                                  secureCoding      : SECURE_CODING.collectEntries { [it, (asked[it] as String).trim()] }],
-                           update  : [status : 'PENDING', requestedAt: stamp(), departmentName: change.departmentName,
+                           update  : [status : 'PENDING', requestedAt: stamp(), businessServiceName: change.businessServiceName,
                                       fields : [], message: null, checkedAt: stamp()],
                            version : version, syncedAt: stamp()])
             change

@@ -23,7 +23,6 @@ import static com.microsoft.playwright.options.AriaRole.BUTTON
 import static com.microsoft.playwright.options.AriaRole.CHECKBOX
 import static com.microsoft.playwright.options.AriaRole.COMBOBOX
 import static com.microsoft.playwright.options.AriaRole.LINK
-import static com.microsoft.playwright.options.AriaRole.RADIO
 import static com.microsoft.playwright.options.LoadState.NETWORKIDLE
 import static java.nio.file.Files.createDirectories
 
@@ -31,22 +30,6 @@ abstract class GuiSpecification extends Specification {
 
     static final int WIDTH = 1440
     static final int HEIGHT = 1000
-
-    static final String CLIPBOARD_RECORDER = '''
-        window.beadleCopiedTexts = [];
-        const execCommand = Document.prototype.execCommand;
-        Document.prototype.execCommand = function (command, ...rest) {
-          if (String(command).toLowerCase() !== 'copy') {
-            return execCommand.call(this, command, ...rest);
-          }
-          const active = this.activeElement;
-          const text = active && typeof active.value === 'string'
-            ? active.value.substring(active.selectionStart ?? 0, active.selectionEnd ?? active.value.length)
-            : String(this.getSelection());
-          window.beadleCopiedTexts.push(text);
-          return true;
-        };
-    '''
 
     private static Playwright sharedPlaywright
     private static Browser sharedBrowser
@@ -190,10 +173,6 @@ abstract class GuiSpecification extends Specification {
         buttonIn(dialog(), name)
     }
 
-    Locator stat(String label) {
-        holding(page.locator('.stats .stat'), "span:text-is('${label}')").locator('strong')
-    }
-
     Locator holding(Locator scope, String selector) {
         scope.filter(new Locator.FilterOptions().setHas(page.locator(selector)))
     }
@@ -246,10 +225,6 @@ abstract class GuiSpecification extends Specification {
         page.locator('nav.tab-bar').getByRole(LINK, new Locator.GetByRoleOptions().setName(label).setExact(true))
     }
 
-    Locator field(String label) {
-        page.getByLabel(label, new Page.GetByLabelOptions().setExact(true))
-    }
-
     Locator input(Locator scope, String label) {
         scope.getByLabel(label, new Locator.GetByLabelOptions().setExact(true))
     }
@@ -276,10 +251,6 @@ abstract class GuiSpecification extends Specification {
 
     Locator checkbox(Locator scope, String label) {
         scope.getByRole(CHECKBOX, new Locator.GetByRoleOptions().setName(label))
-    }
-
-    Locator radio(Locator scope, String name) {
-        scope.getByRole(RADIO, new Locator.GetByRoleOptions().setName(name).setExact(true))
     }
 
     Locator dialog() {
@@ -316,14 +287,6 @@ abstract class GuiSpecification extends Specification {
 
     Locator gridFilter(String label, Locator scope = page.locator('body')) {
         scope.locator(".ag-floating-filter [aria-label='Filter by ${label}']")
-    }
-
-    void recordClipboard() {
-        context.addInitScript(CLIPBOARD_RECORDER)
-    }
-
-    List<String> copiedTexts() {
-        page.evaluate('() => window.beadleCopiedTexts ?? []') as List<String>
     }
 
     RecordedRequest awaitRequest(String method, String pathPattern, int count = 1) {

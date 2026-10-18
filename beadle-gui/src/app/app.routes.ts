@@ -4,7 +4,7 @@ import { unsavedChangesGuard } from './core/unsaved-changes';
 import {
   ACTION_HISTORY,
   ADMIN,
-  ADMIN_DEPARTMENTS,
+  ADMIN_BUSINESS_SERVICES,
   ADMIN_PRODUCTS,
   CHANGES,
   NEW_CHANGE,
@@ -45,7 +45,7 @@ export const routes: Routes = [
     path: 'admin/products/:id',
     title: `Product · ${ADMIN.heading}`,
     canDeactivate: [unsavedChangesGuard],
-    loadComponent: () => import('./beadle/beadle-product').then((m) => m.BeadleProduct),
+    loadComponent: () => import('./products/product-page').then((m) => m.ProductPage),
   },
   {
     path: 'admin',
@@ -53,14 +53,17 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'products' },
       {
-        path: 'departments',
-        title: `${ADMIN_DEPARTMENTS.label} · ${ADMIN.heading}`,
-        loadComponent: () => import('./admin/departments-admin').then((m) => m.DepartmentsAdmin),
+        path: 'business-services',
+        title: `${ADMIN_BUSINESS_SERVICES.label} · ${ADMIN.heading}`,
+        loadComponent: () =>
+          import('./business-services/business-services-admin').then(
+            (m) => m.BusinessServicesAdmin,
+          ),
       },
       {
         path: 'products',
         title: `${ADMIN_PRODUCTS.label} · ${ADMIN.heading}`,
-        loadComponent: () => import('./beadle/beadle-products').then((m) => m.BeadleProducts),
+        loadComponent: () => import('./products/products-page').then((m) => m.ProductsPage),
       },
     ],
   },

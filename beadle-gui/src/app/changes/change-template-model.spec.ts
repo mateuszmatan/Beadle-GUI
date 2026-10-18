@@ -27,7 +27,7 @@ describe('change template model', () => {
     const template = changeTemplate({
       requestedFor: 'Grace Turner',
       requestedBy: 'Mateusz Matan',
-      department: 'Corporate Technology',
+      businessService: 'Corporate Technology',
       assignedTo: 'James Carter',
       type: 'EMERGENCY',
       release: 'CERT 4.2',
@@ -216,12 +216,12 @@ describe('change template model', () => {
     expect(directBusinessService.value).toBe('');
   });
 
-  it('fills the empty request fields with the user who opens the change and the department', () => {
+  it('fills the empty request fields with the user who opens the change and the business service', () => {
     expect(withDefaults(changeTemplate(), 'Mateusz Matan', 'Corporate Technology')).toMatchObject({
       requestedFor: 'Mateusz Matan',
       requestedBy: 'Mateusz Matan',
       assignedTo: 'Mateusz Matan',
-      department: 'Corporate Technology',
+      businessService: 'Corporate Technology',
     });
     expect(
       withDefaults(
@@ -229,7 +229,7 @@ describe('change template model', () => {
           requestedFor: 'Grace Turner',
           requestedBy: 'James Carter',
           assignedTo: 'Olivia Bennett',
-          department: 'Operations',
+          businessService: 'Operations',
         }),
         'Mateusz Matan',
         'Corporate Technology',
@@ -238,7 +238,7 @@ describe('change template model', () => {
       requestedFor: 'Grace Turner',
       requestedBy: 'James Carter',
       assignedTo: 'Olivia Bennett',
-      department: 'Operations',
+      businessService: 'Operations',
     });
     expect(withDefaults(changeTemplate(), null, null).requestedFor).toBeNull();
   });

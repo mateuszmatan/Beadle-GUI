@@ -3,7 +3,7 @@ import { fieldLabels, problemText, requestLabel } from './change-problems';
 describe('change problems', () => {
   it('names the fields of a change request', () => {
     expect(requestLabel('fixVersion')).toBe('FixVersion');
-    expect(requestLabel('departmentId')).toBe('Department');
+    expect(requestLabel('businessServiceId')).toBe('Business service');
     expect(requestLabel('schedule.firstUsage')).toBe('First use');
     expect(requestLabel('schedule.downtimeEnd')).toBe('Downtime end');
     expect(requestLabel('template.approvers.l2Manager')).toBe('L2 approver');

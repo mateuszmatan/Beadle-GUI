@@ -72,7 +72,7 @@ describe('ChangeTemplateSection', () => {
       'Approval',
       'Requested for',
       'Requested by',
-      'Department',
+      'Business service',
       'Assignment group',
       'Category',
       'Assigned to',
@@ -102,7 +102,7 @@ describe('ChangeTemplateSection', () => {
     ).toEqual([
       'Find Requested for',
       'Find Requested by',
-      'Find Department',
+      'Find Business service',
       'Find Assignment group',
       'Find Assigned to',
       'Find Release',
@@ -133,8 +133,8 @@ describe('ChangeTemplateSection', () => {
     expect(text(fieldOf(page(), 'Assigned to')?.querySelector('beadle-hint'))).toBe(
       'If left empty: the user who opens the change',
     );
-    expect(text(fieldOf(page(), 'Department')?.querySelector('beadle-hint'))).toBe(
-      'If left empty: the department of the product',
+    expect(text(fieldOf(page(), 'Business service')?.querySelector('beadle-hint'))).toBe(
+      'If left empty: the business service of the product',
     );
     expect(page().querySelectorAll('.read-only input[readonly]')).toHaveLength(2);
   });

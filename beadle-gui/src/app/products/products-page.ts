@@ -5,39 +5,38 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, filter, map } from 'rxjs';
 import { ChangesApi } from '../changes/change-api';
-import { ProductsApi } from '../core/api';
+import { BusinessServicesApi, ProductsApi } from '../core/api';
 import { errorMessage } from '../core/errors';
 import { Product } from '../core/models';
 import { Notifier } from '../core/notifier';
-import { beadleProduct } from '../core/sections';
-import { DepartmentGroup, byDepartment } from '../departments/departments';
+import { productPath } from '../core/sections';
+import { BusinessServiceGroup, byBusinessService } from '../business-services/business-services';
 import { RelativeTimePipe, counted } from '../shared/formatting';
 import { BeadleInput } from '../ui/form-field';
 import { GRID, GridColumn } from '../ui/grid';
 import { BeadleLoading } from '../ui/loading';
 import { ProductDialog, ProductDialogData } from './product-dialog';
-import { DepartmentsApi } from '../core/api';
 
-function tally(group: DepartmentGroup<Product>): string {
-  return counted(group.department?.productCount ?? group.products.length, 'product');
+function tally(group: BusinessServiceGroup<Product>): string {
+  return counted(group.businessService?.productCount ?? group.products.length, 'product');
 }
 
 @Component({
-  selector: 'beadle-products',
+  selector: 'beadle-products-page',
   imports: [ReactiveFormsModule, RouterLink, BeadleInput, GRID, BeadleLoading, RelativeTimePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './beadle-products.html',
-  styleUrl: './beadle-products.scss',
+  templateUrl: './products-page.html',
+  styleUrl: './products-page.scss',
 })
-export class BeadleProducts {
+export class ProductsPage {
   private readonly api = inject(ProductsApi);
-  private readonly departmentsApi = inject(DepartmentsApi);
+  private readonly businessServicesApi = inject(BusinessServicesApi);
   private readonly changesApi = inject(ChangesApi);
   private readonly dialog = inject(Dialog);
   private readonly notifier = inject(Notifier);
   private readonly router = inject(Router);
 
-  protected readonly beadleProduct = beadleProduct;
+  protected readonly productLink = productPath;
   protected readonly productId = (product: Product) => product.id;
   protected readonly clickable = () => 'clickable';
   protected readonly columns: GridColumn<Product>[] = [
@@ -64,7 +63,9 @@ export class BeadleProducts {
     params: () => this.query(),
     stream: ({ params }) => this.api.list(params),
   });
-  protected readonly departments = rxResource({ stream: () => this.departmentsApi.list() });
+  protected readonly businessServices = rxResource({
+    stream: () => this.businessServicesApi.list(),
+  });
   protected readonly templates = rxResource({
     stream: () => this.changesApi.profiles(),
   });
@@ -79,8 +80,8 @@ export class BeadleProducts {
   );
 
   protected readonly groups = computed(() =>
-    this.products.hasValue() && this.departments.hasValue()
-      ? byDepartment(this.departments.value(), this.products.value()).filter(
+    this.products.hasValue() && this.businessServices.hasValue()
+      ? byBusinessService(this.businessServices.value(), this.products.value()).filter(
           (group) => group.products.length || !this.query(),
         )
       : null,
@@ -90,39 +91,39 @@ export class BeadleProducts {
   );
   protected readonly total = computed(() => {
     const groups = this.groups() ?? [];
-    const placed = groups.filter((group) => group.department);
+    const placed = groups.filter((group) => group.businessService);
     const products = placed.reduce((sum, group) => sum + group.products.length, 0);
-    const unassigned = groups.find((group) => !group.department)?.products.length ?? 0;
-    const total = `${counted(products, 'product')} in ${counted(placed.length, 'department')}`;
-    return unassigned ? `${total} · ${unassigned} not in a department` : total;
+    const unassigned = groups.find((group) => !group.businessService)?.products.length ?? 0;
+    const total = `${counted(products, 'product')} in ${counted(placed.length, 'business service')}`;
+    return unassigned ? `${total} · ${unassigned} without a business service` : total;
   });
 
   protected readonly errorMessage = errorMessage;
   protected readonly tally = tally;
 
   protected reload(): void {
-    [this.products, this.departments]
+    [this.products, this.businessServices]
       .filter((resource) => resource.error())
       .forEach((resource) => resource.reload());
   }
 
   protected open(product: Product): void {
-    this.router.navigate(beadleProduct(product.id));
+    this.router.navigate(productPath(product.id));
   }
 
-  protected add(departmentId: number | null = null): void {
+  protected add(businessServiceId: number | null = null): void {
     this.dialog
       .open<Product, ProductDialogData, ProductDialog>(ProductDialog, {
         data: {
-          departments: this.departments.hasValue() ? this.departments.value() : [],
-          departmentId,
+          businessServices: this.businessServices.hasValue() ? this.businessServices.value() : [],
+          businessServiceId,
           product: null,
         },
       })
       .closed.pipe(filter((product): product is Product => !!product))
       .subscribe((product) => {
-        this.notifier.success(`${product.name} added. Now fill in its change template.`);
-        this.router.navigate(beadleProduct(product.id));
+        this.notifier.success(`${product.name} added. Fill in its change template next.`);
+        this.router.navigate(productPath(product.id));
       });
   }
 }

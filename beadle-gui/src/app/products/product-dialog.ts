@@ -20,12 +20,11 @@ import { errorText } from '../shared/form-errors';
 import { DIALOG } from '../ui/dialog';
 import { FORM_FIELD } from '../ui/form-field';
 import { ProductsApi } from '../core/api';
-import { Product } from '../core/models';
-import { Department, PRODUCT_CODE } from '../core/models';
+import { BusinessService, PRODUCT_CODE, Product } from '../core/models';
 
 export interface ProductDialogData {
-  departments: readonly Department[];
-  departmentId: number | null;
+  businessServices: readonly BusinessService[];
+  businessServiceId: number | null;
   product: Product | null;
 }
 
@@ -40,7 +39,7 @@ const CODE_HELP = "2 to 50 characters: a letter first, then A-Z, 0-9, '-' or '_'
   template: `
     <div class="modal-header">
       <h2 beadleDialogTitle>
-        {{ product ? 'Edit the details of ' + product.name : 'Add product' }}
+        {{ product ? 'Edit details of ' + product.name : 'Add product' }}
       </h2>
     </div>
     <form [formGroup]="form" (ngSubmit)="save()" novalidate>
@@ -65,31 +64,31 @@ const CODE_HELP = "2 to 50 characters: a letter first, then A-Z, 0-9, '-' or '_'
               <beadle-label>Product code</beadle-label>
               <input beadleInput class="mono" formControlName="code" autocomplete="off" required />
               <beadle-hint
-                >Short unique name used in reports, for example PAYHUB. Made from the
+                >A short unique name used in reports, for example PAYHUB. Suggested from the product
                 name.</beadle-hint
               >
               <beadle-error>{{ errorText(form.controls.code, codeHelp) }}</beadle-error>
             </beadle-form-field>
           }
           <beadle-form-field>
-            <beadle-label>Department</beadle-label>
-            <select beadleInput formControlName="departmentId" required>
-              @for (department of data.departments; track department.id) {
-                <option [ngValue]="department.id">{{ department.name }}</option>
+            <beadle-label>Business service</beadle-label>
+            <select beadleInput formControlName="businessServiceId" required>
+              @for (businessService of data.businessServices; track businessService.id) {
+                <option [ngValue]="businessService.id">{{ businessService.name }}</option>
               }
             </select>
-            <beadle-error>{{ errorText(form.controls.departmentId) }}</beadle-error>
+            <beadle-error>{{ errorText(form.controls.businessServiceId) }}</beadle-error>
           </beadle-form-field>
           <beadle-form-field>
             <beadle-label>Owner team</beadle-label>
             <input beadleInput formControlName="ownerTeam" />
-            <beadle-hint>The team that looks after the product</beadle-hint>
+            <beadle-hint>The team responsible for the product</beadle-hint>
             <beadle-error>{{ errorText(form.controls.ownerTeam) }}</beadle-error>
           </beadle-form-field>
           <beadle-form-field>
             <beadle-label>Contact e-mail</beadle-label>
             <input beadleInput type="email" formControlName="contactEmail" />
-            <beadle-hint>Where questions about the product go</beadle-hint>
+            <beadle-hint>The address for questions about the product</beadle-hint>
             <beadle-error>{{ errorText(form.controls.contactEmail) }}</beadle-error>
           </beadle-form-field>
         </div>
@@ -147,9 +146,10 @@ export class ProductDialog {
   protected readonly form = new FormGroup({
     name: text(this.product?.name, filled, max(200)),
     code: text('', filled, Validators.pattern(PRODUCT_CODE)),
-    departmentId: new FormControl<number | null>(
-      this.data.departments.find(
-        (department) => department.id === (this.product?.departmentId ?? this.data.departmentId),
+    businessServiceId: new FormControl<number | null>(
+      this.data.businessServices.find(
+        (businessService) =>
+          businessService.id === (this.product?.businessServiceId ?? this.data.businessServiceId),
       )?.id ?? null,
       Validators.required,
     ),
@@ -195,7 +195,7 @@ export class ProductDialog {
     const value = this.form.getRawValue();
     const details = {
       name: value.name.trim(),
-      departmentId: value.departmentId,
+      businessServiceId: value.businessServiceId,
       ownerTeam: optional(value.ownerTeam),
       contactEmail: optional(value.contactEmail),
     };

@@ -8,6 +8,6 @@ export default defineConfig({
     hookTimeout: 20000,
     pool: 'forks',
     maxWorkers,
-    execArgv: ['--max-old-space-size=4096']
-  }
+    execArgv: ['--max-old-space-size=4096'],
+  },
 });

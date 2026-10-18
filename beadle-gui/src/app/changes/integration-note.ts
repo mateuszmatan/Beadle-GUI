@@ -4,16 +4,16 @@ import { catchError, of } from 'rxjs';
 import { ChangeIntegrations, ChangesApi } from './change-api';
 
 const DEMO_PROTECH =
-  'A demo ProTech gives each change its number, moves it through the workflow on its own and applies an update a few seconds after it is published.';
+  'A demo ProTech gives each change its number, moves it through the workflow automatically and applies an update a few seconds after it is published.';
 
 const DEMO_CYBERTRACK =
   'CyberTrack is not connected yet, so a secure coding ticket gets an example number and does not reach the real Jira project SCP.';
 
 const UNREACHABLE_PROTECH =
-  'Beadle-ProTech cannot be reached, so no change can be raised, changed or reminded in ProTech, and the changes show what Beadle stored last, until it answers again.';
+  'Beadle-ProTech cannot be reached, so no change can be raised, changed or reminded in ProTech, and the changes show what Beadle stored last, until it is reachable again.';
 
 const UNREACHABLE_INTERNAL =
-  'Beadle-Internal cannot be reached, so the Jira FixVersions, epics and stories cannot be read and no secure coding ticket can be created, until it answers again.';
+  'Beadle-Internal cannot be reached, so the Jira FixVersions, epics and stories cannot be read and no secure coding ticket can be created, until it is reachable again.';
 
 function changeText(jiraDemo: boolean, proTechDemo: boolean): string | null {
   if (jiraDemo && proTechDemo) {

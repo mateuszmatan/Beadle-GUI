@@ -8,7 +8,7 @@
     beadleInput
     class="search"
     [formControl]="search"
-    placeholder="Search by product, code, team or department"
+    placeholder="Search by product, code, team or business service"
     aria-label="Search products"
   />
   @if (groups()) {
@@ -18,11 +18,11 @@
   <button type="button" class="btn btn-primary" (click)="add()">Add product</button>
 </section>
 
-@if (products.isLoading() || departments.isLoading()) {
+@if (products.isLoading() || businessServices.isLoading()) {
   <beadle-loading />
 }
 
-@if (products.error() ?? departments.error(); as error) {
+@if (products.error() ?? businessServices.error(); as error) {
   <div class="banner" role="alert">
     <span>The products could not be loaded. {{ errorMessage(error) }}</span>
     <button type="button" class="btn btn-link" (click)="reload()">Try again</button>
@@ -41,7 +41,7 @@
     <section class="card empty-state">
       @if (query()) {
         <h3>No product matches "{{ query() }}"</h3>
-        <p>Try another name, code, team or department.</p>
+        <p>Try another name, code, team or business service.</p>
       } @else {
         <h3>No products yet</h3>
         <p>Add the first product, then fill in its change template on its page.</p>
@@ -49,26 +49,28 @@
       }
     </section>
   }
-  @for (group of shown; track group.department?.id) {
-    <section class="card department">
-      <header class="department-header">
-        <div class="department-title">
+  @for (group of shown; track group.businessService?.id) {
+    <section class="card business-service">
+      <header class="business-service-header">
+        <div class="business-service-title">
           <h2>{{ group.name }}</h2>
-          @if (group.department || !query()) {
+          @if (group.businessService || !query()) {
             <span class="tally">{{ tally(group) }}</span>
           }
         </div>
-        @if (group.department; as department) {
+        @if (group.businessService; as businessService) {
           <button
             type="button"
             class="btn btn-link"
-            [attr.aria-label]="'Add product to ' + department.name"
-            (click)="add(department.id)"
+            [attr.aria-label]="'Add product to ' + businessService.name"
+            (click)="add(businessService.id)"
           >
             Add product
           </button>
         } @else {
-          <p class="muted hint">Open each product and choose its department with Edit details.</p>
+          <p class="muted hint">
+            Open each product and choose its business service with Edit details.
+          </p>
         }
       </header>
 
@@ -85,7 +87,7 @@
         >
           <ng-template beadleCell="product" let-product>
             <div class="product">
-              <a class="name quiet-link" [routerLink]="beadleProduct(product.id)">{{
+              <a class="name quiet-link" [routerLink]="productLink(product.id)">{{
                 product.name
               }}</a>
               <span class="code mono" title="Product code">{{ product.code }}</span>
@@ -93,7 +95,7 @@
           </ng-template>
           <ng-template beadleCell="template" let-product>
             @if (templates.error()) {
-              <span class="muted">Not known</span>
+              <span class="muted">Unknown</span>
             } @else if (templates.hasValue()) {
               @if (stored().get(product.id); as saved) {
                 <span class="chip success">Filled in</span

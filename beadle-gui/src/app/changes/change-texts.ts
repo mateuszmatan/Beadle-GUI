@@ -15,10 +15,10 @@ import { FORM_FIELD } from '../ui/form-field';
         <button
           type="button"
           class="text-link new-text"
-          aria-label="Use the generated text for the short description"
+          aria-label="Use generated text for the short description"
           (click)="use(shortDescription(), text.shortDescription)"
         >
-          Use the generated text
+          Use generated text
         </button>
       }
     }
@@ -35,10 +35,10 @@ import { FORM_FIELD } from '../ui/form-field';
         <button
           type="button"
           class="text-link new-text"
-          aria-label="Use the generated text for the description"
+          aria-label="Use generated text for the description"
           (click)="use(description(), text.description)"
         >
-          Use the generated text
+          Use generated text
         </button>
       }
     }

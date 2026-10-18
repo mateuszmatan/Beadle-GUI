@@ -22,10 +22,6 @@ class StubResponse {
                 body: toJson([status: status, title: title, detail: detail] + extra))
     }
 
-    static StubResponse yaml(String text) {
-        new StubResponse(status: 200, contentType: 'application/yaml', body: text)
-    }
-
     static StubResponse empty(int status = 204) {
         new StubResponse(status: status, contentType: 'application/json', body: '')
     }

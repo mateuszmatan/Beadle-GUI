@@ -257,11 +257,11 @@ export function taskStatus(task: { state: TaskState; approval: string }): string
   const approval = APPROVALS[task.approval] ?? `approval ${task.approval}`;
   switch (task.state) {
     case 'OPEN':
-      return `Not done yet; ${approval}.`;
+      return `Not started; ${approval}.`;
     case 'WORK_IN_PROGRESS':
-      return `Being carried out; ${approval}.`;
+      return `In progress; ${approval}.`;
     case 'CLOSED':
-      return 'Done.';
+      return 'Completed.';
     case 'CANCELED':
       return 'Canceled; no longer part of the change.';
   }

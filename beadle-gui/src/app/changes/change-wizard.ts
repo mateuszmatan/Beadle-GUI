@@ -13,13 +13,13 @@ import { rxResource, takeUntilDestroyed, toObservable, toSignal } from '@angular
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { EMPTY, Observable, Subject, catchError, finalize, of, switchMap } from 'rxjs';
-import { MyDepartment } from '../departments/my-department';
-import { ProductsApi, UserApi } from '../core/api';
+import { MyBusinessService } from '../business-services/my-business-service';
+import { BusinessServicesApi, ProductsApi, UserApi } from '../core/api';
 import { errorMessage, fieldProblems } from '../core/errors';
-import { CHANGES, NEW_CHANGE, beadleChange, beadleProduct } from '../core/sections';
+import { CHANGES, NEW_CHANGE, changePath, productPath } from '../core/sections';
 import { KeepsDraft, SessionEnd } from '../core/session-end';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
-import { byDepartment } from '../departments/departments';
+import { byBusinessService } from '../business-services/business-services';
 import { applyFieldProblems, applyProblemsAt, filled } from '../shared/form-controls';
 import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
@@ -80,7 +80,6 @@ import {
 import { IntegrationNote } from './integration-note';
 import { SecureCodingFields } from './secure-coding-form';
 import { SecureCodingForm, secureCodingForm, secureCodingRequest } from './secure-coding-model';
-import { DepartmentsApi } from '../core/api';
 
 type StepKey = SectionKey | 'review' | 'tasks' | 'ticket' | 'raised';
 
@@ -95,7 +94,7 @@ const STEP_KEYS: readonly StepKey[] = [
 export const STEPS = [
   ...WIZARD_SECTIONS.map((section) => section.step),
   'Review',
-  'Add CTASKs',
+  'Change tasks',
   'Secure coding',
   'Summary',
 ];
@@ -106,14 +105,14 @@ const TICKET = STEP_KEYS.indexOf('ticket');
 const RAISED = STEP_KEYS.indexOf('raised');
 
 const NEXT_LABELS: Partial<Record<StepKey, string>> = {
-  review: 'Create and add CTASKs and SecureCoding ticket',
-  tasks: 'Create the CTASKs in ProTech',
-  ticket: 'Create the secure coding ticket in CyberTrack',
+  review: 'Raise change in ProTech',
+  tasks: 'Create change tasks in ProTech',
+  ticket: 'Create secure coding ticket in CyberTrack',
 };
 
 const LATER_LABELS: Partial<Record<StepKey, string>> = {
-  tasks: 'Add CTASKs later',
-  ticket: 'Create the ticket later',
+  tasks: 'Add change tasks later',
+  ticket: 'Create ticket later',
 };
 
 /** The name the wizard keeps its draft under while the browser signs in again, see {@link SessionEnd}. */
@@ -125,7 +124,7 @@ export const WIZARD_DRAFT = 'new-change';
  */
 export interface WizardDraft {
   step: number;
-  departmentId: number | null;
+  businessServiceId: number | null;
   productId: number | null;
   template: ChangeTemplate | null;
   schedule: ScheduleInput | null;
@@ -180,8 +179,8 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
   protected readonly versionText = versionText;
   protected readonly approverNames = approverNames;
   protected readonly counted = counted;
-  protected readonly templateLink = beadleProduct;
-  protected readonly changeLink = beadleChange;
+  protected readonly templateLink = productPath;
+  protected readonly changeLink = changePath;
 
   protected readonly step = signal(0);
   protected readonly stepKey = computed(() => STEP_KEYS[this.step()]);
@@ -190,21 +189,23 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
   );
   protected readonly checked = signal(false);
 
-  private readonly myDepartment = inject(MyDepartment);
-  protected readonly departmentId = new FormControl(this.myDepartment.departmentId());
+  private readonly myBusinessService = inject(MyBusinessService);
+  protected readonly businessServiceId = new FormControl(
+    this.myBusinessService.businessServiceId(),
+  );
   protected readonly productId = new FormControl<number | null>(null);
-  protected readonly chosenDepartment = toSignal(this.departmentId.valueChanges, {
-    initialValue: this.departmentId.value,
+  protected readonly chosenBusinessService = toSignal(this.businessServiceId.valueChanges, {
+    initialValue: this.businessServiceId.value,
   });
   private readonly chosenProduct = toSignal(this.productId.valueChanges, { initialValue: null });
 
-  protected readonly departmentsError = signal<string | null>(null);
-  protected readonly departments = toSignal(
-    inject(DepartmentsApi)
+  protected readonly businessServicesError = signal<string | null>(null);
+  protected readonly businessServices = toSignal(
+    inject(BusinessServicesApi)
       .list()
       .pipe(
         catchError((error) => {
-          this.departmentsError.set(errorMessage(error));
+          this.businessServicesError.set(errorMessage(error));
           return of([]);
         }),
       ),
@@ -220,20 +221,22 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
     ),
     { initialValue: [] },
   );
-  private readonly grouped = computed(() => byDepartment(this.departments(), this.catalogue()));
+  private readonly grouped = computed(() =>
+    byBusinessService(this.businessServices(), this.catalogue()),
+  );
   protected readonly groups = computed(() =>
-    this.grouped().flatMap(({ department, products }) =>
-      department && products.length ? [{ department, products }] : [],
+    this.grouped().flatMap(({ businessService, products }) =>
+      businessService && products.length ? [{ businessService, products }] : [],
     ),
   );
   protected readonly unplaced = computed(() =>
-    (this.grouped().find((group) => !group.department)?.products ?? [])
+    (this.grouped().find((group) => !group.businessService)?.products ?? [])
       .map((product) => product.name)
       .join(', '),
   );
-  protected readonly productsInDepartment = computed(() => {
-    const id = this.chosenDepartment();
-    return this.groups().find((group) => group.department.id === id)?.products ?? [];
+  protected readonly productsOfBusinessService = computed(() => {
+    const id = this.chosenBusinessService();
+    return this.groups().find((group) => group.businessService.id === id)?.products ?? [];
   });
 
   private readonly userApi = inject(UserApi);
@@ -360,8 +363,8 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
         takeUntilDestroyed(),
       )
       .subscribe((draft) => this.showTexts(draft));
-    this.departmentId.valueChanges.pipe(takeUntilDestroyed()).subscribe((id) => {
-      this.myDepartment.choose(id);
+    this.businessServiceId.valueChanges.pipe(takeUntilDestroyed()).subscribe((id) => {
+      this.myBusinessService.choose(id);
       this.productId.setValue(null);
     });
     this.productId.valueChanges.pipe(takeUntilDestroyed()).subscribe(() => this.forgetScope());
@@ -373,7 +376,8 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
         const draft = ready ? this.takeResumed() : null;
         const details = ready
           ? templateForm(
-              draft?.template ?? withDefaults(profile.template, openedBy, this.productDepartment()),
+              draft?.template ??
+                withDefaults(profile.template, openedBy, this.productBusinessService()),
             )
           : null;
         this.details.set(details);
@@ -413,7 +417,7 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
     const tasks = this.tasks();
     return {
       step: this.step(),
-      departmentId: this.departmentId.value,
+      businessServiceId: this.businessServiceId.value,
       productId: this.productId.value,
       template: details ? toTemplate(details) : null,
       schedule: this.schedule()?.getRawValue() ?? null,
@@ -506,7 +510,7 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
           : null;
       case 'tasks':
         if (!this.tasks()!.length) {
-          return 'Add at least one change task, or choose Add CTASKs later';
+          return 'Add at least one change task, or choose Add change tasks later';
         }
         return this.tasks()!.invalid ? 'Check the change tasks' : null;
       case 'ticket':
@@ -614,10 +618,10 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
     this.step.set(0);
   }
 
-  /** Chooses the department, the product and the Jira scope of the draft; its profile then gives the rest. */
+  /** Chooses the business service, the product and the Jira scope of the draft; its profile then gives the rest. */
   private reopen(draft: WizardDraft): void {
-    if (draft.departmentId !== null) {
-      this.departmentId.setValue(draft.departmentId);
+    if (draft.businessServiceId !== null) {
+      this.businessServiceId.setValue(draft.businessServiceId);
     }
     this.productId.setValue(draft.productId);
     this.fixVersion.setValue(draft.fixVersion);
@@ -669,9 +673,9 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
     }
   }
 
-  private productDepartment(): string | null {
+  private productBusinessService(): string | null {
     const id = this.chosenProduct();
-    return this.catalogue().find((product) => product.id === id)?.departmentName ?? null;
+    return this.catalogue().find((product) => product.id === id)?.businessServiceName ?? null;
   }
 
   private productProblem(): string | null {
@@ -855,7 +859,7 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
     this.changesApi
       .createTasks(change.id!, {
         version: change.version!,
-        departmentId: this.departmentId.value ?? change.departmentId!,
+        businessServiceId: this.businessServiceId.value ?? change.businessServiceId!,
         tasks: toTaskRequests(this.tasks()!),
       })
       .pipe(
@@ -884,7 +888,7 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
         secureCodingRequest(
           this.secureCoding()!,
           change,
-          this.departmentId.value ?? change.departmentId!,
+          this.businessServiceId.value ?? change.businessServiceId!,
         ),
       )
       .pipe(

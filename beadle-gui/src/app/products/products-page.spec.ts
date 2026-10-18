@@ -4,20 +4,19 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
-import { Product } from '../core/models';
+import { BusinessService, Product } from '../core/models';
 import { buttonOf, gridCell, gridHeaders, gridRows, settleGrid, text, toast } from '../testing/dom';
-import { department, product } from '../testing/fixtures';
+import { businessService, product } from '../testing/fixtures';
 import { ChangeProfileSummary } from '../changes/change-api';
-import { BeadleProducts } from './beadle-products';
+import { ProductsPage } from './products-page';
 import { ProductDialog } from './product-dialog';
-import { Department } from '../core/models';
 
-describe('BeadleProducts', () => {
-  let fixture: ComponentFixture<BeadleProducts>;
+describe('ProductsPage', () => {
+  let fixture: ComponentFixture<ProductsPage>;
   let http: HttpTestingController;
   let navigate: ReturnType<typeof vi.spyOn>;
 
-  const fundServices = department({
+  const fundServices = businessService({
     id: 5,
     name: 'Fund Services',
     productCount: 0,
@@ -27,8 +26,8 @@ describe('BeadleProducts', () => {
     code: 'PAYHUB',
     name: 'Payments Hub',
     ownerTeam: null,
-    departmentId: 5,
-    departmentName: 'Fund Services',
+    businessServiceId: 5,
+    businessServiceName: 'Fund Services',
   });
   const saved: ChangeProfileSummary = {
     productId: 1,
@@ -39,18 +38,18 @@ describe('BeadleProducts', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [BeadleProducts],
+      imports: [ProductsPage],
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
     http = TestBed.inject(HttpTestingController);
     navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-    fixture = TestBed.createComponent(BeadleProducts);
+    fixture = TestBed.createComponent(ProductsPage);
   });
 
   afterEach(() => http.verify());
 
   const page = () => fixture.nativeElement as HTMLElement;
-  const cards = () => [...page().querySelectorAll<HTMLElement>('section.department')];
+  const cards = () => [...page().querySelectorAll<HTMLElement>('section.business-service')];
   const card = (name: string) =>
     cards().find((section) => text(section.querySelector('h2')) === name)!;
   const rowOf = (name: string) =>
@@ -60,12 +59,12 @@ describe('BeadleProducts', () => {
 
   async function load(
     products: Product[] = [product(), payments],
-    departments: Department[] = [department(), fundServices],
+    businessServices: BusinessService[] = [businessService(), fundServices],
     defaults: ChangeProfileSummary[] | null = [saved],
   ) {
     fixture.detectChanges();
     http.expectOne('/api/products').flush(products);
-    http.expectOne('/api/departments').flush(departments);
+    http.expectOne('/api/business-services').flush(businessServices);
     const profiles = http.expectOne('/api/change-profiles');
     if (defaults) {
       profiles.flush(defaults);
@@ -86,7 +85,7 @@ describe('BeadleProducts', () => {
     fixture.detectChanges();
   }
 
-  it('lists the products by department with the state of their change template', async () => {
+  it('lists the products by business service with the state of their change template', async () => {
     await load();
 
     expect(cards().map((section) => text(section.querySelector('h2')))).toEqual([
@@ -94,7 +93,7 @@ describe('BeadleProducts', () => {
       'Fund Services',
     ]);
     expect(text(card('Corporate Technology').querySelector('.tally'))).toBe('1 product');
-    expect(text(page().querySelector('.count'))).toBe('2 products in 2 departments');
+    expect(text(page().querySelector('.count'))).toBe('2 products in 2 business services');
     expect(gridHeaders(card('Fund Services'))).toEqual([
       'Product',
       'Owner team',
@@ -110,7 +109,6 @@ describe('BeadleProducts', () => {
     expect(text(page().querySelector('.tab-help'))).toBe(
       'Open a product to see its details and fill in its change template. Until then, its new changes start with values suggested from its name, code and owner team.',
     );
-    expect(text(page())).not.toContain('service');
     expect(rowOf('CertScanner').querySelector('a')?.getAttribute('href')).toBe('/admin/products/1');
 
     const follow = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
@@ -130,8 +128,8 @@ describe('BeadleProducts', () => {
     expect(text(page().querySelector('.banner span'))).toBe(
       'The products are listed, but the state of their change templates could not be loaded. The change templates are not available',
     );
-    expect(text(gridCell(rowOf('CertScanner'), 'template'))).toBe('Not known');
-    expect(cells('Payments Hub')).toEqual(['Payments HubPAYHUB', '–', 'Not known']);
+    expect(text(gridCell(rowOf('CertScanner'), 'template'))).toBe('Unknown');
+    expect(cells('Payments Hub')).toEqual(['Payments HubPAYHUB', '–', 'Unknown']);
 
     buttonOf(page().querySelector('.banner')!, 'Try again').click();
     fixture.detectChanges();
@@ -141,23 +139,23 @@ describe('BeadleProducts', () => {
     expect(text(gridCell(rowOf('CertScanner'), 'template'))).toBe('Filled in · saved 2 days ago');
   });
 
-  it('gathers the products without a department in a last card', async () => {
+  it('gathers the products without a business service in a last card', async () => {
     await load([
       product(),
-      product({ id: 7, name: 'Ledger', departmentId: null, departmentName: null }),
+      product({ id: 7, name: 'Ledger', businessServiceId: null, businessServiceName: null }),
     ]);
     const unassigned = cards().at(-1)!;
 
-    expect(text(unassigned.querySelector('h2'))).toBe('Not in a department');
+    expect(text(unassigned.querySelector('h2'))).toBe('No business service');
     expect(text(unassigned.querySelector('.tally'))).toBe('1 product');
     expect(text(unassigned.querySelector('.hint'))).toBe(
-      'Open each product and choose its department with Edit details.',
+      'Open each product and choose its business service with Edit details.',
     );
     expect(text(card('Fund Services').querySelector('.no-products'))).toBe(
       'No products in Fund Services yet.',
     );
     expect(text(page().querySelector('.count'))).toBe(
-      '1 product in 2 departments · 1 not in a department',
+      '1 product in 2 business services · 1 without a business service',
     );
   });
 
@@ -168,7 +166,7 @@ describe('BeadleProducts', () => {
     http.expectOne('/api/products?search=payments').flush([payments]);
     await fixture.whenStable();
     expect(cards().map((section) => text(section.querySelector('h2')))).toEqual(['Fund Services']);
-    expect(text(page().querySelector('.count'))).toBe('1 product in 1 department');
+    expect(text(page().querySelector('.count'))).toBe('1 product in 1 business service');
 
     await search('archive');
     http.expectOne('/api/products?search=archive').flush([]);
@@ -196,7 +194,7 @@ describe('BeadleProducts', () => {
     buttonOf(page().querySelector('.banner')!, 'Try again').click();
     fixture.detectChanges();
     http.expectOne('/api/products').flush([payments]);
-    http.expectNone('/api/departments');
+    http.expectNone('/api/business-services');
     await fixture.whenStable();
     expect(page().querySelector('.banner')).toBeNull();
     expect(cards().map((section) => text(section.querySelector('h2')))).toEqual([
@@ -205,7 +203,7 @@ describe('BeadleProducts', () => {
     ]);
   });
 
-  it('adds a product from the toolbar or a department card and opens it', async () => {
+  it('adds a product from the toolbar or a business service card and opens it', async () => {
     await load();
     const created = product({ id: 7, name: 'Trade Archive' });
     const open = vi.spyOn(TestBed.inject(Dialog), 'open');
@@ -216,8 +214,8 @@ describe('BeadleProducts', () => {
     buttonOf(page().querySelector('.toolbar')!, 'Add product').click();
     expect(open.mock.calls[0][0]).toBe(ProductDialog);
     expect(open.mock.calls[0][1]?.data).toEqual({
-      departments: [department(), fundServices],
-      departmentId: null,
+      businessServices: [businessService(), fundServices],
+      businessServiceId: null,
       product: null,
     });
     expect(navigate).not.toHaveBeenCalled();
@@ -225,9 +223,9 @@ describe('BeadleProducts', () => {
     const addToFund = buttonOf(card('Fund Services'), 'Add product');
     expect(addToFund.getAttribute('aria-label')).toBe('Add product to Fund Services');
     addToFund.click();
-    expect(open.mock.calls[1][1]?.data).toMatchObject({ departmentId: 5 });
+    expect(open.mock.calls[1][1]?.data).toMatchObject({ businessServiceId: 5 });
     await fixture.whenStable();
-    expect(snack()).toContain('Trade Archive added. Now fill in its change template.');
+    expect(snack()).toContain('Trade Archive added. Fill in its change template next.');
     expect(navigate).toHaveBeenCalledWith(['/admin/products', 7]);
   });
 });

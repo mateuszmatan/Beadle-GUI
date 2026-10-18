@@ -63,13 +63,13 @@ describe('secure coding model', () => {
     expect(ticketName(form, 'CertScanner')).toBe(`APO-ID_CertScanner-${date}`);
   });
 
-  it('sends the trimmed inputs at the version of the change for the chosen department', () => {
+  it('sends the trimmed inputs at the version of the change for the chosen business service', () => {
     const form = secureCodingForm(change);
     form.patchValue({ apoNumber: ' APO-777 ', qcApplicationLink: ' https://cert-qc.bbh.com ' });
 
     expect(secureCodingRequest(form, change, 3)).toEqual({
       version: 4,
-      departmentId: 3,
+      businessServiceId: 3,
       apoNumber: 'APO-777',
       implementationDate: form.controls.implementationDate.value,
       bitbucketUrl: 'https://bitbucket.bbh.com/projects/CERT/repos/cert',

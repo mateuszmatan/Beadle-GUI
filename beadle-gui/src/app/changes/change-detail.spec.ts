@@ -2,7 +2,10 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { MY_DEPARTMENT_KEY, MyDepartment } from '../departments/my-department';
+import {
+  MY_BUSINESS_SERVICE_KEY,
+  MyBusinessService,
+} from '../business-services/my-business-service';
 import {
   changeOptions,
   changeSchedule,
@@ -41,7 +44,7 @@ describe('the text of an update', () => {
     );
     expect(
       updateText(
-        changeUpdate({ status: 'APPLIED', fields: [], departmentName: null, checkedAt: null }),
+        changeUpdate({ status: 'APPLIED', fields: [], businessServiceName: null, checkedAt: null }),
         NOW,
       ),
     ).toBe(`ProTech applied the update of ${requested}.`);
@@ -80,8 +83,8 @@ describe('ChangeDetail', () => {
     fixture.detectChanges();
   }
 
-  async function show(change: ProductionChange | null, departmentId: number | null = 3) {
-    TestBed.inject(MyDepartment).choose(departmentId);
+  async function show(change: ProductionChange | null, businessServiceId: number | null = 3) {
+    TestBed.inject(MyBusinessService).choose(businessServiceId);
     fixture = TestBed.createComponent(ChangeDetail);
     fixture.componentRef.setInput('id', 7);
     await settle();
@@ -104,13 +107,13 @@ describe('ChangeDetail', () => {
     vi.useRealTimers();
     http.match('/api/changes/options').forEach((request) => request.flush(changeOptions()));
     http.verify();
-    localStorage.removeItem(MY_DEPARTMENT_KEY);
+    localStorage.removeItem(MY_BUSINESS_SERVICE_KEY);
   });
 
   it('shows where a change is, who approves it, when it installs, what it delivers, its tasks and the rest folded away', async () => {
     await show(
       productionChange({
-        url: 'https://bbh.service-now.com/CHG0012345',
+        url: 'https://protech.bbh.test/CHG0012345',
         schedule: changeSchedule({
           downtimeStart: '2026-10-10T06:00:00Z',
           downtimeEnd: '2026-10-10T07:00:00Z',
@@ -200,7 +203,7 @@ describe('ChangeDetail', () => {
       'State: Primary Approval',
       'Requested for: not set',
       'Requested by: not set',
-      'Department: not set',
+      'Business service: not set',
       'Assignment group: Technology Architecture',
       'Category: Application',
       'Assigned to: not set',
@@ -216,7 +219,7 @@ describe('ChangeDetail', () => {
     ]);
     expect(rows('What it delivers')).toEqual([
       'Product: CertScanner (CERT)',
-      'Product department: Corporate Technology',
+      'Business service of the product: Corporate Technology',
       'FixVersion: CERT 4.2',
       'Jira project: CERT',
       'Epics: CERT-1',
@@ -241,7 +244,7 @@ describe('ChangeDetail', () => {
       ['L1 approverPrimary Approval', 'Olivia Bennett', 'Requested', '', 'Remind'],
       ['L2 approverSecondary Approval', 'James Carter', 'Not Approved', '', 'Remind'],
       ['Support approverSupport Approval', 'Jane Smith', 'Not Approved', '', 'Remind'],
-      ['CTASK approvals'],
+      ['Change task approvals'],
       ['CTASK0020001Release Management', 'Rebecca Lawson, Thomas Ashby', 'Requested', '', 'Remind'],
     ]);
     expect(rows('Secure coding')).toEqual([
@@ -260,7 +263,7 @@ describe('ChangeDetail', () => {
     ).toContain('Validation plan: Run the smoke tests.');
     const tasks = [...page().querySelectorAll<HTMLElement>('beadle-change-tasks-form .task-row')];
     expect(tasks.map((task) => text(task.querySelector('.task-head')))).toEqual([
-      '1Release ManagementOpenNot done yet; approval requested.',
+      '1Release ManagementOpenNot started; approval requested.',
       '2Change taskCanceledCanceled; no longer part of the change.',
       '3Change taskNot in ProTech yet.',
     ]);
@@ -286,11 +289,11 @@ describe('ChangeDetail', () => {
     );
     expect(page().querySelector('.secure-coding-missing')).toBeNull();
     expect(text(page().querySelector('pre'))).toBe('Production release of CertScanner (CERT).');
-    expect(text(page().querySelector('a[href="https://bbh.service-now.com/CHG0012345"]'))).toBe(
+    expect(text(page().querySelector('a[href="https://protech.bbh.test/CHG0012345"]'))).toBe(
       'Open in ProTech',
     );
-    expect(text(page().querySelector('a[href="/admin/products/1"]'))).toBe('Open the product');
-    expect(text(page().querySelector('a[href="/changes/7/edit"]'))).toBe('Edit the change');
+    expect(text(page().querySelector('a[href="/admin/products/1"]'))).toBe('Open product');
+    expect(text(page().querySelector('a[href="/changes/7/edit"]'))).toBe('Edit change');
     expect(page().querySelector('.banner.update')).toBeNull();
   });
 
@@ -298,7 +301,7 @@ describe('ChangeDetail', () => {
     await show(productionChange({ tasks: [] }));
 
     expect(text(page().querySelector('.none'))).toBe(
-      'No change tasks yet. Add them with Edit the change.',
+      'No change tasks yet. Add them with Edit change.',
     );
     expect(page().querySelector('beadle-change-tasks-form')).toBeNull();
     fixture.destroy();
@@ -307,7 +310,7 @@ describe('ChangeDetail', () => {
     expect(text(page().querySelector('.none'))).toBe('None');
   });
 
-  it('asks for the secure coding ticket of an open change of your department that has none', async () => {
+  it('asks for the secure coding ticket of an open change of your business service that has none', async () => {
     const unticketed = productionChange({
       template: changeTemplate({ secureCodingTicket: null }),
     });
@@ -346,7 +349,7 @@ describe('ChangeDetail', () => {
     );
     expect(text(page().querySelector('.sync-problem > span'))).toBe(
       'ProTech could not be reached: timed out. Beadle shows what it last read from ProTech 1 hour ago. ' +
-        'Try again in a moment; if it keeps failing, tell the Beadle administrator.',
+        'Try again in a moment. If the problem persists, contact the Beadle administrator.',
     );
     expect(page().querySelector('.note.sync')).toBeNull();
     buttonOf(page(), 'Try again').click();
@@ -362,17 +365,17 @@ describe('ChangeDetail', () => {
     );
     expect(text(page().querySelector('.sync-problem > span'))).toBe(
       'ProTech has no change CHG0012345. Beadle shows what it last read from ProTech. ' +
-        'Try again in a moment; if it keeps failing, tell the Beadle administrator.',
+        'Try again in a moment. If the problem persists, contact the Beadle administrator.',
     );
   }, 15000);
 
-  it('lets only the department of an open change edit it', async () => {
+  it('lets only the business service of an open change edit it', async () => {
     await show(productionChange(), null);
-    expect(buttonOf(page(), 'Edit the change').disabled).toBe(true);
+    expect(buttonOf(page(), 'Edit change').disabled).toBe(true);
     expect(text(page().querySelector('.edit-hint'))).toBe(
-      'Choose your department in Changes to change it',
+      'Choose your business service in Changes to change it',
     );
-    expect(buttonOf(page(), 'Edit the change').getAttribute('aria-describedby')).toBe('edit-hint');
+    expect(buttonOf(page(), 'Edit change').getAttribute('aria-describedby')).toBe('edit-hint');
     fixture.destroy();
 
     await show(productionChange(), 5);
@@ -382,7 +385,7 @@ describe('ChangeDetail', () => {
     fixture.destroy();
 
     await show(productionChange({ state: 'CLOSED' }), 3);
-    expect(buttonOf(page(), 'Edit the change')).toBeUndefined();
+    expect(buttonOf(page(), 'Edit change')).toBeUndefined();
     expect(page().querySelector('a[href="/changes/7/edit"]')).toBeNull();
   });
 

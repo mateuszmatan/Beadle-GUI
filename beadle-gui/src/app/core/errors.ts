@@ -3,10 +3,10 @@ import { FieldProblem } from '../core/models';
 
 const DEFAULT_REASONS = new Set(['OK', 'Unknown Error']);
 
-export const RETRY = 'Try again in a moment; if it keeps failing, tell the Beadle administrator.';
+export const RETRY =
+  'Try again in a moment. If the problem persists, contact the Beadle administrator.';
 
-export const UNREACHABLE =
-  'Beadle cannot be reached. Check your network connection and try again.';
+export const UNREACHABLE = 'Beadle cannot be reached. Check your network connection and try again.';
 
 interface Problem {
   detail?: unknown;

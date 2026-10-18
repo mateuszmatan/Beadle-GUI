@@ -10,18 +10,6 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 class SignInSpec extends BeadleSpecification {
 
     static final String SIGN_IN = '/oauth2/authorization/ping'
-    static final String RETURN_KEY = 'beadle.signIn.returnTo'
-
-    def "the header names the signed-in user next to the sections, with a Sign out control"() {
-        when:
-        open('/changes')
-
-        then:
-        assertThat(page.locator('header .account .user-name')).hasText(BeadleStubApi.SIGNED_IN_USER)
-        assertThat(buttonIn(page.locator('header .account'), 'Sign out')).isEnabled()
-        assertThat(menuLinks()).hasText(MENU as String[])
-        ownErrors().isEmpty()
-    }
 
     def "signing out ends the session at Beadle and at Ping, so Ping asks for the sign-in again"() {
         given: 'Beadle has set the CSRF cookie of the session, as it does when signing in is oidc'

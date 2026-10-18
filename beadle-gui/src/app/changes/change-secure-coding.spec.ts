@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { MyDepartment } from '../departments/my-department';
+import { MyBusinessService } from '../business-services/my-business-service';
 import { Notifier } from '../core/notifier';
 import { changeTemplate, changeUpdate, productionChange } from '../testing/change-fixtures';
 import { buttonOf, enter, errorOf, inputOf, text } from '../testing/dom';
@@ -40,8 +40,8 @@ describe('ChangeSecureCoding', () => {
     fixture.detectChanges();
   }
 
-  async function show(change: ProductionChange = productionChange(), departmentId = 3) {
-    TestBed.inject(MyDepartment).choose(departmentId);
+  async function show(change: ProductionChange = productionChange(), businessServiceId = 3) {
+    TestBed.inject(MyBusinessService).choose(businessServiceId);
     fixture = TestBed.createComponent(ChangeSecureCoding);
     fixture.componentRef.setInput('id', 7);
     await settle();
@@ -55,7 +55,7 @@ describe('ChangeSecureCoding', () => {
   }
 
   async function create() {
-    buttonOf(page(), 'Create the secure coding ticket in CyberTrack').click();
+    buttonOf(page(), 'Create secure coding ticket in CyberTrack').click();
     await settle();
   }
 
@@ -69,7 +69,7 @@ describe('ChangeSecureCoding', () => {
 
   afterEach(() => {
     http.verify();
-    TestBed.inject(MyDepartment).choose(null);
+    TestBed.inject(MyBusinessService).choose(null);
   });
 
   it('creates the secure coding ticket in CyberTrack from the defaults of the change and goes back to it', async () => {
@@ -95,7 +95,7 @@ describe('ChangeSecureCoding', () => {
     const request = http.expectOne({ method: 'POST', url: '/api/changes/7/secure-coding' });
     expect(request.request.body).toEqual({
       version: 4,
-      departmentId: 3,
+      businessServiceId: 3,
       apoNumber: 'APO-24680',
       implementationDate: date,
       bitbucketUrl: 'https://bitbucket.bbh.com/projects/CERT/repos/cert',
@@ -110,7 +110,7 @@ describe('ChangeSecureCoding', () => {
 
     expect(hand).toHaveBeenCalledWith(ticketed);
     expect(success).toHaveBeenCalledWith(
-      'SCP-1234 is created in CyberTrack and sent to ProTech as the secure coding ticket of CHG0012345.',
+      'SCP-1234 has been created in CyberTrack and sent to ProTech as the secure coding ticket of CHG0012345.',
     );
     expect(navigate).toHaveBeenCalledWith(['/changes', 7]);
     expect(fixture.componentInstance.hasUnsavedChanges()).toBe(false);
