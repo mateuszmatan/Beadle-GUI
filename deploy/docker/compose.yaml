@@ -1,5 +1,6 @@
 # The Docker test environment: Beadle-GUI, Beadle-Internal and Beadle-ProTech on one network, under the same service
-# names as in OpenShift. Build the three jars first (`gradle build` in each repository), then from this folder:
+# names as in OpenShift. Build the three jars first (`./gradlew bootJar` in Beadle-Internal and Beadle-ProTech,
+# `./gradlew beadleJar` here), then from this folder:
 #   BEADLE_SERVICE_TOKEN=<any secret> docker compose up --build
 # The profile is local (H2 in a volume, the demo catalogue, signed in as BEADLE_SIGNED_IN_USER). For Oracle, run with
 # SPRING_PROFILES_ACTIVE=rd and DB_URL, DB_USERNAME, DB_PASSWORD (plus the system URLs and the PING_* variables, since
