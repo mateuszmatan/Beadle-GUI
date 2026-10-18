@@ -4,7 +4,7 @@ import com.bbh.itss.beadle.domain.shared.ValidationProblems;
 
 import java.time.Instant;
 
-import static com.bbh.itss.beadle.domain.shared.Versions.requireCurrent;
+import static com.bbh.itss.beadle.domain.shared.Versions.requireReadAt;
 import static java.util.Objects.requireNonNull;
 
 public record Product(Long id, ProductDetails details, long version, Instant updatedAt) {
@@ -14,7 +14,7 @@ public record Product(Long id, ProductDetails details, long version, Instant upd
     }
 
     public Product change(Long expectedVersion, ProductDetails changed, ProductDirectory directory) {
-        requireCurrent(expectedVersion, version);
+        requireReadAt(expectedVersion, version);
         ProductDetails kept = new ProductDetails(details.code(), changed.name(), changed.ownerTeam(),
                 changed.contactEmail(), changed.businessServiceId());
         return new Product(id, checked(id, kept, directory), version, updatedAt);
