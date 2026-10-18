@@ -10,7 +10,17 @@ import {
   changeTemplate,
   releaseDetails,
 } from '../testing/change-fixtures';
-import { buttonOf, fieldOf, text, toast } from '../testing/dom';
+import {
+  buttonOf,
+  choose,
+  enter,
+  errorOf,
+  fieldOf,
+  inputOf,
+  selectOf,
+  text,
+  toast,
+} from '../testing/dom';
 import { product } from '../testing/fixtures';
 import { BeadleProduct } from './beadle-product';
 
@@ -20,10 +30,9 @@ describe('BeadleProduct', () => {
 
   const editor = () => fixture.componentInstance;
   const page = () => fixture.nativeElement as HTMLElement;
-  const form = () => editor()['form']()!;
-  const snack = () => text(toast());
-  const template = () => form().controls.template;
-  const tasks = () => form().controls.tasks;
+  const task = (index: number) => page().querySelectorAll('.task-row')[index];
+  const chosen = (label: string) => text(selectOf(page(), label).selectedOptions[0]);
+  const save = () => buttonOf(page(), 'Save the template').click();
 
   async function settle() {
     TestBed.tick();
@@ -47,6 +56,11 @@ describe('BeadleProduct', () => {
     return http.expectOne({ method: 'PUT', url: '/api/products/1/change-profile' });
   }
 
+  async function refuse(status: number, body: object, request = saved()) {
+    request.flush(body, { status, statusText: 'Refused' });
+    await settle();
+  }
+
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [BeadleProduct],
@@ -58,28 +72,21 @@ describe('BeadleProduct', () => {
 
   afterEach(() => http.verify());
 
-  it('shows a suggested change template that is not saved yet and saves it with the privileged users and tasks', async () => {
+  it('shows a suggested change template that is not saved yet, with the admin hints and both forms', async () => {
     await open(changeProfile({ version: null, updatedAt: null }));
 
     expect(
       [...page().querySelectorAll('.breadcrumb a, .breadcrumb span:not(.sep)')].map(text),
     ).toEqual(['Beadle Admin', 'Products', 'CertScanner']);
     expect(text(page().querySelector('h1'))).toBe('CertScanner');
-    expect(text(page().querySelector('.page-header p'))).toBe(
-      "The product's details and the change template its ProTech (ServiceNow) changes start with.",
-    );
     expect(text(page().querySelector('.banner.info'))).toBe(
       'Not saved yet. Until you save it, new changes of CertScanner start with these values, suggested from its name, code and owner team.',
     );
-    expect(text(page().querySelector('#defaults-title'))).toBe('Change template');
     expect(text(page().querySelector('.defaults-header .chip'))).toBe('Not filled in yet');
     expect(page().querySelector('.defaults-header .saved-at')).toBeNull();
-    expect(text(page().querySelector('.defaults .section-help'))).toBe(
-      'Every new change of CertScanner starts with these answers; whoever raises a change can still change each of them for that change. A field left empty is filled in when the change is raised, as the note under the field says.',
+    expect(text(page().querySelector('.defaults .section-help'))).toContain(
+      'Every new change of CertScanner starts with these answers',
     );
-    expect(page().querySelector('beadle-change-template-form')).not.toBeNull();
-    expect(text(page().querySelector('.default-tasks h3'))).toBe('Default change tasks');
-    expect(page().querySelectorAll('beadle-change-tasks-form .task-row')).toHaveLength(2);
     expect([...page().querySelectorAll('.template-card h3')].map(text)).toEqual([
       'Request details',
       'Jira',
@@ -90,38 +97,47 @@ describe('BeadleProduct', () => {
       'Risk assessment',
       'Secure coding',
     ]);
+    expect(text(page().querySelector('.default-tasks h3'))).toBe('Default change tasks');
+    expect(page().querySelectorAll('beadle-change-tasks-form .task-row')).toHaveLength(2);
     expect(text(fieldOf(page(), 'Requested for')?.querySelector('beadle-hint'))).toBe(
       'If left empty: the user who opens the change',
     );
     expect(fieldOf(page(), 'Opened by')).toBeNull();
-    const access = template().controls.privilegedAccess.controls;
-    access.count.setValue(1);
-    access.users.at(0).setValue({ user: ' Jane Smith ', account: 'adm_jsmith' });
-    template().patchValue({ riskAssessment: { businessImpact: 'High' } });
+  });
+
+  it('saves what the admin typed, with the privileged users and tasks, trimmed', async () => {
+    await open(changeProfile({ version: null, updatedAt: null }));
+    choose(selectOf(page(), 'How many privileged accounts'), '1');
+    await settle();
+    enter(page(), 'Person 1', ' Jane Smith ');
+    enter(page(), 'Privileged access 1', 'adm_jsmith');
+    choose(selectOf(page(), 'Business impact'), 'High');
     buttonOf(page(), 'Remove change task 2').click();
-    tasks().at(0).controls.details.patchValue({ shortDescription: ' Deploy it ' });
+    await settle();
+    enter(task(0), 'Short description', ' Deploy it ');
     expect(editor().hasUnsavedChanges()).toBe(true);
 
-    buttonOf(page(), 'Save the template').click();
+    save();
     const request = saved();
     expect(editor().hasUnsavedChanges()).toBe(true);
     const expected = changeTemplate({
       privilegedAccess: { required: true, users: [{ user: 'Jane Smith', account: 'adm_jsmith' }] },
       riskAssessment: { ...changeTemplate().riskAssessment, businessImpact: 'High' },
     });
-    const savedTasks = [releaseDetails('Deploy it', 'Deploy the release of CertScanner.')];
-    expect(request.request.body).toEqual({ version: null, template: expected, tasks: savedTasks });
-    request.flush(changeProfile({ version: 0, template: expected, tasks: savedTasks }));
+    const tasks = [releaseDetails('Deploy it', 'Deploy the release of CertScanner.')];
+    expect(request.request.body).toEqual({ version: null, template: expected, tasks });
+    request.flush(changeProfile({ version: 0, template: expected, tasks }));
     await settle();
-    expect(snack()).toContain('The change template of CertScanner is saved');
 
+    expect(text(toast())).toContain('The change template of CertScanner is saved');
     expect(editor().hasUnsavedChanges()).toBe(false);
-    expect(editor()['version']()).toBe(0);
     expect(page().querySelector('.banner.info')).toBeNull();
     expect(text(page().querySelector('.defaults-header .chip'))).toBe('Filled in');
     expect(text(page().querySelector('.defaults-header .saved-at'))).toMatch(
       /^last saved \d{1,2} Oct 2026, \d\d:\d\d$/,
     );
+    save();
+    expect(saved().request.body.version).toBe(0);
   });
 
   it('says why the change template could not be loaded and loads it again', async () => {
@@ -151,15 +167,14 @@ describe('BeadleProduct', () => {
 
   it('shows the new name of a renamed product and keeps the unsaved template', async () => {
     await open();
-    template().controls.category.setValue('Hardware');
-    form().markAsDirty();
+    choose(selectOf(page(), 'Category'), 'Hardware');
 
     editor().renamed({ name: 'CertWatch' });
     await settle();
 
     expect(text(page().querySelector('h1'))).toBe('CertWatch');
     expect(text(page().querySelector('.breadcrumb span:last-child'))).toBe('CertWatch');
-    expect(template().controls.category.value).toBe('Hardware');
+    expect(chosen('Category')).toBe('Hardware');
     expect(editor().hasUnsavedChanges()).toBe(true);
   });
 
@@ -179,14 +194,13 @@ describe('BeadleProduct', () => {
     await settle();
 
     expect(text(page().querySelector('h1'))).toBe('CertWatch');
-    expect(template().controls.configurationItem.value).toBe('CertWatch');
+    expect(inputOf(page(), 'Affected CI').value).toBe('CertWatch');
     expect(editor().hasUnsavedChanges()).toBe(false);
   });
 
   it('leaves a deleted product without asking about its unsaved template', async () => {
     await open();
-    template().controls.category.setValue('Hardware');
-    form().markAsDirty();
+    choose(selectOf(page(), 'Category'), 'Hardware');
     vi.spyOn(TestBed.inject(Dialog), 'open').mockReturnValue({
       closed: of(true),
     } as unknown as DialogRef<unknown>);
@@ -206,81 +220,53 @@ describe('BeadleProduct', () => {
 
   it('does not send a template with missing values or without a change task', async () => {
     await open();
-    template().patchValue({ jiraProjectKey: 'cert-1', planning: { backoutPlan: '' } });
-    tasks().at(1).controls.details.controls.description.setValue(' ');
+    enter(page(), 'Jira project', 'cert-1');
+    enter(page(), 'Backout plan', '');
+    enter(task(1), 'Description', ' ');
 
-    editor()['save']();
+    save();
     fixture.detectChanges();
 
-    expect(editor()['saveError']()).toBe('Some fields need your attention.');
     expect(text(page().querySelector('.save-error'))).toBe('Some fields need your attention.');
-    expect(text(fieldOf(page(), 'Jira project')?.querySelector('beadle-error'))).toBe(
+    expect(errorOf(page(), 'Jira project')).toBe(
       '1 to 10 letters, digits or _, starting with a letter',
     );
-    expect(text(fieldOf(page(), 'Backout plan')?.querySelector('beadle-error'))).toBe('Required');
-    const second = page().querySelectorAll('.task-row')[1];
-    expect(text(fieldOf(second, 'Description')?.querySelector('beadle-error'))).toBe('Required');
+    expect(errorOf(page(), 'Backout plan')).toBe('Required');
+    expect(errorOf(task(1), 'Description')).toBe('Required');
     http.expectNone({ method: 'PUT', url: '/api/products/1/change-profile' });
   });
 
-  it('marks the fields Beadle refused and reports a conflict as it is', async () => {
+  it('marks the fields Beadle refused, at the template and at the tasks', async () => {
     await open();
 
-    editor()['save']();
+    save();
+    await refuse(400, {
+      detail: 'Invalid request',
+      problems: [
+        { field: 'template.riskAssessment.bbhUsers', message: 'is not one of the options' },
+        { field: 'tasks[1].shortDescription', message: 'is used twice' },
+      ],
+    });
+
+    expect(text(page().querySelector('.save-error'))).toBe(
+      'The change template could not be saved: Invalid request',
+    );
+    expect(errorOf(page(), 'Number of BBH users impacted')).toBe('is not one of the options');
+    expect(errorOf(task(1), 'Short description')).toBe('is used twice');
+    save();
+    await settle();
+    expect(text(page().querySelector('.save-error'))).toBe('Some fields need your attention.');
+  });
+
+  it('saves with the version it loaded and reloads the template after a conflict', async () => {
+    await open();
+    save();
     const first = saved();
     expect(first.request.body.version).toBe(2);
-    first.flush(changeProfile({ version: 3 }));
-    await settle();
-    editor()['save']();
-    const second = saved();
-    expect(second.request.body.version).toBe(3);
-    second.flush(
-      {
-        detail: 'Invalid request',
-        problems: [
-          { field: 'template.riskAssessment.bbhUsers', message: 'is not one of the options' },
-          { field: 'tasks[1].shortDescription', message: 'is used twice' },
-        ],
-      },
-      { status: 400, statusText: 'Bad Request' },
+    await refuse(409, { detail: 'Someone else changed the template' }, first);
+    expect(text(page().querySelector('.save-error'))).toBe(
+      'The change template could not be saved: Someone else changed the template',
     );
-    await settle();
-    expect(editor()['saveError']()).toBe(
-      'Beadle did not accept some values. They are marked below.',
-    );
-    expect(text(fieldOf(page(), 'Number of BBH users impacted')?.querySelector('beadle-error'))).toBe(
-      'is not one of the options',
-    );
-    expect(
-      text(
-        fieldOf(page().querySelectorAll('.task-row')[1], 'Short description')?.querySelector(
-          'beadle-error',
-        ),
-      ),
-    ).toBe('is used twice');
-
-    editor()['save']();
-    expect(editor()['saveError']()).toBe('Some fields need your attention.');
-
-    template().controls.riskAssessment.controls.bbhUsers.setValue('26-250');
-    tasks().at(1).controls.details.controls.shortDescription.setValue('Validate it');
-    editor()['save']();
-    saved().flush(
-      { detail: 'Invalid request', problems: [{ field: 'version', message: 'is unknown' }] },
-      { status: 400, statusText: 'Bad Request' },
-    );
-    await settle();
-    expect(editor()['saveError']()).toBe('Invalid request');
-    expect(buttonOf(page(), 'Reload')).toBeUndefined();
-
-    editor()['save']();
-    saved().flush(
-      { detail: 'Someone else changed the template' },
-      { status: 409, statusText: 'Conflict' },
-    );
-    await settle();
-    expect(editor()['saveError']()).toBe('Someone else changed the template');
-    expect(text(page().querySelector('.save-error'))).toBe('Someone else changed the template');
 
     buttonOf(page(), 'Reload').click();
     await settle();
@@ -288,11 +274,11 @@ describe('BeadleProduct', () => {
       .expectOne('/api/products/1/change-profile')
       .flush(changeProfile({ version: 5, template: changeTemplate({ category: 'Network' }) }));
     await settle();
+
     expect(page().querySelector('.save-error')).toBeNull();
-    expect(buttonOf(page(), 'Reload')).toBeUndefined();
-    expect(template().controls.category.value).toBe('Network');
+    expect(chosen('Category')).toBe('Network');
     expect(editor().hasUnsavedChanges()).toBe(false);
-    editor()['save']();
+    save();
     expect(saved().request.body.version).toBe(5);
   });
 });

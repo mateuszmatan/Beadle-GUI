@@ -14,7 +14,7 @@ import static lombok.AccessLevel.PACKAGE;
 import static lombok.AccessLevel.PROTECTED;
 
 @Entity
-@Table(name = "BEADLE_DEPARTMENT")
+@Table(name = "BEADLE_BUSINESS_SERVICE")
 @NoArgsConstructor(access = PROTECTED)
 public class DepartmentEntity extends AuditedEntity {
 

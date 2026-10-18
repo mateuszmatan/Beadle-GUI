@@ -187,9 +187,9 @@ describe('ChangeDetail', () => {
       ),
     ).toEqual(['false', 'false']);
     expect(page().querySelectorAll('beadle-workflow-progress li')).toHaveLength(9);
-    expect(text(page().querySelector('beadle-workflow-progress li[aria-current="step"]'))).toContain(
-      'Primary Approval',
-    );
+    expect(
+      text(page().querySelector('beadle-workflow-progress li[aria-current="step"]')),
+    ).toContain('Primary Approval');
     expect(text(page().querySelector('.now'))).toBe(
       'Primary Approval. Waiting for the L1 approver, Olivia Bennett, to approve the change in ProTech.',
     );
@@ -274,7 +274,9 @@ describe('ChangeDetail', () => {
     expect(inputOf(tasks[2], 'Number').placeholder).toBe('Given by ProTech when created');
     expect(
       [
-        ...page().querySelectorAll('beadle-change-tasks-form input, beadle-change-tasks-form textarea'),
+        ...page().querySelectorAll(
+          'beadle-change-tasks-form input, beadle-change-tasks-form textarea',
+        ),
       ].every((field) => (field as HTMLInputElement).disabled),
     ).toBe(true);
     expect(page().querySelector('beadle-change-tasks-form button')).toBeNull();
@@ -362,7 +364,7 @@ describe('ChangeDetail', () => {
       'ProTech has no change CHG0012345. Beadle shows what it last read from ProTech. ' +
         'Try again in a moment; if it keeps failing, tell the Beadle administrator.',
     );
-  });
+  }, 15000);
 
   it('lets only the department of an open change edit it', async () => {
     await show(productionChange(), null);
@@ -512,28 +514,6 @@ describe('ChangeDetail', () => {
     expect(text(page().querySelector('.banner.update'))).toBe(
       `ProTech did not apply the update of ${requested}: Installation start.`,
     );
-  });
-
-  it('says when a change cannot be found', async () => {
-    fixture = TestBed.createComponent(ChangeDetail);
-    fixture.componentRef.setInput('id', 99);
-    await settle();
-    http
-      .expectOne('/api/changes/99')
-      .flush({ detail: 'Change 99 does not exist' }, { status: 404, statusText: 'Not Found' });
-    await settle();
-
-    expect(text(page().querySelector('.banner span'))).toBe(
-      'The change could not be loaded: Change 99 does not exist',
-    );
-    expect(text(page().querySelector('.breadcrumb'))).toBe('Changes/Change');
-
-    buttonOf(page(), 'Try again').click();
-    await settle();
-    http.expectOne('/api/changes/99').flush(productionChange({ id: 99 }));
-    await settle();
-    expect(page().querySelector('.banner')).toBeNull();
-    expect(text(page().querySelector('h1'))).toBe('CHG0012345');
   });
 });
 

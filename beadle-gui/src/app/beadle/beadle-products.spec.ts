@@ -5,15 +5,7 @@ import { Dialog, DialogRef } from '@angular/cdk/dialog';
 import { Router, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { Product } from '../core/models';
-import {
-  buttonOf,
-  gridCell,
-  gridHeaders,
-  gridRows,
-  settleGrid,
-  text,
-  toast,
-} from '../testing/dom';
+import { buttonOf, gridCell, gridHeaders, gridRows, settleGrid, text, toast } from '../testing/dom';
 import { department, product } from '../testing/fixtures';
 import { ChangeProfileSummary } from '../changes/change-api';
 import { BeadleProducts } from './beadle-products';

@@ -9,6 +9,8 @@ public enum ObjectType {
     PRODUCT,
     /** The ProTech change template of a product; its id is the product's, its key the product code. */
     CHANGE_PROFILE,
+    /** A business service; its key is the business service's name. */
+    BUSINESS_SERVICE,
     /** A department; its key is the department's name. */
     DEPARTMENT,
     /** A ticket in a system of Beadle-Internal, such as the CyberTrack secure coding ticket {@code SCP-123}. */

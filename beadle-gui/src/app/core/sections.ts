@@ -10,11 +10,6 @@ export interface AppTab {
   label: string;
 }
 
-export interface AdminArea {
-  section: AppSection;
-  tabs: readonly AppTab[];
-}
-
 export const CHANGES: AppSection = {
   path: '/changes',
   label: 'Changes',
@@ -52,10 +47,7 @@ export const SECTIONS: readonly AppSection[] = [CHANGES, NEW_CHANGE, ADMIN, ACTI
 export const ADMIN_DEPARTMENTS: AppTab = { path: '/admin/departments', label: 'Departments' };
 export const ADMIN_PRODUCTS: AppTab = { path: '/admin/products', label: 'Products' };
 
-export const BEADLE_ADMIN: AdminArea = {
-  section: ADMIN,
-  tabs: [ADMIN_DEPARTMENTS, ADMIN_PRODUCTS],
-};
+export const ADMIN_TABS: readonly AppTab[] = [ADMIN_DEPARTMENTS, ADMIN_PRODUCTS];
 
 export function beadleProduct(id: number | string): (string | number)[] {
   return [ADMIN_PRODUCTS.path, id];

@@ -1,7 +1,7 @@
 import { ActionHistoryPage, ActionRecord } from '../action-history/action-history-model';
-import { BeadleDepartment, Product } from '../core/models';
+import { Department, Product } from '../core/models';
 
-export function department(overrides: Partial<BeadleDepartment> = {}): BeadleDepartment {
+export function department(overrides: Partial<Department> = {}): Department {
   return {
     id: 3,
     name: 'Corporate Technology',

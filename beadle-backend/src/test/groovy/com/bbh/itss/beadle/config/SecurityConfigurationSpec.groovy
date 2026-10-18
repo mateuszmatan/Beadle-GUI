@@ -94,10 +94,10 @@ class SecurityConfigurationSpec extends Specification {
 
         then:
         me.status == 200
-        parse(me.contentAsString) == [name: 'Ann Lee', email: 'ann.lee@bbh.com']
+        parse(me.contentAsString).subMap(['name', 'email']) == [name: 'Ann Lee', email: 'ann.lee@bbh.com']
 
         expect:
-        parse(answer(oidc, get('/api/me').with(oidcLogin().idToken { it.subject('u-9') })).contentAsString) ==
+        parse(answer(oidc, get('/api/me').with(oidcLogin().idToken { it.subject('u-9') })).contentAsString).subMap(['name', 'email']) ==
                 [name: 'u-9', email: null]
     }
 
@@ -192,7 +192,9 @@ class SecurityConfigurationSpec extends Specification {
 
         then:
         me.status == 200
-        parse(me.contentAsString) == [name: 'Mateusz Matan', email: null]
+        parse(me.contentAsString).subMap(['name', 'email']) == [name: 'Mateusz Matan', email: null]
+        parse(me.contentAsString).admin == true
+        parse(me.contentAsString).roles.contains('ROLE_ADMIN')
         me.getCookie('XSRF-TOKEN') == null
         added.status == 201
         answer(local, get('/changes')).forwardedUrl == '/index.html'

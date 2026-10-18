@@ -35,15 +35,15 @@ public class ProductEntity extends AuditedEntity {
     private String ownerTeam;
     private String contactEmail;
 
-    @Column(name = "DEPARTMENT_ID")
-    private Long departmentId;
+    @Column(name = "BUSINESS_SERVICE_ID")
+    private Long businessServiceId;
 
     @ManyToOne(fetch = LAZY)
-    @JoinColumn(name = "DEPARTMENT_ID", insertable = false, updatable = false)
-    private DepartmentEntity department;
+    @JoinColumn(name = "BUSINESS_SERVICE_ID", insertable = false, updatable = false)
+    private BusinessServiceEntity businessService;
 
     Product toDomain() {
-        return new Product(id, new ProductDetails(code, name, null, ownerTeam, contactEmail, departmentId), version(),
+        return new Product(id, new ProductDetails(code, name, null, ownerTeam, contactEmail, businessServiceId), version(),
                 updatedAt());
     }
 
@@ -52,6 +52,6 @@ public class ProductEntity extends AuditedEntity {
         name = details.name();
         ownerTeam = details.ownerTeam();
         contactEmail = details.contactEmail();
-        departmentId = details.departmentId();
+        businessServiceId = details.businessServiceId();
     }
 }

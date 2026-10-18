@@ -6,54 +6,24 @@ import { of } from 'rxjs';
 import { Department } from '../core/models';
 import { DepartmentDialog } from '../departments/department-dialog';
 import { ConfirmDialog } from '../shared/confirm-dialog';
-import { buttonOf, gridCell, gridHeaders, gridRows, text, toast } from '../testing/dom';
+import { buttonOf, gridHeaders, gridRows, text, toast } from '../testing/dom';
 import { department } from '../testing/fixtures';
-import { DepartmentUsage, DepartmentsAdmin } from './departments-admin';
-
-interface Busy extends Department {
-  taskCount: number;
-}
+import { DepartmentsAdmin } from './departments-admin';
 
 describe('DepartmentsAdmin', () => {
-  let fixture: ComponentFixture<DepartmentsAdmin<Busy>>;
+  let fixture: ComponentFixture<DepartmentsAdmin>;
   let http: HttpTestingController;
-  let shown: readonly Busy[][];
 
-  const busy = (overrides: Partial<Busy> = {}): Busy => ({
-    ...department(),
-    taskCount: 2,
-    ...overrides,
-  });
-  const fundServices = busy({ id: 5, name: 'Fund Services', productCount: 0, taskCount: 0 });
-  const plain: DepartmentUsage<Busy> = { subject: 'its changes' };
-  const tasks: DepartmentUsage<Busy> = {
-    subject: 'its products and tasks',
-    counts: [{ noun: 'task', count: (department) => department.taskCount }],
-    columns: [
-      {
-        key: 'tasks',
-        header: 'Tasks',
-        value: (department) => department.taskCount,
-        numeric: true,
-      },
-    ],
-    blocker: (department) =>
-      department.taskCount ? `${department.name} still has open tasks.` : null,
-  };
+  const fundServices = department({ id: 5, name: 'Fund Services', productCount: 0 });
 
-  function create(usage: DepartmentUsage<Busy>) {
+  beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [DepartmentsAdmin],
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
     http = TestBed.inject(HttpTestingController);
-    fixture = TestBed.createComponent<DepartmentsAdmin<Busy>>(DepartmentsAdmin);
-    fixture.componentRef.setInput('usage', usage);
-    shown = [];
-    fixture.componentInstance.loaded.subscribe(
-      (departments) => (shown = [...shown, [...departments]]),
-    );
-  }
+    fixture = TestBed.createComponent(DepartmentsAdmin);
+  });
 
   afterEach(() => http.verify());
 
@@ -63,7 +33,7 @@ describe('DepartmentsAdmin', () => {
   const headers = () => gridHeaders(page());
   const snack = () => text(toast());
 
-  async function load(departments: Busy[] = [busy(), fundServices]) {
+  async function load(departments: Department[] = [department(), fundServices]) {
     fixture.detectChanges();
     http.expectOne('/api/departments').flush(departments);
     await fixture.whenStable();
@@ -77,37 +47,18 @@ describe('DepartmentsAdmin', () => {
     return open;
   };
 
-  it('lists the departments with the columns and counts the app adds', async () => {
-    create(tasks);
+  it('lists the departments with their products and says which can be deleted', async () => {
     await load();
 
     expect(text(page().querySelector('.list-header h2'))).toBe('Departments');
-    expect(text(page().querySelector('.summary'))).toBe('2 departments with 1 product and 2 tasks');
-    expect(text(page().querySelector('.departments .section-help'))).toBe(
-      'Every product belongs to one department, and people choose their department to see its products and tasks. Only an empty department can be deleted.',
-    );
-    expect(headers()).toEqual(['Department', 'Products', 'Tasks', '']);
-    expect(text(gridCell(row('Corporate Technology'), 'tasks'))).toBe('2');
-    expect(shown.at(-1)?.map((department) => department.name)).toEqual([
-      'Corporate Technology',
-      'Fund Services',
-    ]);
-  });
-
-  it('shows only the products when the app adds nothing, as a routed page without cells', async () => {
-    create(plain);
-    fixture.componentRef.setInput('cells', undefined);
-    await load();
-
-    expect(headers()).toEqual(['Department', 'Products', '']);
     expect(text(page().querySelector('.summary'))).toBe('2 departments with 1 product');
     expect(text(page().querySelector('.departments .section-help'))).toBe(
       'Every product belongs to one department, and people choose their department to see its changes. Only an empty department can be deleted.',
     );
+    expect(headers()).toEqual(['Department', 'Products', '']);
   });
 
   it('invites to add the first department', async () => {
-    create(plain);
     await load([]);
 
     expect(text(page().querySelector('.empty-state h3'))).toBe('No departments yet');
@@ -118,7 +69,6 @@ describe('DepartmentsAdmin', () => {
   });
 
   it('shows why the departments could not be loaded', async () => {
-    create(tasks);
     fixture.detectChanges();
     http.expectOne('/api/departments').flush(null, { status: 0, statusText: 'Unknown Error' });
     await fixture.whenStable();
@@ -129,19 +79,18 @@ describe('DepartmentsAdmin', () => {
 
     buttonOf(page().querySelector('.banner')!, 'Try again').click();
     fixture.detectChanges();
-    http.expectOne('/api/departments').flush([busy()]);
+    http.expectOne('/api/departments').flush([department()]);
     await fixture.whenStable();
 
     expect(page().querySelector('.banner')).toBeNull();
     expect(rows().length).toBe(1);
   });
 
-  it('deletes only a department without products or anything the app counts', async () => {
-    create(tasks);
+  it('deletes only a department without products or changes', async () => {
     await load([
-      busy(),
+      department(),
       fundServices,
-      busy({ id: 4, name: 'Custody', productCount: 0, taskCount: 2 }),
+      department({ id: 4, name: 'Custody', productCount: 0, changeCount: 2 }),
     ]);
 
     expect(buttonOf(row('Corporate Technology'), 'Delete').disabled).toBe(true);
@@ -164,21 +113,17 @@ describe('DepartmentsAdmin', () => {
     expect(row('Fund Services').querySelector('.delete')?.hasAttribute('title')).toBe(false);
     expect(reason('Fund Services')).toBeNull();
     expect(buttonOf(row('Custody'), 'Delete').disabled).toBe(true);
-    expect(row('Custody').querySelector('.delete')?.getAttribute('title')).toBe(
-      'Custody still has open tasks.',
-    );
-    expect(reason('Custody')).toBe('Custody still has open tasks.');
+    expect(reason('Custody')).toBe('Custody cannot be deleted: it still has 2 changes.');
   });
 
   it('adds and renames a department and lists the departments again', async () => {
-    create(tasks);
     await load();
-    const added = busy({ id: 6, name: 'Treasury', productCount: 0 });
+    const added = department({ id: 6, name: 'Treasury', productCount: 0 });
     const open = dialogClosing(added, { ...fundServices, name: 'Fund Administration' }, undefined);
 
     buttonOf(page(), 'Add department').click();
     fixture.detectChanges();
-    http.expectOne('/api/departments').flush([busy(), fundServices, added]);
+    http.expectOne('/api/departments').flush([department(), fundServices, added]);
     await fixture.whenStable();
 
     expect(open.mock.calls[0][0]).toBe(DepartmentDialog);
@@ -188,7 +133,7 @@ describe('DepartmentsAdmin', () => {
 
     buttonOf(row('Fund Services'), 'Rename').click();
     fixture.detectChanges();
-    http.expectOne('/api/departments').flush([busy(), fundServices, added]);
+    http.expectOne('/api/departments').flush([department(), fundServices, added]);
     await fixture.whenStable();
 
     expect(open.mock.calls[1][1]?.data).toEqual(fundServices);
@@ -200,8 +145,7 @@ describe('DepartmentsAdmin', () => {
   });
 
   it('deletes a department once confirmed and says why one could not be deleted', async () => {
-    create(tasks);
-    await load();
+    await load([department({ productCount: 0 }), fundServices]);
     const open = dialogClosing(true, false, true);
 
     buttonOf(row('Fund Services'), 'Delete').click();
@@ -215,16 +159,16 @@ describe('DepartmentsAdmin', () => {
     });
     http.expectOne({ method: 'DELETE', url: '/api/departments/5' }).flush(null);
     fixture.detectChanges();
-    http.expectOne('/api/departments').flush([busy()]);
+    http.expectOne('/api/departments').flush([department({ productCount: 0 })]);
     await fixture.whenStable();
 
     expect(snack()).toContain('Fund Services deleted');
     expect(rows().length).toBe(1);
 
-    fixture.componentInstance['delete'](busy());
+    buttonOf(row('Corporate Technology'), 'Delete').click();
     http.expectNone('/api/departments/3');
 
-    fixture.componentInstance['delete'](busy());
+    buttonOf(row('Corporate Technology'), 'Delete').click();
     http
       .expectOne({ method: 'DELETE', url: '/api/departments/3' })
       .flush(

@@ -188,7 +188,7 @@ class ChangePersistenceAdaptersSpec extends Specification {
         given:
         def ledger = save('LEDGER', 'Ledger', 4L)
         def access = save('ACCESS', 'Access Hub', 3L)
-        jdbc.update('UPDATE BEADLE_PRODUCT SET DEPARTMENT_ID = NULL WHERE ID = ?', access.id())
+        jdbc.update('UPDATE BEADLE_PRODUCT SET BUSINESS_SERVICE_ID = NULL WHERE ID = ?', access.id())
         profiles.save(ChangeProfile.create(product.id(), template(jiraProjectKey: 'CSCAN'), tasks()))
         entities.clear()
 

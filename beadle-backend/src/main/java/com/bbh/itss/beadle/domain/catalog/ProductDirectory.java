@@ -8,7 +8,11 @@ public interface ProductDirectory {
 
     Optional<ProductIdentity> findProductByName(String name);
 
-    boolean departmentExists(long id);
+    boolean businessServiceExists(long id);
+
+    default boolean departmentExists(long id) {
+        return businessServiceExists(id);
+    }
 
     record ProductIdentity(long id, String name) {
 

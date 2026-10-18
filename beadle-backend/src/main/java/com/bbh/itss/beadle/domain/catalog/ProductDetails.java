@@ -7,7 +7,7 @@ import static org.apache.commons.lang3.StringUtils.trim;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
 
 public record ProductDetails(String code, String name, String description, String ownerTeam, String contactEmail,
-                             Long departmentId) {
+                             Long businessServiceId) {
 
     public static final String CODE_PATTERN = "^[A-Z][A-Z0-9_-]{1,49}$";
     public static final String CODE_RULE = "use 2 to 50 upper case letters, digits, '-' or '_', starting with a letter";
@@ -23,6 +23,10 @@ public record ProductDetails(String code, String name, String description, Strin
         contactEmail = trimToNull(contactEmail);
     }
 
+    public Long departmentId() {
+        return businessServiceId;
+    }
+
     public ValidationProblems validate(ValidationProblems problems, ProductDirectory directory) {
         if (isBlank(code)) {
             problems.add("code", "must not be blank");
@@ -33,10 +37,10 @@ public record ProductDetails(String code, String name, String description, Strin
         problems.fits("name", name, NAME_MAX)
                 .fits("description", description, DESCRIPTION_MAX)
                 .fits("ownerTeam", ownerTeam, OWNER_TEAM_MAX);
-        if (departmentId == null) {
-            problems.add("departmentId", "choose the product's department");
-        } else if (!directory.departmentExists(departmentId)) {
-            problems.add("departmentId", "department " + departmentId + " does not exist");
+        if (businessServiceId == null) {
+            problems.add("businessServiceId", "choose the product's business service");
+        } else if (!directory.businessServiceExists(businessServiceId)) {
+            problems.add("departmentId", "department " + businessServiceId + " does not exist");
         }
         return problems;
     }

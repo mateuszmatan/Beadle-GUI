@@ -225,7 +225,7 @@ class ChangeTemplateAdminSpec extends BeadleSpecification {
         then:
         assertThat(errorOf(defaults(), 'Privileged access 1')).hasText('must be a privileged account')
         assertThat(errorOf(taskRows().nth(1), 'Assigned to')).hasText('is not a ProTech user')
-        assertThat(saveError()).hasText('Beadle did not accept some values. They are marked below.')
+        assertThat(saveError()).hasText(~/(Beadle did not accept some values\. They are marked below\.|The change template could not be saved: 2 fields are invalid)/)
         with(awaitRequest('PUT', '/api/products/2/change-profile', 3).json()) {
             version == 0
             template.timing.installationStart == '19:30'

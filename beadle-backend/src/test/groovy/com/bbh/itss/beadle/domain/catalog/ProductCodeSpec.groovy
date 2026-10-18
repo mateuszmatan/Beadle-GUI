@@ -51,6 +51,10 @@ class ProductCodeSpec extends Specification {
                 Optional.empty()
             }
 
+            boolean businessServiceExists(long id) {
+                true
+            }
+
             boolean departmentExists(long id) {
                 true
             }

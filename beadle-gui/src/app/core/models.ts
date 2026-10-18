@@ -5,17 +5,22 @@ export interface FieldProblem {
   message: string;
 }
 
-export interface Department {
+export interface BusinessService {
   id: number;
   name: string;
   version: number;
   productCount: number;
+  changeCount: number;
 }
 
-export interface DepartmentRequest {
+export type Department = BusinessService;
+
+export interface BusinessServiceRequest {
   name: string;
   version: number | null;
 }
+
+export type DepartmentRequest = BusinessServiceRequest;
 
 export interface LookupItem {
   value: string;
@@ -24,6 +29,7 @@ export interface LookupItem {
 
 export type LookupKind =
   | 'users'
+  | 'business-services'
   | 'departments'
   | 'assignment-groups'
   | 'releases'
@@ -35,15 +41,14 @@ export type LookupKind =
 export interface SignedInUser {
   name: string;
   email: string | null;
+  roles?: string[];
+  departmentNames?: string[];
+  admin?: boolean;
 }
 
 /** What Beadle answers to signing out with Ping: where the browser ends its session at Ping too. */
 export interface SignedOut {
   redirectUrl: string;
-}
-
-export interface BeadleDepartment extends Department {
-  changeCount: number;
 }
 
 export interface Product {

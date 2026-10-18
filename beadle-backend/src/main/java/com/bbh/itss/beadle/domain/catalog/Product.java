@@ -16,7 +16,7 @@ public record Product(Long id, ProductDetails details, long version, Instant upd
     public Product change(Long expectedVersion, ProductDetails changed, ProductDirectory directory) {
         requireCurrent(expectedVersion, version);
         ProductDetails kept = new ProductDetails(details.code(), changed.name(), null, changed.ownerTeam(),
-                changed.contactEmail(), changed.departmentId());
+                changed.contactEmail(), changed.businessServiceId());
         return new Product(id, checked(id, kept, directory), version, updatedAt);
     }
 

@@ -3,6 +3,7 @@ package com.bbh.itss.beadle.domain.audit;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE;
 import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE;
 import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE_PROFILE;
 import static com.bbh.itss.beadle.domain.audit.ObjectType.DEPARTMENT;
@@ -30,6 +31,9 @@ public enum Action {
     PRODUCT_UPDATED(PRODUCT, false),
     PRODUCT_DELETED(PRODUCT, true),
     CHANGE_PROFILE_UPDATED(CHANGE_PROFILE, false),
+    BUSINESS_SERVICE_CREATED(BUSINESS_SERVICE, false),
+    BUSINESS_SERVICE_RENAMED(BUSINESS_SERVICE, false),
+    BUSINESS_SERVICE_DELETED(BUSINESS_SERVICE, true),
     DEPARTMENT_CREATED(DEPARTMENT, false),
     DEPARTMENT_RENAMED(DEPARTMENT, false),
     DEPARTMENT_DELETED(DEPARTMENT, true),

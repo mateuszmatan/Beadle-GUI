@@ -55,10 +55,7 @@
               "node_modules/@angular/cdk/overlay-prebuilt.css",
               "node_modules/@angular/cdk/a11y-prebuilt.css",
               "beadle-gui/src/styles.scss"
-            ],
-            "define": {
-              "AG_GRID_LICENSE_KEY": "''"
-            }
+            ]
           },
           "configurations": {
             "production": {
@@ -80,29 +77,6 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
-            },
-            "public": {
-              "styles": [
-                "node_modules/bootstrap/dist/css/bootstrap.min.css",
-                "node_modules/ag-grid-community/styles/ag-grid.css",
-                "node_modules/ag-grid-community/styles/ag-theme-balham.css",
-                "node_modules/@angular/cdk/overlay-prebuilt.css",
-                "node_modules/@angular/cdk/a11y-prebuilt.css",
-                "beadle-gui/src/styles/public-theme.scss",
-                "beadle-gui/src/styles.scss"
-              ],
-              "assets": [
-                {
-                  "glob": "**/*",
-                  "input": "beadle-gui/public"
-                }
-              ],
-              "fileReplacements": [
-                {
-                  "replace": "beadle-gui/src/app/ui/design-system.ts",
-                  "with": "beadle-gui/src/app/ui/design-system.public.ts"
-                }
-              ]
             }
           },
           "defaultConfiguration": "production"
@@ -115,9 +89,6 @@
             },
             "development": {
               "buildTarget": "beadle-gui:build:development"
-            },
-            "public": {
-              "buildTarget": "beadle-gui:build:development,public"
             }
           },
           "defaultConfiguration": "development",
@@ -148,7 +119,7 @@
             "coverageInclude": [
               "beadle-gui/src/**/*.ts"
             ],
-            "buildTarget": "beadle-gui:build:development,public",
+            "buildTarget": "beadle-gui:build:development",
             "providersFile": "beadle-gui/src/test-providers.ts"
           }
         }

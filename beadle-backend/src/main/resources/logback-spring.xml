@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
-    <!-- Pods log to stdout, so the console is the one appender of every profile. -->
+    <property name="LOG_PATH" value="${LOG_PATH:-./logs}"/>
+    <property name="LOG_FILE" value="${LOG_FILE:-beadle}"/>
+
+    <!-- Console Appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [%thread] [%X{correlationId}] %cyan(%logger{36}) - %msg%n</pattern>
@@ -9,30 +12,28 @@
         </encoder>
     </appender>
 
+    <!-- Rolling File Appender with SizeAndTimeBasedRollingPolicy: 1 day or 10MB, compressed (.gz) -->
+    <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${LOG_FILE}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- Daily rollover with incremental index if size exceeds 10MB, compressed as .gz -->
+            <fileNamePattern>${LOG_PATH}/${LOG_FILE}-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <!-- Max file size 10MB before rotation -->
+            <maxFileSize>10MB</maxFileSize>
+            <!-- Retain logs for 30 days -->
+            <maxHistory>30</maxHistory>
+            <!-- Total cap of 2GB for archived logs -->
+            <totalSizeCap>2GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [%X{correlationId}] %logger{36} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ROLLING_FILE"/>
     </root>
-
-    <!-- Locally the log is also kept in LOG_PATH (default logs; the Gradle test tasks set build/logs): a file a day
-         or every 10 MB, compressed, 30 days and 2 GB at most. -->
-    <springProfile name="local">
-        <property name="LOG_PATH" value="${LOG_PATH:-logs}"/>
-        <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-            <file>${LOG_PATH}/beadle.log</file>
-            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-                <fileNamePattern>${LOG_PATH}/beadle-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-                <maxFileSize>10MB</maxFileSize>
-                <maxHistory>30</maxHistory>
-                <totalSizeCap>2GB</totalSizeCap>
-            </rollingPolicy>
-            <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [%X{correlationId}] %logger{36} - %msg%n</pattern>
-                <charset>UTF-8</charset>
-            </encoder>
-        </appender>
-        <root>
-            <appender-ref ref="ROLLING_FILE"/>
-        </root>
-    </springProfile>
 
 </configuration>

@@ -12,7 +12,7 @@ import {
 import { SvgIconRegistryService } from 'angular-svg-icon';
 import { Observable, firstValueFrom, of } from 'rxjs';
 import { ConfirmDialog } from '../shared/confirm-dialog';
-import { APP_NAME } from './app-name';
+import { routes } from '../app.routes';
 import { appConfig } from './app-config';
 import { AppTitleStrategy } from './title-strategy';
 import { HasUnsavedChanges, unsavedChangesGuard } from './unsaved-changes';
@@ -29,7 +29,6 @@ describe('AppTitleStrategy', () => {
           { path: 'untitled', component: Blank },
         ]),
         { provide: TitleStrategy, useClass: AppTitleStrategy },
-        { provide: APP_NAME, useValue: 'Test App' },
       ],
     });
   });
@@ -38,10 +37,10 @@ describe('AppTitleStrategy', () => {
     const router = TestBed.inject(Router);
 
     await router.navigateByUrl('/titled');
-    expect(TestBed.inject(Title).getTitle()).toBe('Edit product · BBH Test App');
+    expect(TestBed.inject(Title).getTitle()).toBe('Edit product · BBH Beadle');
 
     await router.navigateByUrl('/untitled');
-    expect(TestBed.inject(Title).getTitle()).toBe('BBH Test App');
+    expect(TestBed.inject(Title).getTitle()).toBe('BBH Beadle');
   });
 });
 
@@ -78,12 +77,10 @@ describe('unsavedChangesGuard', () => {
 });
 
 describe('appConfig', () => {
-  it('names the app, sets the title strategy, square dialogs and registers the icons', async () => {
-    const routes = [{ path: 'home', component: Blank }];
-    TestBed.configureTestingModule({ providers: appConfig('Test App', routes).providers });
+  it('routes the sections, sets the title strategy, square dialogs and registers the icons', async () => {
+    TestBed.configureTestingModule({ providers: appConfig.providers });
     await TestBed.inject(ApplicationInitStatus).donePromise;
 
-    expect(TestBed.inject(APP_NAME)).toBe('Test App');
     expect(TestBed.inject(Router).config).toEqual(routes);
     expect(TestBed.inject(TitleStrategy)).toBeInstanceOf(AppTitleStrategy);
     expect(TestBed.inject(DEFAULT_DIALOG_CONFIG)).toEqual(

@@ -7,15 +7,12 @@ import { DepartmentsAdmin } from './admin/departments-admin';
 import { routes } from './app.routes';
 import { BeadleProduct } from './beadle/beadle-product';
 import { BeadleProducts } from './beadle/beadle-products';
-import { DEPARTMENT_USAGE } from './beadle/department-usage';
 import { ChangeDetail } from './changes/change-detail';
 import { ChangeEdit } from './changes/change-edit';
 import { ChangeSecureCoding } from './changes/change-secure-coding';
 import { ChangeWizard } from './changes/change-wizard';
 import { ChangesList } from './changes/changes-list';
 import { RETURN_KEY } from './core/auth';
-import { BEADLE_ADMIN } from './core/sections';
-import { department } from './testing/fixtures';
 
 @Component({ template: '' })
 class Blank {}
@@ -53,17 +50,6 @@ describe('routes', () => {
       'admin/products': BeadleProducts,
       'action-history': ActionHistory,
     });
-  });
-
-  it('gives the admin area its tabs and the departments what Beadle counts', () => {
-    const data = Object.fromEntries(
-      flattened(routes)
-        .filter(([, route]) => route.data)
-        .map(([path, route]) => [path, route.data]),
-    );
-
-    expect(data['admin']).toEqual({ area: BEADLE_ADMIN });
-    expect(data['admin/departments']).toEqual({ usage: DEPARTMENT_USAGE });
   });
 
   it('guards the editors against leaving with unsaved changes', () => {
@@ -104,15 +90,5 @@ describe('routes', () => {
 
     await router.navigateByUrl('/');
     expect(router.url).toBe('/changes');
-  });
-});
-
-describe('DEPARTMENT_USAGE', () => {
-  it('keeps a department with changes from being deleted', () => {
-    expect(DEPARTMENT_USAGE.subject).toBe('its changes');
-    expect(DEPARTMENT_USAGE.blocker!(department({ name: 'Custody', changeCount: 2 }))).toBe(
-      'Custody cannot be deleted: it still has 2 changes.',
-    );
-    expect(DEPARTMENT_USAGE.blocker!(department({ changeCount: 0 }))).toBeNull();
   });
 });

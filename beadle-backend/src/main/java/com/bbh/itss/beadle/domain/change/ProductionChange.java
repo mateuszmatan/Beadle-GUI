@@ -58,6 +58,14 @@ public record ProductionChange(Long id, String number, Long productId, String pr
     public static final Duration APPLY_LIMIT = ofMinutes(1);
     static final int SECTION_MAX = 300;
 
+    public Long businessServiceId() {
+        return departmentId;
+    }
+
+    public String businessServiceName() {
+        return departmentName;
+    }
+
     private static final List<Edited> EDITED = List.of(
             new Edited("shortDescription", ProductionChange::shortDescription),
             new Edited("description", ProductionChange::description),

@@ -1,6 +1,6 @@
 package com.bbh.itss.beadle.adapter.in.web;
 
-import com.bbh.itss.beadle.application.catalog.port.in.DepartmentsUseCase;
+import com.bbh.itss.beadle.application.catalog.port.in.BusinessServicesUseCase;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,42 +16,42 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_CREATED;
-import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_DELETED;
-import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_RENAMED;
+import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_CREATED;
+import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_DELETED;
+import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_RENAMED;
 import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.ResponseEntity.created;
 import static org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentRequestUri;
 
 @RestController
-@RequestMapping("/api/departments")
+@RequestMapping({"/api/business-services", "/api/departments"})
 @RequiredArgsConstructor
-public class DepartmentController {
+public class BusinessServiceController {
 
-    private final DepartmentsUseCase departments;
+    private final BusinessServicesUseCase businessServices;
 
     @GetMapping
-    public List<DepartmentResponse> list() {
-        return departments.list().stream().map(DepartmentResponse::of).toList();
+    public List<BusinessServiceResponse> list() {
+        return businessServices.list().stream().map(BusinessServiceResponse::of).toList();
     }
 
     @PostMapping
-    @AuditedRequest(value = DEPARTMENT_CREATED, objectKey = "name")
-    public ResponseEntity<DepartmentResponse> create(@Valid @RequestBody DepartmentRequest request) {
-        DepartmentResponse created = DepartmentResponse.of(departments.create(request.name()));
+    @AuditedRequest(value = BUSINESS_SERVICE_CREATED, objectKey = "name")
+    public ResponseEntity<BusinessServiceResponse> create(@Valid @RequestBody BusinessServiceRequest request) {
+        BusinessServiceResponse created = BusinessServiceResponse.of(businessServices.create(request.name()));
         return created(fromCurrentRequestUri().path("/{id}").buildAndExpand(created.id()).toUri()).body(created);
     }
 
     @PutMapping("/{id}")
-    @AuditedRequest(DEPARTMENT_RENAMED)
-    public DepartmentResponse rename(@PathVariable long id, @Valid @RequestBody DepartmentRequest request) {
-        return DepartmentResponse.of(departments.rename(id, request.version(), request.name()));
+    @AuditedRequest(BUSINESS_SERVICE_RENAMED)
+    public BusinessServiceResponse rename(@PathVariable long id, @Valid @RequestBody BusinessServiceRequest request) {
+        return BusinessServiceResponse.of(businessServices.rename(id, request.version(), request.name()));
     }
 
     @DeleteMapping("/{id}")
-    @AuditedRequest(DEPARTMENT_DELETED)
+    @AuditedRequest(BUSINESS_SERVICE_DELETED)
     @ResponseStatus(NO_CONTENT)
     public void delete(@PathVariable long id) {
-        departments.delete(id);
+        businessServices.delete(id);
     }
 }

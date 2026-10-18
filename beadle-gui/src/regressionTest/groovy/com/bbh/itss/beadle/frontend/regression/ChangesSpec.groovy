@@ -213,9 +213,9 @@ class ChangesSpec extends BeadleSpecification {
 
         then:
         assertThat(page.locator('h2')).hasText(['Where the change is', 'Approvals', 'The change at a glance', 'Change tasks'] as String[])
-        assertThat(approvalRows().locator('th .name')).hasText(['Business approver', 'L1 approver', 'L2 approver', 'Support approver',
+        assertThat(approvalRows().locator('th .name, .name')).hasText(['Business approver', 'L1 approver', 'L2 approver', 'Support approver',
                                                               'CTASK0310011', 'CTASK0310012'] as String[])
-        assertThat(approvalRows().locator('td:nth-child(2)')).hasText(['Grace Turner', 'Olivia Bennett', 'James Carter', 'Jane Smith',
+        assertThat(approvalRows().locator('.ag-cell[col-id="approvers"], td:nth-child(2)')).hasText(['Grace Turner', 'Olivia Bennett', 'James Carter', 'Jane Smith',
                                                                      'Rebecca Lawson, Thomas Ashby',
                                                                      'Daniel Foster, Priya Natarajan'] as String[])
         assertThat(approvalRows().locator('.chip')).hasText(['Approved', 'Approved', 'Requested', 'Not Approved', 'Not Approved',

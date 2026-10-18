@@ -6,8 +6,12 @@ import com.bbh.itss.beadle.domain.catalog.ProductDetails;
 
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT;
 
-public record ProductCommand(String code, String name, Long departmentId, String ownerTeam, String contactEmail,
+public record ProductCommand(String code, String name, Long businessServiceId, String ownerTeam, String contactEmail,
                              Long version) implements AuditedObject {
+
+    public Long departmentId() {
+        return businessServiceId;
+    }
 
     @Override
     public ActionObject auditedObject() {
@@ -15,6 +19,6 @@ public record ProductCommand(String code, String name, Long departmentId, String
     }
 
     public ProductDetails details() {
-        return new ProductDetails(code, name, null, ownerTeam, contactEmail, departmentId);
+        return new ProductDetails(code, name, null, ownerTeam, contactEmail, businessServiceId);
     }
 }

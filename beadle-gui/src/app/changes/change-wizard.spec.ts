@@ -321,7 +321,9 @@ describe('ChangeWizard', () => {
     await next();
     expect(wizard()['step']()).toBe(0);
     expect(text(page().querySelector('.step-problem'))).toBe('Some fields need your attention.');
-    expect(text(fieldOf(page(), 'Assignment group')?.querySelector('beadle-error'))).toBe('Required');
+    expect(text(fieldOf(page(), 'Assignment group')?.querySelector('beadle-error'))).toBe(
+      'Required',
+    );
   });
 
   it('raises a change from the request data, the Jira scope, the schedule and the other sections', async () => {
@@ -498,7 +500,9 @@ describe('ChangeWizard', () => {
     expect(buttonOf(page(), 'Back')).toBeUndefined();
     expect(wizard()['nextLabel']()).toBe('Create the CTASKs in ProTech');
     const tasks = wizard()['tasks']()!;
-    const rows = () => [...page().querySelectorAll<HTMLElement>('beadle-change-tasks-form .task-row')];
+    const rows = () => [
+      ...page().querySelectorAll<HTMLElement>('beadle-change-tasks-form .task-row'),
+    ];
     expect(rows().map((row) => text(row.querySelector('.kind')))).toEqual([
       'Release Management',
       'Change task',
@@ -707,7 +711,9 @@ describe('ChangeWizard', () => {
     expect(wizard()['shortDescription'].hasError('bytes')).toBe(true);
     await type('Short description', 'é'.repeat(80));
     expect(wizard()['shortDescription'].valid).toBe(true);
-    expect(text(fieldOf(page(), 'Short description')?.querySelector('beadle-hint'))).toBe('160 / 160');
+    expect(text(fieldOf(page(), 'Short description')?.querySelector('beadle-hint'))).toBe(
+      '160 / 160',
+    );
 
     wizard()['back']();
     await next();

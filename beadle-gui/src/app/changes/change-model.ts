@@ -8,6 +8,7 @@ import {
   JiraIssue,
   JiraVersion,
   ProductionChange,
+  isOpen,
 } from './change-api';
 
 export interface ChangeScope {
@@ -121,4 +122,11 @@ export function editHint(
     return `Only ${change.departmentName ?? 'its department'} can change it`;
   }
   return change.update?.status === 'PENDING' ? PENDING_HINT : null;
+}
+
+/** Why the user cannot change this change in Beadle: it is closed, or {@link editHint} says why not. */
+export function editRefusal(change: ProductionChange, departmentId: number | null): string | null {
+  return isOpen(change)
+    ? editHint(change, departmentId)
+    : `${change.number} is closed in ProTech and can no longer be changed`;
 }
