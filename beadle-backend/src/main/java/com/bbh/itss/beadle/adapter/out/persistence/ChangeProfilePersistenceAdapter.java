@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Optional;
 
-import static com.bbh.itss.beadle.domain.shared.Failures.staleVersion;
+import static com.bbh.itss.beadle.adapter.out.persistence.AuditedEntity.current;
 
 @Component
 @RequiredArgsConstructor
@@ -29,12 +29,9 @@ class ChangeProfilePersistenceAdapter implements ChangeProfileRepositoryPort {
 
     @Override
     public ChangeProfile save(ChangeProfile profile) {
-        ChangeProfileEntity entity = profiles.findByProductId(profile.productId()).map(stored -> {
-            if (stored.version() != profile.version()) {
-                throw staleVersion();
-            }
-            return stored;
-        }).orElseGet(() -> new ChangeProfileEntity(profile.productId()));
+        ChangeProfileEntity entity = profiles.findByProductId(profile.productId())
+                .map(stored -> current(Optional.of(stored), profile.version()))
+                .orElseGet(() -> new ChangeProfileEntity(profile.productId()));
         entity.apply(profile);
         return profiles.saveAndFlush(entity).toDomain();
     }

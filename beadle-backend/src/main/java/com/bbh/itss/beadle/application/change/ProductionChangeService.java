@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.UnaryOperator;
 
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_EDITED;
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_PREVIEWED;
@@ -266,12 +267,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private ProductionChange remembered(ProductionChange change, Map<ApprovalRef, Reminder> sent) {
-        try {
-            return changes.save(change.reminded(sent));
-        } catch (IllegalStateException stale) {
-            ProductionChange latest = changes.load(change.id()).orElseThrow(() -> stale);
-            return changes.save(latest.reminded(sent));
-        }
+        return savedOnLatest(change, latest -> latest.reminded(sent));
     }
 
     private ProductionChange editable(long id, Long version, Long businessServiceId) {
@@ -404,11 +400,15 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private ProductionChange recorded(ProductionChange change) {
+        return savedOnLatest(change, latest -> change.toBuilder().version(latest.version()).build());
+    }
+
+    /** Stores what {@code update} makes of the change, or of the latest version when someone stored one meanwhile. */
+    private ProductionChange savedOnLatest(ProductionChange change, UnaryOperator<ProductionChange> update) {
         try {
-            return changes.save(change);
+            return changes.save(update.apply(change));
         } catch (IllegalStateException stale) {
-            ProductionChange latest = changes.load(change.id()).orElseThrow(() -> stale);
-            return changes.save(change.toBuilder().version(latest.version()).build());
+            return changes.save(update.apply(changes.load(change.id()).orElseThrow(() -> stale)));
         }
     }
 
