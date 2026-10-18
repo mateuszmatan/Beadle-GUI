@@ -2,7 +2,7 @@ package com.bbh.itss.beadle.adapter.out.protech
 
 import com.bbh.itss.beadle.adapter.out.http.ServiceClientSpecification
 import com.bbh.itss.beadle.application.CallContext
-import com.bbh.itss.beadle.application.change.port.out.ProTechPort.RaisedChange
+import com.bbh.itss.beadle.application.change.port.out.ProTechPort.CreatedChange
 import com.bbh.itss.beadle.domain.change.ApprovalRef
 import com.bbh.itss.beadle.domain.change.Lookup
 import com.bbh.itss.beadle.domain.change.ProductionChange
@@ -14,7 +14,7 @@ import static com.bbh.itss.beadle.domain.change.ChangeState.IMPLEMENTATION
 import static com.bbh.itss.beadle.domain.change.LookupKind.ASSIGNMENT_GROUPS
 import static com.bbh.itss.beadle.domain.change.LookupKind.CLIENTS
 import static com.bbh.itss.beadle.domain.change.LookupKind.USERS
-import static com.bbh.itss.beadle.support.ChangeFixtures.raised
+import static com.bbh.itss.beadle.support.ChangeFixtures.issued
 import static com.bbh.itss.beadle.support.ChangeFixtures.task
 import static java.time.Duration.ofSeconds
 
@@ -28,17 +28,17 @@ class ProTechClientSpec extends ServiceClientSpecification {
         new ProTechClient(properties(url, token), builder(), caller(), clock)
     }
 
-    def "a change is raised with the service token, the signed-in user and the correlation id of the user action"() {
+    def "a change is created with the service token, the signed-in user and the correlation id of the user action"() {
         given:
         service.answer('POST', '/api/protech/changes', 201,
                 [number: 'CHG0031001', url: 'https://protech.bbh.com/CHG0031001'])
-        def draft = raised(id: null, number: null)
+        def draft = issued(id: null, number: null)
 
         when:
-        def created = CallContext.correlatedBy(CORRELATION).withCloseable { proTech.raise(draft) }
+        def created = CallContext.correlatedBy(CORRELATION).withCloseable { proTech.create(draft) }
 
         then:
-        created == new RaisedChange('CHG0031001', 'https://protech.bbh.com/CHG0031001')
+        created == new CreatedChange('CHG0031001', 'https://protech.bbh.com/CHG0031001')
         with(service.last) {
             method == 'POST'
             path == '/api/protech/changes'
@@ -72,8 +72,8 @@ class ProTechClientSpec extends ServiceClientSpecification {
 
     def "the changes Beadle knows are read back as ProTech holds them, and no change is not asked for"() {
         given:
-        def known = raised()
-        def moved = raised(state: IMPLEMENTATION, syncProblem: null)
+        def known = issued()
+        def moved = issued(state: IMPLEMENTATION, syncProblem: null)
         service.answer('POST', '/api/protech/changes/read', 200, '{"CHG0031001":' + JSON.writeValueAsString(moved) + '}')
 
         when:
@@ -96,7 +96,7 @@ class ProTechClientSpec extends ServiceClientSpecification {
         service.answer('POST', '/api/protech/changes/CHG0031001/reminders', 200, ['James Carter'])
 
         when:
-        proTech.update(raised())
+        proTech.update(issued())
         def reminded = proTech.remind('CHG0031001', ApprovalRef.of(L1))
 
         then:
@@ -181,7 +181,7 @@ class ProTechClientSpec extends ServiceClientSpecification {
         !unreachable.reachable()
 
         when:
-        unreachable.read([raised()])
+        unreachable.read([issued()])
 
         then:
         def failed = thrown(UncheckedIOException)
@@ -193,7 +193,7 @@ class ProTechClientSpec extends ServiceClientSpecification {
         service.answer('POST', '/api/protech/changes/read', 200, [:])
 
         when:
-        def read = client(service.url, " $TOKEN\n").read([raised()])
+        def read = client(service.url, " $TOKEN\n").read([issued()])
 
         then:
         read == [:]
@@ -202,7 +202,7 @@ class ProTechClientSpec extends ServiceClientSpecification {
 
     def "a call the HTTP layer cannot send fails as a service that did not answer, without quoting the token"() {
         when:
-        client(service.url, 'spec-service\ntoken').read([raised()])
+        client(service.url, 'spec-service\ntoken').read([issued()])
 
         then:
         def failed = thrown(UncheckedIOException)
@@ -241,7 +241,7 @@ class ProTechClientSpec extends ServiceClientSpecification {
                 'application/problem+json')
 
         when:
-        proTech.raise(raised(number: null))
+        proTech.create(issued(number: null))
 
         then:
         def refused = thrown(InvalidRequestException)
@@ -254,7 +254,7 @@ class ProTechClientSpec extends ServiceClientSpecification {
         service.answer('POST', '/api/protech/changes/CHG0031001/tasks', 201, '{}')
 
         when:
-        proTech.raise(raised(number: null))
+        proTech.create(issued(number: null))
 
         then:
         def change = thrown(UncheckedIOException)

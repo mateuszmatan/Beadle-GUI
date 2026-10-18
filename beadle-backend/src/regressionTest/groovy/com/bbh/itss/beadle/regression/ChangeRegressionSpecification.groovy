@@ -18,8 +18,8 @@ abstract class ChangeRegressionSpecification extends BeadleSpecification {
     static final Instant START = Instant.now().plus(3, DAYS).truncatedTo(HOURS)
     static final String SIGNED_IN = 'Mateusz Matan'
 
-    /** Raises a change of {@code product} from the first epic of its newest FixVersion and creates its tasks. */
-    protected Map raise(Map product, List tasks = changeTasksJson()) {
+    /** Creates a change of {@code product} from the first epic of its newest FixVersion and creates its tasks. */
+    protected Map create(Map product, List tasks = changeTasksJson()) {
         String key = 'CHG' + product.id
         String fixVersion = api.get("/api/products/$product.id/jira/versions?project=$key").json[0].name
         String epic = api.get("/api/products/$product.id/jira/epics?fixVersion=${enc(fixVersion)}&project=$key")

@@ -23,7 +23,7 @@ import { ActionHistoryPage } from './action-history-model';
 const zoneNote = `Times are in your time zone, ${Intl.DateTimeFormat().resolvedOptions().timeZone}.`;
 const FIRST = 'page=0&size=50';
 
-const raised = actionRecord();
+const created = actionRecord();
 const signedIn = actionRecord({
   id: 40,
   at: '2026-10-15T08:58:00Z',
@@ -56,7 +56,7 @@ describe('the rows of the action history', () => {
       outcome: 'Failure',
       success: false,
     });
-    expect(actionRow(raised)).toMatchObject({ outcome: 'Success', success: true });
+    expect(actionRow(created)).toMatchObject({ outcome: 'Success', success: true });
   });
 });
 
@@ -77,7 +77,7 @@ describe('ActionHistory', () => {
     http.expectOne(`/api/action-history?${params}`).flush(history);
   }
 
-  async function open(history = actionPage([raised, signedIn, failed])) {
+  async function open(history = actionPage([created, signedIn, failed])) {
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
@@ -87,7 +87,7 @@ describe('ActionHistory', () => {
     http
       .expectOne('/api/action-history/users')
       .flush(['Ann Lee', 'Mateusz Matan', 'system:internal']);
-    http.expectOne('/api/action-history/actions').flush(['CALLBACK_INTERNAL', 'CHANGE_RAISED']);
+    http.expectOne('/api/action-history/actions').flush(['CALLBACK_INTERNAL', 'CHANGE_CREATED']);
     answer(FIRST, history);
     await settle();
   }
@@ -137,7 +137,7 @@ describe('ActionHistory', () => {
       ),
     ).toEqual([
       'Mateusz Matan',
-      'Change raised',
+      'Change created',
       'Change CHG0031001',
       'Success',
       '6f1c2a9e-3b7d-4c55-9a51-2f0e8d4b7c10',
@@ -162,7 +162,7 @@ describe('ActionHistory', () => {
     expect(optionsOf(selectOf(page(), 'Action'))).toEqual([
       'All actions',
       'Beadle-Internal callback',
-      'Change raised',
+      'Change created',
     ]);
     expect(optionsOf(selectOf(page(), 'Outcome'))).toEqual(['Any', 'Success', 'Failure']);
     expect(inputOf(page(), 'From').type).toBe('date');
@@ -177,7 +177,7 @@ describe('ActionHistory', () => {
   });
 
   it('asks again with every filter chosen, from the first page, and clears them', async () => {
-    await open(actionPage([raised], { total: 120 }));
+    await open(actionPage([created], { total: 120 }));
     await click('Next');
     answer('page=1&size=50', actionPage([signedIn], { page: 1, total: 120 }));
     await settle();
@@ -188,24 +188,24 @@ describe('ActionHistory', () => {
     expect(position()).toBe('Page 1 of 1');
     expect(disabled('Clear filters')).toBe(false);
 
-    await pick('Action', 'Change raised');
-    answer('user=Ann%20Lee&action=CHANGE_RAISED&page=0&size=50', actionPage([]));
+    await pick('Action', 'Change created');
+    answer('user=Ann%20Lee&action=CHANGE_CREATED&page=0&size=50', actionPage([]));
     await settle();
     expect(text(page().querySelector('.beadle-grid-empty'))).toBe('No action matches the filters.');
 
     await pick('Outcome', 'Failure');
-    answer('user=Ann%20Lee&action=CHANGE_RAISED&outcome=FAILURE&page=0&size=50', actionPage([]));
+    answer('user=Ann%20Lee&action=CHANGE_CREATED&outcome=FAILURE&page=0&size=50', actionPage([]));
 
     await type('From', '2026-10-14');
     const from = new Date(2026, 9, 14).toISOString();
     answer(
-      `user=Ann%20Lee&action=CHANGE_RAISED&outcome=FAILURE&from=${from}&page=0&size=50`,
+      `user=Ann%20Lee&action=CHANGE_CREATED&outcome=FAILURE&from=${from}&page=0&size=50`,
       actionPage([]),
     );
     await type('To', '2026-10-15');
     const to = new Date(2026, 9, 16).toISOString();
     answer(
-      `user=Ann%20Lee&action=CHANGE_RAISED&outcome=FAILURE&from=${from}&to=${to}&page=0&size=50`,
+      `user=Ann%20Lee&action=CHANGE_CREATED&outcome=FAILURE&from=${from}&to=${to}&page=0&size=50`,
       actionPage([]),
     );
 
@@ -214,14 +214,14 @@ describe('ActionHistory', () => {
     await new Promise((resolve) => setTimeout(resolve, TYPING_DELAY + 50));
     await settle();
     answer(
-      `user=Ann%20Lee&action=CHANGE_RAISED&objectKey=chg003&outcome=FAILURE&from=${from}&to=${to}&page=0&size=50`,
+      `user=Ann%20Lee&action=CHANGE_CREATED&objectKey=chg003&outcome=FAILURE&from=${from}&to=${to}&page=0&size=50`,
       actionPage([failed]),
     );
     await settle();
     expect(gridColumn(page(), 'object')).toEqual(['Ticket SCP-123']);
 
     await click('Clear filters');
-    answer(FIRST, actionPage([raised, signedIn, failed]));
+    answer(FIRST, actionPage([created, signedIn, failed]));
     await settle();
     expect(selectOf(page(), 'User').value).toBe(selectOf(page(), 'User').options[0].value);
     expect(inputOf(page(), 'Object key').value).toBe('');
@@ -232,7 +232,7 @@ describe('ActionHistory', () => {
     await open();
 
     await type('To', '2026-10-14');
-    answer(`to=${new Date(2026, 9, 15).toISOString()}&page=0&size=50`, actionPage([raised]));
+    answer(`to=${new Date(2026, 9, 15).toISOString()}&page=0&size=50`, actionPage([created]));
     await type('From', '2026-10-15');
 
     http.expectNone((request) => request.url === '/api/action-history');
@@ -247,14 +247,14 @@ describe('ActionHistory', () => {
     await type('To', '2026-10-15');
     answer(
       `from=${new Date(2026, 9, 15).toISOString()}&to=${new Date(2026, 9, 16).toISOString()}&page=0&size=50`,
-      actionPage([raised]),
+      actionPage([created]),
     );
     await settle();
     expect(fieldOf(page(), 'To')?.querySelector('.invalid-feedback')).toBeNull();
   });
 
   it('pages through the history and keeps the rows on screen while the next page loads', async () => {
-    await open(actionPage([raised, signedIn], { size: 50, total: 120 }));
+    await open(actionPage([created, signedIn], { size: 50, total: 120 }));
     expect(position()).toBe('Page 1 of 3');
     expect(text(page().querySelector('.shown'))).toBe('Rows 1–2 of 120');
     expect(disabled('Previous')).toBe(true);
@@ -267,7 +267,7 @@ describe('ActionHistory', () => {
     expect(text(page().querySelector('.shown'))).toBe('Rows 51–51 of 120');
 
     await click('Next');
-    answer('page=2&size=50', actionPage([raised], { page: 2, total: 120 }));
+    answer('page=2&size=50', actionPage([created], { page: 2, total: 120 }));
     await settle();
     expect(position()).toBe('Page 3 of 3');
     expect(disabled('Next')).toBe(true);
@@ -279,7 +279,7 @@ describe('ActionHistory', () => {
 
     expect(optionsOf(selectOf(page(), 'Rows per page'))).toEqual(['25', '50', '100', '200']);
     await pick('Rows per page', '100');
-    answer('page=0&size=100', actionPage([raised, signedIn, failed], { size: 100, total: 120 }));
+    answer('page=0&size=100', actionPage([created, signedIn, failed], { size: 100, total: 120 }));
     await settle();
     expect(position()).toBe('Page 1 of 2');
   });
@@ -297,11 +297,11 @@ describe('ActionHistory', () => {
     expect(dialog.mock.calls[0][1]?.data).toEqual(failed);
 
     const at = gridCell(gridRows(page())[0], 'at').querySelector('button')!;
-    expect(at.getAttribute('aria-label')).toMatch(/^Details of Change raised at 15 Oct 2026/);
+    expect(at.getAttribute('aria-label')).toMatch(/^Details of Change created at 15 Oct 2026/);
     at.click();
     await settle();
     expect(dialog).toHaveBeenCalledTimes(2);
-    expect(dialog.mock.calls[1][1]?.data).toEqual(raised);
+    expect(dialog.mock.calls[1][1]?.data).toEqual(created);
   });
 
   it('offers to try again when the history or its filter lists cannot be loaded', async () => {
@@ -314,7 +314,7 @@ describe('ActionHistory', () => {
     http
       .expectOne('/api/action-history/users')
       .flush(null, { status: 503, statusText: 'Service Unavailable' });
-    http.expectOne('/api/action-history/actions').flush(['CHANGE_RAISED']);
+    http.expectOne('/api/action-history/actions').flush(['CHANGE_CREATED']);
     http
       .expectOne(`/api/action-history?${FIRST}`)
       .flush({ detail: 'The database is not answering.' }, { status: 500, statusText: 'Error' });
@@ -331,11 +331,11 @@ describe('ActionHistory', () => {
     );
     history.click();
     await settle();
-    answer(FIRST, actionPage([raised]));
+    answer(FIRST, actionPage([created]));
     lists.click();
     await settle();
     http.expectOne('/api/action-history/users').flush(['Mateusz Matan']);
-    http.expectOne('/api/action-history/actions').flush(['CHANGE_RAISED']);
+    http.expectOne('/api/action-history/actions').flush(['CHANGE_CREATED']);
     await settle();
 
     expect(page().querySelector('.banner')).toBeNull();

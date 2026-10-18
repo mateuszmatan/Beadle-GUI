@@ -29,7 +29,7 @@ import java.util.List;
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_EDITED;
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_PREVIEWED;
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_PROFILE_UPDATED;
-import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED;
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_CREATED;
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_TASKS_CREATED;
 import static com.bbh.itss.beadle.domain.audit.Action.REMINDER_SENT;
 import static com.bbh.itss.beadle.domain.audit.Action.SECURE_CODING_TICKET_CREATED;
@@ -85,10 +85,10 @@ public class ChangeController {
     }
 
     @PostMapping("/changes")
-    @AuditedRequest(value = CHANGE_RAISED, objectId = "productId", objectType = PRODUCT)
-    public ResponseEntity<ProductionChange> raise(@Valid @RequestBody ChangeRequest request) {
-        ProductionChange raised = changes.raise(request.toCommand());
-        return created(fromCurrentRequest().path("/{id}").buildAndExpand(raised.id()).toUri()).body(raised);
+    @AuditedRequest(value = CHANGE_CREATED, objectId = "productId", objectType = PRODUCT)
+    public ResponseEntity<ProductionChange> create(@Valid @RequestBody ChangeRequest request) {
+        ProductionChange created = changes.create(request.toCommand());
+        return created(fromCurrentRequest().path("/{id}").buildAndExpand(created.id()).toUri()).body(created);
     }
 
     @PostMapping("/changes/{id}/tasks")

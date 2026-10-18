@@ -21,7 +21,7 @@ public record ChangeCommand(long productId, String fixVersion, List<String> epic
         storyKeys = emptyIfNull(storyKeys).stream().distinct().toList();
     }
 
-    /** A change not raised yet is filed under the product it is drafted for; the audit trail looks up its code. */
+    /** A change not created yet is filed under the product it is drafted for; the audit trail looks up its code. */
     @Override
     public ActionObject auditedObject() {
         return ActionObject.of(PRODUCT, productId);

@@ -20,7 +20,7 @@ import static com.bbh.itss.beadle.domain.audit.ObjectType.USER;
 public enum Action {
 
     CHANGE_PREVIEWED(PRODUCT, false),
-    CHANGE_RAISED(CHANGE, false),
+    CHANGE_CREATED(CHANGE, false),
     CHANGE_EDITED(CHANGE, false),
     CHANGE_TASKS_CREATED(CHANGE, false),
     SECURE_CODING_TICKET_CREATED(CHANGE, false),

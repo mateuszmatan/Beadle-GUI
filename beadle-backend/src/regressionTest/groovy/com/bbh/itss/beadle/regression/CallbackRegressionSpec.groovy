@@ -8,14 +8,14 @@ class CallbackRegressionSpec extends ChangeRegressionSpecification {
 
     def "Beadle-ProTech and Beadle-Internal call back with the service token, are recorded as the system under the correlation id they pass, and are refused 401 without it"() {
         given:
-        def raised = raise(createProduct(product(code: uniqueCode(), name: "Callback ${uniqueCode()}")))
-        def moved = SERVICES.proTechChange(raised.number as String)
+        def created = create(createProduct(product(code: uniqueCode(), name: "Callback ${uniqueCode()}")))
+        def moved = SERVICES.proTechChange(created.number as String)
         moved.state = 'BUSINESS_APPROVAL'
         moved.workflow = moved.workflow + [[state: 'BUSINESS_APPROVAL', enteredAt: Instant.now().toString()]]
         def headers = ['X-Correlation-Id': CORRELATION]
 
         when:
-        def proTech = callback('/api/callbacks/protech', [number: raised.number, event: 'STATE_CHANGED',
+        def proTech = callback('/api/callbacks/protech', [number: created.number, event: 'STATE_CHANGED',
                                                           state: 'BUSINESS_APPROVAL', at: Instant.now().toString()],
                 headers)
         def internal = callback('/api/callbacks/internal', [system: 'CYBERTRACK', key: 'SCP-8888', status: 'Done',
@@ -24,16 +24,16 @@ class CallbackRegressionSpec extends ChangeRegressionSpecification {
         then:
         [proTech, internal]*.status == [202, 202]
         [proTech, internal]*.header('X-Correlation-Id') == [CORRELATION, CORRELATION]
-        jdbc.queryForObject('SELECT STATE FROM BEADLE_PRODUCTION_CHANGE WHERE ID = ?', String, raised.id) ==
+        jdbc.queryForObject('SELECT STATE FROM BEADLE_PRODUCTION_CHANGE WHERE ID = ?', String, created.id) ==
                 'BUSINESS_APPROVAL'
         rows(CORRELATION) == [
-                [USER_NAME: 'system:protech', ACTION: 'CALLBACK_PROTECH', OBJECT_KEY: raised.number, OUTCOME: 'SUCCESS'],
+                [USER_NAME: 'system:protech', ACTION: 'CALLBACK_PROTECH', OBJECT_KEY: created.number, OUTCOME: 'SUCCESS'],
                 [USER_NAME: 'system:internal', ACTION: 'CALLBACK_INTERNAL', OBJECT_KEY: 'SCP-8888', OUTCOME: 'SUCCESS']]
         SERVICES.requests.findAll { it.header('X-Correlation-Id') == CORRELATION }*.header('X-Beadle-User')
                 .unique() == ['system']
 
         when:
-        def missing = api.post('/api/callbacks/protech', [number: raised.number, event: 'TASK_CHANGED'])
+        def missing = api.post('/api/callbacks/protech', [number: created.number, event: 'TASK_CHANGED'])
         def wrong = api.post('/api/callbacks/internal', [system: 'CYBERTRACK', key: 'SCP-1'],
                 [Authorization: 'Bearer not-the-token'])
 

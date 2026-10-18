@@ -88,7 +88,7 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
           <p class="page-description">{{ section.description }}</p>
         </div>
         <div class="actions">
-          <a class="btn btn-primary" [routerLink]="newChange.path">Raise change</a>
+          <a class="btn btn-primary" [routerLink]="newChange.path">Create change</a>
         </div>
       </header>
       <beadle-integration-note />
@@ -185,10 +185,10 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
           <div class="card empty-state">
             <h3>No ProTech changes for {{ businessServiceName() }} yet</h3>
             <p>
-              Raise one for a production release: choose the product and its Jira release, and
+              Create one for a production release: choose the product and its Jira release, and
               Beadle writes the change and its change tasks for ProTech.
             </p>
-            <a class="btn btn-primary" [routerLink]="newChange.path">Raise change</a>
+            <a class="btn btn-primary" [routerLink]="newChange.path">Create change</a>
           </div>
         }
       }
@@ -338,8 +338,8 @@ export class ChangesList {
     },
     { key: 'tasks', header: 'Tasks', value: (row) => row.tasks, numeric: true, width: 80 },
     {
-      key: 'raised',
-      header: 'Raised',
+      key: 'created',
+      header: 'Created',
       value: (row) => formatRelative(row.change.createdAt),
       sortValue: (row) => Date.parse(row.change.createdAt ?? '') || 0,
       width: 110,

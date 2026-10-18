@@ -23,7 +23,7 @@ class NewChangeSpec extends BeadleSpecification {
 
     static final String IMPLEMENTATION_DATE = parse(RELEASE_DATE).format(ofPattern('MMddyyyy'))
 
-    def "a release manager raises a ProTech change section by section, with the lookups, the downtime window and the risk lists, then creates its change tasks and its secure coding ticket"() {
+    def "a release manager creates a ProTech change section by section, with the lookups, the downtime window and the risk lists, then creates its change tasks and its secure coding ticket"() {
         when:
         open('/')
         menuLink('New Change').click()
@@ -32,7 +32,7 @@ class NewChangeSpec extends BeadleSpecification {
         then:
         assertThat(page.locator('h1')).hasText('New ProTech Change')
         assertThat(page.locator('.page-header .page-description'))
-                .hasText('Raise a ProTech change for a production release in guided steps. The product\'s change template fills in the answers and Jira provides the scope.')
+                .hasText('Create a ProTech change for a production release in guided steps. The product\'s change template fills in the answers and Jira provides the scope.')
         assertThat(page.locator('beadle-integration-note strong')).hasText('Demo mode.')
         assertThat(page.locator('beadle-integration-note')).containsText('Jira and ProTech are not connected yet')
         assertThat(step().locator('.step-count')).hasText('Step 1 of 8')
@@ -55,7 +55,7 @@ class NewChangeSpec extends BeadleSpecification {
                            'Business service': 'Corporate Technology', 'Assignment group': 'Technology Architecture',
                            'Release'         : '', 'Affected CI': 'CertScanner', 'Direct business service': 'Certificate Management',
                            'Risk'            : 'Moderate', 'Affected clients': ''])
-        assertThat(input(step(), 'Change number')).hasAttribute('placeholder', 'Given by ProTech when raised')
+        assertThat(input(step(), 'Change number')).hasAttribute('placeholder', 'Given by ProTech when created')
         assertThat(input(step(), 'Opened by')).not().isEditable()
         assertThat(input(step(), 'Direct business service')).not().isEditable()
         assertThat(selected(step(), 'Category')).hasText('Application')
@@ -247,7 +247,7 @@ class NewChangeSpec extends BeadleSpecification {
         assertThat(step().locator('beadle-change-summary h3')).hasText(['Request details', 'Jira', 'Schedule',
                                                                     'Approval and notification', 'Risk assessment',
                                                                     'Privileged access', 'Planning'] as String[])
-        assertThat(review('Change number')).hasText('Given by ProTech when raised')
+        assertThat(review('Change number')).hasText('Given by ProTech when created')
         assertThat(review('Approval')).hasText('Not Approved')
         assertThat(review('Opened by')).hasText(SIGNED_IN_USER)
         assertThat(review('Release')).hasText('CERT 4.2')
@@ -289,14 +289,14 @@ class NewChangeSpec extends BeadleSpecification {
 
         when:
         input(texts(), 'Short description').fill('CertScanner 4.2 release')
-        button('Raise change in ProTech', true).click()
+        button('Create change in ProTech', true).click()
 
         then:
         assertThat(currentStep()).hasText('Change tasks')
         assertThat(page.locator('.step-bar .step-label')).hasText(STEPS.take(10) as String[])
         assertThat(step().locator('.step-count')).hasText('Step 9 of 10')
         assertThat(step().locator('h2')).hasText('Change tasks of CHG0031002')
-        assertThat(step().locator('.raised-note')).hasText('CHG0031002 has been raised in ProTech. Add its change tasks next.')
+        assertThat(step().locator('.created-note')).hasText('CHG0031002 has been created in ProTech. Add its change tasks next.')
         assertThat(stepButton('Review')).isDisabled()
         assertThat(button('Back', true)).hasCount(0)
         assertThat(button('Add change tasks later', true)).isVisible()
@@ -407,7 +407,7 @@ class NewChangeSpec extends BeadleSpecification {
         button('Create secure coding ticket in CyberTrack', true).click()
 
         then:
-        assertThat(step().locator('h2')).hasText('CHG0031002 has been raised')
+        assertThat(step().locator('h2')).hasText('CHG0031002 has been created')
         assertThat(currentStep()).hasText('Summary')
         assertThat(step().locator('.step-count')).hasText('Step 11 of 11')
         hasValues(step(), ['Change number': 'CHG0031002', 'Secure coding ticket number': 'SCP-4201'])
@@ -474,10 +474,10 @@ class NewChangeSpec extends BeadleSpecification {
         assertThat(review('Stories')).hasText('CERT-131')
 
         when:
-        button('Raise change in ProTech', true).click()
+        button('Create change in ProTech', true).click()
 
         then:
-        assertThat(page.locator('.save-problem strong')).hasText('The change could not be raised: 3 fields are invalid')
+        assertThat(page.locator('.save-problem strong')).hasText('The change could not be created: 3 fields are invalid')
         assertThat(page.locator('.save-problem li'))
                 .hasText(['Installation end: must be after the start', 'Backout plan: must not mention Nexus',
                           'Business impact: is not one of the answers'] as String[])

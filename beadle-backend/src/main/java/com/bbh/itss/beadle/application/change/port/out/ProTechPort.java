@@ -15,7 +15,7 @@ public interface ProTechPort {
     /** Whether the service behind the port answered when last asked, as {@link JiraPort#reachable()}. */
     boolean reachable();
 
-    RaisedChange raise(ProductionChange change);
+    CreatedChange create(ProductionChange change);
 
     String createTask(String changeNumber, ChangeTask task);
 
@@ -25,6 +25,6 @@ public interface ProTechPort {
 
     List<String> remind(String changeNumber, ApprovalRef approval);
 
-    record RaisedChange(String number, String url) {
+    record CreatedChange(String number, String url) {
     }
 }

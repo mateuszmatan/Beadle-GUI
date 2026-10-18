@@ -2,7 +2,7 @@ import { counted } from '../shared/formatting';
 
 export type Action =
   | 'CHANGE_PREVIEWED'
-  | 'CHANGE_RAISED'
+  | 'CHANGE_CREATED'
   | 'CHANGE_EDITED'
   | 'CHANGE_TASKS_CREATED'
   | 'SECURE_CODING_TICKET_CREATED'
@@ -80,7 +80,7 @@ export const NO_FILTERS: ActionFilters = {
 
 export const ACTIONS: Record<Action, string> = {
   CHANGE_PREVIEWED: 'Change previewed',
-  CHANGE_RAISED: 'Change raised',
+  CHANGE_CREATED: 'Change created',
   CHANGE_EDITED: 'Change edited',
   CHANGE_TASKS_CREATED: 'Change tasks created',
   SECURE_CODING_TICKET_CREATED: 'Secure coding ticket created',

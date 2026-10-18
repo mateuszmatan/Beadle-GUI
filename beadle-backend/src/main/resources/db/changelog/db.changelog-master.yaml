@@ -14,3 +14,6 @@ databaseChangeLog:
   - include:
       file: oracle/005-sign-out.sql
       relativeToChangelogFile: true
+  - include:
+      file: oracle/006-change-created.sql
+      relativeToChangelogFile: true

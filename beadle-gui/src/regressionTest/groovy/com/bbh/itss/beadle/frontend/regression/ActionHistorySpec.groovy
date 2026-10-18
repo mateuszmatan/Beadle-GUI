@@ -27,8 +27,8 @@ class ActionHistorySpec extends BeadleSpecification {
         assertThat(column('at').first()).hasText('15 Oct 2026, 09:00:05')
         assertThat(column('user')).hasText(['Mateusz Matan', 'Mateusz Matan', 'system:internal', 'Ann Lee',
                                             'system:protech', 'Ann Lee'] as String[])
-        assertThat(column('action')).hasText(['Change raised', 'Signed in', 'Beadle-Internal callback',
-                                              'Product updated', 'ProTech callback', 'Change raised'] as String[])
+        assertThat(column('action')).hasText(['Change created', 'Signed in', 'Beadle-Internal callback',
+                                              'Product updated', 'ProTech callback', 'Change created'] as String[])
         assertThat(column('outcome')).hasText(['Success', 'Success', 'Failure', 'Success', 'Success', 'Failure'] as String[])
         assertThat(column('outcome').locator('.chip.danger')).hasCount(2)
         assertThat(column('correlation').first()).hasText('5b1e7c1a-2f4d-4c8e-9a10-000000000006')
@@ -64,11 +64,11 @@ class ActionHistorySpec extends BeadleSpecification {
         assertThat(dialog()).hasCount(0)
 
         when:
-        button('Details of Change raised at 15 Oct 2026, 09:00:05', true).focus()
+        button('Details of Change created at 15 Oct 2026, 09:00:05', true).focus()
         page.keyboard().press('Enter')
 
         then:
-        assertThat(dialog().locator('h2')).hasText('Change raised: Change CHG0031001')
+        assertThat(dialog().locator('h2')).hasText('Change created: Change CHG0031001')
         assertThat(details('When')).hasText('15 Oct 2026, 09:00:05 in your time zone, UTC')
         assertThat(dialog().locator('.message')).hasCount(0)
         assertThat(dialog().locator('pre')).containsText('"fixVersion": "CERT 4.1"')
@@ -88,7 +88,7 @@ class ActionHistorySpec extends BeadleSpecification {
         then:
         assertThat(column('object')).hasCount(6)
         optionsOf(filters(), 'User') == ['Everyone', 'Ann Lee', 'Mateusz Matan', 'system:internal', 'system:protech']
-        optionsOf(filters(), 'Action') == ['All actions', 'Beadle-Internal callback', 'ProTech callback', 'Change raised',
+        optionsOf(filters(), 'Action') == ['All actions', 'Beadle-Internal callback', 'ProTech callback', 'Change created',
                                            'Product updated', 'Signed in']
         optionsOf(filters(), 'Outcome') == ['Any', 'Success', 'Failure']
         assertThat(button('Clear filters', true)).isDisabled()

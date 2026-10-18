@@ -32,9 +32,9 @@ import static com.bbh.itss.beadle.support.CatalogFixtures.copy
 class ChangeFixtures {
 
     static final String FIX_VERSION = 'CERT 4.2'
-    static final Instant RAISED = Instant.parse('2026-10-05T09:00:00Z')
+    static final Instant CREATED = Instant.parse('2026-10-05T09:00:00Z')
 
-    /** Where ProTech shows a change it raised. */
+    /** Where ProTech shows a change it created. */
     static String changeUrl(String number) {
         "https://protech.bbh.com/$number"
     }
@@ -135,16 +135,16 @@ class ChangeFixtures {
                 start == null ? null : at(start), null, null, null, OPEN)
     }
 
-    static ProductionChange raised(Map changes = [:]) {
+    static ProductionChange issued(Map changes = [:]) {
         copy(changes, ProductionChange.builder().id(7L).number('CHG0031001').productId(1L).productCode('CERTSCANNER')
                 .productName('CertScanner').businessServiceId(3L).businessServiceName('Corporate Technology')
                 .fixVersion(FIX_VERSION).schedule(schedule()).shortDescription('CertScanner CERT 4.2: Expiry alerts')
                 .description('Production release CERT 4.2 of CertScanner.').template(template(release: FIX_VERSION))
                 .epicKeys(['CERT-1']).storyKeys(['CERT-2'])
                 .tasks([task(1), task(2)])
-                .state(DRAFT).workflow([new WorkflowStep(DRAFT, RAISED)])
-                .approvals(ChangeApproval.of(template().approvers())).syncedAt(RAISED).version(0L)
-                .createdAt(RAISED).build())
+                .state(DRAFT).workflow([new WorkflowStep(DRAFT, CREATED)])
+                .approvals(ChangeApproval.of(template().approvers())).syncedAt(CREATED).version(0L)
+                .createdAt(CREATED).build())
     }
 
     static JiraIssue epic(String key, String summary, String updated = '2026-09-20') {

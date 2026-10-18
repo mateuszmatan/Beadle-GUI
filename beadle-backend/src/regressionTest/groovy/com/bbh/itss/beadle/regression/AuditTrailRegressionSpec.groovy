@@ -44,29 +44,29 @@ class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
         rowsAbout(code)[1].CORRELATION_ID == refused.header('X-Correlation-Id')
     }
 
-    def "raising a change, its tasks and its ticket are filed under the change number and found by CTASK or ticket key"() {
+    def "creating a change, its tasks and its ticket are filed under the change number and found by CTASK or ticket key"() {
         given:
-        def raised = raise(createProduct(product(code: uniqueCode(), name: "Raised ${uniqueCode()}")))
+        def created = create(createProduct(product(code: uniqueCode(), name: "Created ${uniqueCode()}")))
 
         when:
-        def ticket = api.post("/api/changes/$raised.id/secure-coding", [version: raised.version,
-                businessServiceId: raised.businessServiceId, implementationDate: '10202026'] + secureCodingJson())
+        def ticket = api.post("/api/changes/$created.id/secure-coding", [version: created.version,
+                businessServiceId: created.businessServiceId, implementationDate: '10202026'] + secureCodingJson())
         def key = ticket.json.template.secureCodingTicket as String
 
         then:
         ticket.status == 200
-        rowsAbout(raised.number as String)*.subMap(['ACTION', 'OBJECT_ID', 'OUTCOME']) == [
-                [ACTION: 'CHANGE_RAISED', OBJECT_ID: raised.id as Long, OUTCOME: 'SUCCESS'],
-                [ACTION: 'CHANGE_TASKS_CREATED', OBJECT_ID: raised.id as Long, OUTCOME: 'SUCCESS'],
-                [ACTION: 'SECURE_CODING_TICKET_CREATED', OBJECT_ID: raised.id as Long, OUTCOME: 'SUCCESS']]
-        raised.tasks*.number.every { number ->
+        rowsAbout(created.number as String)*.subMap(['ACTION', 'OBJECT_ID', 'OUTCOME']) == [
+                [ACTION: 'CHANGE_CREATED', OBJECT_ID: created.id as Long, OUTCOME: 'SUCCESS'],
+                [ACTION: 'CHANGE_TASKS_CREATED', OBJECT_ID: created.id as Long, OUTCOME: 'SUCCESS'],
+                [ACTION: 'SECURE_CODING_TICKET_CREATED', OBJECT_ID: created.id as Long, OUTCOME: 'SUCCESS']]
+        created.tasks*.number.every { number ->
             def found = api.get("/api/action-history?objectKey=$number").json.content
-            found*.action == ['CHANGE_TASKS_CREATED'] && found[0].objectKey == raised.number &&
+            found*.action == ['CHANGE_TASKS_CREATED'] && found[0].objectKey == created.number &&
                     (found[0].details as String).endsWith(',"result":{"created":["' +
-                            raised.tasks*.number.join('","') + '"]}}')
+                            created.tasks*.number.join('","') + '"]}}')
         }
         api.get("/api/action-history?objectKey=$key").json.content*.subMap(['action', 'user', 'objectId', 'objectKey']) ==
-                [[action: 'SECURE_CODING_TICKET_CREATED', user: SIGNED_IN, objectId: raised.id, objectKey: raised.number]]
+                [[action: 'SECURE_CODING_TICKET_CREATED', user: SIGNED_IN, objectId: created.id, objectKey: created.number]]
     }
 
     def "the action history answers the rows newest first, filtered and paged, with the values of its filters"() {

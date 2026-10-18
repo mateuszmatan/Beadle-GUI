@@ -98,8 +98,8 @@ export type ProfileForm = ReturnType<typeof profileForm>;
           </header>
           <p class="section-help">
             Every new change of {{ productName() }} starts with these answers, and each answer can
-            be changed when a change is raised. A field left empty is filled in when the change is
-            raised, as described under the field.
+            be changed when a change is created. A field left empty is filled in when the change is
+            created, as described under the field.
           </p>
           @if (version() === null) {
             <div class="banner info" role="status">

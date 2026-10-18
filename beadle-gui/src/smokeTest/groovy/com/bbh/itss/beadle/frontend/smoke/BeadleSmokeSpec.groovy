@@ -13,7 +13,7 @@ class BeadleSmokeSpec extends BeadleSpecification {
             [label      : 'Changes', heading: 'ProTech Changes', path: '/changes',
              description: 'The ProTech changes of your business service and where each one is in its approval workflow. A change is read again from ProTech when you open it.'],
             [label      : 'New Change', heading: 'New ProTech Change', path: '/new-change',
-             description: 'Raise a ProTech change for a production release in guided steps. The product\'s change template fills in the answers and Jira provides the scope.'],
+             description: 'Create a ProTech change for a production release in guided steps. The product\'s change template fills in the answers and Jira provides the scope.'],
             [label      : 'Admin', heading: 'Beadle Admin', path: '/admin/products',
              description: 'Business services, products and each product\'s change template: the answers every new change of the product starts with.'],
             [label      : 'Action History', heading: 'Action History', path: '/action-history',
@@ -135,18 +135,18 @@ class BeadleSmokeSpec extends BeadleSpecification {
         when: 'the window gets narrower than the columns of the changes'
         open('/changes')
         page.setViewportSize(800, 900)
-        def raised = page.locator("beadle-grid .ag-header-cell[col-id='raised']")
+        def created = page.locator("beadle-grid .ag-header-cell[col-id='created']")
 
         then: 'the bar keeps the height ag-grid gave it and scrolls to the last columns'
         page.waitForCondition({ barOf('beadle-grid').wider as boolean } as BooleanSupplier)
         barOf('beadle-grid').height == barOf('beadle-grid').sized
-        assertThat(raised).not().isInViewport()
+        assertThat(created).not().isInViewport()
 
         when:
         page.locator('beadle-grid .ag-body-horizontal-scroll-viewport').evaluate('bar => { bar.scrollLeft = bar.scrollWidth }')
 
         then:
-        assertThat(raised).isInViewport()
+        assertThat(created).isInViewport()
         ownErrors().isEmpty()
     }
 

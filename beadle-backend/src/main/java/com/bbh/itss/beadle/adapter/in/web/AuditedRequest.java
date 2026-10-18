@@ -35,6 +35,6 @@ public @interface AuditedRequest {
      */
     String objectKey() default "";
 
-    /** The type of the object the body names when it is not the type of the action: a raise is filed by product. */
+    /** The type of the object the body names when it is not the type of the action: a new change is filed by product. */
     ObjectType[] objectType() default {};
 }

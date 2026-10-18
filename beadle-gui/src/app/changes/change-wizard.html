@@ -270,10 +270,10 @@
         />
       }
       @case ('review') {
-        <h2>Check the change and raise it in ProTech</h2>
+        <h2>Check the change and create it in ProTech</h2>
         <p class="lead">
-          Check every value, then raise the change: ProTech creates it and gives it its change
-          number (CHG). Two steps follow: adding its change tasks (CTASKs), which carry that number,
+          Check every value, then create the change: ProTech gives it its change number
+          (CHG). Two steps follow: adding its change tasks (CTASKs), which carry that number,
           and creating its secure coding ticket in CyberTrack.
         </p>
         @if (previewing()) {
@@ -291,7 +291,7 @@
             <div>
               <h3>Text sent to ProTech</h3>
               <p class="hint">
-                Written from the values above. You can edit it before you raise the change.
+                Written from the values above. You can edit it before you create the change.
               </p>
             </div>
             <beadle-change-texts
@@ -304,10 +304,10 @@
         }
       }
       @case ('tasks') {
-        @if (raised(); as change) {
-          <div class="banner success raised-note" role="status">
+        @if (created(); as change) {
+          <div class="banner success created-note" role="status">
             <span
-              ><strong>{{ change.number }} has been raised in ProTech.</strong> Add its change tasks
+              ><strong>{{ change.number }} has been created in ProTech.</strong> Add its change tasks
               next.</span
             >
           </div>
@@ -323,7 +323,7 @@
         }
       }
       @case ('ticket') {
-        @if (raised(); as change) {
+        @if (created(); as change) {
           <h2>Secure coding ticket of {{ change.number }}</h2>
           <p class="lead">
             CyberTrack, the Jira project SCP, holds the secure coding tickets. Fill in the values
@@ -337,9 +337,9 @@
           />
         }
       }
-      @case ('raised') {
-        @if (raised(); as change) {
-          <h2>{{ change.number }} has been raised</h2>
+      @case ('created') {
+        @if (created(); as change) {
+          <h2>{{ change.number }} has been created</h2>
           <p class="lead">{{ change.shortDescription }}</p>
           <div class="form-fields summary-numbers">
             <beadle-form-field class="span-6 read-only">
@@ -419,7 +419,7 @@
       }
     }
 
-    @if (raising()) {
+    @if (creating()) {
       <beadle-loading />
     }
     @if (problem(); as error) {
@@ -446,18 +446,18 @@
     }
 
     <div class="step-actions">
-      @if (stepKey() === 'raised') {
+      @if (stepKey() === 'created') {
         <button type="button" class="btn btn-outline-primary" (click)="restart()">
-          Raise another change
+          Create another change
         </button>
         <span class="spacer"></span>
-        <a class="btn btn-primary" [routerLink]="changeLink(raised()?.id ?? '')">Open change</a>
+        <a class="btn btn-primary" [routerLink]="changeLink(created()?.id ?? '')">Open change</a>
       } @else {
         @if (laterLabels[stepKey()]; as label) {
           <button
             type="button"
             class="btn btn-outline-primary"
-            [disabled]="raising()"
+            [disabled]="creating()"
             (click)="later()"
           >
             {{ label }}
@@ -466,7 +466,7 @@
           <button
             type="button"
             class="btn btn-outline-primary"
-            [disabled]="raising() || previewing()"
+            [disabled]="creating() || previewing()"
             (click)="back()"
           >
             Back
@@ -476,7 +476,7 @@
         <button
           type="button"
           class="btn btn-primary"
-          [disabled]="raising() || previewing() || (stepKey() === 'review' && !preview())"
+          [disabled]="creating() || previewing() || (stepKey() === 'review' && !preview())"
           (click)="next()"
         >
           {{ nextLabel() }}

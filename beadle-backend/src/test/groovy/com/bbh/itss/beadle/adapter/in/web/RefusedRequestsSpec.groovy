@@ -40,7 +40,7 @@ import java.time.ZoneOffset
 
 import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_RENAMED
-import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_CREATED
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT
@@ -113,13 +113,13 @@ class RefusedRequestsSpec extends Specification {
                         '{"id":"seven","request":null}', 'id must be a whole number')]
     }
 
-    def "a refused raise is filed under the product its body names"() {
+    def "a refused create is filed under the product its body names"() {
         when:
-        mvc.perform(json(post('/api/samples/raised'), '{"productId": 6, "fixVersion": ""}'))
-        mvc.perform(json(post('/api/samples/raised'), '{"productId": "six"}'))
+        mvc.perform(json(post('/api/samples/created'), '{"productId": 6, "fixVersion": ""}'))
+        mvc.perform(json(post('/api/samples/created'), '{"productId": "six"}'))
 
         then:
-        recorded*.action() == [CHANGE_RAISED, CHANGE_RAISED]
+        recorded*.action() == [CHANGE_CREATED, CHANGE_CREATED]
         recorded*.object() == [ActionObject.of(PRODUCT, 6), ActionObject.of(PRODUCT, null)]
         recorded*.message() == ['fixVersion must not be blank', 'productId must be a whole number']
     }
@@ -129,7 +129,7 @@ class RefusedRequestsSpec extends Specification {
         def body = toJson([productId: 6, fixVersion: '', description: 'T' * size, epicKeys: ['CERT-1', 'CERT-2']])
 
         when:
-        def response = mvc.perform(json(post('/api/samples/raised'), body)).andReturn().response
+        def response = mvc.perform(json(post('/api/samples/created'), body)).andReturn().response
 
         then:
         response.status == 400
@@ -285,9 +285,9 @@ class RefusedRequestsSpec extends Specification {
             "$id $request.name"
         }
 
-        @PostMapping('/api/samples/raised')
-        @AuditedRequest(value = CHANGE_RAISED, objectId = 'productId', objectType = PRODUCT)
-        String raise(@Valid @RequestBody Raised request) {
+        @PostMapping('/api/samples/created')
+        @AuditedRequest(value = CHANGE_CREATED, objectId = 'productId', objectType = PRODUCT)
+        String create(@Valid @RequestBody Created request) {
             request.fixVersion
         }
 
@@ -312,7 +312,7 @@ class RefusedRequestsSpec extends Specification {
         DayOfWeek day
     }
 
-    static class Raised {
+    static class Created {
 
         @NotNull
         Long productId

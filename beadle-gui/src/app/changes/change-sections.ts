@@ -85,7 +85,7 @@ export const SECTIONS: readonly Section[] = [
 
 export const WIZARD_SECTIONS = SECTIONS.filter((section) => section.key !== 'secure');
 
-export const NUMBER_PENDING = 'Given by ProTech when raised';
+export const NUMBER_PENDING = 'Given by ProTech when created';
 
 export function changeFacts(
   change: Pick<ProductionChange, 'number' | 'state' | 'openedBy'>,

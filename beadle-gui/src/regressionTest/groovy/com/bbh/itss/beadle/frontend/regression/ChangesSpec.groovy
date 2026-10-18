@@ -34,7 +34,7 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(numbers()).hasText(['CHG0031001', 'CHG0030995', 'CHG0030990'] as String[])
         awaitRequest('GET', '/api/changes').params() == [businessServiceId: '3']
         assertThat(gridHeaders())
-                .hasText(['Change number', 'Product', 'FixVersion', 'State', 'Installation', 'Short description', 'Tasks', 'Raised', ''] as String[])
+                .hasText(['Change number', 'Product', 'FixVersion', 'State', 'Installation', 'Short description', 'Tasks', 'Created', ''] as String[])
         assertThat(column('state').locator('.chip')).hasText(['Secondary Approval', 'In Progress', 'Closed'] as String[])
         assertThat(column('state').locator('.meaning'))
                 .hasText(['Waiting for the L2 approver', 'All change tasks approved; installs in its window', 'Completed'] as String[])
@@ -98,7 +98,7 @@ class ChangesSpec extends BeadleSpecification {
 
         then:
         assertThat(page.locator('.empty-state h3')).hasText('No ProTech changes for AI Lab yet')
-        assertThat(link('Raise change', true)).hasCount(2)
+        assertThat(link('Create change', true)).hasCount(2)
 
         when:
         choose(page.locator('.toolbar'), 'Your business service', 'Fund Services')
@@ -108,7 +108,7 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(column('state').locator('.chip')).hasText(['Escalated approval'] as String[])
 
         when:
-        link('Raise change', true).click()
+        link('Create change', true).click()
         page.waitForURL('**/new-change')
 
         then:

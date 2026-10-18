@@ -27,7 +27,7 @@ describe('change sections', () => {
     expect(templateLabel('unknown')).toBeNull();
   });
 
-  it('states the number, approval, opener and state of a change, raised or not', () => {
+  it('states the number, approval, opener and state of a change, created or not', () => {
     expect(
       changeFacts({ number: 'CHG0012345', state: 'PRIMARY_APPROVAL', openedBy: 'Grace Turner' }),
     ).toEqual([

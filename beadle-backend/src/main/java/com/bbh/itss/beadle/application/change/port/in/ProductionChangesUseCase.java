@@ -13,7 +13,7 @@ public interface ProductionChangesUseCase {
 
     ProductionChange get(long id);
 
-    /** Reads the change of the given number again from ProTech; empty when Beadle did not raise it. */
+    /** Reads the change of the given number again from ProTech; empty when Beadle did not create it. */
     Optional<ProductionChange> resync(String number);
 
     ProductionChange update(long id, ChangeEditCommand command);
@@ -28,7 +28,7 @@ public interface ProductionChangesUseCase {
 
     ProductionChange preview(ChangeCommand command);
 
-    ProductionChange raise(ChangeCommand command);
+    ProductionChange create(ChangeCommand command);
 
     ProductionChange createTasks(long id, ChangeTasksCommand command);
 

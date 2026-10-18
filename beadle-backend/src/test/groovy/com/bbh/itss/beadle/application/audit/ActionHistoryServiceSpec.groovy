@@ -14,7 +14,7 @@ import java.time.Instant
 
 import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_PROTECH
-import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.PRODUCT_CREATED
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE
@@ -35,14 +35,14 @@ class ActionHistoryServiceSpec extends Specification {
         given:
         users.name() >> 'Łukasz Wójcik'
         keys.keyOf(PRODUCT, 6) >> Optional.of('CERT')
-        def row = ActionRecord.builder().at(NOW).action(CHANGE_RAISED).details('{"request":{"fixVersion":""}}')
+        def row = ActionRecord.builder().at(NOW).action(CHANGE_CREATED).details('{"request":{"fixVersion":""}}')
                 .outcome(FAILURE).message('fixVersion must not be blank')
 
         when:
         CallContext.correlatedBy(CORRELATION).withCloseable { service.record(row, ActionObject.of(PRODUCT, 6)) }
 
         then:
-        1 * history.record(ActionRecord.builder().at(NOW).user('Łukasz Wójcik').action(CHANGE_RAISED)
+        1 * history.record(ActionRecord.builder().at(NOW).user('Łukasz Wójcik').action(CHANGE_CREATED)
                 .objectType(PRODUCT).objectId(6).objectKey('CERT').details('{"request":{"fixVersion":""}}')
                 .outcome(FAILURE).message('fixVersion must not be blank').correlationId(CORRELATION).build())
     }
@@ -77,7 +77,7 @@ class ActionHistoryServiceSpec extends Specification {
 
     def "the audit trail is read through its port, with the filter lists"() {
         given:
-        def query = ActionHistoryQuery.of('Ann Lee', CHANGE_RAISED, null, 'CHG', null, null, null, 2, 20)
+        def query = ActionHistoryQuery.of('Ann Lee', CHANGE_CREATED, null, 'CHG', null, null, null, 2, 20)
         def page = new ActionHistoryPage([], 2, 20, 41)
 
         when:
@@ -88,10 +88,10 @@ class ActionHistoryServiceSpec extends Specification {
         then:
         found == page
         users == ['Ann Lee', 'Mateusz Matan']
-        actions == [CHANGE_RAISED, PRODUCT_CREATED]
+        actions == [CHANGE_CREATED, PRODUCT_CREATED]
         1 * history.find(query) >> page
         1 * history.users() >> ['Ann Lee', 'Mateusz Matan']
-        1 * history.actions() >> [CHANGE_RAISED, PRODUCT_CREATED]
+        1 * history.actions() >> [CHANGE_CREATED, PRODUCT_CREATED]
     }
 
     def "a query without paging asks for the first 50 rows"() {

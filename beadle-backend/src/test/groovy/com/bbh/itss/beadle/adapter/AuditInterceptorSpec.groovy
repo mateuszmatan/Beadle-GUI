@@ -77,8 +77,8 @@ import static com.bbh.itss.beadle.domain.change.ApprovalRole.BUSINESS
 import static com.bbh.itss.beadle.domain.change.ChangeState.BUSINESS_APPROVAL
 import static com.bbh.itss.beadle.domain.change.ChangeState.CLOSED
 import static com.bbh.itss.beadle.domain.change.ChangeState.DRAFT
-import static com.bbh.itss.beadle.support.ChangeFixtures.RAISED
-import static com.bbh.itss.beadle.support.ChangeFixtures.raised
+import static com.bbh.itss.beadle.support.ChangeFixtures.CREATED
+import static com.bbh.itss.beadle.support.ChangeFixtures.issued
 import static com.bbh.itss.beadle.support.ChangeFixtures.releaseTask
 import static com.bbh.itss.beadle.support.ChangeFixtures.template
 import static com.bbh.itss.beadle.support.RecordingTransactionManager.transactionState
@@ -252,7 +252,7 @@ class AuditInterceptorSpec extends Specification {
 
     def "a use case without a transaction that fails still leaves its FAILURE row"() {
         given:
-        changes.findByNumber('CHG0031001') >> Optional.of(raised())
+        changes.findByNumber('CHG0031001') >> Optional.of(issued())
         proTech.read(_) >> { throw new UncheckedIOException('Beadle-ProTech did not answer', new IOException()) }
 
         when:
@@ -276,10 +276,10 @@ class AuditInterceptorSpec extends Specification {
         }
     }
 
-    def "a callback on a change Beadle raised is filed under the change it read again"() {
+    def "a callback on a change Beadle created is filed under the change it read again"() {
         given:
-        changes.findByNumber('CHG0031001') >> Optional.of(raised())
-        proTech.read(_) >> [CHG0031001: raised()]
+        changes.findByNumber('CHG0031001') >> Optional.of(issued())
+        proTech.read(_) >> [CHG0031001: issued()]
 
         when:
         use(CallbacksUseCase) { it.proTech(new ProTechCallback('CHG0031001', STATE_CHANGED, DRAFT, NOW)) }
@@ -291,14 +291,14 @@ class AuditInterceptorSpec extends Specification {
 
     def "opening a change is recorded only when it pulled a newer state from ProTech"() {
         given:
-        changes.load(7L) >> Optional.of(raised())
+        changes.load(7L) >> Optional.of(issued())
         changes.save(_) >> { it[0] }
 
         when:
         use(ProductionChangesUseCase) { it.get(7L) }
 
         then:
-        1 * proTech.read(_) >> [CHG0031001: raised()]
+        1 * proTech.read(_) >> [CHG0031001: issued()]
         rows == []
         transactions.log == []
 
@@ -306,8 +306,8 @@ class AuditInterceptorSpec extends Specification {
         use(ProductionChangesUseCase) { it.get(7L) }
 
         then:
-        1 * proTech.read(_) >> [CHG0031001: raised(state: BUSINESS_APPROVAL,
-                workflow: [new WorkflowStep(DRAFT, RAISED), new WorkflowStep(BUSINESS_APPROVAL, NOW)])]
+        1 * proTech.read(_) >> [CHG0031001: issued(state: BUSINESS_APPROVAL,
+                workflow: [new WorkflowStep(DRAFT, CREATED), new WorkflowStep(BUSINESS_APPROVAL, NOW)])]
         rows.collect { [it.action(), it.objectType(), it.objectId(), it.objectKey(), it.details()] } ==
                 [[CHANGE_SYNCED, CHANGE, 7L, 'CHG0031001', '{"id":7}']]
     }
@@ -315,17 +315,17 @@ class AuditInterceptorSpec extends Specification {
     def "listing the changes records a CHANGE_SYNCED row for each change whose newer state it stored, and none for the rest"() {
         given:
         def moved = [state: BUSINESS_APPROVAL,
-                     workflow: [new WorkflowStep(DRAFT, RAISED), new WorkflowStep(BUSINESS_APPROVAL, NOW)]]
-        changes.findByBusinessService(3L) >> [raised(), raised(id: 8L, number: 'CHG0031002'),
-                                         raised(id: 9L, number: 'CHG0031003')]
+                     workflow: [new WorkflowStep(DRAFT, CREATED), new WorkflowStep(BUSINESS_APPROVAL, NOW)]]
+        changes.findByBusinessService(3L) >> [issued(), issued(id: 8L, number: 'CHG0031002'),
+                                         issued(id: 9L, number: 'CHG0031003')]
         changes.save(_) >> { it[0] }
 
         when:
         use(ProductionChangesUseCase) { it.list(3L) }
 
         then:
-        1 * proTech.read(_) >> [CHG0031001: raised(moved), CHG0031002: raised(id: 8L, number: 'CHG0031002'),
-                                CHG0031003: raised(moved + [id: 9L, number: 'CHG0031003'])]
+        1 * proTech.read(_) >> [CHG0031001: issued(moved), CHG0031002: issued(id: 8L, number: 'CHG0031002'),
+                                CHG0031003: issued(moved + [id: 9L, number: 'CHG0031003'])]
         rows.collect { [it.action(), it.objectType(), it.objectId(), it.objectKey(), it.outcome(), it.details()] } == [
                 [CHANGE_SYNCED, CHANGE, 7L, 'CHG0031001', SUCCESS, '{"businessServiceId":3}'],
                 [CHANGE_SYNCED, CHANGE, 9L, 'CHG0031003', SUCCESS, '{"businessServiceId":3}']]
@@ -337,17 +337,17 @@ class AuditInterceptorSpec extends Specification {
         use(ProductionChangesUseCase) { it.list(3L) }
 
         then:
-        1 * proTech.read(_) >> [CHG0031001: raised(), CHG0031002: raised(id: 8L, number: 'CHG0031002'),
-                                CHG0031003: raised(id: 9L, number: 'CHG0031003')]
+        1 * proTech.read(_) >> [CHG0031001: issued(), CHG0031002: issued(id: 8L, number: 'CHG0031002'),
+                                CHG0031003: issued(id: 9L, number: 'CHG0031003')]
         rows == []
     }
 
     def "a list that fails while storing a newer state records the changes it stored and the one it failed on"() {
         given:
         def moved = [state: BUSINESS_APPROVAL,
-                     workflow: [new WorkflowStep(DRAFT, RAISED), new WorkflowStep(BUSINESS_APPROVAL, NOW)]]
-        changes.findAll() >> [raised(), raised(id: 8L, number: 'CHG0031002')]
-        proTech.read(_) >> [CHG0031001: raised(moved), CHG0031002: raised(moved + [id: 8L, number: 'CHG0031002'])]
+                     workflow: [new WorkflowStep(DRAFT, CREATED), new WorkflowStep(BUSINESS_APPROVAL, NOW)]]
+        changes.findAll() >> [issued(), issued(id: 8L, number: 'CHG0031002')]
+        proTech.read(_) >> [CHG0031001: issued(moved), CHG0031002: issued(moved + [id: 8L, number: 'CHG0031002'])]
         changes.save(_) >> { it[0] } >> { throw new IllegalArgumentException('The database is full') }
 
         when:
@@ -363,7 +363,7 @@ class AuditInterceptorSpec extends Specification {
     def "#refusal after storing the newer state ProTech holds records that state as synced before its FAILURE row"() {
         given:
         keys.keyOf(CHANGE, 7L) >> Optional.of('CHG0031001')
-        changes.load(7L) >> Optional.of(raised())
+        changes.load(7L) >> Optional.of(issued())
         changes.save(_) >> { ProductionChange it -> it.toBuilder().version(1L).build() }
         proTech.read(_) >> [CHG0031001: remote]
 
@@ -385,16 +385,16 @@ class AuditInterceptorSpec extends Specification {
 
         where:
         refusal                                     | remote                | call                                                             || action        | message                                                                  | details
-        'a reminder of a change ProTech closed'     | raised(state: CLOSED) | { it.remind(7L, new ReminderCommand(3L, BUSINESS, null)) }       || REMINDER_SENT | 'CHG0031001 is closed in ProTech, so nobody is reminded to approve it'   | '{"id":7,"command":{"businessServiceId":3,"approval":"BUSINESS","task":null}}'
+        'a reminder of a change ProTech closed'     | issued(state: CLOSED) | { it.remind(7L, new ReminderCommand(3L, BUSINESS, null)) }       || REMINDER_SENT | 'CHG0031001 is closed in ProTech, so nobody is reminded to approve it'   | '{"id":7,"command":{"businessServiceId":3,"approval":"BUSINESS","task":null}}'
         'a reminder of a task the change lacks'     | moved()               | { it.remind(7L, new ReminderCommand(3L, null, 'CTASK0049999')) } || REMINDER_SENT | 'task CTASK0049999 is not a change task of CHG0031001'                   | '{"id":7,"command":{"businessServiceId":3,"approval":null,"task":"CTASK0049999"}}'
-        'an edit of a change ProTech closed'        | raised(state: CLOSED) | { it.update(7L, unchangedEdit()) }                               || CHANGE_EDITED | 'CHG0031001 is closed in ProTech and can no longer be changed'           | '{"id":7,"command":{"version":0,"businessServiceId":3,"shortDescription":'
-        'change tasks for a change ProTech closed'  | raised(state: CLOSED) | { it.createTasks(7L, new ChangeTasksCommand(0L, 3L, [releaseTask([:], null)])) } || CHANGE_TASKS_CREATED | 'CHG0031001 is closed in ProTech and can no longer be changed' | '{"id":7,"command":{"version":0,"businessServiceId":3,"tasks":['
+        'an edit of a change ProTech closed'        | issued(state: CLOSED) | { it.update(7L, unchangedEdit()) }                               || CHANGE_EDITED | 'CHG0031001 is closed in ProTech and can no longer be changed'           | '{"id":7,"command":{"version":0,"businessServiceId":3,"shortDescription":'
+        'change tasks for a change ProTech closed'  | issued(state: CLOSED) | { it.createTasks(7L, new ChangeTasksCommand(0L, 3L, [releaseTask([:], null)])) } || CHANGE_TASKS_CREATED | 'CHG0031001 is closed in ProTech and can no longer be changed' | '{"id":7,"command":{"version":0,"businessServiceId":3,"tasks":['
     }
 
     def "a reminder refused before ProTech is read leaves only its FAILURE row and the change as it was"() {
         given:
         keys.keyOf(CHANGE, 7L) >> Optional.of('CHG0031001')
-        changes.load(7L) >> Optional.of(raised())
+        changes.load(7L) >> Optional.of(issued())
 
         when:
         use(ProductionChangesUseCase) { it.remind(7L, new ReminderCommand(3L, BUSINESS, 'CTASK0041002')) }
@@ -409,7 +409,7 @@ class AuditInterceptorSpec extends Specification {
 
     def "an action that succeeds records only its own row, also when it stored the newer state on its way"() {
         given:
-        changes.load(7L) >> Optional.of(raised())
+        changes.load(7L) >> Optional.of(issued())
         changes.save(_) >> { ProductionChange it -> it.toBuilder().version(it.version() + 1).build() }
         proTech.read(_) >> [CHG0031001: moved()]
         proTech.remind('CHG0031001', _) >> ['Olivia Bennett']
@@ -459,10 +459,10 @@ class AuditInterceptorSpec extends Specification {
 
     def "the change tasks ProTech created stand last in the details of the row, also when it refused one of them"() {
         given:
-        changes.load(7L) >> Optional.of(raised(tasks: []))
+        changes.load(7L) >> Optional.of(issued(tasks: []))
         changes.save(_) >> { it[0] }
         keys.keyOf(CHANGE, 7L) >> Optional.of('CHG0031001')
-        proTech.read(_) >> [CHG0031001: raised(tasks: [])]
+        proTech.read(_) >> [CHG0031001: issued(tasks: [])]
         proTech.createTask('CHG0031001', _) >> 'CTASK0050001' >> {
             if (refused) {
                 throw new IllegalStateException('ProTech refused')
@@ -553,15 +553,15 @@ class AuditInterceptorSpec extends Specification {
         strict.readTree(json) as ObjectNode
     }
 
-    /** The raised change as ProTech moved it on to Business Approval. */
+    /** The created change as ProTech moved it on to Business Approval. */
     private static ProductionChange moved() {
-        raised(state: BUSINESS_APPROVAL,
-                workflow: [new WorkflowStep(DRAFT, RAISED), new WorkflowStep(BUSINESS_APPROVAL, NOW)])
+        issued(state: BUSINESS_APPROVAL,
+                workflow: [new WorkflowStep(DRAFT, CREATED), new WorkflowStep(BUSINESS_APPROVAL, NOW)])
     }
 
-    /** An edit of the raised change that sends it as it is. */
+    /** An edit of the created change that sends it as it is. */
     private static ChangeEditCommand unchangedEdit() {
-        def change = raised()
+        def change = issued()
         new ChangeEditCommand(0L, 3L, change.shortDescription(), change.description(), change.schedule(),
                 change.template(), change.tasks())
     }

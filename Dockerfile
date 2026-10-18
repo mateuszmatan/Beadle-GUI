@@ -10,7 +10,7 @@ FROM ${BASE_IMAGE}
 LABEL org.opencontainers.image.title="BBH Beadle" \
       org.opencontainers.image.source="https://github.com/mateuszmatan/Beadle-GUI" \
       io.k8s.display-name="BBH Beadle" \
-      io.k8s.description="Raises and follows ProTech changes with their change tasks and CyberTrack secure coding tickets" \
+      io.k8s.description="Creates and follows ProTech changes with their change tasks and CyberTrack secure coding tickets" \
       io.openshift.expose-services="8081:http"
 USER 0
 WORKDIR /application
