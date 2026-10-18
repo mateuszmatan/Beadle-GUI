@@ -1,6 +1,5 @@
 package com.bbh.itss.beadle.adapter.in.web
 
-import com.bbh.itss.beadle.adapter.AuditDetails
 import com.bbh.itss.beadle.application.audit.port.in.ActionHistoryUseCase
 import com.bbh.itss.beadle.domain.audit.Action
 import com.bbh.itss.beadle.domain.audit.ActionObject
@@ -24,7 +23,6 @@ import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
 import spock.lang.Specification
-import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.json.JsonMapper
 
 import java.time.Clock
@@ -40,7 +38,6 @@ import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT
 import static com.bbh.itss.beadle.support.Json.parse
 import static com.bbh.itss.beadle.support.Json.toJson
-import static java.nio.charset.StandardCharsets.UTF_8
 import static org.springframework.http.MediaType.APPLICATION_JSON
 import static org.springframework.http.MediaType.TEXT_PLAIN
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -117,9 +114,9 @@ class RefusedRequestsSpec extends Specification {
         recorded*.message() == ['fixVersion must not be blank', 'productId must be a whole number']
     }
 
-    def "a refused body of 100 KB is recorded as JSON within 32 KB, its long string cut and the rest as sent"() {
+    def "a refused body of #size bytes is recorded #kept"() {
         given:
-        def body = toJson([productId: 6, fixVersion: '', description: 'T' * 100_000, epicKeys: ['CERT-1', 'CERT-2']])
+        def body = toJson([productId: 6, fixVersion: '', description: 'T' * size, epicKeys: ['CERT-1', 'CERT-2']])
 
         when:
         def response = mvc.perform(json(post('/api/samples/raised'), body)).andReturn().response
@@ -127,15 +124,15 @@ class RefusedRequestsSpec extends Specification {
         then:
         response.status == 400
         recorded*.message() == ['fixVersion must not be blank']
-        def details = recorded[0].details()
-        details.getBytes(UTF_8).length <= ActionRecord.DETAILS_MAX
-        details.getBytes(UTF_8).length > ActionRecord.DETAILS_MAX - 4
-        def request = JsonMapper.builder().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build()
-                .readTree(details).get('request')
-        request.get('productId').asLong() == 6L
-        request.get('fixVersion').stringValue() == ''
-        request.get('description').stringValue() ==~ /T{30000,}/ + AuditDetails.CUT
-        request.get('epicKeys')*.stringValue() == ['CERT-1', 'CERT-2']
+        recorded[0].details() == (whole ? '{"request":' + body + '}'
+                : '{"truncated":true,"bytes":' + ('{"request":' + body + '}').length() + '}')
+
+        where:
+        size                       || whole
+        100_000                    || true
+        ActionRecord.DETAILS_MAX   || false
+
+        kept = whole ? 'as sent' : 'as its length'
     }
 
     def "a body of another content type is refused and recorded as well"() {

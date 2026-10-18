@@ -45,9 +45,9 @@ class ActionHistoryPersistenceAdapterSpec extends PersistenceSpecification {
     @Autowired
     JdbcTemplate jdbc
 
-    def "a row is inserted with every column, its details trimmed to 32 KB, and read back as it was written"() {
+    def "a row is inserted with every column, its details cut to 256 KB, and read back as it was written"() {
         given:
-        def details = '{"command":{"name":"' + ('é' * 20_000) + '"}}'
+        def details = '{"command":{"name":"' + ('é' * (ActionRecord.DETAILS_MAX / 2)) + '"}}'
 
         when:
         def stored = adapter.record(row(at: '2026-10-15T09:00:00.123456Z', details: details,

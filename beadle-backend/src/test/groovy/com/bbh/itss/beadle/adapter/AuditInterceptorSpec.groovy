@@ -12,7 +12,6 @@ import com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceRepositor
 import com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceUsagePort
 import com.bbh.itss.beadle.application.catalog.port.out.ProductRepositoryPort
 import com.bbh.itss.beadle.application.change.port.in.ChangeEditCommand
-import com.bbh.itss.beadle.application.change.port.in.ChangeProfilesUseCase
 import com.bbh.itss.beadle.application.change.port.in.ChangeTasksCommand
 import com.bbh.itss.beadle.application.change.port.in.ProductionChangesUseCase
 import com.bbh.itss.beadle.application.change.port.in.ReminderCommand
@@ -31,7 +30,6 @@ import com.bbh.itss.beadle.domain.callback.InternalCallback
 import com.bbh.itss.beadle.domain.callback.ProTechCallback
 import com.bbh.itss.beadle.domain.catalog.BusinessService
 import com.bbh.itss.beadle.domain.catalog.BusinessServiceUsage
-import com.bbh.itss.beadle.domain.change.ChangeProfile
 import com.bbh.itss.beadle.domain.change.ChangeTask
 import com.bbh.itss.beadle.domain.change.ProductionChange
 import com.bbh.itss.beadle.domain.change.WorkflowStep
@@ -61,7 +59,6 @@ import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_DELETED
 import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_INTERNAL
 import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_PROTECH
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_EDITED
-import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_PROFILE_UPDATED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_SYNCED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_TASKS_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.PRODUCT_CREATED
@@ -71,7 +68,6 @@ import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.SUCCESS
 import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE
-import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE_PROFILE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT
 import static com.bbh.itss.beadle.domain.audit.ObjectType.TICKET
 import static com.bbh.itss.beadle.domain.audit.ObjectType.USER
@@ -82,7 +78,6 @@ import static com.bbh.itss.beadle.domain.change.ChangeState.BUSINESS_APPROVAL
 import static com.bbh.itss.beadle.domain.change.ChangeState.CLOSED
 import static com.bbh.itss.beadle.domain.change.ChangeState.DRAFT
 import static com.bbh.itss.beadle.support.ChangeFixtures.RAISED
-import static com.bbh.itss.beadle.support.ChangeFixtures.changeProduct
 import static com.bbh.itss.beadle.support.ChangeFixtures.raised
 import static com.bbh.itss.beadle.support.ChangeFixtures.releaseTask
 import static com.bbh.itss.beadle.support.ChangeFixtures.template
@@ -426,7 +421,7 @@ class AuditInterceptorSpec extends Specification {
         rows.collect { [it.action(), it.objectKey(), it.outcome()] } == [[REMINDER_SENT, 'CHG0031001', SUCCESS]]
     }
 
-    def "an invalid request is recorded with its problems, its object named by the arguments and its long details trimmed"() {
+    def "an invalid request is recorded with its problems, its object named by the arguments and its details"() {
         given:
         def name = 'N' * 40_000
 
@@ -443,36 +438,9 @@ class AuditInterceptorSpec extends Specification {
             objectKey() == 'CERT'
             message().startsWith('name is too long')
             message().endsWith("; businessServiceId choose the product's business service")
-            details().startsWith('{"command":{"code":"CERT","name":"NNN')
-            details().endsWith(AuditDetails.CUT + '","businessServiceId":null,"ownerTeam":null,"contactEmail":null,' +
-                    '"version":null}}')
-            details().bytes.length <= ActionRecord.DETAILS_MAX
-            strict.readTree(details()).get('command').get('code').stringValue() == 'CERT'
+            details() == '{"command":{"code":"CERT","name":"' + name + '","businessServiceId":null,"ownerTeam":null,' +
+                    '"contactEmail":null,"version":null}}'
         }
-    }
-
-    def "a change template of 12 long tasks is recorded with details that are JSON within 32 KB"() {
-        given:
-        def tasks = (1..12).collect { ChangeFixtures.details(it, [description: 'Step ' + it + ' ' + 'x' * 3_890]) }
-        changeProducts.get(1L) >> changeProduct()
-        profiles.find(1L) >> Optional.empty()
-        profiles.save(_ as ChangeProfile) >> { ChangeProfile it -> it }
-        keys.keyOf(CHANGE_PROFILE, 1L) >> Optional.of('CertScanner')
-
-        when:
-        use(ChangeProfilesUseCase) { it.save(1L, null, template(), tasks) }
-
-        then:
-        rows.collect { [it.action(), it.objectType(), it.objectId(), it.outcome()] } ==
-                [[CHANGE_PROFILE_UPDATED, CHANGE_PROFILE, 1L, SUCCESS]]
-        def details = rows[0].details()
-        details.bytes.length <= ActionRecord.DETAILS_MAX
-        def read = strict.readTree(details)
-        read.get('productId').asLong() == 1L
-        read.get('template').get('jiraProjectKey').stringValue() == 'CERT'
-        read.get('tasks').size() == 12
-        read.get('tasks').every { it.get('description').stringValue().endsWith(AuditDetails.CUT) }
-        read.get('tasks')*.get('shortDescription')*.stringValue() == tasks*.shortDescription()
     }
 
     def "a business service that could not be created is filed under the name it was to have"() {
@@ -528,7 +496,7 @@ class AuditInterceptorSpec extends Specification {
         true    || '["CTASK0050001"]'
     }
 
-    def "long arguments are trimmed inside the JSON, and the result stays whole at the end of the details"() {
+    def "arguments too long for the details give way to their length, and the result stays whole after them"() {
         given:
         def interceptor = new AuditInterceptor(null, null, Stub(ObjectProvider) {
             getIfUnique(_) >> JsonMapper.builder().build()
@@ -539,16 +507,13 @@ class AuditInterceptorSpec extends Specification {
         notes.close()
         def result = ',"result":{"reminded":[{"role":"SUPPORT","task":null,"people":["Jane Smith"],' +
                 '"token":"*****"}],"created":["SCP-1002"]}}'
+        def command = '{"command":{"name":"' + 'N' * ActionRecord.DETAILS_MAX + '","code":"CERT"}'
 
         when:
-        def details = interceptor.details(arguments('{"command":{"name":"' + 'N' * 40_000 + '","code":"CERT"}}'),
-                notes)
+        def details = interceptor.details(arguments(command + '}'), notes)
 
         then:
-        details.bytes.length <= ActionRecord.DETAILS_MAX
-        details.bytes.length > ActionRecord.DETAILS_MAX - 4
-        details.startsWith('{"command":{"name":"NNN')
-        details.endsWith('NNN' + AuditDetails.CUT + '","code":"CERT"}' + result)
+        details == '{"truncated":true,"bytes":' + (command + result).length() + result
         strict.readTree(details).get('result').get('created').collect { it.stringValue() } == ['SCP-1002']
 
         expect:

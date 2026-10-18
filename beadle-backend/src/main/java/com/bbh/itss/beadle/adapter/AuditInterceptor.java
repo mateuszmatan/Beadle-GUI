@@ -64,10 +64,10 @@ import static org.springframework.transaction.support.TransactionSynchronization
  * cannot be written in their own transaction are logged and do not change the outcome of the use case.
  * <p>
  * {@code DETAILS} holds the arguments by parameter name and, last, what the use case noted with {@link AuditNotes}:
- * {@code "result": {"reminded": [...], "created": ["CTASK0041003", ...]}}, as JSON that {@link AuditDetails} trims
- * inside the tree to fit {@link ActionRecord#DETAILS_MAX}, the result whole. A call that fails also records what it
- * noted it had {@link AuditNotes#storedOnTheWay stored on its way}, each in a {@code SUCCESS} row of its own before
- * its {@code FAILURE} row.
+ * {@code "result": {"reminded": [...], "created": ["CTASK0041003", ...]}}, as JSON that {@link AuditDetails} keeps
+ * within {@link ActionRecord#DETAILS_MAX}, the result whole. A call that fails also records what it noted it had
+ * {@link AuditNotes#storedOnTheWay stored on its way}, each in a {@code SUCCESS} row of its own before its
+ * {@code FAILURE} row.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -221,8 +221,8 @@ public class AuditInterceptor implements MethodInterceptor {
     /**
      * The details of a row: the arguments and, last, what the use case noted as {@code "result"}, its
      * {@code "created"} keys last, where the object-key filter of the audit trail looks for them; written by
-     * {@link AuditDetails}, which trims long arguments inside the JSON so that it fits {@link ActionRecord#DETAILS_MAX}
-     * with the result whole. Without notes ({@code null}) only the arguments; {@code null} when there is neither.
+     * {@link AuditDetails}, which keeps only the length of arguments too long for {@link ActionRecord#DETAILS_MAX}
+     * and the result whole. Without notes ({@code null}) only the arguments; {@code null} when there is neither.
      */
     String details(ObjectNode arguments, Listening notes) {
         JsonMapper mapper = mapper();

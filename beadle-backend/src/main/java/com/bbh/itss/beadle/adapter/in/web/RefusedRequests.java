@@ -113,7 +113,7 @@ class RefusedRequests {
 
     /**
      * The path values by name (numbers as numbers) and the body under the name of its parameter, secrets masked, as
-     * JSON that {@link AuditDetails} trims inside the tree to fit the {@code DETAILS} of the row.
+     * JSON that {@link AuditDetails} keeps within the {@code DETAILS} of the row.
      */
     String details(HandlerMethod handler, Map<String, String> variables, JsonNode body) {
         try {
