@@ -12,6 +12,9 @@ export type Action =
   | 'PRODUCT_UPDATED'
   | 'PRODUCT_DELETED'
   | 'CHANGE_PROFILE_UPDATED'
+  | 'BUSINESS_SERVICE_CREATED'
+  | 'BUSINESS_SERVICE_RENAMED'
+  | 'BUSINESS_SERVICE_DELETED'
   | 'DEPARTMENT_CREATED'
   | 'DEPARTMENT_RENAMED'
   | 'DEPARTMENT_DELETED'
@@ -21,7 +24,7 @@ export type Action =
 
 export type ActionOutcome = 'SUCCESS' | 'FAILURE';
 
-export type ObjectType = 'CHANGE' | 'PRODUCT' | 'CHANGE_PROFILE' | 'DEPARTMENT' | 'TICKET' | 'USER';
+export type ObjectType = 'CHANGE' | 'PRODUCT' | 'CHANGE_PROFILE' | 'BUSINESS_SERVICE' | 'DEPARTMENT' | 'TICKET' | 'USER';
 
 export interface ActionRecord {
   id: number;
@@ -88,6 +91,9 @@ export const ACTIONS: Record<Action, string> = {
   PRODUCT_UPDATED: 'Product updated',
   PRODUCT_DELETED: 'Product deleted',
   CHANGE_PROFILE_UPDATED: 'Change template saved',
+  BUSINESS_SERVICE_CREATED: 'Business service created',
+  BUSINESS_SERVICE_RENAMED: 'Business service renamed',
+  BUSINESS_SERVICE_DELETED: 'Business service deleted',
   DEPARTMENT_CREATED: 'Department created',
   DEPARTMENT_RENAMED: 'Department renamed',
   DEPARTMENT_DELETED: 'Department deleted',
@@ -105,6 +111,7 @@ export const OBJECT_TYPES: Record<ObjectType, string> = {
   CHANGE: 'Change',
   PRODUCT: 'Product',
   CHANGE_PROFILE: 'Change template of product',
+  BUSINESS_SERVICE: 'Business service',
   DEPARTMENT: 'Department',
   TICKET: 'Ticket',
   USER: 'User',
