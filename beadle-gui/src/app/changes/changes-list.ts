@@ -292,7 +292,7 @@ export class ChangesList {
       header: 'Change number',
       value: (row) => row.change.number ?? '',
       filter: { control: this.filters.controls.number, label: 'change' },
-      width: 140,
+      width: 130,
     },
     {
       key: 'product',
@@ -316,7 +316,7 @@ export class ChangesList {
       sortValue: (row) => STATES.findIndex((state) => state.value === row.change.state),
       filter: { control: this.filters.controls.state, label: 'state', options: STATE_FILTERS },
       wrap: true,
-      minWidth: 170,
+      minWidth: 140,
     },
     {
       key: 'installation',
@@ -325,7 +325,7 @@ export class ChangesList {
       sortValue: (row) => Date.parse(row.change.schedule.installationStart),
       filter: { control: this.filters.controls.installation, label: 'installation' },
       wrap: true,
-      minWidth: 230,
+      minWidth: 170,
     },
     {
       key: 'shortDescription',
@@ -334,7 +334,7 @@ export class ChangesList {
       filter: { control: this.filters.controls.shortDescription, label: 'short description' },
       wrap: true,
       flex: 2,
-      minWidth: 200,
+      minWidth: 180,
     },
     { key: 'tasks', header: 'Tasks', value: (row) => row.tasks, numeric: true, width: 80 },
     {
