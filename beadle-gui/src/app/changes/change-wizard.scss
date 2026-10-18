@@ -35,7 +35,7 @@
     background: none;
     color: var(--beadle-muted);
     font: inherit;
-    font-size: 12.5px;
+    font-size: 12px;
     text-align: left;
 
     &:not(:disabled) {
@@ -60,7 +60,7 @@
     height: 22px;
     border: 1px solid var(--beadle-border);
     background: var(--beadle-card);
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 700;
   }
 

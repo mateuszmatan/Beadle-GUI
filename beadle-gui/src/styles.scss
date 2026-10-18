@@ -871,13 +871,13 @@ svg-icon svg {
   color: #ffffff;
 
   &.error {
-    background: #8c1d18;
+    background: var(--beadle-danger);
   }
 
   .toast-action {
     margin-left: auto;
     margin-right: 8px;
-    color: #d9dee6;
+    color: var(--beadle-border);
   }
 }
 
@@ -888,7 +888,7 @@ svg-icon svg {
   background: var(--beadle-card);
 
   &.expanded {
-    border-color: #b9c7e8;
+    border-color: var(--beadle-navy-light);
   }
 
   .accordion-header {
