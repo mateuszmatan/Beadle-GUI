@@ -31,10 +31,10 @@ import static org.springframework.http.ProblemDetail.forStatusAndDetail;
  * Lets only Beadle-Internal and Beadle-ProTech call back: every request to {@value #CALLBACKS} must carry the service
  * token the three Beadle services share as {@code Authorization: Bearer <token>}, or it is answered {@code 401}; a
  * blank token refuses every callback. As in Beadle-Internal and Beadle-ProTech, an {@code X-Correlation-Id} longer than
- * {@value #CORRELATION_MAX} bytes in UTF-8 is answered {@code 400}. What an accepted callback causes runs for the system
- * that called, named after its path: {@code system:protech} for {@code /api/callbacks/protech}. A callback without the
- * token is only logged; one refused for its correlation id is a {@code FAILURE} row of the audit trail by the system
- * ({@link RefusedRequests}).
+ * {@value #CORRELATION_MAX} bytes in UTF-8 is answered {@code 400}. What an accepted callback causes runs for the
+ * system that called, named after its path: {@code system:protech} for {@code /api/callbacks/protech}. A callback
+ * without the token is only logged; one refused for its correlation id is a {@code FAILURE} row of the audit trail by
+ * the system ({@link RefusedRequests}).
  */
 @Slf4j
 public class ServiceTokenFilter extends OncePerRequestFilter {

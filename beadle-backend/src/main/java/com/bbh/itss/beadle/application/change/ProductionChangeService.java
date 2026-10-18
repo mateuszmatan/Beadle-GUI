@@ -455,8 +455,8 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private static String syncProblem(RuntimeException e) {
-        String reason = e instanceof UncheckedIOException ? "ProTech could not be reached: " : "ProTech refused the read: ";
-        return CS.appendIfMissing(reason + e.getMessage(), ".");
+        String reason = e instanceof UncheckedIOException ? "could not be reached" : "refused the read";
+        return CS.appendIfMissing("ProTech " + reason + ": " + e.getMessage(), ".");
     }
 
     private static String missing(ProductionChange change) {
