@@ -173,10 +173,6 @@ abstract class GuiSpecification extends Specification {
         buttonIn(dialog(), name)
     }
 
-    Locator stat(String label) {
-        holding(page.locator('.stats .stat'), "span:text-is('${label}')").locator('strong')
-    }
-
     Locator holding(Locator scope, String selector) {
         scope.filter(new Locator.FilterOptions().setHas(page.locator(selector)))
     }
@@ -227,10 +223,6 @@ abstract class GuiSpecification extends Specification {
 
     Locator tab(String label) {
         page.locator('nav.tab-bar').getByRole(LINK, new Locator.GetByRoleOptions().setName(label).setExact(true))
-    }
-
-    Locator field(String label) {
-        page.getByLabel(label, new Page.GetByLabelOptions().setExact(true))
     }
 
     Locator input(Locator scope, String label) {
