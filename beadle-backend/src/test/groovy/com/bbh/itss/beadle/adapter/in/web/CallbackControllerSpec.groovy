@@ -86,6 +86,23 @@ class CallbackControllerSpec extends Specification {
         'with a basic login'    | '/api/callbacks/internal' | "Basic $TOKEN"
     }
 
+    def "a callback whose correlation id is longer than 64 characters is refused with 400, as the services have it"() {
+        when:
+        def response = callback('/api/callbacks/protech', PROTECH, "Bearer $TOKEN", 'x' * 65)
+
+        then:
+        0 * callbacks._
+        0 * history._
+        response.status == 400
+        with(parse(response.contentAsString)) {
+            problems*.field == ['X-Correlation-Id']
+            detail == 'X-Correlation-Id is too long: it may take at most 64 characters'
+        }
+
+        expect:
+        callback('/api/callbacks/protech', PROTECH, "Bearer $TOKEN", 'x' * 64).status == 202
+    }
+
     def "no callback is accepted while the service token is blank"() {
         given:
         def closed = mvc(' ')
@@ -137,9 +154,9 @@ class CallbackControllerSpec extends Specification {
                 ActionObject.keyed(CHANGE, 'CHG0031001'))
     }
 
-    private def callback(String path, Map body, String authorization) {
+    private def callback(String path, Map body, String authorization, String correlation = CORRELATION) {
         def request = post(path).contentType(APPLICATION_JSON).content(toJson(body))
-                .header('X-Correlation-Id', CORRELATION)
+                .header('X-Correlation-Id', correlation)
         if (authorization) {
             request.header('Authorization', authorization)
         }
