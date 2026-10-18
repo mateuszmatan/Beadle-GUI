@@ -69,7 +69,7 @@ class ApiExceptionHandlerSpec extends Specification {
         problems << [null, null, null, [PROBLEM], null, null]
     }
 
-    def "names Beadle, not the portal it came from, in what it logs of a failure"() {
+    def "logs an unexpected failure as Beadle's, and no unreachable system, which its client logged already"() {
         given:
         def logged = new ListAppender<ILoggingEvent>()
         def logger = LoggerFactory.getLogger(ApiExceptionHandler) as Logger
@@ -81,8 +81,7 @@ class ApiExceptionHandlerSpec extends Specification {
         handler.unexpected(new IllegalStateException('at com.bbh'))
 
         then:
-        logged.list*.formattedMessage == ['A system Beadle relies on could not be reached: Beadle-ProTech did not answer',
-                                          'Beadle could not serve a request']
+        logged.list*.formattedMessage == ['Beadle could not serve a request']
 
         cleanup:
         logger.detachAppender(logged)

@@ -80,7 +80,6 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(UncheckedIOException.class)
     ProblemDetail unavailable(UncheckedIOException e) {
-        log.warn("A system Beadle relies on could not be reached: {}", e.getMessage());
         return problem(SERVICE_UNAVAILABLE, "Service Unavailable", e.getMessage());
     }
 
@@ -142,15 +141,9 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     protected ResponseEntity<Object> handleExceptionInternal(Exception e, Object body, HttpHeaders headers,
                                                              HttpStatusCode status, WebRequest request) {
         ResponseEntity<Object> response = super.handleExceptionInternal(e, body, headers, status, request);
-        if (response != null && response.getBody() instanceof ProblemDetail detail) {
-            if (detail.getTitle() == null) {
-                HttpStatus resolved = HttpStatus.resolve(status.value());
-                detail.setTitle(resolved == null ? "Request failed" : resolved.getReasonPhrase());
-            }
-            if (status.is4xxClientError()
-                    && REFUSED_BEFORE_USE_CASE.stream().anyMatch(type -> type.isInstance(e))) {
-                refusals.record(request, detail);
-            }
+        if (response != null && response.getBody() instanceof ProblemDetail detail && status.is4xxClientError()
+                && REFUSED_BEFORE_USE_CASE.stream().anyMatch(type -> type.isInstance(e))) {
+            refusals.record(request, detail);
         }
         return response;
     }

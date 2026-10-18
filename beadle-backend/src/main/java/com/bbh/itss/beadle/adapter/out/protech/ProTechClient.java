@@ -95,9 +95,7 @@ public class ProTechClient extends BeadleServiceClient<ProTechClient.Status> imp
     @Override
     public List<Lookup> find(LookupKind kind, String query, int limit) {
         return list("look up " + kind.path(), client -> client.get()
-                .uri(uri -> query == null
-                        ? uri.path(LOOKUPS_PATH).queryParam("limit", "{limit}").build(kind.path(), limit)
-                        : uri.path(LOOKUPS_PATH).queryParam("q", "{q}").queryParam("limit", "{limit}")
+                .uri(uri -> uri.path(LOOKUPS_PATH).queryParam("q", "{q}").queryParam("limit", "{limit}")
                         .build(kind.path(), query, limit))
                 .retrieve().body(LOOKUPS));
     }

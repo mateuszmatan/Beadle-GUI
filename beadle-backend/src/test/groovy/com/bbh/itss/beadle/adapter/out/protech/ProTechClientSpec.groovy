@@ -141,8 +141,6 @@ class ProTechClientSpec extends ServiceClientSpecification {
         ['{x}', 'C++ team', 'R&D = 1', '50% {done} & C++'].every { text ->
             proTech.find(CLIENTS, text, 20) == [] && service.last.params == [q: text, limit: '20']
         }
-        proTech.find(CLIENTS, null, 20) == []
-        service.last.query == 'limit=20'
     }
 
     def "ProTech counts as connected while Beadle-ProTech answers live, asked at most every 30 seconds"() {
