@@ -12,11 +12,12 @@ public record SignedInUser(
         String name,
         String email,
         List<String> roles,
+        List<String> businessServiceNames,
         List<String> departmentNames,
         boolean admin
 ) implements AuditedObject {
 
-    public static final List<String> DEFAULT_DEPARTMENTS = List.of(
+    public static final List<String> DEFAULT_BUSINESS_SERVICES = List.of(
             "Corporate Technology",
             "Custody",
             "Fund Services",
@@ -24,9 +25,16 @@ public record SignedInUser(
             "Investor Services"
     );
 
+    public static final List<String> DEFAULT_DEPARTMENTS = DEFAULT_BUSINESS_SERVICES;
+
     public static final List<String> DEFAULT_ROLES = List.of(
             "ROLE_ADMIN",
             "ROLE_USER",
+            "ROLE_BS_CORPORATE_TECHNOLOGY",
+            "ROLE_BS_CUSTODY",
+            "ROLE_BS_FUND_SERVICES",
+            "ROLE_BS_MARKETS",
+            "ROLE_BS_INVESTOR_SERVICES",
             "ROLE_DEPT_CORPORATE_TECHNOLOGY",
             "ROLE_DEPT_CUSTODY",
             "ROLE_DEPT_FUND_SERVICES",
@@ -35,15 +43,19 @@ public record SignedInUser(
     );
 
     public SignedInUser(String name) {
-        this(name, null, DEFAULT_ROLES, DEFAULT_DEPARTMENTS, true);
+        this(name, null, DEFAULT_ROLES, DEFAULT_BUSINESS_SERVICES, DEFAULT_DEPARTMENTS, true);
     }
 
     public SignedInUser(String name, String email) {
-        this(name, email, DEFAULT_ROLES, DEFAULT_DEPARTMENTS, true);
+        this(name, email, DEFAULT_ROLES, DEFAULT_BUSINESS_SERVICES, DEFAULT_DEPARTMENTS, true);
+    }
+
+    public SignedInUser(String name, String email, List<String> roles, List<String> departments, boolean admin) {
+        this(name, email, roles, departments, departments, admin);
     }
 
     public static SignedInUser defaultAdmin() {
-        return new SignedInUser("Mateusz Matan", "mateusz.matan@bbh.com", DEFAULT_ROLES, DEFAULT_DEPARTMENTS, true);
+        return new SignedInUser("Mateusz Matan", "mateusz.matan@bbh.com", DEFAULT_ROLES, DEFAULT_BUSINESS_SERVICES, DEFAULT_DEPARTMENTS, true);
     }
 
     @Override

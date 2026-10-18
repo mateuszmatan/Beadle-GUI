@@ -52,8 +52,13 @@ public class ProductionChangeEntity extends AuditedEntity {
     private Long productId;
     private String productCode;
     private String productName;
-    private Long departmentId;
-    private String departmentName;
+
+    @Column(name = "BUSINESS_SERVICE_ID")
+    private Long businessServiceId;
+
+    @Column(name = "BUSINESS_SERVICE_NAME")
+    private String businessServiceName;
+
     private String openedBy;
     private String fixVersion;
     private ScheduleEmbeddable schedule;
@@ -109,12 +114,20 @@ public class ProductionChangeEntity extends AuditedEntity {
         return apply(change);
     }
 
+    public Long departmentId() {
+        return businessServiceId;
+    }
+
+    public String departmentName() {
+        return businessServiceName;
+    }
+
     private ProductionChangeEntity apply(ProductionChange change) {
         productId = change.productId();
         productCode = change.productCode();
         productName = change.productName();
-        departmentId = change.departmentId();
-        departmentName = change.departmentName();
+        businessServiceId = change.businessServiceId();
+        businessServiceName = change.businessServiceName();
         openedBy = change.openedBy();
         fixVersion = change.fixVersion();
         schedule = map(change.schedule(), ScheduleEmbeddable.class);

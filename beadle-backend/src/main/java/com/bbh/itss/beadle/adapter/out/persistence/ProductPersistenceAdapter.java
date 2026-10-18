@@ -15,7 +15,7 @@ import static com.bbh.itss.beadle.adapter.out.persistence.AuditedEntity.current;
 class ProductPersistenceAdapter implements ProductRepositoryPort {
 
     private final ProductJpaRepository products;
-    private final DepartmentJpaRepository departments;
+    private final BusinessServiceJpaRepository businessServices;
 
     @Override
     public List<Product> findAll() {
@@ -51,8 +51,13 @@ class ProductPersistenceAdapter implements ProductRepositoryPort {
     }
 
     @Override
+    public boolean businessServiceExists(long id) {
+        return businessServices.existsById(id);
+    }
+
+    @Override
     public boolean departmentExists(long id) {
-        return departments.existsById(id);
+        return businessServiceExists(id);
     }
 
     private static ProductIdentity identity(ProductEntity product) {

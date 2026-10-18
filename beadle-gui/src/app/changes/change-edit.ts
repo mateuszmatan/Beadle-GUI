@@ -104,7 +104,7 @@ export type EditForm = ReturnType<typeof editForm>;
               </p>
               <beadle-change-tasks-form [tasks]="f.controls.tasks" />
             </section>
-            <section class="card block">
+            <section class="card block texts">
               <h2>Text sent to ProTech</h2>
               <p class="section-help">
                 The short description and description ProTech shows for the change. They are not

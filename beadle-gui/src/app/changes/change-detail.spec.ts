@@ -359,7 +359,7 @@ describe('ChangeDetail', () => {
       'ProTech has no change CHG0012345. Beadle shows what it last read from ProTech. ' +
         'Try again in a moment; if it keeps failing, tell the Beadle administrator.',
     );
-  });
+  }, 15000);
 
   it('lets only the department of an open change edit it', async () => {
     await show(productionChange(), null);

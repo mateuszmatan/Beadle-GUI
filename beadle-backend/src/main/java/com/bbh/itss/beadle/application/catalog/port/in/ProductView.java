@@ -11,6 +11,14 @@ public record ProductView(long id, String code, String name, String ownerTeam, S
                           Long departmentId, String departmentName, long version, Instant updatedAt)
         implements AuditedObject {
 
+    public Long businessServiceId() {
+        return departmentId;
+    }
+
+    public String businessServiceName() {
+        return departmentName;
+    }
+
     @Override
     public ActionObject auditedObject() {
         return new ActionObject(PRODUCT, id, code);

@@ -196,7 +196,7 @@ class RefusedRequestsSpec extends Specification {
         }
 
         then:
-        controllers*.simpleName.containsAll(['ChangeController', 'ProductController', 'DepartmentController',
+        controllers*.simpleName.containsAll(['ChangeController', 'ProductController', 'BusinessServiceController',
                                              'CallbackController'])
         unaudited == []
     }

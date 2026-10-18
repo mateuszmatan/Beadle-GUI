@@ -116,8 +116,8 @@ class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
         then:
         refused.status == 409
         rowsAbout(name)*.subMap(['ACTION', 'OBJECT_TYPE', 'OUTCOME']) == [
-                [ACTION: 'DEPARTMENT_CREATED', OBJECT_TYPE: 'DEPARTMENT', OUTCOME: 'SUCCESS'],
-                [ACTION: 'DEPARTMENT_CREATED', OBJECT_TYPE: 'DEPARTMENT', OUTCOME: 'FAILURE']]
+                [ACTION: 'BUSINESS_SERVICE_CREATED', OBJECT_TYPE: 'BUSINESS_SERVICE', OUTCOME: 'SUCCESS'],
+                [ACTION: 'BUSINESS_SERVICE_CREATED', OBJECT_TYPE: 'BUSINESS_SERVICE', OUTCOME: 'FAILURE']]
     }
 
     def "a raise refused by the validation of its request leaves a FAILURE row filed under its product"() {
@@ -187,13 +187,13 @@ class AuditTrailRegressionSpec extends ChangeRegressionSpecification {
 
         then:
         [blank, tooLong]*.status == [400, 400]
-        rowOf(blank) == [USER_NAME: SIGNED_IN, ACTION: 'DEPARTMENT_CREATED', OBJECT_TYPE: 'DEPARTMENT', OBJECT_ID: null,
+        rowOf(blank) == [USER_NAME: SIGNED_IN, ACTION: 'BUSINESS_SERVICE_CREATED', OBJECT_TYPE: 'BUSINESS_SERVICE', OBJECT_ID: null,
                          OBJECT_KEY: null, OUTCOME: 'FAILURE', MESSAGE: 'name must not be blank', DURATION_MS: 0L]
         detailsOf(blank) == '{"request":{"name":""}}'
         rowOf(tooLong).subMap(['ACTION', 'OUTCOME', 'MESSAGE']) ==
-                [ACTION: 'DEPARTMENT_CREATED', OUTCOME: 'FAILURE', MESSAGE: 'name size must be between 0 and 100']
+                [ACTION: 'BUSINESS_SERVICE_CREATED', OUTCOME: 'FAILURE', MESSAGE: 'name size must be between 0 and 100']
         (rowOf(tooLong).OBJECT_KEY as String).startsWith('XXXXXXXXXX')
-        api.get("/api/action-history?action=DEPARTMENT_CREATED&outcome=FAILURE&size=200").json.content
+        api.get("/api/action-history?action=BUSINESS_SERVICE_CREATED&outcome=FAILURE&size=200").json.content
                 .findAll { it.correlationId in [blank, tooLong]*.header('X-Correlation-Id') }.size() == 2
     }
 

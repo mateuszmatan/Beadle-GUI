@@ -12,8 +12,8 @@ public interface ChangeProductJpaRepository extends Repository<ProductEntity, Lo
 
     String CHANGE_PRODUCTS = """
             select new com.bbh.itss.beadle.domain.change.ChangeProduct(p.id, p.code, p.name, p.ownerTeam,
-                p.departmentId, d.name, c.template.jiraProjectKey)
-            from ProductEntity p left join p.department d left join ChangeProfileEntity c on c.productId = p.id
+                p.businessServiceId, d.name, c.template.jiraProjectKey)
+            from ProductEntity p left join p.businessService d left join ChangeProfileEntity c on c.productId = p.id
             """;
 
     @Query(CHANGE_PRODUCTS + "where p.id = :id")

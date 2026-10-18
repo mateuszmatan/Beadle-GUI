@@ -239,19 +239,21 @@
         }
         @if (epicKeys().length) {
           @if (preview(); as draft) {
-            <div>
-              <h3>Text sent to ProTech</h3>
-              <p class="hint">
-                Written from the chosen epics and stories. The description takes in the later steps
-                as you fill them in, and you can change both texts.
-              </p>
+            <div class="texts">
+              <div>
+                <h3>Text sent to ProTech</h3>
+                <p class="hint">
+                  Written from the chosen epics and stories. The description takes in the later steps
+                  as you fill them in, and you can change both texts.
+                </p>
+              </div>
+              <beadle-change-texts
+                [shortDescription]="shortDescription"
+                [description]="description"
+                [generated]="draft"
+                [rows]="11"
+              />
             </div>
-            <beadle-change-texts
-              [shortDescription]="shortDescription"
-              [description]="description"
-              [generated]="draft"
-              [rows]="11"
-            />
           }
         }
       }
@@ -284,18 +286,20 @@
             {{ counted(draft.storyKeys.length, 'story', 'stories') }} of FixVersion
             {{ draft.fixVersion }}
           </p>
-          <div>
-            <h3>Text sent to ProTech</h3>
-            <p class="hint">
-              Written from the values above. Change it if you like before you create the change.
-            </p>
+          <div class="texts">
+            <div>
+              <h3>Text sent to ProTech</h3>
+              <p class="hint">
+                Written from the values above. Change it if you like before you create the change.
+              </p>
+            </div>
+            <beadle-change-texts
+              [shortDescription]="shortDescription"
+              [description]="description"
+              [generated]="draft"
+              [rows]="11"
+            />
           </div>
-          <beadle-change-texts
-            [shortDescription]="shortDescription"
-            [description]="description"
-            [generated]="draft"
-            [rows]="11"
-          />
         }
       }
       @case ('tasks') {

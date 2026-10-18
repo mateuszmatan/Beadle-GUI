@@ -1,6 +1,7 @@
 package com.bbh.itss.beadle.adapter.out.persistence;
 
 import com.bbh.itss.beadle.application.catalog.port.out.DepartmentRepositoryPort;
+import com.bbh.itss.beadle.domain.catalog.BusinessService;
 import com.bbh.itss.beadle.domain.catalog.Department;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -8,39 +9,39 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Optional;
 
-import static com.bbh.itss.beadle.adapter.out.persistence.AuditedEntity.current;
-
 @Component
 @RequiredArgsConstructor
-class DepartmentPersistenceAdapter implements DepartmentRepositoryPort {
+public class DepartmentPersistenceAdapter implements DepartmentRepositoryPort {
 
-    private final DepartmentJpaRepository departments;
+    private final BusinessServicePersistenceAdapter businessServices;
 
     @Override
     public List<Department> findAll() {
-        return departments.findAll().stream().map(DepartmentEntity::toDomain).toList();
+        return businessServices.findAll().stream().map(DepartmentPersistenceAdapter::toDept).toList();
     }
 
     @Override
     public Optional<Department> load(long id) {
-        return departments.findById(id).map(DepartmentEntity::toDomain);
+        return businessServices.load(id).map(DepartmentPersistenceAdapter::toDept);
     }
 
     @Override
     public Optional<Department> findByName(String name) {
-        return departments.findByNameIgnoreCase(name).map(DepartmentEntity::toDomain);
+        return businessServices.findByName(name).map(DepartmentPersistenceAdapter::toDept);
     }
 
     @Override
     public Department save(Department department) {
-        DepartmentEntity entity = department.id() == null ? new DepartmentEntity()
-                : current(departments.findById(department.id()), department.version());
-        entity.rename(department.name());
-        return departments.saveAndFlush(entity).toDomain();
+        BusinessService saved = businessServices.save(new BusinessService(department.id(), department.name(), department.version()));
+        return toDept(saved);
     }
 
     @Override
     public void delete(long id) {
-        departments.findById(id).ifPresent(departments::delete);
+        businessServices.delete(id);
+    }
+
+    private static Department toDept(BusinessService bs) {
+        return new Department(bs.id(), bs.name(), bs.version());
     }
 }

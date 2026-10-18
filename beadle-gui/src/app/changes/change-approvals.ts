@@ -174,6 +174,9 @@ export function remindedNames(
         <ng-template beadleCell="state" let-row>
           <span class="chip" [class]="tone(row.state)">{{ stateLabel(row.state) }}</span>
         </ng-template>
+        <ng-template beadleCell="reminder" let-row>
+          <span class="reminder muted">{{ row.reminder ? reminderText(row.reminder) : '' }}</span>
+        </ng-template>
         <ng-template beadleCell="action" let-row>
           @if (open() && row.remindable) {
             <button
@@ -258,6 +261,7 @@ export class ChangeApprovals {
 
   protected readonly sending = signal(false);
   protected readonly open = computed(() => isOpen(this.change()));
+  protected readonly reminderText = reminderText;
   protected readonly rowKey = (row: ApprovalRow) => row.key;
   protected readonly columns: GridColumn<ApprovalRow>[] = [
     { key: 'approval', header: 'Approval', value: (row) => row.label, wrap: true, minWidth: 190 },

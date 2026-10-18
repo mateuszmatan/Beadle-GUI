@@ -16,7 +16,7 @@ import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTest
         'spring.datasource.url=jdbc:h2:mem:department-adapter;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
         'spring.datasource.username=sa'])
 @AutoConfigureTestDatabase(replace = NONE)
-@Import(DepartmentPersistenceAdapter)
+@Import([BusinessServicePersistenceAdapter, DepartmentPersistenceAdapter])
 class DepartmentPersistenceAdapterSpec extends Specification {
 
     @Autowired
@@ -52,7 +52,7 @@ class DepartmentPersistenceAdapterSpec extends Specification {
         created.id() > 5
         created.version() == 0
         renamed == new Department(created.id(), 'Treasury Services', 1)
-        jdbc.queryForMap('SELECT NAME, VERSION FROM BEADLE_DEPARTMENT WHERE ID = ?', created.id()) ==
+        jdbc.queryForMap('SELECT NAME, VERSION FROM BEADLE_BUSINESS_SERVICE WHERE ID = ?', created.id()) ==
                 [NAME: 'Treasury Services', VERSION: 1]
 
         when:
@@ -62,7 +62,7 @@ class DepartmentPersistenceAdapterSpec extends Specification {
 
         then:
         adapter.load(created.id()) == Optional.empty()
-        jdbc.queryForObject('SELECT COUNT(*) FROM BEADLE_DEPARTMENT', Integer) == 5
+        jdbc.queryForObject('SELECT COUNT(*) FROM BEADLE_BUSINESS_SERVICE', Integer) == 5
     }
 
     def "a department #change is not written"() {
@@ -72,7 +72,7 @@ class DepartmentPersistenceAdapterSpec extends Specification {
         then:
         def e = thrown(IllegalStateException)
         e.message == STALE_VERSION
-        jdbc.queryForObject('SELECT NAME FROM BEADLE_DEPARTMENT WHERE ID = 4', String) == 'Custody'
+        jdbc.queryForObject('SELECT NAME FROM BEADLE_BUSINESS_SERVICE WHERE ID = 4', String) == 'Custody'
 
         where:
         change                                | department

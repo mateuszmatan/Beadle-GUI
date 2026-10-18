@@ -12,6 +12,6 @@ public interface ProductJpaRepository extends JpaRepository<ProductEntity, Long>
 
     Optional<ProductEntity> findByNameIgnoreCase(String name);
 
-    @Query("select p.departmentId, count(p) from ProductEntity p where p.departmentId is not null group by p.departmentId")
+    @Query("select p.businessServiceId, count(p) from ProductEntity p where p.businessServiceId is not null group by p.businessServiceId")
     List<Object[]> countByDepartment();
 }

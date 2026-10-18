@@ -349,7 +349,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         def fixVersion = api.get("/api/products/$created.id/jira/versions?project=$key").json[0].name
         def epic = api.get("/api/products/$created.id/jira/epics?fixVersion=${enc(fixVersion)}&project=$key")
                 .json[0].key
-        jdbc.update('UPDATE BEADLE_PRODUCT SET DEPARTMENT_ID = NULL WHERE ID = ?', created.id)
+        jdbc.update('UPDATE BEADLE_PRODUCT SET BUSINESS_SERVICE_ID = NULL WHERE ID = ?', created.id)
         def body = change(created, fixVersion, [epic], [], [template: templateJson(jiraProjectKey: key)])
 
         when:
@@ -523,7 +523,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         given:
         def raised = raise(createProduct(product(code: uniqueCode(), name: "Refused ${uniqueCode()}")))
         if (unowned) {
-            jdbc.update('UPDATE BEADLE_PRODUCTION_CHANGE SET DEPARTMENT_ID = NULL WHERE ID = ?', raised.id)
+            jdbc.update('UPDATE BEADLE_PRODUCTION_CHANGE SET BUSINESS_SERVICE_ID = NULL WHERE ID = ?', raised.id)
         }
         Instant now = Instant.now()
         def number = closed ? adopt(raised.id, now.minus(9, DAYS), now.minus(6, DAYS), now.minus(5, DAYS))
@@ -643,7 +643,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         def number = closed ? adopt(raised.id, now.minus(9, DAYS), now.minus(6, DAYS), now.minus(5, DAYS))
                 : raised.number
         if (unowned) {
-            jdbc.update('UPDATE BEADLE_PRODUCTION_CHANGE SET DEPARTMENT_ID = NULL WHERE ID = ?', raised.id)
+            jdbc.update('UPDATE BEADLE_PRODUCTION_CHANGE SET BUSINESS_SERVICE_ID = NULL WHERE ID = ?', raised.id)
         }
 
         expect:
@@ -807,7 +807,7 @@ class ProductionChangeRegressionSpec extends ChangeRegressionSpecification {
         given:
         def raised = raise(createProduct(product(code: uniqueCode(), name: "Refused ${uniqueCode()}")))
         if (unowned) {
-            jdbc.update('UPDATE BEADLE_PRODUCTION_CHANGE SET DEPARTMENT_ID = NULL WHERE ID = ?', raised.id)
+            jdbc.update('UPDATE BEADLE_PRODUCTION_CHANGE SET BUSINESS_SERVICE_ID = NULL WHERE ID = ?', raised.id)
         }
 
         when:

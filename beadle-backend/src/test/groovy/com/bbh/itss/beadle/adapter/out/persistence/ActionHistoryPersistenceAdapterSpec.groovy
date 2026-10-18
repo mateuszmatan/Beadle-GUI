@@ -192,7 +192,7 @@ class ActionHistoryPersistenceAdapterSpec extends Specification {
 
     def "the key of a change, a product, its change template and a department is read by id"() {
         given:
-        jdbc.update('''INSERT INTO BEADLE_PRODUCT (CODE, NAME, DEPARTMENT_ID, CREATED_AT, UPDATED_AT)
+        jdbc.update('''INSERT INTO BEADLE_PRODUCT (CODE, NAME, BUSINESS_SERVICE_ID, CREATED_AT, UPDATED_AT)
                 VALUES ('AUDITED', 'Audited Product', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)''')
         long productId = jdbc.queryForObject("SELECT ID FROM BEADLE_PRODUCT WHERE CODE = 'AUDITED'", Long)
         long changeId = changes.save(raised(id: null, version: null, number: 'CHG0077001', productId: productId))
@@ -203,6 +203,7 @@ class ActionHistoryPersistenceAdapterSpec extends Specification {
         keys.keyOf(PRODUCT, productId) == Optional.of('AUDITED')
         keys.keyOf(CHANGE_PROFILE, productId) == Optional.of('AUDITED')
         keys.keyOf(DEPARTMENT, 3L) == Optional.of('Corporate Technology')
+        keys.keyOf(com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE, 3L) == Optional.of('Corporate Technology')
         keys.keyOf(DEPARTMENT, 9999L) == Optional.empty()
         keys.keyOf(TICKET, 1L) == Optional.empty()
         keys.keyOf(USER, 1L) == Optional.empty()

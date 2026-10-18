@@ -19,13 +19,13 @@ public interface ProductionChangeJpaRepository extends JpaRepository<ProductionC
     List<ProductionChangeEntity> findAll(Sort sort);
 
     @EntityGraph(attributePaths = "tasks")
-    List<ProductionChangeEntity> findByDepartmentIdOrderByIdDesc(long departmentId);
+    List<ProductionChangeEntity> findByBusinessServiceIdOrderByIdDesc(long businessServiceId);
 
     @EntityGraph(attributePaths = "tasks")
     Optional<ProductionChangeEntity> findByNumber(String number);
 
-    @Query("select c.departmentId, count(c) from ProductionChangeEntity c where c.departmentId is not null"
-            + " group by c.departmentId")
+    @Query("select c.businessServiceId, count(c) from ProductionChangeEntity c where c.businessServiceId is not null"
+            + " group by c.businessServiceId")
     List<Object[]> countByDepartment();
 
     @Modifying

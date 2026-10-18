@@ -16,12 +16,17 @@ export interface Failure {
 
 export const NEEDS_ATTENTION: Failure = { message: ATTENTION, problems: [], reload: false };
 
+export const STALE =
+  'The record was changed by someone else in the meantime. Reload it and apply your change again.';
+
 /** The failure of a refused save; a 409 means someone else saved first, so the page offers to reload. */
 export function failureOf(error: unknown, prefix: string): Failure {
+  const conflict = error instanceof HttpErrorResponse && error.status === 409;
+  const message = errorMessage(error);
   return {
-    message: `${prefix}: ${errorMessage(error)}`,
+    message: conflict && message === STALE ? STALE : `${prefix}: ${message}`,
     problems: fieldProblems(error).map(problemText),
-    reload: error instanceof HttpErrorResponse && error.status === 409,
+    reload: conflict,
   };
 }
 

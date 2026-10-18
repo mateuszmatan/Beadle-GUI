@@ -8,6 +8,8 @@ import com.bbh.itss.beadle.application.audit.port.out.ObjectKeyPort
 import com.bbh.itss.beadle.application.catalog.port.in.DepartmentsUseCase
 import com.bbh.itss.beadle.application.catalog.port.in.ProductCommand
 import com.bbh.itss.beadle.application.catalog.port.in.ProductsUseCase
+import com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceRepositoryPort
+import com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceUsagePort
 import com.bbh.itss.beadle.application.catalog.port.out.DepartmentRepositoryPort
 import com.bbh.itss.beadle.application.catalog.port.out.DepartmentUsagePort
 import com.bbh.itss.beadle.application.catalog.port.out.ProductRepositoryPort
@@ -54,6 +56,8 @@ class UseCaseConfigurationSpec extends Specification {
     ProductRepositoryPort products = Mock()
     DepartmentRepositoryPort departments = Mock()
     DepartmentUsagePort usage = Mock()
+    BusinessServiceRepositoryPort businessServices = Mock()
+    BusinessServiceUsagePort businessServiceUsage = Mock()
     JiraPort jira = Mock()
     ProTechPort proTech = Mock()
     CyberTrackPort cyberTrack = Mock()
@@ -68,6 +72,8 @@ class UseCaseConfigurationSpec extends Specification {
             .withBean(ProductRepositoryPort, { products } as Supplier<ProductRepositoryPort>)
             .withBean(DepartmentRepositoryPort, { departments } as Supplier<DepartmentRepositoryPort>)
             .withBean(DepartmentUsagePort, { usage } as Supplier<DepartmentUsagePort>)
+            .withBean(BusinessServiceRepositoryPort, { businessServices } as Supplier<BusinessServiceRepositoryPort>)
+            .withBean(BusinessServiceUsagePort, { businessServiceUsage } as Supplier<BusinessServiceUsagePort>)
             .withBean(ChangeProductsPort, { Mock(ChangeProductsPort) } as Supplier<ChangeProductsPort>)
             .withBean(ChangeProfileRepositoryPort, { Mock(ChangeProfileRepositoryPort) } as Supplier<ChangeProfileRepositoryPort>)
             .withBean(ProductionChangeRepositoryPort, { Mock(ProductionChangeRepositoryPort) } as Supplier<ProductionChangeRepositoryPort>)
@@ -84,7 +90,7 @@ class UseCaseConfigurationSpec extends Specification {
         expect:
         runner.run { ApplicationContext context ->
             def useCases = context.getBeansWithAnnotation(UseCase)
-            assert useCases.keySet() == ['departmentService', 'productService', 'changeProfileService',
+            assert useCases.keySet() == ['businessServiceService', 'departmentService', 'productService', 'changeProfileService',
                                          'productionChangeService', 'changeOptionsService', 'lookupService',
                                          'signedInUserService', 'callbackService', 'actionHistoryService',
                                          'refusedRequestService'] as Set
@@ -112,6 +118,7 @@ class UseCaseConfigurationSpec extends Specification {
         given:
         departments.findAll() >> { calls << 'departments ' + transactionState(); [new Department(3L, 'Custody', 0)] }
         products.findAll() >> { calls << 'products ' + transactionState(); [] }
+        products.businessServiceExists(3L) >> true
         products.departmentExists(3L) >> true
         products.findProductByCode(_) >> Optional.empty()
         products.findProductByName(_) >> Optional.empty()

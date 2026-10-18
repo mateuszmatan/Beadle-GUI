@@ -5,7 +5,7 @@ export interface FieldProblem {
   message: string;
 }
 
-export interface Department {
+export interface BusinessService {
   id: number;
   name: string;
   version: number;
@@ -13,10 +13,14 @@ export interface Department {
   changeCount: number;
 }
 
-export interface DepartmentRequest {
+export type Department = BusinessService;
+
+export interface BusinessServiceRequest {
   name: string;
   version: number | null;
 }
+
+export type DepartmentRequest = BusinessServiceRequest;
 
 export interface LookupItem {
   value: string;
@@ -25,6 +29,7 @@ export interface LookupItem {
 
 export type LookupKind =
   | 'users'
+  | 'business-services'
   | 'departments'
   | 'assignment-groups'
   | 'releases'

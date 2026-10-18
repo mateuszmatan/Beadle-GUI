@@ -15,9 +15,10 @@ import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORT
 @Transactional(propagation = NOT_SUPPORTED)
 class BaselineMigrationSpec extends MigrationSpecification {
 
-    static final List<String> TABLES = ['BEADLE_CHANGE_PROFILE', 'BEADLE_CHANGE_PROFILE_PRIVILEGED_USER',
-                                        'BEADLE_CHANGE_PROFILE_TASK', 'BEADLE_DEPARTMENT', 'BEADLE_PRODUCT',
-                                        'BEADLE_PRODUCTION_CHANGE', 'BEADLE_PRODUCTION_CHANGE_APPROVAL',
+    static final List<String> TABLES = ['BEADLE_BUSINESS_SERVICE', 'BEADLE_CHANGE_PROFILE',
+                                        'BEADLE_CHANGE_PROFILE_PRIVILEGED_USER', 'BEADLE_CHANGE_PROFILE_TASK',
+                                        'BEADLE_PRODUCT', 'BEADLE_PRODUCTION_CHANGE',
+                                        'BEADLE_PRODUCTION_CHANGE_APPROVAL',
                                         'BEADLE_PRODUCTION_CHANGE_PRIVILEGED_USER', 'BEADLE_PRODUCTION_CHANGE_STAGE',
                                         'BEADLE_PRODUCTION_CHANGE_TASK']
 
@@ -27,15 +28,15 @@ class BaselineMigrationSpec extends MigrationSpecification {
         'db/changelog/oracle/001-baseline.sql'
     }
 
-    def "the baseline creates Beadle's tables and the BBH departments"() {
+    def "the baseline creates Beadle's tables and the BBH business services"() {
         when:
         liquibase.update('')
 
         then:
         beadleTables() == TABLES
-        jdbc.queryForList('SELECT NAME FROM BEADLE_DEPARTMENT ORDER BY ID', String) ==
+        jdbc.queryForList('SELECT NAME FROM BEADLE_BUSINESS_SERVICE ORDER BY ID', String) ==
                 ['AI Lab', 'Capital Partners', 'Corporate Technology', 'Custody', 'Fund Services']
-        columns('BEADLE_PRODUCT').sort() == ['CODE', 'CONTACT_EMAIL', 'CREATED_AT', 'DEPARTMENT_ID', 'ID', 'NAME',
+        columns('BEADLE_PRODUCT').sort() == ['BUSINESS_SERVICE_ID', 'CODE', 'CONTACT_EMAIL', 'CREATED_AT', 'ID', 'NAME',
                                              'OWNER_TEAM', 'UPDATED_AT', 'VERSION']
     }
 

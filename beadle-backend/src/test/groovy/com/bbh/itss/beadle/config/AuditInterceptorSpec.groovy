@@ -126,6 +126,8 @@ class AuditInterceptorSpec extends Specification {
             .withBean(ProductRepositoryPort, { products } as Supplier<ProductRepositoryPort>)
             .withBean(DepartmentRepositoryPort, { departments } as Supplier<DepartmentRepositoryPort>)
             .withBean(DepartmentUsagePort, { usage } as Supplier<DepartmentUsagePort>)
+            .withBean(com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceRepositoryPort, { Mock(com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceRepositoryPort) } as Supplier<com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceRepositoryPort>)
+            .withBean(com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceUsagePort, { Mock(com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceUsagePort) } as Supplier<com.bbh.itss.beadle.application.catalog.port.out.BusinessServiceUsagePort>)
             .withBean(ChangeProductsPort, { changeProducts } as Supplier<ChangeProductsPort>)
             .withBean(ChangeProfileRepositoryPort, { profiles } as Supplier<ChangeProfileRepositoryPort>)
             .withBean(ProductionChangeRepositoryPort, { changes } as Supplier<ProductionChangeRepositoryPort>)
@@ -443,9 +445,9 @@ class AuditInterceptorSpec extends Specification {
             objectId() == null
             objectKey() == 'CERT'
             message().startsWith('name is too long')
-            message().endsWith("; departmentId choose the product's department")
+            message().endsWith("; businessServiceId choose the product's business service")
             details().startsWith('{"command":{"code":"CERT","name":"NNN')
-            details().endsWith(AuditDetails.CUT + '","departmentId":null,"ownerTeam":null,"contactEmail":null,' +
+            details().endsWith(AuditDetails.CUT + '","businessServiceId":null,"ownerTeam":null,"contactEmail":null,' +
                     '"version":null}}')
             details().bytes.length <= ActionRecord.DETAILS_MAX
             strict.readTree(details()).get('command').get('code').stringValue() == 'CERT'
