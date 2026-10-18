@@ -2,6 +2,7 @@ package com.bbh.itss.beadle.config
 
 import com.bbh.itss.beadle.BeadleApplication
 import com.bbh.itss.beadle.adapter.in.web.CorrelationIdFilter
+import com.bbh.itss.beadle.adapter.in.web.RefusedRequests
 import com.bbh.itss.beadle.adapter.in.web.ServiceTokenFilter
 import com.bbh.itss.beadle.support.RecordingHttpServer
 import com.bbh.itss.beadle.support.StandInServices
@@ -148,6 +149,7 @@ class SecurityConfigurationSpec extends Specification {
         then:
         without.status == 403
         withToken.status == 201
+        latest(oidcContext, 'BUSINESS_SERVICE_CREATED', 'FAILURE') == ['Ann Lee', RefusedRequests.NO_CSRF_TOKEN]
     }
 
     def "with Ping POST /logout ends the session and answers where the browser ends its session at Ping too"() {
@@ -167,6 +169,23 @@ class SecurityConfigurationSpec extends Specification {
         target.query.split('&').collectEntries { it.split('=', 2) as List } ==
                 [id_token_hint: 'id-token', post_logout_redirect_uri: 'http://localhost/']
         answer(oidc, get('/api/me').session(session)).status == 401
+        latest(oidcContext, 'USER_SIGNED_OUT', 'SUCCESS') == ['Ann Lee', null]
+    }
+
+    def "with Ping a sign-in that fails on its way back from Ping is recorded, and the sign-in page says it failed"() {
+        given:
+        def session = new MockHttpSession()
+
+        when:
+        def failed = answer(oidc, get('/login/oauth2/code/ping').param('code', 'c0de').param('state', 'st4te')
+                .session(session))
+
+        then:
+        failed.status == 302
+        failed.redirectedUrl == SecurityConfiguration.SIGN_IN_FAILED
+        latest(oidcContext, 'USER_SIGNED_IN', 'FAILURE') == ['unknown', '[authorization_request_not_found] ']
+        answer(oidc, get(SecurityConfiguration.SIGN_IN_FAILED).session(session)).contentAsString
+                .contains('Invalid credentials')
     }
 
     def "the first API call of a session records the sign-in once, in both modes"() {
@@ -199,9 +218,10 @@ class SecurityConfigurationSpec extends Specification {
         added.status == 201
         answer(local, get('/changes')).forwardedUrl == '/index.html'
         answer(local, post('/logout')).status == 204
+        latest(localContext, 'USER_SIGNED_OUT', 'SUCCESS') == ['Mateusz Matan', null]
     }
 
-    def "in both modes a callback needs the service token, keeps no session, and the health probes are open"() {
+    def "in both modes a callback needs the service token, is recorded when refused, and keeps no session"() {
         when:
         def refused = answer(mvc, json(post('/api/callbacks/protech'), [number: 'CHG7777777', event: 'TASK_CHANGED']))
         def taken = mvc.perform(json(post('/api/callbacks/protech'), [number: 'CHG7777777', event: 'TASK_CHANGED'])
@@ -211,15 +231,16 @@ class SecurityConfigurationSpec extends Specification {
         then:
         refused.status == 401
         parse(refused.contentAsString).detail == ServiceTokenFilter.DETAIL
+        latest(context, 'CALLBACK_PROTECH', 'FAILURE') == ['unknown', ServiceTokenFilter.DETAIL]
         taken.response.status == 202
         taken.request.getSession(false) == null
         health.response.status == 200
         health.request.getSession(false) == null
 
         where:
-        mvc   | path
-        oidc  | '/actuator/health'
-        local | '/actuator/health/liveness'
+        context      | mvc   | path
+        oidcContext  | oidc  | '/actuator/health'
+        localContext | local | '/actuator/health/liveness'
     }
 
     def "Beadle stops at the start, saying why, with #wrong"() {
@@ -235,6 +256,13 @@ class SecurityConfigurationSpec extends Specification {
         'Ping but no Ping registration'         | 'no-ping'      | ['--beadle.auth.mode=oidc']                || SecurityConfiguration.NO_PING
         'the local sign-in on an Oracle profile' | 'local-oracle' | ['--spring.profiles.include=oracle',
                                                                     '--DB_USERNAME=sa', '--DB_PASSWORD=']       || SecurityConfiguration.LOCAL_ONLY
+    }
+
+    /** The user and the message of the latest row of the action with that outcome. */
+    private static List<String> latest(ConfigurableApplicationContext context, String action, String outcome) {
+        context.getBean(JdbcTemplate).queryForList('''SELECT USER_NAME, MESSAGE FROM BEADLE_ACTION_HISTORY
+                WHERE ACTION = ? AND OUTCOME = ? ORDER BY ID DESC FETCH FIRST 1 ROWS ONLY''', action, outcome)
+                .collectMany { [it.USER_NAME, it.MESSAGE] }
     }
 
     private static List<String> discoveredAt(RecordingHttpServer server) {

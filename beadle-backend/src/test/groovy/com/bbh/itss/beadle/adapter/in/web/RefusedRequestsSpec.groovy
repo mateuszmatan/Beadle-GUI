@@ -11,17 +11,23 @@ import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
-import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider
-import org.springframework.core.type.filter.AnnotationTypeFilter
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.context.support.GenericApplicationContext
+import org.springframework.mock.web.MockHttpServletRequest
+import org.springframework.mock.web.MockHttpServletResponse
+import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException
+import org.springframework.security.oauth2.core.OAuth2Error
+import org.springframework.security.web.authentication.AuthenticationFailureHandler
+import org.springframework.security.web.csrf.MissingCsrfTokenException
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping
 import spock.lang.Specification
 import tools.jackson.databind.json.JsonMapper
 
@@ -33,9 +39,13 @@ import java.time.ZoneOffset
 import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_RENAMED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED
+import static com.bbh.itss.beadle.domain.audit.Action.USER_SIGNED_IN
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT
+import static com.bbh.itss.beadle.domain.audit.ObjectType.USER
+import static org.springframework.http.HttpStatus.UNAUTHORIZED
+import static org.springframework.http.ProblemDetail.forStatusAndDetail
 import static com.bbh.itss.beadle.support.Json.parse
 import static com.bbh.itss.beadle.support.Json.toJson
 import static org.springframework.http.MediaType.APPLICATION_JSON
@@ -174,32 +184,71 @@ class RefusedRequestsSpec extends Specification {
         parse(response.contentAsString).problems == [[field: 'name', message: 'must not be blank']]
     }
 
-    def "every endpoint that changes something names its action, so that a refused request leaves a row"() {
+    def "a request the security filters refused is filed under its endpoint, without the body nobody read"() {
         given:
-        def scanner = new ClassPathScanningCandidateComponentProvider(false)
-        scanner.addIncludeFilter(new AnnotationTypeFilter(RestController))
-        def controllers = scanner.findCandidateComponents('com.bbh.itss.beadle.adapter.in.web')
-                .collect { Class.forName(it.beanClassName) }
-                .findAll { it.protectionDomain.codeSource.location == ChangeController.protectionDomain.codeSource.location }
+        def refusals = refusals(history)
 
         when:
-        def unaudited = controllers.collectMany { Class type ->
-            type.declaredMethods.findAll { method ->
-                [PostMapping, PutMapping, DeleteMapping, PatchMapping].any { method.isAnnotationPresent(it) } &&
-                        !method.isAnnotationPresent(AuditedRequest)
-            }.collect { "${type.simpleName}.${it.name}" }
-        }
+        refusals.record(new MockHttpServletRequest('PUT', '/api/samples/named/7'),
+                forStatusAndDetail(UNAUTHORIZED, 'The call needs a token.'))
+        [['POST', '/api/samples/unaudited'], ['POST', '/api/samples/nothing'], ['PATCH', '/api/samples/named/7']]
+                .each { refusals.record(new MockHttpServletRequest(*it), forStatusAndDetail(UNAUTHORIZED, 'no')) }
 
         then:
-        controllers*.simpleName.containsAll(['ChangeController', 'ProductController', 'BusinessServiceController',
-                                             'CallbackController'])
-        unaudited == []
+        recorded == [new Refused(BUSINESS_SERVICE_RENAMED, ActionObject.of(BUSINESS_SERVICE, 7),
+                '{"id":7,"request":null}', 'The call needs a token.')]
+    }
+
+    def "a change refused for its CSRF token is filed as such and answered 403 as Spring does"() {
+        given:
+        def response = new MockHttpServletResponse()
+
+        when:
+        refusals(history).forbidden().handle(new MockHttpServletRequest('POST', '/api/samples/named'), response,
+                denied)
+
+        then:
+        response.status == 403
+        recorded*.action() == [BUSINESS_SERVICE_CREATED]
+        recorded*.message() == [message]
+
+        where:
+        denied                                         || message
+        new MissingCsrfTokenException(null)            || RefusedRequests.NO_CSRF_TOKEN
+        new AccessDeniedException('Not for you.')      || 'Not for you.'
+    }
+
+    def "a failed sign-in is a USER_SIGNED_IN failure with Ping's error, and then the sign-in page says it failed"() {
+        given:
+        def page = Mock(AuthenticationFailureHandler)
+        def failure = new OAuth2AuthenticationException(new OAuth2Error('access_denied', 'Not entitled', null))
+
+        when:
+        refusals(history).signInFailures(page).onAuthenticationFailure(new MockHttpServletRequest(),
+                new MockHttpServletResponse(), failure)
+
+        then:
+        recorded == [new Refused(USER_SIGNED_IN, ActionObject.of(USER, null), null, '[access_denied] Not entitled')]
+        1 * page.onAuthenticationFailure(_, _, failure)
+    }
+
+    /** The endpoints of the controller, found as Spring MVC finds them. */
+    static ObjectProvider<RequestMappingHandlerMapping> mappingsOf(Object controller) {
+        def context = new GenericApplicationContext()
+        context.beanFactory.registerSingleton('controller', controller)
+        context.registerBean(RequestMappingHandlerMapping)
+        context.refresh()
+        context.getBeanProvider(RequestMappingHandlerMapping)
+    }
+
+    private static RefusedRequests refusals(ActionHistoryUseCase history) {
+        new RefusedRequests(history, JsonMapper.builder().build(), Clock.fixed(NOW, ZoneOffset.UTC),
+                mappingsOf(new AuditedSampleController()))
     }
 
     private static MockMvc mvc(ActionHistoryUseCase history) {
-        def refusals = new RefusedRequests(history, JsonMapper.builder().build(), Clock.fixed(NOW, ZoneOffset.UTC))
         standaloneSetup(new AuditedSampleController())
-                .setControllerAdvice(new ApiExceptionHandler(refusals), new KeptRequestBodies(),
+                .setControllerAdvice(new ApiExceptionHandler(refusals(history)), new KeptRequestBodies(),
                         new NormalizedRequestBodies())
                 .build()
     }

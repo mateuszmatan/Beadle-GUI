@@ -6,4 +6,7 @@ public interface SignedInUserUseCase {
 
     /** Records that the signed-in user started a session: called on the first API call of every session. */
     SignedInUser signIn();
+
+    /** Records that the signed-in user ended the session: called when they sign out, before it is cleared. */
+    SignedInUser signOut();
 }

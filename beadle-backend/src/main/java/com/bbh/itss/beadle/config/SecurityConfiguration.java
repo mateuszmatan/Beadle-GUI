@@ -3,6 +3,7 @@ package com.bbh.itss.beadle.config;
 import com.bbh.itss.beadle.adapter.in.web.CsrfCookieFilter;
 import com.bbh.itss.beadle.adapter.in.web.LocalUserFilter;
 import com.bbh.itss.beadle.adapter.in.web.PingSignOut;
+import com.bbh.itss.beadle.adapter.in.web.RefusedRequests;
 import com.bbh.itss.beadle.adapter.in.web.ServiceTokenFilter;
 import com.bbh.itss.beadle.adapter.in.web.SignInRecorder;
 import com.bbh.itss.beadle.adapter.out.http.ServicesProperties;
@@ -13,16 +14,18 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
-import org.springframework.security.config.Customizer;
+import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.OAuth2LoginAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
-import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
+import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
@@ -44,9 +47,11 @@ import static org.springframework.security.config.http.SessionCreationPolicy.STA
  * {@code X-XSRF-TOKEN}. With {@code local}, which the Oracle profiles refuse, everybody is {@code beadle.auth.user}
  * and there is no CSRF check.
  * {@code POST /logout} ends the session in both: locally with {@code 204}, with Ping by answering where the browser
- * ends its Ping session as well ({@link PingSignOut}). {@link SignInRecorder} records the first API call of every
- * session as {@code USER_SIGNED_IN}.</li>
+ * ends its Ping session as well ({@link PingSignOut}).</li>
  * </ul>
+ * The audit trail gets the sessions and what these chains refuse: {@link SignInRecorder} records the first API call of
+ * every session as {@code USER_SIGNED_IN}, the sign-out is {@code USER_SIGNED_OUT}, and {@link RefusedRequests} files
+ * a failed Ping sign-in, a change refused for its CSRF token and a refused callback as {@code FAILURE} rows.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableWebSecurity
@@ -55,6 +60,8 @@ public class SecurityConfiguration {
 
     public static final String SIGN_IN = "/oauth2/authorization/ping";
     public static final String SIGN_OUT = "/logout";
+    /** Where a failed sign-in ends: Spring's sign-in page, which says that it failed. */
+    static final String SIGN_IN_FAILED = "/login?error";
     static final String API = "/api/**";
     static final String NO_PING = "beadle.auth.mode=oidc needs the Ping registration "
             + "spring.security.oauth2.client.registration.ping: set PING_CLIENT_ID, PING_CLIENT_SECRET and "
@@ -64,12 +71,13 @@ public class SecurityConfiguration {
 
     @Bean
     @Order(1)
-    SecurityFilterChain serviceFilterChain(HttpSecurity http, ServicesProperties services) throws Exception {
+    SecurityFilterChain serviceFilterChain(HttpSecurity http, ServicesProperties services, RefusedRequests refusals)
+            throws Exception {
         return http.securityMatcher(ServiceTokenFilter.CALLBACKS, "/actuator/health", "/actuator/health/**")
                 .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
                 .csrf(AbstractHttpConfigurer::disable)
                 .requestCache(AbstractHttpConfigurer::disable)
-                .addFilterBefore(new ServiceTokenFilter(services.token()), AuthorizationFilter.class)
+                .addFilterBefore(new ServiceTokenFilter(services.token(), refusals), AuthorizationFilter.class)
                 .authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
                 .build();
     }
@@ -77,16 +85,18 @@ public class SecurityConfiguration {
     @Bean
     @Order(2)
     SecurityFilterChain userFilterChain(HttpSecurity http, AuthProperties auth, Environment environment,
-                                        SignedInUserUseCase users,
+                                        SignedInUserUseCase users, RefusedRequests refusals,
                                         ObjectProvider<ClientRegistrationRepository> registrations) throws Exception {
         http.authorizeHttpRequests(requests -> requests
                         .requestMatchers(API, "/actuator/**").authenticated()
                         .anyRequest().permitAll())
                 .exceptionHandling(errors -> errors
-                        .defaultAuthenticationEntryPointFor(new HttpStatusEntryPoint(UNAUTHORIZED), apiCalls()))
+                        .defaultAuthenticationEntryPointFor(new HttpStatusEntryPoint(UNAUTHORIZED), apiCalls())
+                        .accessDeniedHandler(refusals.forbidden()))
                 .requestCache(AbstractHttpConfigurer::disable)
                 .logout(logout -> logout
-                        .logoutRequestMatcher(PathPatternRequestMatcher.withDefaults().matcher(POST, SIGN_OUT)))
+                        .logoutRequestMatcher(PathPatternRequestMatcher.withDefaults().matcher(POST, SIGN_OUT))
+                        .addLogoutHandler((request, response, authentication) -> users.signOut()))
                 .addFilterAfter(new SignInRecorder(users), AuthorizationFilter.class);
         switch (auth.mode()) {
             case LOCAL -> {
@@ -96,20 +106,35 @@ public class SecurityConfiguration {
                 http.csrf(AbstractHttpConfigurer::disable)
                         .logout(logout -> logout
                                 .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler(NO_CONTENT)))
-                        .addFilterBefore(new LocalUserFilter(auth.user()), AnonymousAuthenticationFilter.class);
+                        .addFilterBefore(new LocalUserFilter(auth.user()), LogoutFilter.class);
             }
             case OIDC -> {
                 ClientRegistrationRepository ping = registrations.getIfAvailable();
                 if (ping == null) {
                     throw new IllegalStateException(NO_PING);
                 }
-                http.oauth2Login(Customizer.withDefaults())
+                http.oauth2Login(login -> login.withObjectPostProcessor(failuresRecordedBy(refusals)))
                         .logout(logout -> logout.logoutSuccessHandler(new PingSignOut(ping)))
                         .csrf(csrf -> csrf.spa())
                         .addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class);
             }
         }
         return http.build();
+    }
+
+    /**
+     * Files a failed Ping sign-in before the sign-in page says it failed. Set on the filter rather than as the failure
+     * handler of the login, so that the generated sign-in page still knows {@value #SIGN_IN_FAILED} as its error page.
+     */
+    private static ObjectPostProcessor<OAuth2LoginAuthenticationFilter> failuresRecordedBy(RefusedRequests refusals) {
+        return new ObjectPostProcessor<OAuth2LoginAuthenticationFilter>() {
+            @Override
+            public <O extends OAuth2LoginAuthenticationFilter> O postProcess(O filter) {
+                filter.setAuthenticationFailureHandler(
+                        refusals.signInFailures(new SimpleUrlAuthenticationFailureHandler(SIGN_IN_FAILED)));
+                return filter;
+            }
+        };
     }
 
     static RequestMatcher apiCalls() {

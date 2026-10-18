@@ -1,5 +1,6 @@
 package com.bbh.itss.beadle
 
+import com.bbh.itss.beadle.adapter.in.web.AuditedRequest
 import com.bbh.itss.beadle.application.UseCase
 import com.tngtech.archunit.base.DescribedPredicate
 import com.tngtech.archunit.core.domain.JavaClass
@@ -16,6 +17,10 @@ import jakarta.persistence.Entity
 import jakarta.persistence.MappedSuperclass
 import org.springframework.data.repository.Repository
 import org.springframework.stereotype.Controller
+import org.springframework.web.bind.annotation.DeleteMapping
+import org.springframework.web.bind.annotation.PatchMapping
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import spock.lang.Shared
@@ -26,6 +31,7 @@ import java.util.function.Predicate
 import static com.tngtech.archunit.base.DescribedPredicate.describe
 import static com.tngtech.archunit.lang.SimpleConditionEvent.violated
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices
 
@@ -82,6 +88,10 @@ class ArchitectureSpec extends Specification {
          classes().that(describedAs('are controllers or controller advice') { JavaClass type ->
              [RestController, RestControllerAdvice, Controller].any { type.isAnnotatedWith(it) }
          }).should().resideInAPackage(WEB),
+         methods().that().areAnnotatedWith(PostMapping).or().areAnnotatedWith(PutMapping)
+                 .or().areAnnotatedWith(PatchMapping).or().areAnnotatedWith(DeleteMapping)
+                 .should().beAnnotatedWith(AuditedRequest)
+                 .because('a refused change must leave its FAILURE row in the audit trail'),
          classes().that(describedAs('are persistence types') { JavaClass type ->
              [Entity, Embeddable, MappedSuperclass, Converter].any { type.isAnnotatedWith(it) } ||
                      type.isAssignableTo(Repository)

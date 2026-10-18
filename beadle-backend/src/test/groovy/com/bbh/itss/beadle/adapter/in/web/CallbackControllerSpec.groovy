@@ -68,12 +68,17 @@ class CallbackControllerSpec extends Specification {
         calledAs == ['system:internal']
     }
 
-    def "a callback #without is refused with 401 and never reaches Beadle"() {
+    def "a callback #without is refused with 401, never reaches Beadle and is filed as refused for nobody known"() {
         when:
         def response = callback(path, PROTECH, authorization)
 
         then:
         0 * callbacks._
+        1 * history.record({ ActionRecordBuilder row -> row.build().message() == ServiceTokenFilter.DETAIL }, _) >> {
+            calledAs << CallContext.systemActor().orElse(null)
+            null
+        }
+        calledAs == [null]
         response.status == 401
         response.getHeader('WWW-Authenticate') == 'Bearer'
         response.contentType == 'application/problem+json;charset=UTF-8'
@@ -92,7 +97,12 @@ class CallbackControllerSpec extends Specification {
 
         then:
         0 * callbacks._
-        0 * history._
+        1 * history.record({ ActionRecordBuilder row -> row.build().action() == CALLBACK_PROTECH },
+                ActionObject.keyed(CHANGE, null)) >> {
+            calledAs << CallContext.systemActor().orElse(null)
+            null
+        }
+        calledAs == ['system:protech']
         response.status == 400
         with(parse(response.contentAsString)) {
             problems*.field == ['X-Correlation-Id']
@@ -164,10 +174,12 @@ class CallbackControllerSpec extends Specification {
     }
 
     private MockMvc mvc(String token) {
-        def refusals = new RefusedRequests(history, JsonMapper.builder().build(), Clock.systemUTC())
-        standaloneSetup(new CallbackController(callbacks))
+        def controller = new CallbackController(callbacks)
+        def refusals = new RefusedRequests(history, JsonMapper.builder().build(), Clock.systemUTC(),
+                RefusedRequestsSpec.mappingsOf(controller))
+        standaloneSetup(controller)
                 .setControllerAdvice(new ApiExceptionHandler(refusals), new KeptRequestBodies(),
                         new NormalizedRequestBodies())
-                .addFilters(new CorrelationIdFilter(), new ServiceTokenFilter(token)).build()
+                .addFilters(new CorrelationIdFilter(), new ServiceTokenFilter(token, refusals)).build()
     }
 }

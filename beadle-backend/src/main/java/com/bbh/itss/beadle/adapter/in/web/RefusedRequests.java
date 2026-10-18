@@ -5,19 +5,30 @@ import com.bbh.itss.beadle.adapter.Secrets;
 import com.bbh.itss.beadle.application.audit.port.in.ActionHistoryUseCase;
 import com.bbh.itss.beadle.domain.audit.ActionObject;
 import com.bbh.itss.beadle.domain.audit.ActionRecord;
+import com.bbh.itss.beadle.domain.audit.ActionRecord.ActionRecordBuilder;
 import com.bbh.itss.beadle.domain.audit.ObjectType;
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException;
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException.FieldProblem;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.DefaultParameterNameDiscoverer;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.ParameterNameDiscoverer;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.access.AccessDeniedHandlerImpl;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.HandlerMethod;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
+import org.springframework.web.util.ServletRequestPathUtils;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -30,34 +41,72 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 
+import static com.bbh.itss.beadle.domain.audit.Action.USER_SIGNED_IN;
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE;
+import static com.bbh.itss.beadle.domain.audit.ObjectType.USER;
 import static com.bbh.itss.beadle.domain.shared.Timestamps.now;
 import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 import static org.apache.commons.lang3.StringUtils.isNumeric;
 import static org.apache.commons.lang3.StringUtils.trimToNull;
+import static org.springframework.http.HttpStatus.FORBIDDEN;
+import static org.springframework.http.ProblemDetail.forStatusAndDetail;
 import static org.springframework.web.context.request.RequestAttributes.SCOPE_REQUEST;
 import static org.springframework.web.servlet.HandlerMapping.BEST_MATCHING_HANDLER_ATTRIBUTE;
 import static org.springframework.web.servlet.HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE;
 
 /**
- * Files a request to an {@link AuditedRequest} endpoint that the API refused before the action's use case ran as a
- * {@code FAILURE} row of the audit trail: the action of the endpoint, the object its path or body names, the path
- * values and the body as sent ({@link KeptRequestBodies}) with their secrets masked, and the field problems of the
- * answer as the message, or its detail when it names no field. It takes no time of a use case, so its duration is 0.
- * A row that cannot be written is logged and does not change the answer.
+ * Files what Beadle refused before a use case ran as a {@code FAILURE} row of the audit trail. A request to an
+ * {@link AuditedRequest} endpoint is filed under the action of the endpoint and the object its path or body names,
+ * with the path values and the body as sent ({@link KeptRequestBodies}) with their secrets masked, and the field
+ * problems of the answer as the message, or its detail when it names no field. A request the security filters refused,
+ * for its CSRF token or a callback for its token or correlation id, is filed the same way, without the body nobody
+ * read. A failed sign-in at Ping is a {@code USER_SIGNED_IN} row with Ping's error. Such a row takes no time of a use
+ * case, so its duration is 0. A row that cannot be written is logged and does not change the answer.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-class RefusedRequests {
+public class RefusedRequests {
 
     static final String KEPT_BODY = RefusedRequests.class.getName() + ".BODY";
     static final String ID = "id";
+    static final String NO_CSRF_TOKEN = "The change needs the token of the XSRF-TOKEN cookie in X-XSRF-TOKEN.";
 
     private final ActionHistoryUseCase history;
     private final JsonMapper json;
     private final Clock clock;
+    private final ObjectProvider<RequestMappingHandlerMapping> mappings;
     private final ParameterNameDiscoverer parameterNames = new DefaultParameterNameDiscoverer();
+
+    /** Records a request the security filters refused before Spring MVC chose its endpoint, which it looks up. */
+    public void record(HttpServletRequest request, ProblemDetail problem) {
+        if (!ServletRequestPathUtils.hasParsedRequestPath(request)) {
+            ServletRequestPathUtils.parseAndCache(request);
+        }
+        if (mappings.orderedStream().anyMatch(mapping -> handles(mapping, request))) {
+            record(new ServletWebRequest(request), problem);
+        }
+    }
+
+    /** Answers {@code 403} as Spring does once the request is filed: what the users' chain denies is a CSRF token. */
+    public AccessDeniedHandler forbidden() {
+        AccessDeniedHandler forbidden = new AccessDeniedHandlerImpl();
+        return (request, response, denied) -> {
+            record(request, forStatusAndDetail(FORBIDDEN,
+                    denied instanceof CsrfException ? NO_CSRF_TOKEN : denied.getMessage()));
+            forbidden.handle(request, response, denied);
+        };
+    }
+
+    /** Files a sign-in that failed at Ping, or on its way back, with the error, then lets the page say it failed. */
+    public AuthenticationFailureHandler signInFailures(AuthenticationFailureHandler page) {
+        return (request, response, failure) -> {
+            write(ActionRecord.builder().at(now(clock)).action(USER_SIGNED_IN).outcome(FAILURE)
+                    .message(failure instanceof OAuth2AuthenticationException oauth ? oauth.getError().toString()
+                            : failure.getMessage()), ActionObject.of(USER, null));
+            page.onAuthenticationFailure(request, response, failure);
+        };
+    }
 
     /** Records the refusal of a request, when it was for an audited endpoint, with the problem it was answered. */
     void record(WebRequest request, ProblemDetail problem) {
@@ -68,14 +117,27 @@ class RefusedRequests {
         if (audited == null) {
             return;
         }
+        Map<String, String> variables = pathVariables(request);
+        JsonNode body = body(request);
+        write(ActionRecord.builder().at(now(clock)).action(audited.value())
+                .details(details(handler, variables, body)).outcome(FAILURE).message(messageOf(problem)),
+                objectOf(audited, variables, body));
+    }
+
+    private void write(ActionRecordBuilder row, ActionObject object) {
         try {
-            Map<String, String> variables = pathVariables(request);
-            JsonNode body = body(request);
-            history.record(ActionRecord.builder().at(now(clock)).action(audited.value())
-                    .details(details(handler, variables, body)).outcome(FAILURE).message(messageOf(problem)),
-                    objectOf(audited, variables, body));
+            history.record(row, object);
         } catch (RuntimeException e) {
-            log.warn("The refused {} could not be written to the audit trail: {}", audited.value(), e.getMessage());
+            log.warn("A refused {} could not be written to the audit trail: {}", row.build().action(), e.getMessage());
+        }
+    }
+
+    /** Whether the mapping has an endpoint for the request, which it then notes in the request as Spring MVC does. */
+    private static boolean handles(RequestMappingHandlerMapping mapping, HttpServletRequest request) {
+        try {
+            return mapping.getHandler(request) != null;
+        } catch (Exception e) {
+            return false;
         }
     }
 

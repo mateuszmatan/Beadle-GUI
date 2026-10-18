@@ -24,13 +24,16 @@ import static org.springframework.http.HttpHeaders.WWW_AUTHENTICATE;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 import static org.springframework.http.MediaType.APPLICATION_PROBLEM_JSON_VALUE;
+import static org.springframework.http.ProblemDetail.forStatusAndDetail;
 
 /**
  * Lets only Beadle-Internal and Beadle-ProTech call back: every request to {@value #CALLBACKS} must carry the service
  * token the three Beadle services share as {@code Authorization: Bearer <token>}, or it is answered {@code 401}; a
  * blank token refuses every callback. As in Beadle-Internal and Beadle-ProTech, an {@code X-Correlation-Id} longer than
  * {@value #CORRELATION_MAX} characters is answered {@code 400}. What an accepted callback causes runs for the system
- * that called, named after its path: {@code system:protech} for {@code /api/callbacks/protech}.
+ * that called, named after its path: {@code system:protech} for {@code /api/callbacks/protech}. A refused callback is
+ * a {@code FAILURE} row of the audit trail ({@link RefusedRequests}): by {@code unknown} without the token, else by
+ * the system.
  */
 @Slf4j
 public class ServiceTokenFilter extends OncePerRequestFilter {
@@ -52,9 +55,11 @@ public class ServiceTokenFilter extends OncePerRequestFilter {
             .matcher("/api/callbacks/{system}");
 
     private final byte[] token;
+    private final RefusedRequests refusals;
 
-    public ServiceTokenFilter(String token) {
+    public ServiceTokenFilter(String token, RefusedRequests refusals) {
         this.token = trimToEmpty(token).getBytes(UTF_8);
+        this.refusals = refusals;
         if (this.token.length == 0) {
             log.warn("beadle.services.token (BEADLE_SERVICE_TOKEN) is blank: every callback is refused");
         }
@@ -70,18 +75,21 @@ public class ServiceTokenFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         if (!accepts(request.getHeader(AUTHORIZATION))) {
             log.warn("Refused {} {}: missing or wrong service token", request.getMethod(), request.getRequestURI());
+            refusals.record(request, forStatusAndDetail(UNAUTHORIZED, DETAIL));
             response.setHeader(WWW_AUTHENTICATE, "Bearer");
             problem(response, UNAUTHORIZED.value(), PROBLEM);
             return;
         }
-        if (trimToEmpty(request.getHeader(ServiceHeaders.CORRELATION_ID)).length() > CORRELATION_MAX) {
-            log.warn("Refused {} {}: X-Correlation-Id {}", request.getMethod(), request.getRequestURI(),
-                    CORRELATION_TOO_LONG);
-            problem(response, BAD_REQUEST.value(), CORRELATION_PROBLEM);
-            return;
-        }
         String system = SYSTEM.matcher(request).getVariables().getOrDefault("system", "unknown");
         try (Scope actor = CallContext.actingAs(CallContext.SYSTEM + ":" + system)) {
+            if (trimToEmpty(request.getHeader(ServiceHeaders.CORRELATION_ID)).length() > CORRELATION_MAX) {
+                log.warn("Refused {} {}: X-Correlation-Id {}", request.getMethod(), request.getRequestURI(),
+                        CORRELATION_TOO_LONG);
+                refusals.record(request, forStatusAndDetail(BAD_REQUEST,
+                        ServiceHeaders.CORRELATION_ID + " " + CORRELATION_TOO_LONG));
+                problem(response, BAD_REQUEST.value(), CORRELATION_PROBLEM);
+                return;
+            }
             chain.doFilter(request, response);
         }
     }

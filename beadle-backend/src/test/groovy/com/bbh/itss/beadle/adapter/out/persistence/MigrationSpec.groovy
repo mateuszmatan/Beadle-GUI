@@ -161,6 +161,35 @@ class MigrationSpec extends Specification {
         audit('BUSINESS_SERVICE_CREATED', 'BUSINESS_SERVICE') + audit('DEPARTMENT_RENAMED', 'DEPARTMENT') == 2
     }
 
+    def "005 lets the audit trail hold sign-outs, and its rollback deletes them"() {
+        given:
+        updateBefore('005-')
+
+        when:
+        audit('USER_SIGNED_OUT', 'USER')
+
+        then:
+        thrown(DataIntegrityViolationException)
+
+        when:
+        liquibase.update('')
+
+        then:
+        audit('USER_SIGNED_IN', 'USER') + audit('USER_SIGNED_OUT', 'USER') == 2
+
+        when:
+        rollBackSince('005-')
+
+        then:
+        actions() == ['USER_SIGNED_IN/USER']
+
+        when:
+        audit('USER_SIGNED_OUT', 'USER')
+
+        then:
+        thrown(DataIntegrityViolationException)
+    }
+
     private void updateBefore(String id) {
         liquibase.update(liquibase.listUnrunChangeSets(new Contexts(), new LabelExpression())
                 .findIndexOf { it.id.startsWith(id) }, '')
