@@ -68,8 +68,8 @@ export type ProfileForm = ReturnType<typeof profileForm>;
         <div>
           <h1>{{ productName() }}</h1>
           <p>
-            The product's details and the change template its ProTech (ServiceNow) changes start
-            with.
+            The product details and the change template that new ProTech changes of the product
+            start with.
           </p>
         </div>
       </header>

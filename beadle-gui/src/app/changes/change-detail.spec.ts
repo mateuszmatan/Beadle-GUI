@@ -113,7 +113,7 @@ describe('ChangeDetail', () => {
   it('shows where a change is, who approves it, when it installs, what it delivers, its tasks and the rest folded away', async () => {
     await show(
       productionChange({
-        url: 'https://bbh.service-now.com/CHG0012345',
+        url: 'https://protech.bbh.test/CHG0012345',
         schedule: changeSchedule({
           downtimeStart: '2026-10-10T06:00:00Z',
           downtimeEnd: '2026-10-10T07:00:00Z',
@@ -289,7 +289,7 @@ describe('ChangeDetail', () => {
     );
     expect(page().querySelector('.secure-coding-missing')).toBeNull();
     expect(text(page().querySelector('pre'))).toBe('Production release of CertScanner (CERT).');
-    expect(text(page().querySelector('a[href="https://bbh.service-now.com/CHG0012345"]'))).toBe(
+    expect(text(page().querySelector('a[href="https://protech.bbh.test/CHG0012345"]'))).toBe(
       'Open in ProTech',
     );
     expect(text(page().querySelector('a[href="/admin/products/1"]'))).toBe('Open the product');
