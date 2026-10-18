@@ -27,7 +27,7 @@ class SignedInUserServiceSpec extends Specification {
         def user = new SignedInUserService({ -> 'Mateusz Matan' } as SignedInUserPort).signIn()
 
         then:
-        user == new SignedInUser('Mateusz Matan')
+        user == new SignedInUser('Mateusz Matan', null)
         user.auditedObject() == ActionObject.keyed(USER, 'Mateusz Matan')
     }
 }

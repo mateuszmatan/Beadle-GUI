@@ -33,14 +33,14 @@ class SignInRecorderSpec extends Specification {
         call('/api/products', session)
 
         then:
-        1 * users.signIn() >> new SignedInUser('Ann Lee')
+        1 * users.signIn() >> new SignedInUser('Ann Lee', null)
         2 * chain.doFilter(_, _)
 
         when:
         call('/api/me', new MockHttpSession())
 
         then:
-        1 * users.signIn() >> new SignedInUser('Ann Lee')
+        1 * users.signIn() >> new SignedInUser('Ann Lee', null)
         1 * chain.doFilter(_, _)
     }
 

@@ -91,7 +91,7 @@ class ProductionChangeServiceSpec extends Specification {
     ProTechPort proTech = Mock()
     CyberTrackPort cyberTrack = Mock()
     SignedInUserUseCase users = Stub() {
-        signedInUser() >> new SignedInUser('Mateusz Matan')
+        signedInUser() >> new SignedInUser('Mateusz Matan', null)
     }
     def service = new ProductionChangeService(products, changes, jira, proTech, cyberTrack, users, fixed(NOW, UTC))
     def certScanner = changeProduct(jiraProjectKey: 'CSCAN')

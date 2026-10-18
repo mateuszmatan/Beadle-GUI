@@ -21,15 +21,7 @@ import java.io.IOException;
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 class LocalUserFilter extends OncePerRequestFilter {
 
-    static final String[] ROLES = {
-            "ROLE_ADMIN",
-            "ROLE_USER",
-            "ROLE_DEPT_CORPORATE_TECHNOLOGY",
-            "ROLE_DEPT_CUSTODY",
-            "ROLE_DEPT_FUND_SERVICES",
-            "ROLE_DEPT_MARKETS",
-            "ROLE_DEPT_INVESTOR_SERVICES"
-    };
+    static final String ROLE = "ROLE_USER";
 
     private final String name;
     private final SecurityContextHolderStrategy holder = SecurityContextHolder.getContextHolderStrategy();
@@ -41,7 +33,7 @@ class LocalUserFilter extends OncePerRequestFilter {
         if (current == null || current instanceof AnonymousAuthenticationToken) {
             SecurityContext context = holder.createEmptyContext();
             context.setAuthentication(
-                    new PreAuthenticatedAuthenticationToken(name, "", AuthorityUtils.createAuthorityList(ROLES)));
+                    new PreAuthenticatedAuthenticationToken(name, "", AuthorityUtils.createAuthorityList(ROLE)));
             holder.setContext(context);
         }
         chain.doFilter(request, response);
