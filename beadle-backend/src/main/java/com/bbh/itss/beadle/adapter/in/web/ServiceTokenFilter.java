@@ -14,6 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+import static com.bbh.itss.beadle.domain.shared.Text.bytes;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.security.MessageDigest.isEqual;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -30,7 +31,7 @@ import static org.springframework.http.ProblemDetail.forStatusAndDetail;
  * Lets only Beadle-Internal and Beadle-ProTech call back: every request to {@value #CALLBACKS} must carry the service
  * token the three Beadle services share as {@code Authorization: Bearer <token>}, or it is answered {@code 401}; a
  * blank token refuses every callback. As in Beadle-Internal and Beadle-ProTech, an {@code X-Correlation-Id} longer than
- * {@value #CORRELATION_MAX} characters is answered {@code 400}. What an accepted callback causes runs for the system
+ * {@value #CORRELATION_MAX} bytes in UTF-8 is answered {@code 400}. What an accepted callback causes runs for the system
  * that called, named after its path: {@code system:protech} for {@code /api/callbacks/protech}. A callback without the
  * token is only logged; one refused for its correlation id is a {@code FAILURE} row of the audit trail by the system
  * ({@link RefusedRequests}).
@@ -41,11 +42,10 @@ public class ServiceTokenFilter extends OncePerRequestFilter {
     public static final String CALLBACKS = "/api/callbacks/**";
     public static final String BEARER = "Bearer ";
     public static final String DETAIL = "The call needs the Beadle service token as Authorization: Bearer <token>.";
-    static final String PROBLEM = "{\"type\":\"about:blank\",\"title\":\"Unauthorized\",\"status\":401,\"detail\":\""
-            + DETAIL + "\"}";
+    static final String PROBLEM = "{\"title\":\"Unauthorized\",\"status\":401,\"detail\":\"" + DETAIL + "\"}";
     public static final int CORRELATION_MAX = 64;
-    static final String CORRELATION_TOO_LONG = "is too long: it may take at most " + CORRELATION_MAX + " characters";
-    static final String CORRELATION_PROBLEM = "{\"type\":\"about:blank\",\"title\":\"Validation failed\","
+    static final String CORRELATION_TOO_LONG = "is too long: it may take at most " + CORRELATION_MAX + " bytes";
+    static final String CORRELATION_PROBLEM = "{\"title\":\"Validation failed\","
             + "\"status\":400,\"detail\":\"" + ServiceHeaders.CORRELATION_ID + " " + CORRELATION_TOO_LONG
             + "\",\"problems\":[{\"field\":\"" + ServiceHeaders.CORRELATION_ID + "\",\"message\":\""
             + CORRELATION_TOO_LONG + "\"}]}";
@@ -81,7 +81,7 @@ public class ServiceTokenFilter extends OncePerRequestFilter {
         }
         String system = SYSTEM.matcher(request).getVariables().getOrDefault("system", "unknown");
         try (Scope actor = CallContext.actingAs(CallContext.SYSTEM + ":" + system)) {
-            if (trimToEmpty(request.getHeader(ServiceHeaders.CORRELATION_ID)).length() > CORRELATION_MAX) {
+            if (bytes(trimToEmpty(request.getHeader(ServiceHeaders.CORRELATION_ID))) > CORRELATION_MAX) {
                 log.warn("Refused {} {}: X-Correlation-Id {}", request.getMethod(), request.getRequestURI(),
                         CORRELATION_TOO_LONG);
                 refusals.record(request, forStatusAndDetail(BAD_REQUEST,

@@ -87,7 +87,7 @@ class CallbackControllerSpec extends Specification {
         'with a basic login'    | '/api/callbacks/internal' | "Basic $TOKEN"
     }
 
-    def "a callback whose correlation id is longer than 64 characters is refused with 400, as the services have it"() {
+    def "a callback whose correlation id is longer than 64 bytes is refused with 400, as the services have it"() {
         when:
         def response = callback('/api/callbacks/protech', PROTECH, "Bearer $TOKEN", 'x' * 65)
 
@@ -102,7 +102,7 @@ class CallbackControllerSpec extends Specification {
         response.status == 400
         with(parse(response.contentAsString)) {
             problems*.field == ['X-Correlation-Id']
-            detail == 'X-Correlation-Id is too long: it may take at most 64 characters'
+            detail == 'X-Correlation-Id is too long: it may take at most 64 bytes'
         }
 
         expect:
