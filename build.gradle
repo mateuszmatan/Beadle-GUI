@@ -317,7 +317,6 @@ project(':beadle-backend') { backend ->
                             testTask.configure {
                                 description = text
                                 shouldRunAfter tasks.named('test')
-                                extensions.getByType(JacocoTaskExtension).enabled = false
                                 forward(it, 'smoke.baseUrl', 'smoke.ui', 'smoke.cookie')
                                 systemProperty 'performance.factor', performanceFactor
                                 if (suiteName != 'regressionTest') {
@@ -364,6 +363,44 @@ project(':beadle-backend') { backend ->
 
     tasks.named('check') {
         dependsOn tasks.named('jacocoTestCoverageVerification')
+    }
+
+    def suites = ['smokeTest', 'regressionTest', 'performanceTest'].findAll { tasks.names.contains(it) }
+
+    def jacocoSuitesReport = tasks.register('jacocoSuitesReport', JacocoReport) {
+        group = 'verification'
+        description = 'Reports the line coverage of smokeTest, regressionTest and performanceTest together.'
+        executionData(suites.collect { tasks.named(it).get() } as Task[])
+        sourceSets(sourceSets.main)
+        classDirectories.setFrom(coveredClasses)
+        reports {
+            xml.required = true
+            html.required = true
+        }
+    }
+
+    def jacocoSuitesCoverageVerification = tasks.register('jacocoSuitesCoverageVerification',
+            JacocoCoverageVerification) {
+        group = 'verification'
+        description = 'Fails when smokeTest, regressionTest and performanceTest together cover less than 30% of lines.'
+        executionData(suites.collect { tasks.named(it).get() } as Task[])
+        sourceSets(sourceSets.main)
+        classDirectories.setFrom(coveredClasses)
+        dependsOn jacocoSuitesReport
+        violationRules {
+            rule {
+                element = 'BUNDLE'
+                limit {
+                    counter = 'LINE'
+                    value = 'COVEREDRATIO'
+                    minimum = providers.gradleProperty('coverage.suites.minimum').getOrElse('0.30') as BigDecimal
+                }
+            }
+        }
+    }
+
+    tasks.named('check') {
+        dependsOn jacocoSuitesCoverageVerification
     }
 
     def frontend = project(':beadle-gui')
