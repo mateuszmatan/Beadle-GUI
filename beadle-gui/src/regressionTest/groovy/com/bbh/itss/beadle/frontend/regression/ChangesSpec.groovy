@@ -24,7 +24,7 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(page.locator('h1')).hasText('ProTech Changes')
         assertThat(page.locator('.page-header .page-description'))
                 .hasText('The ProTech changes of your business service and where each one is in its approval workflow. A change is read again from ProTech when you open it.')
-        assertThat(page.locator('.empty-state h3')).hasText('Choose your business service to see its ProTech changes.')
+        assertThat(page.locator('.empty-state h3')).hasText('Choose your business service to see its ProTech changes')
         api.requests('GET', '/api/changes').isEmpty()
 
         when:
@@ -34,7 +34,7 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(numbers()).hasText(['CHG0031001', 'CHG0030995', 'CHG0030990'] as String[])
         awaitRequest('GET', '/api/changes').params() == [businessServiceId: '3']
         assertThat(gridHeaders())
-                .hasText(['Change number', 'Product', 'FixVersion', 'State', 'Installation', 'Short description', 'Tasks', 'Created', ''] as String[])
+                .hasText(['Change number', 'Product', 'FixVersion', 'State', 'Installation', 'Short description', 'Change tasks', 'Created', ''] as String[])
         assertThat(column('state').locator('.chip')).hasText(['Secondary Approval', 'In Progress', 'Closed'] as String[])
         assertThat(column('state').locator('.meaning'))
                 .hasText(['Waiting for the L2 approver', 'All change tasks approved; installs in its window', 'Completed'] as String[])

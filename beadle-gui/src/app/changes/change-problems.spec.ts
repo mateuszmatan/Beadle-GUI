@@ -16,6 +16,7 @@ describe('change problems', () => {
     expect(requestLabel('fixVersion')).toBe('FixVersion');
     expect(requestLabel('businessServiceId')).toBe('Business service');
     expect(requestLabel('schedule.firstUsage')).toBe('First use');
+    expect(requestLabel('schedule.validationStart')).toBe('Post-install validation start');
     expect(requestLabel('schedule.downtimeEnd')).toBe('Downtime end');
     expect(requestLabel('template.approvers.l2Manager')).toBe('L2 approver');
     expect(requestLabel('template.secureCodingTicket')).toBe('Secure coding ticket number');

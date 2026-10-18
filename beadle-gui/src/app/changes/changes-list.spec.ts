@@ -180,7 +180,7 @@ describe('ChangesList', () => {
 
     expect(text(page().querySelector('h1'))).toBe('ProTech Changes');
     expect(text(page().querySelector('.empty-state h3'))).toBe(
-      'Choose your business service to see its ProTech changes.',
+      'Choose your business service to see its ProTech changes',
     );
     expect(page().querySelector('beadle-grid')).toBeNull();
     expect(text(page().querySelector('beadle-integration-note'))).toContain(
@@ -214,7 +214,7 @@ describe('ChangesList', () => {
       'State',
       'Installation',
       'Short description',
-      'Tasks',
+      'Change tasks',
       'Created',
       '',
     ]);

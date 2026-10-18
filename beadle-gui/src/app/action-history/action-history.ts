@@ -133,7 +133,7 @@ function filtersOf(form: FormGroup): ActionFilters {
           Select a row to see the request the action was given and its message. {{ timeZoneNote }}
         </p>
         <beadle-grid
-          label="Action history"
+          label="Action History"
           [empty]="empty()"
           [rows]="rows()"
           [columns]="columns"
