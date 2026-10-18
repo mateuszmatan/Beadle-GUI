@@ -4,6 +4,7 @@ import com.bbh.itss.beadle.domain.audit.Action;
 import com.bbh.itss.beadle.domain.audit.ActionObject;
 import com.bbh.itss.beadle.domain.audit.AuditedObject;
 import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -85,6 +86,7 @@ public final class AuditNotes {
     }
 
     /** The notes of one audited call; closing it restores the listening of an enclosing call. */
+    @RequiredArgsConstructor(access = PRIVATE)
     public static final class Listening implements CallContext.Scope {
 
         private final Listening enclosing;
@@ -92,10 +94,6 @@ public final class AuditNotes {
         private final Map<String, Object> results = new LinkedHashMap<>();
         private final List<ActionObject> noted = new ArrayList<>();
         private final Set<Stored> storedOnTheWay = new LinkedHashSet<>();
-
-        private Listening(Listening enclosing) {
-            this.enclosing = enclosing;
-        }
 
         public boolean tookPlace() {
             return !noted.isEmpty();

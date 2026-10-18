@@ -251,7 +251,7 @@ public record ProductionChange(Long id, String number, Long productId, String pr
     }
 
     public ProductionChange reminded(Map<ApprovalRef, Reminder> sent) {
-        return toBuilder().approvals(approvals.stream().map(approval -> approval.remindedBy(
+        return toBuilder().approvals(approvals.stream().map(approval -> approval.withReminder(
                         sent.getOrDefault(ApprovalRef.of(approval.role()), approval.reminder()))).toList())
                 .tasks(tasks.stream().map(task -> task.number() == null ? task : task.withReminder(
                         sent.getOrDefault(ApprovalRef.ofTask(task.number()), task.reminder()))).toList()).build();
@@ -386,7 +386,7 @@ public record ProductionChange(Long id, String number, Long productId, String pr
         Map<ApprovalRole, Reminder> sent = new EnumMap<>(ApprovalRole.class);
         approvals.stream().filter(approval -> approval.reminder() != null)
                 .forEach(approval -> sent.put(approval.role(), approval.reminder()));
-        return remote.approvals.stream().map(approval -> approval.remindedBy(sent.get(approval.role()))).toList();
+        return remote.approvals.stream().map(approval -> approval.withReminder(sent.get(approval.role()))).toList();
     }
 
     private List<ChangeTask> remindersKept(List<ChangeTask> synced) {
