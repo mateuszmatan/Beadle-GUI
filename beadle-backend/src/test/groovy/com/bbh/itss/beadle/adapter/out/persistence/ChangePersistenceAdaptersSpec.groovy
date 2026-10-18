@@ -19,12 +19,8 @@ import com.bbh.itss.beadle.domain.change.Reminder
 import com.bbh.itss.beadle.domain.change.RiskAssessment
 import com.bbh.itss.beadle.domain.change.WorkflowStep
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
-import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager
-import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.JdbcTemplate
-import spock.lang.Specification
 
 import static com.bbh.itss.beadle.domain.change.ApprovalRole.BUSINESS
 import static com.bbh.itss.beadle.domain.change.ApprovalRole.L1
@@ -58,13 +54,7 @@ import static com.bbh.itss.beadle.support.ChangeFixtures.tasks
 import static com.bbh.itss.beadle.support.ChangeFixtures.template
 import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 
-@DataJpaTest(properties = [
-        'spring.datasource.url=jdbc:h2:mem:change-adapters;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
-        'spring.datasource.username=sa'])
-@AutoConfigureTestDatabase(replace = NONE)
-@Import([ChangeProfilePersistenceAdapter, ChangeProductPersistenceAdapter, ProductionChangePersistenceAdapter,
-        ProductPersistenceAdapter, ChangeUsageAdapter])
-class ChangePersistenceAdaptersSpec extends Specification {
+class ChangePersistenceAdaptersSpec extends PersistenceSpecification {
 
     static final ChangeTemplate FULL = template(requestedFor: 'Ann Lee', requestedBy: 'Jane Smith',
             businessService: 'Corporate Technology', assignedTo: 'Grace Turner', release: 'R 4.2', incident: 'INC0012345',

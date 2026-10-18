@@ -4,12 +4,8 @@ import com.bbh.itss.beadle.domain.audit.ActionHistoryQuery
 import com.bbh.itss.beadle.domain.audit.ActionRecord
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
-import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager
-import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.JdbcTemplate
-import spock.lang.Specification
 
 import java.time.Instant
 
@@ -29,14 +25,8 @@ import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT
 import static com.bbh.itss.beadle.domain.audit.ObjectType.TICKET
 import static com.bbh.itss.beadle.domain.audit.ObjectType.USER
 import static com.bbh.itss.beadle.support.ChangeFixtures.raised
-import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 
-@DataJpaTest(properties = [
-        'spring.datasource.url=jdbc:h2:mem:action-history;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
-        'spring.datasource.username=sa'])
-@AutoConfigureTestDatabase(replace = NONE)
-@Import([ActionHistoryPersistenceAdapter, ObjectKeyAdapter, ProductionChangePersistenceAdapter])
-class ActionHistoryPersistenceAdapterSpec extends Specification {
+class ActionHistoryPersistenceAdapterSpec extends PersistenceSpecification {
 
     static final String CORRELATION_ID = '4f1c2a8e-7b3d-4e5f-9a6b-1c2d3e4f5a6b'
 
