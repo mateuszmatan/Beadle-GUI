@@ -1,17 +1,15 @@
 import { FormGroup } from '@angular/forms';
 import { filled, text, url } from '../shared/form-controls';
 import { ProductionChange, SecureCoding, SecureCodingRequest } from './change-api';
-import { fits } from './change-model';
+import { fits, pad } from './change-model';
 import { LINK_MAX } from './change-template-model';
-
-const twoDigits = (value: number) => String(value).padStart(2, '0');
 
 export function implementationDateOf(installationStart: string | null | undefined): string {
   if (!installationStart) {
     return '';
   }
   const day = new Date(installationStart);
-  return `${twoDigits(day.getMonth() + 1)}${twoDigits(day.getDate())}${day.getFullYear()}`;
+  return `${pad(day.getMonth() + 1)}${pad(day.getDate())}${day.getFullYear()}`;
 }
 
 export function secureCodingForm(change: Pick<ProductionChange, 'template' | 'schedule'>) {

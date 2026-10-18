@@ -46,8 +46,13 @@ export interface Field {
   lookup?: Lookup;
 }
 
-export const optionsOf = (labels: Record<string, string>): FieldOption[] =>
-  Object.entries(labels).map(([value, label]) => ({ value, label }));
+/** The options of a select: values that are their own labels, or labels by value. */
+export const optionsOf = (
+  labels: readonly string[] | Record<string, string> = [],
+): FieldOption[] =>
+  Array.isArray(labels)
+    ? labels.map((value) => ({ value, label: value }))
+    : Object.entries(labels).map(([value, label]) => ({ value, label }));
 
 type More = Partial<Field>;
 

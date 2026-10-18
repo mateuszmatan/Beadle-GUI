@@ -18,7 +18,8 @@ export interface ChangeScope {
   storyKeys: readonly string[];
 }
 
-const pad = (value: number) => String(value).padStart(2, '0');
+/** The number in two digits, as dates and times write it. */
+export const pad = (value: number) => String(value).padStart(2, '0');
 
 export function isoDate(day: Date): string {
   return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
