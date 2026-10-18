@@ -21,6 +21,9 @@ public interface ActionHistoryUseCase {
      */
     ActionRecord record(ActionRecordBuilder row, ActionObject object);
 
+    /** The object with the key of the stored object when only its id is known: read before the object is deleted. */
+    ActionObject keyed(ActionObject object);
+
     /** The rows that match the query, newest first. */
     ActionHistoryPage find(ActionHistoryQuery query);
 

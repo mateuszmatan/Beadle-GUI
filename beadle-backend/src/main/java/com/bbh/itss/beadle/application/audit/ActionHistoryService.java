@@ -30,9 +30,15 @@ public class ActionHistoryService implements ActionHistoryUseCase {
 
     @Override
     public ActionRecord record(ActionRecordBuilder row, ActionObject object) {
-        ActionObject keyed = object.keyedBy(keys::keyOf);
+        ActionObject keyed = keyed(object);
         return history.record(row.user(actor()).correlationId(CallContext.correlationId().orElse(null))
                 .objectType(keyed.type()).objectId(keyed.id()).objectKey(keyed.key()).build());
+    }
+
+    @Override
+    @ReadOnly
+    public ActionObject keyed(ActionObject object) {
+        return object.keyedBy(keys::keyOf);
     }
 
     @Override

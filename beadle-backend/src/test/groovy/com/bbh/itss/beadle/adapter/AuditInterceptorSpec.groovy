@@ -498,7 +498,7 @@ class AuditInterceptorSpec extends Specification {
 
     def "arguments too long for the details give way to their length, and the result stays whole after them"() {
         given:
-        def interceptor = new AuditInterceptor(null, null, Stub(ObjectProvider) {
+        def interceptor = new AuditInterceptor(null, Stub(ObjectProvider) {
             getIfUnique(_) >> JsonMapper.builder().build()
         }, null, null)
         def notes = AuditNotes.listen()
