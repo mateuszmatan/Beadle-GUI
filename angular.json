@@ -101,6 +101,7 @@
           "builder": "@angular/build:unit-test",
           "options": {
             "tsConfig": "beadle-gui/tsconfig.spec.json",
+            "runnerConfig": true,
             "coverageReporters": [
               "text-summary",
               "html",
