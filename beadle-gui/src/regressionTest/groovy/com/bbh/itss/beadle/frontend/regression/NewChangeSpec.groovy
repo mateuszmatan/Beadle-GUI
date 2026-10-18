@@ -5,7 +5,6 @@ import com.microsoft.playwright.Locator
 
 import static com.bbh.itss.beadle.frontend.support.ChangeStubs.CERT_SECURE_CODING
 import static com.bbh.itss.beadle.frontend.support.ChangeStubs.CERT_TASKS
-import static com.bbh.itss.beadle.frontend.support.ChangeStubs.OPTIONS
 import static com.bbh.itss.beadle.frontend.support.ChangeStubs.PLANNING
 import static com.bbh.itss.beadle.frontend.support.ChangeStubs.RELEASE_DATE
 import static com.bbh.itss.beadle.frontend.support.ChangeStubs.details
@@ -21,9 +20,6 @@ class NewChangeSpec extends BeadleSpecification {
 
     static final List<String> STEPS = ['Request data', 'Jira', 'Approval', 'Schedule', 'Planning', 'Privileged access',
                                        'Risk assessment', 'Review', 'Add CTASKs', 'Secure coding', 'Summary']
-
-    static final String SIGN_IN = '/oauth2/authorization/ping'
-    static final String DRAFT_KEY = 'beadle.signIn.draft'
 
     static final String IMPLEMENTATION_DATE = parse(RELEASE_DATE).format(ofPattern('MMddyyyy'))
 
@@ -572,9 +568,5 @@ class NewChangeSpec extends BeadleSpecification {
 
     static String nextDay() {
         parse(RELEASE_DATE).plusDays(1).toString()
-    }
-
-    static String inDays(int days) {
-        now().plusDays(days).toString()
     }
 }

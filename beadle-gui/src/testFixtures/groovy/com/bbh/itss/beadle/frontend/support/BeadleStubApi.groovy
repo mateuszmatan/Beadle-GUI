@@ -88,18 +88,6 @@ class BeadleStubApi extends StubApi {
         get('/api/action-history/actions') { actions*.action.unique(false).sort(false) }
     }
 
-    /** Adds {@code count} sign-ins of {@code user} older than every row so far, for the paging of the history. */
-    void addSignIns(int count, String user = 'Ann Lee') {
-        def oldest = actions.collect { Instant.parse(it.at as String) }.min()
-        int next = (actions*.id.max() as int) + 1
-        (1..count).each { index ->
-            actions << [id           : next + index, at: oldest.minusSeconds(60L * index).toString(), user: user,
-                        action       : 'USER_SIGNED_IN', objectType: 'USER', objectId: null, objectKey: user,
-                        details      : '{}', outcome: 'SUCCESS', message: null,
-                        correlationId: null, durationMs: 2]
-        }
-    }
-
     private static boolean recordedAction(Map row, Map<String, String> params) {
         def at = Instant.parse(row.at as String)
         (!params.user || row.user == params.user) &&

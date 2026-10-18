@@ -9,7 +9,6 @@ import java.util.regex.Pattern
 
 import static com.bbh.itss.beadle.frontend.support.StubResponse.json
 import static com.bbh.itss.beadle.frontend.support.StubResponse.problem
-import static com.bbh.itss.beadle.frontend.support.StubResponse.yaml
 
 abstract class StubApi {
 
@@ -25,19 +24,11 @@ abstract class StubApi {
      * threads at once: one thread can see a map that another is still filling in and answer a 500.
      */
     static Object fixture(String name) {
-        new JsonSlurperClassic().parseText(fixtureText(name))
-    }
-
-    static String fixtureText(String name) {
         def resource = StubApi.getResource(FIXTURES + name)
         if (!resource) {
             throw new IllegalArgumentException("No API fixture $name")
         }
-        resource.getText('UTF-8')
-    }
-
-    static boolean hasFixture(String name) {
-        StubApi.getResource(FIXTURES + name) != null
+        new JsonSlurperClassic().parseText(resource.getText('UTF-8'))
     }
 
     abstract void install()
@@ -80,16 +71,6 @@ abstract class StubApi {
 
     StubApi respond(String method, String path, StubResponse response) {
         on(method, path) { response }
-    }
-
-    StubApi failOnce(String method, String path, StubResponse failure) {
-        Route route
-        route = new Route(method, Pattern.compile(path), { ->
-            routes.remove(route)
-            failure
-        })
-        routes.add(0, route)
-        this
     }
 
     StubResponse handle(String method, String path, String query, String body, Map<String, String> headers = [:]) {
@@ -135,13 +116,6 @@ abstract class StubApi {
         routes.clear()
         recorded.clear()
         install()
-    }
-
-    static StubResponse fixtureOr404(String name, String detail) {
-        if (!hasFixture(name)) {
-            return problem(404, 'Not found', detail)
-        }
-        name.endsWith('.yaml') ? yaml(fixtureText(name)) : json(fixture(name))
     }
 
     @TupleConstructor(defaults = false)

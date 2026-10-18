@@ -2,8 +2,6 @@ package com.bbh.itss.beadle.frontend.regression
 
 import com.bbh.itss.beadle.frontend.support.BeadleSpecification
 import com.microsoft.playwright.Locator
-import com.microsoft.playwright.Page
-import groovy.json.JsonSlurper
 
 import java.util.function.BooleanSupplier
 
@@ -12,14 +10,10 @@ import static com.bbh.itss.beadle.frontend.support.ChangeStubs.CERT_TEMPLATE
 import static com.bbh.itss.beadle.frontend.support.ChangeStubs.details
 import static com.bbh.itss.beadle.frontend.support.BeadleStubApi.SIGNED_IN_USER
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
-import static com.microsoft.playwright.options.AriaRole.BUTTON
 import static java.time.LocalDate.now
 import static java.time.ZoneOffset.UTC
 
 class ChangesSpec extends BeadleSpecification {
-
-    static final String SYNC_PROBLEM = 'ProTech could not be reached: Connection refused.'
-    static final String RETRY = 'Try again in a moment; if it keeps failing, tell the Beadle administrator.'
 
     def "a release manager picks the business service and filters and sorts its ProTech changes in the table header"() {
         when:
@@ -213,9 +207,9 @@ class ChangesSpec extends BeadleSpecification {
 
         then:
         assertThat(page.locator('h2')).hasText(['Where the change is', 'Approvals', 'The change at a glance', 'Change tasks'] as String[])
-        assertThat(approvalRows().locator('th .name, .name')).hasText(['Business approver', 'L1 approver', 'L2 approver', 'Support approver',
+        assertThat(approvalRows().locator('th .name')).hasText(['Business approver', 'L1 approver', 'L2 approver', 'Support approver',
                                                               'CTASK0310011', 'CTASK0310012'] as String[])
-        assertThat(approvalRows().locator('.ag-cell[col-id="approvers"], td:nth-child(2)')).hasText(['Grace Turner', 'Olivia Bennett', 'James Carter', 'Jane Smith',
+        assertThat(approvalRows().locator('td:nth-child(2)')).hasText(['Grace Turner', 'Olivia Bennett', 'James Carter', 'Jane Smith',
                                                                      'Rebecca Lawson, Thomas Ashby',
                                                                      'Daniel Foster, Priya Natarajan'] as String[])
         assertThat(approvalRows().locator('.chip')).hasText(['Approved', 'Approved', 'Requested', 'Not Approved', 'Not Approved',
@@ -449,14 +443,5 @@ class ChangesSpec extends BeadleSpecification {
 
     Locator term(Locator scope, String label) {
         scope.locator("dl.rows dt:text-is('${label}') + dd")
-    }
-
-    void publishFromAnotherTab(String path) {
-        Page other = context.newPage()
-        other.navigate(url(path))
-        other.locator('section.texts').getByLabel('Short description').fill('Published elsewhere')
-        other.getByRole(BUTTON, new Page.GetByRoleOptions().setName('Publish the update to ProTech').setExact(true)).click()
-        other.waitForURL('**/changes/4')
-        other.close()
     }
 }

@@ -3,7 +3,6 @@ package com.bbh.itss.beadle.frontend.regression
 import com.bbh.itss.beadle.frontend.support.BeadleSpecification
 import com.microsoft.playwright.Locator
 
-import static com.bbh.itss.beadle.frontend.support.StubResponse.problem
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 
 class ActionHistorySpec extends BeadleSpecification {

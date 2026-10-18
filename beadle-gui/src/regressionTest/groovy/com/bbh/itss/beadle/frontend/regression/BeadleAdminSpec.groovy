@@ -13,7 +13,6 @@ import static java.time.temporal.ChronoUnit.DAYS
 class BeadleAdminSpec extends BeadleSpecification {
 
     static final List<String> BUSINESS_SERVICES = ['AI Lab', 'Capital Partners', 'Corporate Technology', 'Custody', 'Fund Services']
-    static final String NOT_REACHED = 'The database is not reachable at the moment.'
 
     def setup() {
         api.get('/api/change-profiles') {
