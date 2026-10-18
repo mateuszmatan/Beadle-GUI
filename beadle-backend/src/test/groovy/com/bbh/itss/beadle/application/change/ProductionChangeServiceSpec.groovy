@@ -425,91 +425,56 @@ class ProductionChangeServiceSpec extends Specification {
         listed == [closed]
     }
 
-    def "the listed open changes keep their stored values when ProTech #problem"() {
+    def "#action keeps the stored values when ProTech #problem"() {
         given:
-        def open = raised()
         def closed = raised(id: 6L, number: 'CHG0031000', state: CLOSED)
+        changes.findAll() >> [raised(), closed]
+        changes.load(7L) >> Optional.of(raised())
 
         when:
-        def listed = service.list(null)
+        def shown = shownBy(service)
 
         then:
-        1 * changes.findAll() >> [open, closed]
-        1 * proTech.read([open]) >> { reply() }
-        0 * changes._
-        listed == [open.withSyncProblem(message), closed]
+        1 * proTech.read([raised()]) >> { reply() }
+        0 * changes.save(_)
+        0 * changes.synced(*_)
+        shown == (listed ? [raised(syncProblem: message), closed] : raised(syncProblem: message))
 
         where:
-        problem             | reply                                                                       || message
-        'cannot be reached' | { throw new UncheckedIOException('Connection refused', new IOException()) } || 'ProTech could not be reached: Connection refused.'
-        'does not hold it'  | { [:] }                                                                     || 'ProTech has no change CHG0031001.'
+        action               | listed | shownBy                 | problem             | reply                                                                       || message
+        'the list'           | true   | { it.list(null) }       | 'cannot be reached' | { throw new UncheckedIOException('Connection refused', new IOException()) } || 'ProTech could not be reached: Connection refused.'
+        'the list'           | true   | { it.list(null) }       | 'does not hold it'  | { [:] }                                                                     || 'ProTech has no change CHG0031001.'
+        'an opened change'   | false  | { it.get(7L) }          | 'cannot be reached' | { throw new UncheckedIOException('Read timed out', new IOException()) }    || 'ProTech could not be reached: Read timed out.'
+        'an opened change'   | false  | { it.get(7L) }          | 'does not hold it'  | { [:] }                                                                     || 'ProTech has no change CHG0031001.'
     }
 
-    def "an opened change is read from ProTech even when closed and is saved only when ProTech #changed it"() {
+    def "a change #action is read from ProTech and saved only when ProTech #changed it"() {
         given:
-        def stored = raised(state: CLOSED)
+        changes.load(7L) >> Optional.of(stored)
+        changes.findByNumber('CHG0031001') >> Optional.of(stored)
 
         when:
-        def loaded = service.get(7L)
+        ProductionChange read = reading(service)
 
         then:
-        1 * changes.load(7L) >> Optional.of(stored)
         1 * proTech.read([stored]) >> [CHG0031001: remote]
         saves * changes.save(remote.toBuilder().syncedAt(NOW).build()) >>
                 { ProductionChange change -> change.toBuilder().version(1L).build() }
         (1 - saves) * changes.synced([7L], NOW)
-        loaded.shortDescription() == remote.shortDescription()
-        loaded.syncedAt() == NOW
-        loaded.syncProblem() == null
-        loaded.version() == saves
+        read.state() == remote.state()
+        read.shortDescription() == remote.shortDescription()
+        read.syncedAt() == NOW
+        read.syncProblem() == null
+        read.version() == saves
 
         where:
-        remote                                                          || saves
-        raised(state: CLOSED)                                           || 0
-        raised(state: CLOSED, shortDescription: 'Renamed in ProTech')   || 1
+        action                     | reading                                 | stored                | remote                                                        || saves
+        'opened, even when closed' | { it.get(7L) }                          | raised(state: CLOSED) | raised(state: CLOSED)                                         || 0
+        'opened, even when closed' | { it.get(7L) }                          | raised(state: CLOSED) | raised(state: CLOSED, shortDescription: 'Renamed in ProTech') || 1
+        'ProTech moved'            | { it.resync('CHG0031001').get() }       | raised()              | raised()                                                      || 0
+        'ProTech moved'            | { it.resync('CHG0031001').get() }       | raised()              | raised(state: BUSINESS_APPROVAL, workflow: [new WorkflowStep(DRAFT, RAISED), new WorkflowStep(BUSINESS_APPROVAL, NOW)]) || 1
 
         changed = saves ? 'changed' : 'did not change'
-    }
-
-    def "an opened change keeps its stored values when ProTech #problem"() {
-        when:
-        def loaded = service.get(7L)
-
-        then:
-        1 * changes.load(7L) >> Optional.of(raised())
-        1 * proTech.read(_) >> { reply() }
-        0 * changes._
-        loaded == raised(syncProblem: message)
-
-        where:
-        problem             | reply                                                                    || message
-        'cannot be reached' | { throw new UncheckedIOException('Read timed out', new IOException()) } || 'ProTech could not be reached: Read timed out.'
-        'does not hold it'  | { [:] }                                                                  || 'ProTech has no change CHG0031001.'
-    }
-
-    def "a change ProTech moved is read again by its number and saved when ProTech #changed it"() {
-        given:
-        def stored = raised()
-
-        when:
-        def reread = service.resync('CHG0031001')
-
-        then:
-        1 * changes.findByNumber('CHG0031001') >> Optional.of(stored)
-        1 * proTech.read([stored]) >> [CHG0031001: remote]
-        saves * changes.save(remote.toBuilder().syncedAt(NOW).build()) >>
-                { ProductionChange change -> change.toBuilder().version(1L).build() }
-        (1 - saves) * changes.synced([7L], NOW)
-        reread.get().state() == remote.state()
-        reread.get().version() == saves
-
-        where:
-        remote                                       || saves
-        raised()                                     || 0
-        raised(state: BUSINESS_APPROVAL, workflow: [new WorkflowStep(DRAFT, RAISED),
-                                                    new WorkflowStep(BUSINESS_APPROVAL, NOW)]) || 1
-
-        changed = saves ? 'moved' : 'did not move'
     }
 
     def "a change Beadle did not raise is not read again, and an unreachable ProTech fails the read"() {
@@ -957,35 +922,43 @@ class ProductionChangeServiceSpec extends Specification {
         change.syncProblem() == 'ProTech could not be reached: Read timed out.'
     }
 
-    def "change tasks are not created when #problem"() {
+    def "#action is not created when #problem"() {
         given:
-        changes.load(7L) >> Optional.of(raised(tasks: []))
+        changes.load(7L) >> Optional.of(stored)
         changes.save(_) >> { ProductionChange it -> it }
         proTech.read(_) >> [CHG0031001: remote]
 
         when:
-        service.createTasks(7L, command)
+        creating(service)
 
         then:
         def refused = thrown(type)
         refused.message == message
         0 * proTech.createTask(*_)
+        0 * cyberTrack.createTicket(_)
+        0 * proTech.update(_)
 
         where:
-        problem                          | command                                           | remote                          || type                    | message
-        'another business service asks'        | created(businessServiceId: 4L)                         | raised(tasks: [])               || SecurityException       | 'Only Corporate Technology can change CHG0031001'
-        'the change moved on meanwhile'  | created(version: 1L)                              | raised(tasks: [])               || IllegalStateException   | STALE_VERSION
-        'ProTech has closed the change'  | created()                                         | raised(tasks: [], state: CLOSED) || IllegalStateException  | 'CHG0031001 is closed in ProTech and can no longer be changed'
-        'a release task starts too late' | created(tasks: [releaseTask([:], '2026-10-10T10:01:00Z')]) | raised(tasks: [])      || InvalidRequestException | 'must not be after the installation end'
+        action                   | problem                          | stored                                             | remote                           | creating                                                                            || type                    | message
+        'a change task'          | 'another business service asks'  | raised(tasks: [])                                  | raised(tasks: [])                | { it.createTasks(7L, created(businessServiceId: 4L)) }                              || SecurityException       | 'Only Corporate Technology can change CHG0031001'
+        'a change task'          | 'the change moved on meanwhile'  | raised(tasks: [])                                  | raised(tasks: [])                | { it.createTasks(7L, created(version: 1L)) }                                        || IllegalStateException   | STALE_VERSION
+        'a change task'          | 'ProTech has closed the change'  | raised(tasks: [])                                  | raised(tasks: [], state: CLOSED) | { it.createTasks(7L, created()) }                                                   || IllegalStateException   | 'CHG0031001 is closed in ProTech and can no longer be changed'
+        'a change task'          | 'a release task starts too late' | raised(tasks: [])                                  | raised(tasks: [])                | { it.createTasks(7L, created(tasks: [releaseTask([:], '2026-10-10T10:01:00Z')])) } || InvalidRequestException | 'must not be after the installation end'
+        'a secure coding ticket' | 'another business service asks'  | raised()                                           | raised()                         | { it.createSecureCodingTicket(7L, ticket(businessServiceId: 4L)) }                  || SecurityException       | 'Only Corporate Technology can change CHG0031001'
+        'a secure coding ticket' | 'the change moved on meanwhile'  | raised()                                           | raised()                         | { it.createSecureCodingTicket(7L, ticket(version: 1L)) }                            || IllegalStateException   | STALE_VERSION
+        'a secure coding ticket' | 'ProTech has closed the change'  | raised(state: CLOSED)                              | raised(state: CLOSED)            | { it.createSecureCodingTicket(7L, ticket()) }                                       || IllegalStateException   | 'CHG0031001 is closed in ProTech and can no longer be changed'
+        'a secure coding ticket' | 'the change has its ticket'      | raised().withSecureCoding(secureCoding(), 'SCP-7') | stored                           | { it.createSecureCodingTicket(7L, ticket()) }                                       || IllegalStateException   | 'CHG0031001 already has the secure coding ticket SCP-7'
+        'a secure coding ticket' | 'an input is missing'            | raised()                                           | raised()                         | { it.createSecureCodingTicket(7L, ticket(apoNumber: ' ')) }                         || InvalidRequestException | 'is required'
     }
 
-    def "the tasks ProTech created before it refused one are stored and the refusal is passed on"() {
+    def "the tasks ProTech created before it refused one are stored, noted for the audit trail and the refusal is passed on"() {
         given:
         changes.load(7L) >> Optional.of(raised(tasks: []))
         proTech.read(_) >> [CHG0031001: raised(tasks: [])]
 
         when:
-        service.createTasks(7L, created())
+        def notes = AuditNotes.listen()
+        notes.withCloseable { service.createTasks(7L, created()) }
 
         then:
         1 * proTech.createTask('CHG0031001', _) >> 'CTASK0050001'
@@ -997,6 +970,7 @@ class ProductionChangeServiceSpec extends Specification {
         1 * changes.save({ ProductionChange it -> it.tasks()*.number() == ['CTASK0050001'] }) >> { it[0] }
         def refused = thrown(IllegalStateException)
         refused.message == CLOSED_REFUSAL
+        notes.created() == ['CTASK0050001']
     }
 
     def "a refusal of ProTech puts the stored change back and is passed on"() {
@@ -1058,30 +1032,6 @@ class ProductionChangeServiceSpec extends Specification {
         change.version() == 2L
     }
 
-    def "a secure coding ticket is not created when #problem"() {
-        given:
-        changes.load(7L) >> Optional.of(stored)
-        changes.save(_) >> { ProductionChange it -> it }
-        proTech.read(_) >> [CHG0031001: stored]
-
-        when:
-        service.createSecureCodingTicket(7L, command)
-
-        then:
-        def refused = thrown(type)
-        refused.message == message
-        0 * cyberTrack.createTicket(_)
-        0 * proTech.update(_)
-
-        where:
-        problem                          | stored                                         | command                               || type                    | message
-        'another business service asks'        | raised()                                       | ticket(businessServiceId: 4L)              || SecurityException       | 'Only Corporate Technology can change CHG0031001'
-        'the change moved on meanwhile'  | raised()                                       | ticket(version: 1L)                   || IllegalStateException   | STALE_VERSION
-        'ProTech has closed the change'  | raised(state: CLOSED)                          | ticket()                              || IllegalStateException   | 'CHG0031001 is closed in ProTech and can no longer be changed'
-        'the change has its ticket'      | raised().withSecureCoding(secureCoding(), 'SCP-7') | ticket()                          || IllegalStateException   | 'CHG0031001 already has the secure coding ticket SCP-7'
-        'an input is missing'            | raised()                                       | ticket(apoNumber: ' ')                || InvalidRequestException | 'is required'
-    }
-
     def "every missing or broken input of a secure coding ticket is refused against its field before CyberTrack is asked"() {
         given:
         changes.load(7L) >> Optional.of(raised())
@@ -1101,7 +1051,7 @@ class ProductionChangeServiceSpec extends Specification {
         0 * cyberTrack._
     }
 
-    def "a ticket CyberTrack created but ProTech refused is named in the refusal so it can be entered by hand"() {
+    def "a ticket CyberTrack created but ProTech refused is noted and named in the refusal so it can be entered by hand"() {
         given:
         changes.load(7L) >> Optional.of(raised())
         changes.save(_) >> { ProductionChange it -> it }
@@ -1109,7 +1059,8 @@ class ProductionChangeServiceSpec extends Specification {
         cyberTrack.createTicket(_) >> 'SCP-1002'
 
         when:
-        service.createSecureCodingTicket(7L, ticket())
+        def notes = AuditNotes.listen()
+        notes.withCloseable { service.createSecureCodingTicket(7L, ticket()) }
 
         then:
         1 * proTech.update(_) >> { throw new IllegalStateException(CLOSED_REFUSAL) }
@@ -1117,6 +1068,7 @@ class ProductionChangeServiceSpec extends Specification {
         refused.message == 'SCP-1002 was created in CyberTrack, but CHG0031001 could not take it: ' + CLOSED_REFUSAL +
                 ' Enter SCP-1002 as the secure coding ticket with Edit the change.'
         refused.cause.message == CLOSED_REFUSAL
+        notes.created() == ['SCP-1002']
     }
 
     def "a CyberTrack failure is passed on and leaves the change as it was"() {
@@ -1236,11 +1188,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         when:
         def notes = AuditNotes.listen()
-        try {
-            call(service)
-        } finally {
-            notes.close()
-        }
+        notes.withCloseable { call(service) }
 
         then:
         def refused = thrown(RuntimeException)
@@ -1266,11 +1214,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         when:
         def notes = AuditNotes.listen()
-        try {
-            service.remind(7L, new ReminderCommand(3L, BUSINESS, null))
-        } finally {
-            notes.close()
-        }
+        notes.withCloseable { service.remind(7L, new ReminderCommand(3L, BUSINESS, null)) }
 
         then:
         def refused = thrown(RuntimeException)
@@ -1283,13 +1227,14 @@ class ProductionChangeServiceSpec extends Specification {
         'someone else stored the change meanwhile' | new IllegalStateException(STALE_VERSION)             || 'The business approver already approved CHG0031001'
     }
 
-    def "the reminders ProTech sent before it refused one are stored and the refusal is passed on"() {
+    def "the reminders ProTech sent before it refused one are stored, noted for the audit trail and the refusal is passed on"() {
         given:
         changes.load(7L) >> Optional.of(awaiting())
         proTech.read(_) >> [CHG0031001: awaiting()]
 
         when:
-        service.remind(7L, new ReminderCommand(3L, null, null))
+        def notes = AuditNotes.listen()
+        notes.withCloseable { service.remind(7L, new ReminderCommand(3L, null, null)) }
 
         then:
         1 * proTech.remind('CHG0031001', ApprovalRef.of(SUPPORT)) >> ['Jane Smith']
@@ -1303,6 +1248,8 @@ class ProductionChangeServiceSpec extends Specification {
                 && it.tasks()*.reminder() == [null, null] }) >> { ProductionChange it -> it }
         def refused = thrown(IllegalStateException)
         refused.message == 'ProTech has nobody to remind on CHG0031001'
+        notes.results() == [reminded: [[role: SUPPORT, task: null, people: ['Jane Smith']]]]
+        notes.created() == []
     }
 
     def "reminders are stored on the latest version when a sync stored the change in the meantime"() {
@@ -1331,79 +1278,11 @@ class ProductionChangeServiceSpec extends Specification {
 
         when:
         def notes = AuditNotes.listen()
-        try {
-            service.raise(command(storyKeys: []))
-        } finally {
-            notes.close()
-        }
+        notes.withCloseable { service.raise(command(storyKeys: [])) }
 
         then:
         thrown(IllegalStateException)
         notes.created() == ['CHG0012345']
-    }
-
-    def "the change tasks ProTech created before it refused one are noted for the audit trail"() {
-        given:
-        changes.load(7L) >> Optional.of(raised(tasks: []))
-        proTech.read(_) >> [CHG0031001: raised(tasks: [])]
-        changes.save(_) >> { it[0] }
-        proTech.createTask('CHG0031001', _) >> 'CTASK0050001' >> { throw new IllegalStateException(CLOSED_REFUSAL) }
-
-        when:
-        def notes = AuditNotes.listen()
-        try {
-            service.createTasks(7L, created())
-        } finally {
-            notes.close()
-        }
-
-        then:
-        thrown(IllegalStateException)
-        notes.created() == ['CTASK0050001']
-    }
-
-    def "the key of a secure coding ticket CyberTrack created is noted for the audit trail even when ProTech refuses it"() {
-        given:
-        changes.load(7L) >> Optional.of(raised())
-        changes.save(_) >> { ProductionChange it -> it }
-        proTech.read(_) >> [CHG0031001: raised()]
-        cyberTrack.createTicket(_) >> 'SCP-1002'
-        proTech.update(_) >> { throw new IllegalStateException(CLOSED_REFUSAL) }
-
-        when:
-        def notes = AuditNotes.listen()
-        try {
-            service.createSecureCodingTicket(7L, ticket())
-        } finally {
-            notes.close()
-        }
-
-        then:
-        thrown(IllegalStateException)
-        notes.created() == ['SCP-1002']
-    }
-
-    def "the people ProTech reminded before it refused a reminder are noted for the audit trail"() {
-        given:
-        changes.load(7L) >> Optional.of(awaiting())
-        proTech.read(_) >> [CHG0031001: awaiting()]
-        changes.save(_) >> { ProductionChange it -> it }
-        proTech.remind('CHG0031001', ApprovalRef.of(SUPPORT)) >> ['Jane Smith', 'Ann Lee']
-        proTech.remind('CHG0031001', ApprovalRef.ofTask('CTASK0041002')) >>
-                { throw new IllegalStateException('ProTech has nobody to remind on CHG0031001') }
-
-        when:
-        def notes = AuditNotes.listen()
-        try {
-            service.remind(7L, new ReminderCommand(3L, null, null))
-        } finally {
-            notes.close()
-        }
-
-        then:
-        thrown(IllegalStateException)
-        notes.results() == [reminded: [[role: SUPPORT, task: null, people: ['Jane Smith', 'Ann Lee']]]]
-        notes.created() == []
     }
 
     static ProductionChange awaiting() {
