@@ -6,7 +6,6 @@ import java.util.Map;
 
 public interface BusinessServiceUsagePort {
 
+    /** The usage of each business service that owns a product or a change, by its id. */
     Map<Long, BusinessServiceUsage> perBusinessService();
-
-    BusinessServiceUsage unused();
 }
