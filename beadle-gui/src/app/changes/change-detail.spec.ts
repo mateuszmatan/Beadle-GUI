@@ -285,7 +285,7 @@ describe('ChangeDetail', () => {
     expect(page().querySelector('beadle-change-tasks-form button')).toBeNull();
     expect(tasks[1].classList).toContain('canceled');
     expect(text(page().querySelector('beadle-change-tasks-form')?.previousElementSibling)).toBe(
-      'A change task (CTASK) is a piece of work inside the change, done by one team. ProTech asks the approvers of its assignment group for their approval in the CTask approval stage.',
+      'A change task (CTASK) is a piece of work inside the change, done by one team. ProTech asks the approvers of its assignment group for their approval in the CTask Approval stage.',
     );
     expect(page().querySelector('.secure-coding-missing')).toBeNull();
     expect(text(page().querySelector('pre'))).toBe('Production release of CertScanner (CERT).');

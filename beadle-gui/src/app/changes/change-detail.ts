@@ -187,7 +187,7 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
           <h2>Change tasks</h2>
           <p class="section-help">
             A change task (CTASK) is a piece of work inside the change, done by one team. ProTech
-            asks the approvers of its assignment group for their approval in the CTask approval
+            asks the approvers of its assignment group for their approval in the CTask Approval
             stage.
           </p>
           @if (tasks(); as list) {

@@ -105,7 +105,7 @@ class ChangesSpec extends BeadleSpecification {
 
         then:
         assertThat(numbers()).hasText(['CHG0031000'] as String[])
-        assertThat(column('state').locator('.chip')).hasText(['Escalated approval'] as String[])
+        assertThat(column('state').locator('.chip')).hasText(['Escalated Approval'] as String[])
 
         when:
         link('Create change', true).click()
@@ -132,7 +132,7 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(page.locator('.breadcrumb')).hasText('Changes/CHG0031001')
         assertThat(page.locator('.note.sync')).hasText('Read from ProTech just now')
         assertThat(stages().locator('.label')).hasText(['Draft', 'Business Approval', 'Primary Approval', 'Secondary Approval',
-                                                       'Support Approval', 'CTask approval', 'Escalated approval', 'In Progress',
+                                                       'Support Approval', 'CTask Approval', 'Escalated Approval', 'In Progress',
                                                        'Closed'] as String[])
         assertThat(stages()).hasClass(['done', 'done', 'done', 'current', 'later', 'later', 'later', 'later', 'later'] as String[])
         assertThat(page.locator('beadle-workflow-progress li[aria-current=step] .label')).hasText('Secondary Approval')
@@ -249,7 +249,7 @@ class ChangesSpec extends BeadleSpecification {
         page.reload()
 
         then:
-        assertThat(page.locator('.now')).hasText('CTask approval. Waiting for the approvers of each change task in ProTech: ' +
+        assertThat(page.locator('.now')).hasText('CTask Approval. Waiting for the approvers of each change task in ProTech: ' +
                 '0 of 2 approved. The change goes In Progress once every change task is approved.')
         assertThat(approvalRows().locator('.chip')).hasText((['Approved'] * 4 + ['Requested'] * 2) as String[])
 

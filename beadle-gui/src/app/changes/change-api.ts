@@ -296,15 +296,15 @@ export const STATES: { value: ChangeState; label: string }[] = [
   { value: 'PRIMARY_APPROVAL', label: 'Primary Approval' },
   { value: 'SECONDARY_APPROVAL', label: 'Secondary Approval' },
   { value: 'SUPPORT_APPROVAL', label: 'Support Approval' },
-  { value: 'CTASK_APPROVAL', label: 'CTask approval' },
-  { value: 'ESCALATED_APPROVAL', label: 'Escalated approval' },
+  { value: 'CTASK_APPROVAL', label: 'CTask Approval' },
+  { value: 'ESCALATED_APPROVAL', label: 'Escalated Approval' },
   { value: 'IMPLEMENTATION', label: 'In Progress' },
   { value: 'CLOSED', label: 'Closed' },
 ];
 
 export const TASK_STATES: { value: TaskState; label: string }[] = [
   { value: 'OPEN', label: 'Open' },
-  { value: 'WORK_IN_PROGRESS', label: 'Work in progress' },
+  { value: 'WORK_IN_PROGRESS', label: 'Work in Progress' },
   { value: 'CLOSED', label: 'Closed' },
   { value: 'CANCELED', label: 'Canceled' },
 ];
