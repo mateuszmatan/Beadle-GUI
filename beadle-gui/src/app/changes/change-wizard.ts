@@ -169,7 +169,7 @@ export interface WizardDraft {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './change-wizard.html',
-  styleUrls: ['../shared/wizard.scss', './change-wizard.scss'],
+  styleUrl: './change-wizard.scss',
 })
 export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
   readonly draftName = WIZARD_DRAFT;
