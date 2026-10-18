@@ -34,7 +34,6 @@ import { errorText } from '../shared/form-errors';
 import { counted } from '../shared/formatting';
 import { BeadleCheckbox } from '../ui/checkbox';
 import { FORM_FIELD } from '../ui/form-field';
-import { ATTENTION } from '../ui/save-bar';
 import { BeadleLoading } from '../ui/loading';
 import {
   ChangeRequest,
@@ -55,7 +54,7 @@ import {
   versionText,
   windowText,
 } from './change-model';
-import { problemText } from './change-problems';
+import { ATTENTION, problemText } from './change-problems';
 import { ChangeScheduleFields } from './change-schedule-fields';
 import {
   SCHEDULE_PREFIX,
