@@ -486,6 +486,19 @@ describe('ChangeDetail', () => {
     TestBed.tick();
     fixture.detectChanges();
     expect(text(banner())).toContain('This page checks again every few seconds.');
+
+    for (let poll = 1; poll < MAX_POLLS; poll++) {
+      await vi.advanceTimersByTimeAsync(POLL_INTERVAL);
+      TestBed.tick();
+      http
+        .expectOne('/api/changes/7')
+        .flush({ detail: 'Beadle-ProTech cannot be reached' }, { status: 503, statusText: 'No' });
+      TestBed.tick();
+    }
+    fixture.detectChanges();
+    expect(text(banner())).toContain(
+      'The change could not be read again, so this page stopped checking: Beadle-ProTech cannot be reached',
+    );
   });
 
   it('shows what ProTech did not apply', async () => {

@@ -12,7 +12,7 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { Subscription, of } from 'rxjs';
 import { MyBusinessService } from '../business-services/my-business-service';
-import { RETRY } from '../core/errors';
+import { RETRY, errorMessage } from '../core/errors';
 import { changePath, productPath } from '../core/sections';
 import { RelativeTimePipe, formatRelative } from '../shared/formatting';
 import { PANEL } from '../ui/panel';
@@ -141,11 +141,13 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
             <span>
               {{ updateText(update) }}
               @if (update.status === 'PENDING') {
-                {{
-                  polling()
-                    ? 'This page checks again every few seconds.'
-                    : 'ProTech is taking longer than usual, so this page stopped checking.'
-                }}
+                @if (polling()) {
+                  This page checks again every few seconds.
+                } @else if (pollError(); as error) {
+                  The change could not be read again, so this page stopped checking: {{ error }}
+                } @else {
+                  ProTech is taking longer than usual, so this page stopped checking.
+                }
               } @else if (update.status === 'NOT_APPLIED' && open() && !hint()) {
                 Edit the change to send these values again.
               }
@@ -309,6 +311,11 @@ export class ChangeDetail {
   );
   private readonly polls = linkedSignal({ source: this.id, computation: () => 0 });
   protected readonly polling = computed(() => this.polls() < MAX_POLLS);
+  /** Why the last read of the change failed while the page checked for the update. */
+  protected readonly pollError = linkedSignal({
+    source: this.id,
+    computation: (): string | null => null,
+  });
 
   constructor() {
     effect((onCleanup) => {
@@ -324,10 +331,14 @@ export class ChangeDetail {
       const timer = setTimeout(() => {
         request = this.api.get(this.id()).subscribe({
           next: (read) => {
+            this.pollError.set(null);
             this.change.set(read);
             counted();
           },
-          error: counted,
+          error: (error) => {
+            this.pollError.set(errorMessage(error));
+            counted();
+          },
         });
       }, POLL_INTERVAL);
       onCleanup(() => {
