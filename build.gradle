@@ -14,7 +14,6 @@ def heavyTests = gradle.sharedServices.registerIfAbsent('heavyTests', HeavyTestS
   maxParallelUsages = (findProperty('heavyTests.parallel') ?: '1') as int
 }
 
-def skipGui = providers.gradleProperty('skipGui').map { it != 'false' }.getOrElse(false)
 def performanceFactor = providers.systemProperty('performance.factor')
   .orElse(providers.gradleProperty('performance.factor'))
   .getOrElse('2.0')
@@ -250,10 +249,6 @@ project(':beadle-backend') { backend ->
     dependencies {
         compileOnly 'org.projectlombok:lombok'
         annotationProcessor 'org.projectlombok:lombok'
-        testCompileOnly 'org.projectlombok:lombok'
-        testAnnotationProcessor 'org.projectlombok:lombok'
-        testFixturesCompileOnly 'org.projectlombok:lombok'
-        testFixturesAnnotationProcessor 'org.projectlombok:lombok'
 
         testFixturesApi 'org.springframework.boot:spring-boot-starter-test'
         testFixturesApi 'org.springframework.boot:spring-boot-starter-webmvc-test'
@@ -274,6 +269,10 @@ project(':beadle-backend') { backend ->
         }
     }
 
+    tasks.withType(GroovyCompile).configureEach {
+        groovyOptions.parameters = true
+    }
+
     jacoco {
         toolVersion = libs.versions.jacoco.get()
     }
@@ -285,6 +284,7 @@ project(':beadle-backend') { backend ->
                 targets.configureEach {
                     testTask.configure {
                         jvmArgs '-XX:+EnableDynamicAgentLoading'
+                        systemProperty 'LOG_PATH', backend.layout.buildDirectory.dir('logs').get().asFile.absolutePath
                         testLogging {
                             events 'failed'
                             exceptionFormat = 'full'
@@ -306,7 +306,7 @@ project(':beadle-backend') { backend ->
 
             [regressionTest : 'Runs the API end to end on H2 in Oracle mode.',
              smokeTest      : 'Starts the application and checks health, the API and the UI.',
-             performanceTest: 'Measures the p95 latencies of the main calls on a large catalogue.'].each { suiteName, text ->
+             performanceTest: 'Measures the p95 latencies of the key calls on the demo catalogue'].each { suiteName, text ->
                 if (backend.file("src/$suiteName").isDirectory()) {
                     register(suiteName, JvmTestSuite) {
                         dependencies {
@@ -317,10 +317,7 @@ project(':beadle-backend') { backend ->
                             testTask.configure {
                                 description = text
                                 shouldRunAfter tasks.named('test')
-                                extensions.getByType(JacocoTaskExtension).enabled = false
-                                systemProperty 'regression.expectedDir', backend.file('src/regressionTest/resources/regression').absolutePath
-                                systemProperty 'performance.report', backend.layout.buildDirectory.file('reports/performance/backend-performance-report.md').get().asFile.absolutePath
-                                forward(it, 'regression.updateExpected', 'smoke.baseUrl', 'smoke.ui', 'smoke.cookie')
+                                forward(it, 'smoke.baseUrl', 'smoke.ui', 'smoke.cookie')
                                 systemProperty 'performance.factor', performanceFactor
                                 if (suiteName != 'regressionTest') {
                                     outputs.upToDateWhen { false }
@@ -368,17 +365,55 @@ project(':beadle-backend') { backend ->
         dependsOn tasks.named('jacocoTestCoverageVerification')
     }
 
-    def frontend = project(':beadle-gui')
-    if (!skipGui) {
-        tasks.named('processResources', ProcessResources) {
-            from(frontend.tasks.named('buildAngular')) {
-                into 'static'
+    def suites = ['smokeTest', 'regressionTest', 'performanceTest'].findAll { tasks.names.contains(it) }
+
+    def jacocoSuitesReport = tasks.register('jacocoSuitesReport', JacocoReport) {
+        group = 'verification'
+        description = 'Reports the line coverage of smokeTest, regressionTest and performanceTest together.'
+        executionData(suites.collect { tasks.named(it).get() } as Task[])
+        sourceSets(sourceSets.main)
+        classDirectories.setFrom(coveredClasses)
+        reports {
+            xml.required = true
+            html.required = true
+        }
+    }
+
+    def jacocoSuitesCoverageVerification = tasks.register('jacocoSuitesCoverageVerification',
+            JacocoCoverageVerification) {
+        group = 'verification'
+        description = 'Fails when smokeTest, regressionTest and performanceTest together cover less than 30% of lines.'
+        executionData(suites.collect { tasks.named(it).get() } as Task[])
+        sourceSets(sourceSets.main)
+        classDirectories.setFrom(coveredClasses)
+        dependsOn jacocoSuitesReport
+        violationRules {
+            rule {
+                element = 'BUNDLE'
+                limit {
+                    counter = 'LINE'
+                    value = 'COVEREDRATIO'
+                    minimum = providers.gradleProperty('coverage.suites.minimum').getOrElse('0.30') as BigDecimal
+                }
             }
+        }
+    }
+
+    tasks.named('check') {
+        dependsOn jacocoSuitesCoverageVerification
+    }
+
+    def frontend = project(':beadle-gui')
+    tasks.named('bootJar') {
+        from(frontend.tasks.named('buildAngular')) {
+            into 'BOOT-INF/classes/static'
         }
     }
 
     tasks.named('bootRun') {
         workingDir = rootDir
+        dependsOn frontend.tasks.named('buildAngular')
+        args "--spring.web.resources.static-locations=file:${frontend.file('dist')}/"
     }
 
     tasks.matching { it.name in ['regressionTest', 'performanceTest'] }.configureEach {

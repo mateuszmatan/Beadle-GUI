@@ -4,33 +4,20 @@ import com.bbh.itss.beadle.domain.shared.InvalidRequestException
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException.FieldProblem
 import spock.lang.Specification
 
+import java.time.LocalDate
+
 import static com.bbh.itss.beadle.domain.change.SecureCodingTicket.DATE_MESSAGE
 import static com.bbh.itss.beadle.support.ChangeFixtures.raised
 import static com.bbh.itss.beadle.support.ChangeFixtures.secureCoding
 
 class SecureCodingTicketSpec extends Specification {
 
-    def "a ticket is named APO-ID_APP-NAME-IMPLEMENTATION-DATE and describes every input and the change"() {
+    def "a ticket carries the change number, the product name, the trimmed date and the inputs"() {
         when:
         def ticket = SecureCodingTicket.of(raised(), secureCoding(), ' 10152026 ')
 
         then:
-        ticket == new SecureCodingTicket('CHG0031001', 'CertScanner', '10152026', secureCoding())
-        ticket.summary() == 'APO-12345_CertScanner-10152026'
-        ticket.description() == '''\
-            APO number: APO-12345
-            Application: CertScanner
-            Implementation date: 10152026
-            Bitbucket URL (SAST scan): https://bitbucket.bbh.com/projects/CERT/repos/cert
-            Artifact link (OSA - Nexus IQ scan): https://jenkins.bbh.com/job/CERT/job/cert-release/
-            QC application link (DAST scan): https://cert.qc.bbh.com
-            ProTech change: CHG0031001'''.stripIndent()
-    }
-
-    def "a ticket name is cut to what Jira takes"() {
-        expect:
-        SecureCodingTicket.of(raised(productName: 'ł' * 200), secureCoding(), '10152026').summary()
-                .getBytes('UTF-8').length <= SecureCodingTicket.SUMMARY_MAX
+        ticket == new SecureCodingTicket('CHG0031001', 'CertScanner', LocalDate.parse('2026-10-15'), secureCoding())
     }
 
     def "the implementation date #date is refused"() {

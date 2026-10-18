@@ -14,6 +14,7 @@ import { AbstractControl, FormControl, ReactiveFormsModule, Validators } from '@
 import { SvgIconComponent } from 'angular-svg-icon';
 import { BeadleCheckbox } from '../ui/checkbox';
 import { FORM_FIELD } from '../ui/form-field';
+import { LookupKind } from '../core/models';
 import { filled } from './form-controls';
 import { errorText } from './form-errors';
 import { capitalized } from './formatting';
@@ -48,12 +49,6 @@ export interface Field {
 export const optionsOf = (labels: Record<string, string>): FieldOption[] =>
   Object.entries(labels).map(([value, label]) => ({ value, label }));
 
-export const tristate = (unset: string, yes: string, no: string): FieldOption[] => [
-  { value: null, label: unset },
-  { value: true, label: yes },
-  { value: false, label: no },
-];
-
 type More = Partial<Field>;
 
 const of = (key: string, label: string, code: string, span: number, more: More): Field => ({
@@ -79,6 +74,10 @@ export const check = (key: string, label: string, code = '', span = 12, more: Mo
 export const count = (key: string, label: string, code = '', span = 6, more: More = {}) =>
   of(key, label, code, span, { kind: 'number', ...more });
 
+export const find = (kind: LookupKind, more: Omit<Lookup, 'kind'> = {}): More => ({
+  lookup: { kind, ...more },
+});
+
 export const choice = (
   key: string,
   label: string,
@@ -94,10 +93,6 @@ export function chips(text: string): string {
   return text
     .replace(/[&<>]/g, (character) => ESCAPED[character])
     .replace(/`([^`]+)`/g, '<code>$1</code>');
-}
-
-export function defaulted(value: string | null | undefined, missing = ''): More {
-  return { placeholder: value ?? '', hint: value ? `left empty: ${value}` : missing };
 }
 
 export function formRevision(form: () => AbstractControl): Signal<number> {

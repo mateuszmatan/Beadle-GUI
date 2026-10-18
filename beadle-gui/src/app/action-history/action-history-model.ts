@@ -15,16 +15,15 @@ export type Action =
   | 'BUSINESS_SERVICE_CREATED'
   | 'BUSINESS_SERVICE_RENAMED'
   | 'BUSINESS_SERVICE_DELETED'
-  | 'DEPARTMENT_CREATED'
-  | 'DEPARTMENT_RENAMED'
-  | 'DEPARTMENT_DELETED'
   | 'USER_SIGNED_IN'
+  | 'USER_SIGNED_OUT'
   | 'CALLBACK_PROTECH'
   | 'CALLBACK_INTERNAL';
 
 export type ActionOutcome = 'SUCCESS' | 'FAILURE';
 
-export type ObjectType = 'CHANGE' | 'PRODUCT' | 'CHANGE_PROFILE' | 'BUSINESS_SERVICE' | 'DEPARTMENT' | 'TICKET' | 'USER';
+export type ObjectType =
+  'CHANGE' | 'PRODUCT' | 'CHANGE_PROFILE' | 'BUSINESS_SERVICE' | 'TICKET' | 'USER';
 
 export interface ActionRecord {
   id: number;
@@ -94,10 +93,8 @@ export const ACTIONS: Record<Action, string> = {
   BUSINESS_SERVICE_CREATED: 'Business service created',
   BUSINESS_SERVICE_RENAMED: 'Business service renamed',
   BUSINESS_SERVICE_DELETED: 'Business service deleted',
-  DEPARTMENT_CREATED: 'Department created',
-  DEPARTMENT_RENAMED: 'Department renamed',
-  DEPARTMENT_DELETED: 'Department deleted',
   USER_SIGNED_IN: 'Signed in',
+  USER_SIGNED_OUT: 'Signed out',
   CALLBACK_PROTECH: 'ProTech callback',
   CALLBACK_INTERNAL: 'Beadle-Internal callback',
 };
@@ -112,7 +109,6 @@ export const OBJECT_TYPES: Record<ObjectType, string> = {
   PRODUCT: 'Product',
   CHANGE_PROFILE: 'Change template of product',
   BUSINESS_SERVICE: 'Business service',
-  DEPARTMENT: 'Department',
   TICKET: 'Ticket',
   USER: 'User',
 };
@@ -159,10 +155,7 @@ export function durationText(milliseconds: number): string {
     : `${(milliseconds / 1000).toFixed(milliseconds < 10_000 ? 1 : 0)} s`;
 }
 
-/**
- * The details pretty-printed when they are JSON, else as recorded: rows written before Beadle
- * trimmed long details inside the JSON may have been cut at 32 KB.
- */
+/** The details pretty-printed when they are JSON, else as recorded. */
 export function detailsText(details: string | null): string {
   if (!details) {
     return '';

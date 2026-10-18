@@ -23,10 +23,6 @@ public record ProductDetails(String code, String name, String description, Strin
         contactEmail = trimToNull(contactEmail);
     }
 
-    public Long departmentId() {
-        return businessServiceId;
-    }
-
     public ValidationProblems validate(ValidationProblems problems, ProductDirectory directory) {
         if (isBlank(code)) {
             problems.add("code", "must not be blank");
@@ -40,7 +36,7 @@ public record ProductDetails(String code, String name, String description, Strin
         if (businessServiceId == null) {
             problems.add("businessServiceId", "choose the product's business service");
         } else if (!directory.businessServiceExists(businessServiceId)) {
-            problems.add("departmentId", "department " + businessServiceId + " does not exist");
+            problems.add("businessServiceId", "business service " + businessServiceId + " does not exist");
         }
         return problems;
     }

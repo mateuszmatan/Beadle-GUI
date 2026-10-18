@@ -7,7 +7,7 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { MyDepartment } from '../departments/my-department';
+import { MyBusinessService } from '../business-services/my-business-service';
 import { Notifier } from '../core/notifier';
 import { errorMessage } from '../core/errors';
 import { formatRelative } from '../shared/formatting';
@@ -40,7 +40,7 @@ export interface ApprovalRow {
 
 type ReminderScope = Pick<
   ProductionChange,
-  'number' | 'departmentId' | 'departmentName' | 'syncProblem'
+  'number' | 'businessServiceId' | 'businessServiceName' | 'syncProblem'
 >;
 
 const STAGES: Record<ApprovalRole, ChangeState> = {
@@ -84,17 +84,22 @@ export function approvalRows(change: Pick<ProductionChange, 'approvals' | 'tasks
   return [...approvals, ...tasks];
 }
 
-export function reminderHint(change: ReminderScope, departmentId: number | null): string | null {
-  if (change.departmentId === null) {
-    return `No department owns ${change.number}, so nobody can remind its approvers in Beadle`;
+export function reminderHint(
+  change: ReminderScope,
+  businessServiceId: number | null,
+): string | null {
+  if (change.businessServiceId === null) {
+    return `No business service owns ${change.number}, so nobody can remind its approvers in Beadle`;
   }
-  if (departmentId === null) {
-    return 'Choose your department in Changes to remind the approvers';
+  if (businessServiceId === null) {
+    return 'Choose your business service in Changes to remind the approvers';
   }
-  if (departmentId !== change.departmentId) {
-    return `Only ${change.departmentName ?? 'its department'} can remind its approvers`;
+  if (businessServiceId !== change.businessServiceId) {
+    return `Only ${change.businessServiceName ?? 'its business service'} can remind its approvers`;
   }
-  return change.syncProblem ? 'ProTech cannot be read just now, so no reminder can be sent' : null;
+  return change.syncProblem
+    ? 'ProTech cannot be reached at the moment, so no reminder can be sent'
+    : null;
 }
 
 export function reminderText(reminder: Reminder, now = Date.now()): string {
@@ -170,7 +175,7 @@ export function remindedNames(
           @for (row of rows(); track row.key; let first = $first) {
             @if (row.task && (first || !rows()[$index - 1].task)) {
               <tr class="group">
-                <th scope="rowgroup" colspan="5">CTASK approvals</th>
+                <th scope="rowgroup" colspan="5">Change task approvals</th>
               </tr>
             }
             <tr [class.task]="row.task">
@@ -239,7 +244,7 @@ export function remindedNames(
     .approvals-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 12.5px;
+      font-size: 13px;
 
       th,
       td {
@@ -268,7 +273,7 @@ export function remindedNames(
 
     .detail {
       display: block;
-      font-size: 11.5px;
+      font-size: 12px;
       font-weight: 400;
     }
 
@@ -284,13 +289,11 @@ export function remindedNames(
     .remind {
       --bs-btn-padding-x: 4px;
       --bs-btn-padding-y: 0;
-      --bs-btn-font-size: 11.5px;
-      --bs-btn-font-weight: 400;
     }
 
     .no-tasks {
       margin: 6px 0 0;
-      font-size: 12.5px;
+      font-size: 13px;
     }
   `,
 })
@@ -300,7 +303,7 @@ export class ChangeApprovals {
 
   private readonly api = inject(ChangesApi);
   private readonly notifier = inject(Notifier);
-  private readonly myDepartment = inject(MyDepartment);
+  private readonly myBusinessService = inject(MyBusinessService);
 
   protected readonly tones = TONES;
   protected readonly reminderText = reminderText;
@@ -309,7 +312,7 @@ export class ChangeApprovals {
   protected readonly rows = computed(() => approvalRows(this.change()));
   protected readonly taskCount = computed(() => this.rows().filter((row) => row.task).length);
   protected readonly hint = computed(() =>
-    reminderHint(this.change(), this.myDepartment.departmentId()),
+    reminderHint(this.change(), this.myBusinessService.businessServiceId()),
   );
   protected readonly allHint = computed(
     () =>
@@ -324,17 +327,17 @@ export class ChangeApprovals {
   }
 
   protected remind(target: ApprovalRow['target']): void {
-    const departmentId = this.myDepartment.departmentId();
+    const businessServiceId = this.myBusinessService.businessServiceId();
     const change = this.change();
-    if (departmentId === null || change.id === null || this.sending()) {
+    if (businessServiceId === null || change.id === null || this.sending()) {
       return;
     }
     this.sending.set(true);
-    this.api.remind(change.id, { departmentId, ...target }).subscribe({
+    this.api.remind(change.id, { businessServiceId, ...target }).subscribe({
       next: (reminded) => {
         this.sending.set(false);
         this.changed.emit(reminded);
-        this.notifier.success(`Reminder sent to ${remindedNames(reminded, target).join(', ')}`);
+        this.notifier.success(`Reminder sent to ${remindedNames(reminded, target).join(', ')}.`);
       },
       error: (error) => {
         this.sending.set(false);

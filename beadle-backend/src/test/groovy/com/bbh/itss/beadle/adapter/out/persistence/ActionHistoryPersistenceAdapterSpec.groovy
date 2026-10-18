@@ -4,39 +4,29 @@ import com.bbh.itss.beadle.domain.audit.ActionHistoryQuery
 import com.bbh.itss.beadle.domain.audit.ActionRecord
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
-import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager
-import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.JdbcTemplate
-import spock.lang.Specification
 
 import java.time.Instant
 
+import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_RENAMED
 import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_INTERNAL
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_EDITED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_TASKS_CREATED
-import static com.bbh.itss.beadle.domain.audit.Action.SECURE_CODING_TICKET_CREATED
-import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_RENAMED
 import static com.bbh.itss.beadle.domain.audit.Action.PRODUCT_CREATED
+import static com.bbh.itss.beadle.domain.audit.Action.SECURE_CODING_TICKET_CREATED
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE
 import static com.bbh.itss.beadle.domain.audit.ActionOutcome.SUCCESS
+import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE_PROFILE
-import static com.bbh.itss.beadle.domain.audit.ObjectType.DEPARTMENT
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT
 import static com.bbh.itss.beadle.domain.audit.ObjectType.TICKET
 import static com.bbh.itss.beadle.domain.audit.ObjectType.USER
 import static com.bbh.itss.beadle.support.ChangeFixtures.raised
-import static org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase.Replace.NONE
 
-@DataJpaTest(properties = [
-        'spring.datasource.url=jdbc:h2:mem:action-history;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1',
-        'spring.datasource.username=sa'])
-@AutoConfigureTestDatabase(replace = NONE)
-@Import([ActionHistoryPersistenceAdapter, ObjectKeyAdapter, ProductionChangePersistenceAdapter])
-class ActionHistoryPersistenceAdapterSpec extends Specification {
+class ActionHistoryPersistenceAdapterSpec extends PersistenceSpecification {
 
     static final String CORRELATION_ID = '4f1c2a8e-7b3d-4e5f-9a6b-1c2d3e4f5a6b'
 
@@ -55,9 +45,9 @@ class ActionHistoryPersistenceAdapterSpec extends Specification {
     @Autowired
     JdbcTemplate jdbc
 
-    def "a row is inserted with every column, its details trimmed to 32 KB, and read back as it was written"() {
+    def "a row is inserted with every column, its details cut to 256 KB, and read back as it was written"() {
         given:
-        def details = '{"command":{"name":"' + ('é' * 20_000) + '"}}'
+        def details = '{"command":{"name":"' + ('é' * (ActionRecord.DETAILS_MAX / 2)) + '"}}'
 
         when:
         def stored = adapter.record(row(at: '2026-10-15T09:00:00.123456Z', details: details,
@@ -75,7 +65,7 @@ class ActionHistoryPersistenceAdapterSpec extends Specification {
         stored.details().startsWith('{"command":{"name":"éé')
         stored.details().endsWith('é...')
         stored.details().getBytes('UTF-8').length in (ActionRecord.DETAILS_MAX - 4)..ActionRecord.DETAILS_MAX
-        def read = adapter.find(ActionHistoryQuery.all()).content()
+        def read = adapter.find(ActionHistoryQuery.of(null, null, null, null, null, null, null, null, null)).content()
         read == [stored]
         read[0].at() == Instant.parse('2026-10-15T09:00:00.123456Z')
     }
@@ -88,8 +78,8 @@ class ActionHistoryPersistenceAdapterSpec extends Specification {
         def third = adapter.record(row(at: '2026-10-14T08:00:00Z', objectKey: 'CHG0031002'))
         def fourth = adapter.record(row(at: '2026-10-15T08:00:00Z', user: 'system:internal',
                 action: CALLBACK_INTERNAL, objectType: TICKET, objectId: null, objectKey: 'SCP-123'))
-        def fifth = adapter.record(row(at: '2026-10-15T09:00:00Z', user: 'Ann Lee', action: DEPARTMENT_RENAMED,
-                objectType: DEPARTMENT, objectId: 3L, objectKey: 'Corporate Technology'))
+        def fifth = adapter.record(row(at: '2026-10-15T09:00:00Z', user: 'Ann Lee', action: BUSINESS_SERVICE_RENAMED,
+                objectType: BUSINESS_SERVICE, objectId: 3L, objectKey: 'Corporate Technology'))
 
         expect:
         found() == [fifth, fourth, third, second, first]
@@ -144,11 +134,11 @@ class ActionHistoryPersistenceAdapterSpec extends Specification {
         adapter.record(row(user: 'Mateusz Matan'))
         adapter.record(row(user: 'Ann Lee', action: PRODUCT_CREATED))
         adapter.record(row(user: 'Mateusz Matan', action: PRODUCT_CREATED))
-        adapter.record(row(user: 'system:protech', action: DEPARTMENT_RENAMED))
+        adapter.record(row(user: 'system:protech', action: BUSINESS_SERVICE_RENAMED))
 
         expect:
         adapter.users() == ['Ann Lee', 'Mateusz Matan', 'system:protech']
-        adapter.actions() == [CHANGE_RAISED, DEPARTMENT_RENAMED, PRODUCT_CREATED]
+        adapter.actions() == [BUSINESS_SERVICE_RENAMED, CHANGE_RAISED, PRODUCT_CREATED]
     }
 
     def "a stored row is never updated"() {
@@ -159,7 +149,7 @@ class ActionHistoryPersistenceAdapterSpec extends Specification {
 
         when:
         def entity = entities.find(ActionHistoryEntity, stored.id())
-        entity.@userName = 'Someone Else'
+        entity.@user = 'Someone Else'
         entity.@outcome = FAILURE
         entities.flush()
         entities.clear()
@@ -190,7 +180,7 @@ class ActionHistoryPersistenceAdapterSpec extends Specification {
         0    | 0    | '2026-10-15T00:00:00Z' | '2026-10-15T00:00:00Z' || ['size', 'from']
     }
 
-    def "the key of a change, a product, its change template and a department is read by id"() {
+    def "the key of a change, a product, its change template and a business service is read by id"() {
         given:
         jdbc.update('''INSERT INTO BEADLE_PRODUCT (CODE, NAME, BUSINESS_SERVICE_ID, CREATED_AT, UPDATED_AT)
                 VALUES ('AUDITED', 'Audited Product', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)''')
@@ -202,9 +192,8 @@ class ActionHistoryPersistenceAdapterSpec extends Specification {
         keys.keyOf(CHANGE, changeId) == Optional.of('CHG0077001')
         keys.keyOf(PRODUCT, productId) == Optional.of('AUDITED')
         keys.keyOf(CHANGE_PROFILE, productId) == Optional.of('AUDITED')
-        keys.keyOf(DEPARTMENT, 3L) == Optional.of('Corporate Technology')
-        keys.keyOf(com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE, 3L) == Optional.of('Corporate Technology')
-        keys.keyOf(DEPARTMENT, 9999L) == Optional.empty()
+        keys.keyOf(BUSINESS_SERVICE, 3L) == Optional.of('Corporate Technology')
+        keys.keyOf(BUSINESS_SERVICE, 9999L) == Optional.empty()
         keys.keyOf(TICKET, 1L) == Optional.empty()
         keys.keyOf(USER, 1L) == Optional.empty()
     }

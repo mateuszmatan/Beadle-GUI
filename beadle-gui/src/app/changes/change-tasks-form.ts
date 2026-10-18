@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { LookupKind } from '../core/models';
 import {
   Field,
   FieldOption,
   Fields,
   area,
   choice,
+  find,
   formRevision,
   line,
   mono,
@@ -25,8 +25,6 @@ import {
   removeTask,
   taskStatus,
 } from './change-tasks-model';
-
-const find = (kind: LookupKind) => ({ lookup: { kind } });
 
 const FROM_THE_CHANGE: Record<string, string> = {
   changeNumber: 'The CHG number of the change',
@@ -148,7 +146,7 @@ export const TASK_LABELS: Record<string, string> = Object.fromEntries(
             @if (readonly()) {
               <span class="muted small">{{ status(task) }}</span>
             } @else if (isClosed(task)) {
-              <span class="muted small">Closed in ProTech, so it stays as it is</span>
+              <span class="muted small">Closed in ProTech and can no longer be changed</span>
             }
             <span class="spacer"></span>
             @if (!readonly()) {
@@ -180,7 +178,7 @@ export const TASK_LABELS: Record<string, string> = Object.fromEntries(
           [disabled]="list.length >= maxTasks"
           (click)="add()"
         >
-          Add a change task
+          Add change task
         </button>
         <span class="muted">{{ counted(list.length, 'change task') }}</span>
       </div>

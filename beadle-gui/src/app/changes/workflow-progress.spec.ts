@@ -91,8 +91,8 @@ describe('workflow progress', () => {
       'Waiting for the support approver',
       'Waiting for every change task to be approved',
       'Short notice: waiting for an escalated approval',
-      'Every change task approved, installs in its window',
-      'Done',
+      'All change tasks approved; installs in its window',
+      'Completed',
     ]);
     const change = productionChange();
     const now = (state: (typeof STATES)[number]['value'], template = change.template) =>
@@ -100,7 +100,7 @@ describe('workflow progress', () => {
     const { installationStart, installationEnd } = change.schedule;
 
     expect(now('DRAFT')).toBe(
-      'The change is written but not sent for approval yet. The business approver is asked first.',
+      'The change is drafted but not yet sent for approval. The business approver is asked first.',
     );
     expect(now('BUSINESS_APPROVAL')).toBe(
       'Waiting for the business approver to approve the change in ProTech.',
@@ -149,8 +149,6 @@ describe('workflow progress', () => {
     expect(now('IMPLEMENTATION')).toBe(
       `Every change task is approved. The teams carry out the change tasks in the installation window, ${windowText(installationStart, installationEnd)}.`,
     );
-    expect(now('CLOSED')).toBe(
-      'Done. The change is closed in ProTech and can no longer be changed.',
-    );
+    expect(now('CLOSED')).toBe('The change is complete and can no longer be changed in ProTech.');
   });
 });

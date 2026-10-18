@@ -17,6 +17,9 @@ import com.bbh.itss.beadle.domain.change.SecureCoding
 import com.bbh.itss.beadle.domain.change.TaskDetails
 import com.bbh.itss.beadle.domain.change.TaskState
 import com.bbh.itss.beadle.domain.change.WorkflowStep
+import com.bbh.itss.beadle.domain.shared.InvalidRequestException
+import com.bbh.itss.beadle.domain.shared.InvalidRequestException.FieldProblem
+import com.bbh.itss.beadle.domain.shared.ValidationProblems
 
 import java.time.Instant
 import java.time.LocalDate
@@ -30,6 +33,11 @@ class ChangeFixtures {
 
     static final String FIX_VERSION = 'CERT 4.2'
     static final Instant RAISED = Instant.parse('2026-10-05T09:00:00Z')
+
+    /** Where ProTech shows a change it raised. */
+    static String changeUrl(String number) {
+        "https://protech.bbh.com/$number"
+    }
 
     static ChangeProduct changeProduct(Map changes = [:]) {
         copy(changes, new ChangeProduct(1L, 'CERTSCANNER', 'CertScanner', 'Technology Architecture', 3L,
@@ -129,7 +137,7 @@ class ChangeFixtures {
 
     static ProductionChange raised(Map changes = [:]) {
         copy(changes, ProductionChange.builder().id(7L).number('CHG0031001').productId(1L).productCode('CERTSCANNER')
-                .productName('CertScanner').departmentId(3L).departmentName('Corporate Technology')
+                .productName('CertScanner').businessServiceId(3L).businessServiceName('Corporate Technology')
                 .fixVersion(FIX_VERSION).schedule(schedule()).shortDescription('CertScanner CERT 4.2: Expiry alerts')
                 .description('Production release CERT 4.2 of CertScanner.').template(template(release: FIX_VERSION))
                 .epicKeys(['CERT-1']).storyKeys(['CERT-2'])
@@ -148,7 +156,7 @@ class ChangeFixtures {
     }
 
     static Map templateJson(Map changes = [:]) {
-        Map json = [jiraProjectKey    : 'CERT', requestedFor: null, requestedBy: null, department: null,
+        Map json = [jiraProjectKey    : 'CERT', requestedFor: null, requestedBy: null, businessService: null,
                     assignmentGroup   : 'Technology Architecture', category: 'Application', assignedTo: null,
                     type              : 'STANDARD', release: null, configurationItem: 'CertScanner',
                     incident          : null, directBusinessService: null, problem: null, risk: 'Moderate',
@@ -188,5 +196,15 @@ class ChangeFixtures {
 
     static Instant at(String text) {
         Instant.parse(text)
+    }
+
+    /** The problems found so far, as the request they are about would be refused with. */
+    static List<FieldProblem> reported(ValidationProblems problems) {
+        try {
+            problems.throwIfAny()
+            []
+        } catch (InvalidRequestException refused) {
+            refused.problems()
+        }
     }
 }

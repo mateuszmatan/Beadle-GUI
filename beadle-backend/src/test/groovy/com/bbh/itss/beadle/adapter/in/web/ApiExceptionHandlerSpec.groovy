@@ -5,6 +5,10 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException
 import com.bbh.itss.beadle.domain.shared.InvalidRequestException.FieldProblem
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotEmpty
+import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Pattern
 import org.slf4j.LoggerFactory
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.orm.ObjectOptimisticLockingFailureException
@@ -37,7 +41,7 @@ class ApiExceptionHandlerSpec extends Specification {
     static final String UNEXPECTED = "Beadle could not handle the request. The failure is in Beadle's log."
     static final String DAYS = 'must be one of MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY'
 
-    def handler = new ApiExceptionHandler()
+    def handler = new ApiExceptionHandler(Mock(RefusedRequests))
 
     MockMvc mvc = standaloneSetup(new SampleController()).setControllerAdvice(handler).build()
 
@@ -180,8 +184,17 @@ class ApiExceptionHandlerSpec extends Specification {
         }
 
         @PostMapping('/api/samples')
-        String create(@jakarta.validation.Valid @RequestBody SampleRequest request) {
-            request.day().name()
+        String create(@Valid @RequestBody SampleRequest request) {
+            request.day.name()
         }
+    }
+
+    static class SampleRequest {
+
+        @NotNull
+        DayOfWeek day
+
+        @NotEmpty(message = 'add at least one label')
+        List<@Pattern(regexp = '[^,]+', message = 'must not contain commas') String> labels
     }
 }

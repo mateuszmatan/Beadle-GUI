@@ -3,9 +3,9 @@ import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-int
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
-import { MyDepartment } from '../departments/my-department';
+import { MyBusinessService } from '../business-services/my-business-service';
 import { RETRY, errorMessage } from '../core/errors';
-import { CHANGES, NEW_CHANGE, beadleChange } from '../core/sections';
+import { CHANGES, NEW_CHANGE, changePath } from '../core/sections';
 import { text } from '../shared/form-controls';
 import { TIME_ZONE_NOTE, counted, formatRelative } from '../shared/formatting';
 import { FORM_FIELD } from '../ui/form-field';
@@ -15,7 +15,7 @@ import { ChangeState, ChangesApi, ProductionChange, STATES, isOpen, labelOf } fr
 import { PENDING_HINT, activeTasks, editHint, windowText } from './change-model';
 import { IntegrationNote } from './integration-note';
 import { STATE_MEANINGS } from './workflow-progress';
-import { DepartmentsApi } from '../core/api';
+import { BusinessServicesApi } from '../core/api';
 
 export type StateFilter = 'ALL' | 'OPEN' | ChangeState;
 
@@ -48,11 +48,11 @@ export const STATE_FILTERS: { value: StateFilter; label: string }[] = [
 const contains = (value: string | null, typed: string) =>
   (value ?? '').toLowerCase().includes(typed.trim().toLowerCase());
 
-export function changeRow(change: ProductionChange, departmentId: number | null): ChangeRow {
+export function changeRow(change: ProductionChange, businessServiceId: number | null): ChangeRow {
   return {
     change,
     open: isOpen(change),
-    editable: isOpen(change) && !editHint(change, departmentId),
+    editable: isOpen(change) && !editHint(change, businessServiceId),
     pending: change.update?.status === 'PENDING',
     state: labelOf(STATES, change.state),
     meaning: STATE_MEANINGS[change.state],
@@ -88,33 +88,33 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
           <p class="page-description">{{ section.description }}</p>
         </div>
         <div class="actions">
-          <a class="btn btn-primary" [routerLink]="newChange.path">Raise a change</a>
+          <a class="btn btn-primary" [routerLink]="newChange.path">Raise change</a>
         </div>
       </header>
       <beadle-integration-note />
       <section class="card toolbar">
-        <beadle-form-field class="department">
-          <beadle-label>Your department</beadle-label>
-          <select beadleInput [formControl]="department">
-            @for (department of departmentList(); track department.id) {
-              <option [ngValue]="department.id">{{ department.name }}</option>
+        <beadle-form-field class="business-service">
+          <beadle-label>Your business service</beadle-label>
+          <select beadleInput [formControl]="businessService">
+            @for (businessService of businessServiceList(); track businessService.id) {
+              <option [ngValue]="businessService.id">{{ businessService.name }}</option>
             }
           </select>
         </beadle-form-field>
       </section>
-      @if (departments.error(); as error) {
+      @if (businessServices.error(); as error) {
         <div class="banner" role="alert">
-          <span>The departments could not be loaded: {{ errorMessage(error) }}</span>
+          <span>The business services could not be loaded: {{ errorMessage(error) }}</span>
           <span class="spacer"></span>
-          <button type="button" class="btn btn-link" (click)="departments.reload()">
+          <button type="button" class="btn btn-link" (click)="businessServices.reload()">
             Try again
           </button>
         </div>
       }
-      @if (departmentId() === null) {
+      @if (businessServiceId() === null) {
         <section class="card empty-state">
-          <h3>Choose your department to see its ProTech changes.</h3>
-          <p>Beadle remembers your department in this browser.</p>
+          <h3>Choose your business service to see its ProTech changes.</h3>
+          <p>Beadle remembers your business service in this browser.</p>
         </section>
       } @else {
         @if (changes.isLoading()) {
@@ -138,7 +138,7 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
         }
         <section class="card list" [hidden]="!all().length">
           <div class="list-head">
-            <h2>Changes of {{ departmentName() }}</h2>
+            <h2>Changes of {{ businessServiceName() }}</h2>
             <span class="muted shown">{{ shown() }}</span>
           </div>
           <p class="section-help zone">
@@ -183,19 +183,19 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
         </section>
         @if (changes.hasValue() && !all().length) {
           <div class="card empty-state">
-            <h3>No ProTech change of {{ departmentName() }} yet</h3>
+            <h3>No ProTech changes for {{ businessServiceName() }} yet</h3>
             <p>
               Raise one for a production release: choose the product and its Jira release, and
               Beadle writes the change and its change tasks for ProTech.
             </p>
-            <a class="btn btn-primary" [routerLink]="newChange.path">Raise a change</a>
+            <a class="btn btn-primary" [routerLink]="newChange.path">Raise change</a>
           </div>
         }
       }
     </div>
   `,
   styles: `
-    .department {
+    .business-service {
       width: 280px;
       max-width: 100%;
     }
@@ -223,7 +223,7 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
 
     .meaning {
       color: var(--beadle-muted);
-      font-size: 11.5px;
+      font-size: 12px;
       white-space: normal;
     }
 
@@ -239,32 +239,35 @@ export function matches(row: ChangeRow, filters: ChangeFilters): boolean {
 })
 export class ChangesList {
   private readonly api = inject(ChangesApi);
-  private readonly departmentsApi = inject(DepartmentsApi);
+  private readonly businessServicesApi = inject(BusinessServicesApi);
   private readonly router = inject(Router);
-  private readonly myDepartment = inject(MyDepartment);
+  private readonly myBusinessService = inject(MyBusinessService);
 
   protected readonly section = CHANGES;
   protected readonly newChange = NEW_CHANGE;
-  protected readonly changeLink = beadleChange;
+  protected readonly changeLink = changePath;
   protected readonly errorMessage = errorMessage;
   protected readonly timeZoneNote = TIME_ZONE_NOTE;
   protected readonly retry = RETRY;
   protected readonly pendingHint = PENDING_HINT;
 
-  protected readonly departmentId = this.myDepartment.departmentId;
-  protected readonly department = new FormControl(this.departmentId());
-  protected readonly departments = rxResource({ stream: () => this.departmentsApi.list() });
-  protected readonly departmentList = computed(() =>
-    this.departments.hasValue() ? this.departments.value() : [],
+  protected readonly businessServiceId = this.myBusinessService.businessServiceId;
+  protected readonly businessService = new FormControl(this.businessServiceId());
+  protected readonly businessServices = rxResource({
+    stream: () => this.businessServicesApi.list(),
+  });
+  protected readonly businessServiceList = computed(() =>
+    this.businessServices.hasValue() ? this.businessServices.value() : [],
   );
-  protected readonly departmentName = computed(
+  protected readonly businessServiceName = computed(
     () =>
-      this.departmentList().find((department) => department.id === this.departmentId())?.name ??
-      'your department',
+      this.businessServiceList().find(
+        (businessService) => businessService.id === this.businessServiceId(),
+      )?.name ?? 'your business service',
   );
 
   protected readonly changes = rxResource({
-    params: () => this.departmentId() ?? undefined,
+    params: () => this.businessServiceId() ?? undefined,
     stream: ({ params }) => this.api.list(params),
   });
 
@@ -289,7 +292,7 @@ export class ChangesList {
       header: 'Change number',
       value: (row) => row.change.number ?? '',
       filter: { control: this.filters.controls.number, label: 'change' },
-      width: 140,
+      width: 130,
     },
     {
       key: 'product',
@@ -313,7 +316,7 @@ export class ChangesList {
       sortValue: (row) => STATES.findIndex((state) => state.value === row.change.state),
       filter: { control: this.filters.controls.state, label: 'state', options: STATE_FILTERS },
       wrap: true,
-      minWidth: 170,
+      minWidth: 140,
     },
     {
       key: 'installation',
@@ -322,7 +325,7 @@ export class ChangesList {
       sortValue: (row) => Date.parse(row.change.schedule.installationStart),
       filter: { control: this.filters.controls.installation, label: 'installation' },
       wrap: true,
-      minWidth: 230,
+      minWidth: 170,
     },
     {
       key: 'shortDescription',
@@ -331,7 +334,7 @@ export class ChangesList {
       filter: { control: this.filters.controls.shortDescription, label: 'short description' },
       wrap: true,
       flex: 2,
-      minWidth: 200,
+      minWidth: 180,
     },
     { key: 'tasks', header: 'Tasks', value: (row) => row.tasks, numeric: true, width: 80 },
     {
@@ -346,7 +349,7 @@ export class ChangesList {
 
   protected readonly all = computed(() =>
     (this.changes.hasValue() ? this.changes.value() : []).map((change) =>
-      changeRow(change, this.departmentId()),
+      changeRow(change, this.businessServiceId()),
     ),
   );
   protected readonly rows = computed(() =>
@@ -360,12 +363,12 @@ export class ChangesList {
   );
 
   constructor() {
-    this.department.valueChanges
+    this.businessService.valueChanges
       .pipe(takeUntilDestroyed())
-      .subscribe((id) => this.myDepartment.choose(id));
+      .subscribe((id) => this.myBusinessService.choose(id));
   }
 
   protected open(change: ProductionChange): void {
-    this.router.navigate(beadleChange(change.id!));
+    this.router.navigate(changePath(change.id!));
   }
 }

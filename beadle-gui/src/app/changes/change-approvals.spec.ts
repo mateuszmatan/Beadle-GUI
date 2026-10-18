@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MyDepartment } from '../departments/my-department';
+import { MyBusinessService } from '../business-services/my-business-service';
 import { Notifier } from '../core/notifier';
 import { changeApproval, changeTask, productionChange } from '../testing/change-fixtures';
 import { buttonOf, text } from '../testing/dom';
@@ -72,16 +72,16 @@ describe('the approvals of a change', () => {
   it('says why nobody can be reminded from here', () => {
     expect(reminderHint(productionChange(), 3)).toBeNull();
     expect(reminderHint(productionChange(), null)).toBe(
-      'Choose your department in Changes to remind the approvers',
+      'Choose your business service in Changes to remind the approvers',
     );
     expect(reminderHint(productionChange(), 5)).toBe(
       'Only Corporate Technology can remind its approvers',
     );
-    expect(reminderHint(productionChange({ departmentId: null }), 3)).toBe(
-      'No department owns CHG0012345, so nobody can remind its approvers in Beadle',
+    expect(reminderHint(productionChange({ businessServiceId: null }), 3)).toBe(
+      'No business service owns CHG0012345, so nobody can remind its approvers in Beadle',
     );
     expect(reminderHint(productionChange({ syncProblem: 'Read timed out' }), 3)).toBe(
-      'ProTech cannot be read just now, so no reminder can be sent',
+      'ProTech cannot be reached at the moment, so no reminder can be sent',
     );
   });
 
@@ -145,9 +145,9 @@ describe('ChangeApprovals', () => {
 
   async function show(
     change: ProductionChange = productionChange(),
-    departmentId: number | null = 3,
+    businessServiceId: number | null = 3,
   ) {
-    TestBed.inject(MyDepartment).choose(departmentId);
+    TestBed.inject(MyBusinessService).choose(businessServiceId);
     fixture = TestBed.createComponent(ChangeApprovals);
     fixture.componentRef.setInput('change', change);
     fixture.componentInstance.changed.subscribe((value) => changed.push(value));
@@ -171,7 +171,7 @@ describe('ChangeApprovals', () => {
 
   afterEach(() => {
     http.verify();
-    TestBed.inject(MyDepartment).choose(null);
+    TestBed.inject(MyBusinessService).choose(null);
   });
 
   it('shows every approval with its approvers, state and last reminder, and a discreet button for each awaited one', async () => {
@@ -195,7 +195,7 @@ describe('ChangeApprovals', () => {
       ['L1 approverPrimary Approval', 'Olivia Bennett', 'Requested', '', 'Remind'],
       ['L2 approverSecondary Approval', 'James Carter', 'Not Approved', '', 'Remind'],
       ['Support approverSupport Approval', 'Jane Smith', 'Not Approved', '', 'Remind'],
-      ['CTASK approvals'],
+      ['Change task approvals'],
       [
         'CTASK0020001Technology Architecture',
         'Rebecca Lawson, Thomas Ashby',
@@ -235,7 +235,7 @@ describe('ChangeApprovals', () => {
     await settle();
     const request = http.expectOne('/api/changes/7/reminders');
     expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual({ departmentId: 3, approval: 'L1' });
+    expect(request.request.body).toEqual({ businessServiceId: 3, approval: 'L1' });
     expect(remindAll().disabled).toBe(true);
     const reminded = productionChange({
       approvals: [
@@ -252,7 +252,7 @@ describe('ChangeApprovals', () => {
     await settle();
 
     expect(changed).toEqual([reminded]);
-    expect(success).toHaveBeenCalledWith('Reminder sent to Olivia Bennett');
+    expect(success).toHaveBeenCalledWith('Reminder sent to Olivia Bennett.');
     expect(remindAll().disabled).toBe(false);
   });
 
@@ -263,7 +263,7 @@ describe('ChangeApprovals', () => {
     remindAll().click();
     await settle();
     const all = http.expectOne('/api/changes/7/reminders');
-    expect(all.request.body).toEqual({ departmentId: 3 });
+    expect(all.request.body).toEqual({ businessServiceId: 3 });
     all.flush(
       { title: 'Conflict', detail: 'ProTech has nobody to remind on CHG0012345' },
       { status: 409, statusText: 'Conflict' },
@@ -277,13 +277,13 @@ describe('ChangeApprovals', () => {
     buttonOf(page(), 'Remind the approvers of CTASK0020001').click();
     await settle();
     const one = http.expectOne('/api/changes/7/reminders');
-    expect(one.request.body).toEqual({ departmentId: 3, task: 'CTASK0020001' });
+    expect(one.request.body).toEqual({ businessServiceId: 3, task: 'CTASK0020001' });
     one.flush(productionChange());
     await settle();
     expect(changed).toHaveLength(1);
   });
 
-  it('keeps the buttons for the department of the change while ProTech can be read', async () => {
+  it('keeps the buttons for the business service of the change while ProTech can be read', async () => {
     await show(productionChange(), 5);
 
     expect(text(page().querySelector('.hint'))).toBe(
@@ -319,7 +319,7 @@ describe('ChangeApprovals', () => {
     expect(text(page().querySelector('.no-tasks'))).toBe(
       'No change tasks yet. The change needs at least one approved change task to go In Progress.',
     );
-    expect(rows().some((row) => row[0] === 'CTASK approvals')).toBe(false);
+    expect(rows().some((row) => row[0] === 'Change task approvals')).toBe(false);
     fixture.destroy();
 
     await show(productionChange({ state: 'CLOSED', tasks: [] }));

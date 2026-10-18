@@ -11,8 +11,6 @@ public enum ObjectType {
     CHANGE_PROFILE,
     /** A business service; its key is the business service's name. */
     BUSINESS_SERVICE,
-    /** A department; its key is the department's name. */
-    DEPARTMENT,
     /** A ticket in a system of Beadle-Internal, such as the CyberTrack secure coding ticket {@code SCP-123}. */
     TICKET,
     /** A person signing in; the key is the user name. */

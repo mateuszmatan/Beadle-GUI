@@ -42,7 +42,7 @@ describe('ActionDetails', () => {
       Object: 'Change CHG0031001',
       Outcome: 'Success',
       Duration: '812 ms',
-      'Correlation id': '6f1c2a9e-3b7d-4c55-9a51-2f0e8d4b7c10',
+      'Correlation ID': '6f1c2a9e-3b7d-4c55-9a51-2f0e8d4b7c10',
     });
     expect(page().querySelector('.chip')?.classList).toContain('success');
     expect(page().querySelector('.message')).toBeNull();
@@ -72,7 +72,7 @@ describe('ActionDetails', () => {
     );
 
     expect(text(page().querySelector('h2'))).toBe('Beadle-Internal callback: Ticket SCP-123');
-    expect(rows()).toMatchObject({ Outcome: 'Failure', Duration: '5.0 s', 'Correlation id': '–' });
+    expect(rows()).toMatchObject({ Outcome: 'Failure', Duration: '5.0 s', 'Correlation ID': '–' });
     expect(page().querySelector('.chip')?.classList).toContain('danger');
     expect(text(page().querySelector('.message h3'))).toBe('Message');
     expect(text(page().querySelector('.message .banner'))).toBe('Beadle-ProTech did not answer');

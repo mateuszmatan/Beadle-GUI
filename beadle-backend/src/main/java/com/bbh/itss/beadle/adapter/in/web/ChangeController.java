@@ -48,8 +48,8 @@ public class ChangeController {
     private final LookupsUseCase lookups;
 
     @GetMapping("/changes")
-    public List<ProductionChange> list(@RequestParam(required = false) Long departmentId) {
-        return changes.list(departmentId);
+    public List<ProductionChange> list(@RequestParam(required = false) Long businessServiceId) {
+        return changes.list(businessServiceId);
     }
 
     @GetMapping("/changes/{id}")
@@ -141,6 +141,6 @@ public class ChangeController {
     @PutMapping("/products/{id}/change-profile")
     @AuditedRequest(CHANGE_PROFILE_UPDATED)
     public ChangeProfileView saveProfile(@PathVariable long id, @Valid @RequestBody ChangeProfileRequest request) {
-        return profiles.save(id, request.version(), request.toTemplate(), request.toTasks());
+        return profiles.save(id, request.version(), request.template(), request.tasks());
     }
 }

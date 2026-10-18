@@ -4,61 +4,25 @@ import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
 import java.util.List;
-import java.util.regex.Pattern;
 
 import static com.bbh.itss.beadle.domain.shared.Text.clean;
-import static com.bbh.itss.beadle.domain.shared.Text.trimmed;
 import static java.util.Arrays.asList;
-import static java.util.regex.Pattern.quote;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
-public abstract class DelimitedListConverter implements AttributeConverter<List<String>, String> {
+/** Stores a list of texts, such as the epic keys of a change, one per line, trimmed, without blanks or repeats. */
+@Converter(autoApply = true)
+public class DelimitedListConverter implements AttributeConverter<List<String>, String> {
 
-    private final String delimiter;
-    private final Pattern splitter;
-    private final boolean distinct;
-
-    protected DelimitedListConverter(String delimiter) {
-        this(delimiter, true);
-    }
-
-    protected DelimitedListConverter(String delimiter, boolean distinct) {
-        this.delimiter = delimiter;
-        this.splitter = Pattern.compile(quote(delimiter));
-        this.distinct = distinct;
-    }
+    static final String DELIMITER = "\n";
 
     @Override
     public String convertToDatabaseColumn(List<String> values) {
-        List<String> cleaned = normalize(values);
-        return cleaned.isEmpty() ? null : String.join(delimiter, cleaned);
+        List<String> cleaned = clean(values);
+        return cleaned.isEmpty() ? null : String.join(DELIMITER, cleaned);
     }
 
     @Override
     public List<String> convertToEntityAttribute(String column) {
-        return isBlank(column) ? List.of() : normalize(asList(splitter.split(column)));
-    }
-
-    private List<String> normalize(List<String> values) {
-        return distinct ? clean(values) : trimmed(values);
-    }
-
-    @Converter(autoApply = true)
-    public static class Lines extends DelimitedListConverter {
-        public Lines() {
-            super("\n");
-        }
-    }
-
-    public static class Tokens extends DelimitedListConverter {
-        public Tokens() {
-            super("\n", false);
-        }
-    }
-
-    public static class Commas extends DelimitedListConverter {
-        public Commas() {
-            super(",");
-        }
+        return isBlank(column) ? List.of() : clean(asList(column.split(DELIMITER)));
     }
 }

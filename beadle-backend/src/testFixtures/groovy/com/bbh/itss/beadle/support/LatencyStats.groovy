@@ -11,13 +11,11 @@ class LatencyStats {
 
     final String name
     final List<Double> millis
-    final double wallSeconds
     final int errors
 
-    private LatencyStats(String name, List<Double> millis, double wallSeconds, int errors) {
+    private LatencyStats(String name, List<Double> millis, int errors) {
         this.name = name
         this.millis = millis.sort()
-        this.wallSeconds = wallSeconds
         this.errors = errors
     }
 
@@ -29,7 +27,6 @@ class LatencyStats {
             if (options.warmUp != false) {
                 pool.invokeAll((0..<Math.min(threads, calls)).collect { int index -> { -> call(index) } as Callable })*.get()
             }
-            long start = nanoTime()
             def futures = pool.invokeAll((0..<calls).collect { int index ->
                 { ->
                     long begin = nanoTime()
@@ -38,8 +35,7 @@ class LatencyStats {
                 } as Callable<List>
             })
             def results = futures*.get()
-            double wall = (nanoTime() - start) / 1_000_000_000d
-            new LatencyStats(name, results.collect { it[0] as double }, wall, results.count { !it[1] } as int)
+            new LatencyStats(name, results.collect { it[0] as double }, results.count { !it[1] } as int)
         } finally {
             pool.shutdownNow()
             pool.awaitTermination(10, SECONDS)
@@ -50,29 +46,12 @@ class LatencyStats {
         millis[Math.min(millis.size() - 1, ceil(p / 100 * millis.size()) as int - 1)]
     }
 
-    double getP50() {
-        percentile(50)
-    }
-
     double getP95() {
         percentile(95)
     }
 
-    double getMax() {
-        millis.last()
-    }
-
-    double getThroughput() {
-        millis.size() / wallSeconds
-    }
-
-    String toRow() {
-        String.format('| %-40s | %6d | %8.1f | %8.1f | %8.1f | %9.1f | %6d |', name, millis.size(), p50, p95, max,
-                throughput, errors)
-    }
-
-    static String header() {
-        '| Scenario                                 |  Calls | p50 (ms) | p95 (ms) | max (ms) | calls / s | Errors |\n' +
-                '|------------------------------------------|--------|----------|----------|----------|-----------|--------|'
+    @Override
+    String toString() {
+        String.format('%s: p95 %.1f ms, %d errors', name, p95, errors)
     }
 }

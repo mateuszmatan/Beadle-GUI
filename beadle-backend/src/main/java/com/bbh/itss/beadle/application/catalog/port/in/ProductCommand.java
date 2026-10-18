@@ -9,10 +9,6 @@ import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT;
 public record ProductCommand(String code, String name, Long businessServiceId, String ownerTeam, String contactEmail,
                              Long version) implements AuditedObject {
 
-    public Long departmentId() {
-        return businessServiceId;
-    }
-
     @Override
     public ActionObject auditedObject() {
         return ActionObject.keyed(PRODUCT, code);

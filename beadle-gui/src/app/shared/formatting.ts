@@ -2,33 +2,6 @@ import { Pipe, PipeTransform } from '@angular/core';
 
 export const TIME_ZONE_NOTE = `Times are in your time zone, ${Intl.DateTimeFormat().resolvedOptions().timeZone}.`;
 
-export function formatDuration(seconds: number | null | undefined): string {
-  if (seconds === null || seconds === undefined || Number.isNaN(seconds)) {
-    return '–';
-  }
-  const s = Math.round(seconds);
-  if (s < 60) {
-    return `${s}s`;
-  }
-  const minutes = Math.floor(s / 60);
-  if (minutes < 60) {
-    const rest = s % 60;
-    return rest ? `${minutes}m ${rest}s` : `${minutes}m`;
-  }
-  const hours = Math.floor(minutes / 60);
-  if (hours < 48) {
-    const rest = minutes % 60;
-    return rest ? `${hours}h ${rest}m` : `${hours}h`;
-  }
-  const days = Math.floor(hours / 24);
-  const rest = hours % 24;
-  return rest ? `${days}d ${rest}h` : `${days}d`;
-}
-
-export function durationOrNull(seconds: number | null): string | null {
-  return seconds === null ? null : formatDuration(seconds);
-}
-
 export function capitalized(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
@@ -60,23 +33,9 @@ export function formatRelative(iso: string | null | undefined, now: number = Dat
   return relativeTime.format(Math.round(diffSeconds / (86400 * 30)), 'month');
 }
 
-@Pipe({ name: 'duration' })
-export class DurationPipe implements PipeTransform {
-  transform(seconds: number | null | undefined): string {
-    return formatDuration(seconds);
-  }
-}
-
 @Pipe({ name: 'relative' })
 export class RelativeTimePipe implements PipeTransform {
   transform(iso: string | null | undefined): string {
     return formatRelative(iso);
-  }
-}
-
-@Pipe({ name: 'counted' })
-export class CountedPipe implements PipeTransform {
-  transform(count: number, noun: string, plural?: string): string {
-    return counted(count, noun, plural);
   }
 }

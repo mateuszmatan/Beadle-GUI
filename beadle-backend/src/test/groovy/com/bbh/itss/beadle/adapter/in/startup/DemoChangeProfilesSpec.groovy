@@ -20,6 +20,7 @@ import static com.bbh.itss.beadle.adapter.in.startup.DemoChangeProfiles.tasksFor
 import static com.bbh.itss.beadle.domain.change.ChangeTemplate.suggestedFor
 import static com.bbh.itss.beadle.domain.change.TaskDetails.suggestedTasks
 import static com.bbh.itss.beadle.domain.change.TaskDetails.validateTasks
+import static com.bbh.itss.beadle.support.ChangeFixtures.reported
 import static com.bbh.itss.beadle.support.ChangeFixtures.risk
 import static com.bbh.itss.beadle.support.ChangeFixtures.tasks
 import static com.bbh.itss.beadle.support.ChangeFixtures.template
@@ -68,7 +69,7 @@ class DemoChangeProfilesSpec extends Specification {
             it.jiraProjectKey() == 'PAYHUB' && it.planning() == suggested.planning() &&
                     it.release() == null &&
                     it.directBusinessService() == 'Fund Accounting' &&
-                    [it.requestedFor(), it.requestedBy(), it.department(), it.assignedTo()] == [null] * 4
+                    [it.requestedFor(), it.requestedBy(), it.businessService(), it.assignedTo()] == [null] * 4
         }
         saved[2L].privilegedAccess() == new PrivilegedAccess(true, PRIVILEGED_USERS)
         saved[3L].privilegedAccess().users() == []
@@ -92,7 +93,7 @@ class DemoChangeProfilesSpec extends Specification {
         then:
         chosen*.shortDescription() == expected
         chosen*.assignmentGroup() == groups
-        problems.list() == []
+        reported(problems) == []
 
         where:
         assessment                                                      || risk       | expected                                                                                                      | groups
@@ -113,7 +114,7 @@ class DemoChangeProfilesSpec extends Specification {
         suggestedFor('PAYHUB', name, null).validate(problems.at('template'))
 
         then:
-        problems.list() == []
+        reported(problems) == []
         chosen[1].shortDescription().startsWith('Run the database scripts of Zarządzanie płatnościami')
     }
 
@@ -127,7 +128,7 @@ class DemoChangeProfilesSpec extends Specification {
         seeder.fillIn()
 
         then:
-        1 * profiles.save(1L, *_) >> { throw InvalidRequestException.of('template.department', 'is too long') }
+        1 * profiles.save(1L, *_) >> { throw InvalidRequestException.of('template.businessService', 'is too long') }
         1 * profiles.save(2L, *_)
         noExceptionThrown()
     }
@@ -167,7 +168,7 @@ class DemoChangeProfilesSpec extends Specification {
             def approvers = template.approvers()
             def risk = template.riskAssessment()
             def named = template.affectedClients()?.split(', ')?.toList() ?: []
-            assert problems.list() == []
+            assert reported(problems) == []
             assert [approvers.l1Manager(), approvers.l2Manager(), approvers.businessApprover()].every { it }
             assert approvers.l1Manager() != approvers.l2Manager()
             assert template.timing().installationStart() in ['18:00', '19:00', '20:00']

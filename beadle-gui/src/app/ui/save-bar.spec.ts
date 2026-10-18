@@ -56,7 +56,7 @@ describe('SaveBar', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({ providers: [provideRouter([])] });
     fixture = TestBed.createComponent(SaveBar);
-    fixture.componentRef.setInput('label', 'Save the template');
+    fixture.componentRef.setInput('label', 'Save template');
     fixture.componentRef.setInput('cancelLink', ['/changes', 7]);
     reloads = 0;
     fixture.componentInstance.reload.subscribe(() => reloads++);
@@ -64,7 +64,7 @@ describe('SaveBar', () => {
 
   it('says there are unsaved changes, links Cancel and shows a spinner on the submit while saving', () => {
     show({});
-    expect(text(page().querySelector('.save-bar'))).toBe('Cancel Save the template');
+    expect(text(page().querySelector('.save-bar'))).toBe('Cancel Save template');
     expect(page().querySelector('a.btn-link')?.getAttribute('href')).toBe('/changes/7');
 
     show({ dirty: true, saving: true });

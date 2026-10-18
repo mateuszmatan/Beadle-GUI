@@ -9,6 +9,7 @@ import com.bbh.itss.beadle.application.user.port.out.SignedInUserPort;
 import lombok.RequiredArgsConstructor;
 
 import static com.bbh.itss.beadle.domain.audit.Action.USER_SIGNED_IN;
+import static com.bbh.itss.beadle.domain.audit.Action.USER_SIGNED_OUT;
 
 @UseCase
 @RequiredArgsConstructor
@@ -26,6 +27,13 @@ public class SignedInUserService implements SignedInUserUseCase {
     @WithoutTransaction
     @Audited(USER_SIGNED_IN)
     public SignedInUser signIn() {
+        return signedInUser();
+    }
+
+    @Override
+    @WithoutTransaction
+    @Audited(USER_SIGNED_OUT)
+    public SignedInUser signOut() {
         return signedInUser();
     }
 }

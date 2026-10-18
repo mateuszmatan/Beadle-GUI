@@ -3,10 +3,10 @@ import { TestBed } from '@angular/core/testing';
 import { Route, Router, Routes, provideRouter } from '@angular/router';
 import { ActionHistory } from './action-history/action-history';
 import { AdminPage } from './admin/admin-page';
-import { DepartmentsAdmin } from './admin/departments-admin';
+import { BusinessServicesAdmin } from './business-services/business-services-admin';
 import { routes } from './app.routes';
-import { BeadleProduct } from './beadle/beadle-product';
-import { BeadleProducts } from './beadle/beadle-products';
+import { ProductPage } from './products/product-page';
+import { ProductsPage } from './products/products-page';
 import { ChangeDetail } from './changes/change-detail';
 import { ChangeEdit } from './changes/change-edit';
 import { ChangeSecureCoding } from './changes/change-secure-coding';
@@ -44,10 +44,10 @@ describe('routes', () => {
       'changes/:id': ChangeDetail,
       'changes/:id/edit': ChangeEdit,
       'changes/:id/secure-coding': ChangeSecureCoding,
-      'admin/products/:id': BeadleProduct,
+      'admin/products/:id': ProductPage,
       admin: AdminPage,
-      'admin/departments': DepartmentsAdmin,
-      'admin/products': BeadleProducts,
+      'admin/business-services': BusinessServicesAdmin,
+      'admin/products': ProductsPage,
       'action-history': ActionHistory,
     });
   });

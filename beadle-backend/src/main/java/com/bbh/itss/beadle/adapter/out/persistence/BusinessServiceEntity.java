@@ -7,6 +7,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import static com.bbh.itss.beadle.adapter.RecordMapper.map;
 import static jakarta.persistence.GenerationType.IDENTITY;
@@ -23,13 +24,10 @@ public class BusinessServiceEntity extends AuditedEntity {
     private Long id;
 
     @Getter(PACKAGE)
+    @Setter(PACKAGE)
     private String name;
 
     BusinessService toDomain() {
         return map(BusinessService.class, this);
-    }
-
-    void rename(String name) {
-        this.name = name;
     }
 }

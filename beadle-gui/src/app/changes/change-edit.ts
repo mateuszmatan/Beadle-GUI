@@ -13,10 +13,10 @@ import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
-import { MyDepartment } from '../departments/my-department';
+import { MyBusinessService } from '../business-services/my-business-service';
 import { fieldProblems } from '../core/errors';
 import { Notifier } from '../core/notifier';
-import { beadleChange } from '../core/sections';
+import { changePath } from '../core/sections';
 import { HasUnsavedChanges } from '../core/unsaved-changes';
 import { applyFieldProblems, filled, text } from '../shared/form-controls';
 import { Failure, NEEDS_ATTENTION, SaveBar, failureOf } from '../ui/save-bar';
@@ -71,8 +71,8 @@ export type EditForm = ReturnType<typeof editForm>;
           <div>
             <h1>Edit {{ c.number }}</h1>
             <p>
-              Change any value and publish it: the update goes to ProTech at once, and the change
-              page then shows whether ProTech applied it. Fields marked * are required.
+              Change any value and publish the update: it goes to ProTech immediately, and the
+              change page then shows whether ProTech applied it. Fields marked * are required.
             </p>
           </div>
         </header>
@@ -80,7 +80,7 @@ export type EditForm = ReturnType<typeof editForm>;
           <div class="banner refused" role="alert">
             <span>{{ message }}</span>
             <span class="spacer"></span>
-            <a class="btn btn-link" [routerLink]="changeLink(id())">Back to the change</a>
+            <a class="btn btn-link" [routerLink]="changeLink(id())">Back to change</a>
           </div>
         } @else if (form(); as f) {
           <form [formGroup]="f" (ngSubmit)="publish()" novalidate>
@@ -108,7 +108,7 @@ export type EditForm = ReturnType<typeof editForm>;
               <h2>Text sent to ProTech</h2>
               <p class="section-help">
                 The short description and description ProTech shows for the change. They are not
-                rewritten when you change the fields above, so bring them in line yourself.
+                rewritten when you change the fields above, so update them as needed.
               </p>
               <beadle-change-texts
                 [shortDescription]="f.controls.shortDescription"
@@ -116,7 +116,7 @@ export type EditForm = ReturnType<typeof editForm>;
               />
             </section>
             <beadle-save-bar
-              label="Publish the update to ProTech"
+              label="Publish update to ProTech"
               [cancelLink]="changeLink(id())"
               [failure]="failure()"
               [saving]="saving()"
@@ -143,13 +143,13 @@ export class ChangeEdit implements HasUnsavedChanges {
   readonly id = input.required({ transform: numberAttribute });
 
   private readonly api = inject(ChangesApi);
-  private readonly myDepartment = inject(MyDepartment);
+  private readonly myBusinessService = inject(MyBusinessService);
   private readonly published = inject(PublishedChange);
   private readonly notifier = inject(Notifier);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly changeLink = beadleChange;
+  protected readonly changeLink = changePath;
 
   protected readonly change = rxResource({
     params: () => this.id(),
@@ -157,7 +157,7 @@ export class ChangeEdit implements HasUnsavedChanges {
   });
   protected readonly refusal = computed(() =>
     this.change.hasValue()
-      ? editRefusal(this.change.value(), this.myDepartment.departmentId())
+      ? editRefusal(this.change.value(), this.myBusinessService.businessServiceId())
       : null,
   );
   protected readonly facts = computed(() =>
@@ -198,7 +198,7 @@ export class ChangeEdit implements HasUnsavedChanges {
     this.api
       .update(this.id(), {
         version: change.version!,
-        departmentId: this.myDepartment.departmentId()!,
+        businessServiceId: this.myBusinessService.businessServiceId()!,
         shortDescription: value.shortDescription.trim(),
         description: value.description,
         schedule: scheduleValue(form.controls.schedule, value.template.downtime),
@@ -214,9 +214,9 @@ export class ChangeEdit implements HasUnsavedChanges {
           form.markAsPristine();
           this.published.hand(saved);
           this.notifier.success(
-            `Your update of ${saved.number} is published to ProTech. This page shows when ProTech has applied it.`,
+            `Your update of ${saved.number} has been published to ProTech. This page shows when ProTech has applied it.`,
           );
-          this.router.navigate(beadleChange(this.id()));
+          this.router.navigate(changePath(this.id()));
         },
         error: (error) => {
           applyFieldProblems(form, fieldProblems(error).map(onHours));

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, ResourceRef, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { errorMessage } from '../core/errors';
-import { CHANGES, beadleChange } from '../core/sections';
+import { CHANGES, changePath } from '../core/sections';
 import { BeadleLoading } from '../ui/loading';
 import { ProductionChange } from './change-api';
 
@@ -50,6 +50,6 @@ export class ChangePage {
   readonly crumb = input<string>();
 
   protected readonly section = CHANGES;
-  protected readonly changeLink = beadleChange;
+  protected readonly changeLink = changePath;
   protected readonly errorMessage = errorMessage;
 }

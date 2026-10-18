@@ -30,7 +30,7 @@ class ActionHistoryControllerSpec extends Specification {
             .correlationId(CORRELATION).durationMs(5012).build()
 
     ActionHistoryUseCase history = Mock()
-    MockMvc mvc = standaloneSetup(new ActionHistoryController(history)).setControllerAdvice(new ApiExceptionHandler())
+    MockMvc mvc = standaloneSetup(new ActionHistoryController(history)).setControllerAdvice(new ApiExceptionHandler(Mock(RefusedRequests)))
             .build()
 
     def "the audit trail answers a page of rows, newest first, in the shape of the contract"() {
@@ -38,7 +38,8 @@ class ActionHistoryControllerSpec extends Specification {
         def response = call('/api/action-history')
 
         then:
-        1 * history.find(ActionHistoryQuery.all()) >> new ActionHistoryPage([RAISED], 0, 50, 1234)
+        1 * history.find(ActionHistoryQuery.of(null, null, null, null, null, null, null, null, null)) >>
+                new ActionHistoryPage([RAISED], 0, 50, 1234)
         response.status == 200
         parse(response.contentAsString) == [
                 content: [[id           : 41, at: '2026-10-15T09:00:00Z', user: 'Mateusz Matan',

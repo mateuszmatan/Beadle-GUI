@@ -1,8 +1,6 @@
 import { AbstractControl } from '@angular/forms';
-import { LookupKind } from '../core/models';
-import { Field, FieldOption, area, choice, count, line, mono } from '../shared/fields';
+import { Field, FieldOption, area, choice, count, find, line, mono } from '../shared/fields';
 import { HTTP_URL_ERROR } from '../shared/form-controls';
-import { Lookup } from '../shared/lookup-dialog';
 import { APPROVAL_STATES, ProductionChange, STATES, approvalOf, labelOf } from './change-api';
 import {
   JIRA_KEY_ERROR,
@@ -40,7 +38,7 @@ export const SECTIONS: readonly Section[] = [
     key: 'jira',
     step: 'Jira',
     title: 'Jira',
-    lead: 'Type the FixVersion, the Jira release this change delivers, and find its epics. Then pick the epics and stories the change delivers: they write the text of the change for ProTech.',
+    lead: 'Enter the FixVersion, the Jira release this change delivers, and find its epics. Then choose the epics and stories the change delivers; they provide the text of the change for ProTech.',
     adminLead: 'The Jira project the epics and stories of a release come from.',
   },
   {
@@ -102,16 +100,14 @@ export function changeFacts(
 
 export const OPENER_HINT = 'If left empty: the user who opens the change';
 
-const DEPARTMENT_HINT = 'If left empty: the department of the product';
-
-const find = (kind: LookupKind, more: Partial<Lookup> = {}) => ({ lookup: { kind, ...more } });
+const BUSINESS_SERVICE_HINT = 'If left empty: the business service of the product';
 
 const person = (key: string, label: string, span = 6) => line(key, label, '', span, find('users'));
 
 export const REQUEST_FIELDS: readonly Field[] = [
   person('requestedFor', 'Requested for'),
   person('requestedBy', 'Requested by'),
-  line('department', 'Department', '', 6, find('departments')),
+  line('businessService', 'Business service', '', 6, find('business-services')),
   line('assignmentGroup', 'Assignment group', '', 6, find('assignment-groups')),
   choice('category', 'Category', []),
   person('assignedTo', 'Assigned to'),
@@ -143,7 +139,7 @@ export const ADMIN_HINTS: Record<string, string> = {
   requestedFor: OPENER_HINT,
   requestedBy: OPENER_HINT,
   assignedTo: OPENER_HINT,
-  department: DEPARTMENT_HINT,
+  businessService: BUSINESS_SERVICE_HINT,
 };
 
 export const JIRA_FIELDS: readonly Field[] = [

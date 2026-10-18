@@ -11,9 +11,9 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { Subscription, of } from 'rxjs';
-import { MyDepartment } from '../departments/my-department';
+import { MyBusinessService } from '../business-services/my-business-service';
 import { RETRY } from '../core/errors';
-import { beadleChange, beadleProduct } from '../core/sections';
+import { changePath, productPath } from '../core/sections';
 import { RelativeTimePipe, formatRelative } from '../shared/formatting';
 import { PANEL } from '../ui/panel';
 import {
@@ -54,7 +54,7 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
     case 'APPLIED':
       return [
         `ProTech applied the update of ${at}`,
-        update.departmentName ? ` by ${update.departmentName}` : '',
+        update.businessServiceName ? ` by ${update.businessServiceName}` : '',
         '.',
         update.checkedAt ? ` Checked ${formatRelative(update.checkedAt, now)}.` : '',
       ].join('');
@@ -101,12 +101,10 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
                   aria-describedby="edit-hint"
                   [attr.title]="message"
                 >
-                  Edit the change
+                  Edit change
                 </button>
               } @else {
-                <a class="btn btn-primary" [routerLink]="changeLink(c.id!, 'edit')"
-                  >Edit the change</a
-                >
+                <a class="btn btn-primary" [routerLink]="changeLink(c.id!, 'edit')">Edit change</a>
               }
             }
             @if (c.url) {
@@ -116,7 +114,7 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
             }
             @if (c.productId) {
               <a class="btn btn-outline-primary" [routerLink]="productLink(c.productId)"
-                >Open the product</a
+                >Open product</a
               >
             }
           </div>
@@ -166,7 +164,7 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
             >
             <span class="spacer"></span>
             <a class="btn btn-link" [routerLink]="changeLink(c.id!, 'secure-coding')"
-              >Create the secure coding ticket</a
+              >Create secure coding ticket</a
             >
           </div>
         }
@@ -196,7 +194,7 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
             <beadle-change-tasks-form [tasks]="list" [readonly]="true" />
           } @else {
             <p class="none muted">
-              {{ open() ? 'No change tasks yet. Add them with Edit the change.' : 'None' }}
+              {{ open() ? 'No change tasks yet. Add them with Edit change.' : 'None' }}
             </p>
           }
         </section>
@@ -253,14 +251,14 @@ export function updateText(update: ChangeUpdate, now = Date.now()): string {
     .text {
       margin: 0;
       font: inherit;
-      font-size: 12.5px;
+      font-size: 13px;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
     }
 
     .none {
       margin: 0;
-      font-size: 12.5px;
+      font-size: 13px;
     }
 
     @media (max-width: 760px) {
@@ -279,10 +277,10 @@ export class ChangeDetail {
 
   private readonly api = inject(ChangesApi);
   private readonly published = inject(PublishedChange);
-  private readonly myDepartment = inject(MyDepartment);
+  private readonly myBusinessService = inject(MyBusinessService);
 
-  protected readonly productLink = beadleProduct;
-  protected readonly changeLink = beadleChange;
+  protected readonly productLink = productPath;
+  protected readonly changeLink = changePath;
   protected readonly updateText = updateText;
   protected readonly stateNow = stateNow;
   protected readonly retry = RETRY;
@@ -305,7 +303,9 @@ export class ChangeDetail {
     return form;
   });
   protected readonly hint = computed(() =>
-    this.change.hasValue() ? editHint(this.change.value(), this.myDepartment.departmentId()) : null,
+    this.change.hasValue()
+      ? editHint(this.change.value(), this.myBusinessService.businessServiceId())
+      : null,
   );
   private readonly polls = linkedSignal({ source: this.id, computation: () => 0 });
   protected readonly polling = computed(() => this.polls() < MAX_POLLS);

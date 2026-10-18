@@ -26,7 +26,7 @@ class BeadleStubApi extends StubApi {
 
     @Override
     void install() {
-        installDepartments(changeCount: 0)
+        installBusinessServices(changeCount: 0)
         products = new CopyOnWriteArrayList<Map>(fixture('products.json') as List<Map>)
         installSignIn()
         installProducts()
@@ -88,18 +88,6 @@ class BeadleStubApi extends StubApi {
         get('/api/action-history/actions') { actions*.action.unique(false).sort(false) }
     }
 
-    /** Adds {@code count} sign-ins of {@code user} older than every row so far, for the paging of the history. */
-    void addSignIns(int count, String user = 'Ann Lee') {
-        def oldest = actions.collect { Instant.parse(it.at as String) }.min()
-        int next = (actions*.id.max() as int) + 1
-        (1..count).each { index ->
-            actions << [id           : next + index, at: oldest.minusSeconds(60L * index).toString(), user: user,
-                        action       : 'USER_SIGNED_IN', objectType: 'USER', objectId: null, objectKey: user,
-                        details      : '{}', outcome: 'SUCCESS', message: null,
-                        correlationId: null, durationMs: 2]
-        }
-    }
-
     private static boolean recordedAction(Map row, Map<String, String> params) {
         def at = Instant.parse(row.at as String)
         (!params.user || row.user == params.user) &&
@@ -115,7 +103,7 @@ class BeadleStubApi extends StubApi {
         get('/api/products') { RecordedRequest request ->
             def search = request.params().search?.toLowerCase()
             json(search ? products.findAll {
-                [it.code, it.name, it.ownerTeam, it.departmentName].any { value -> value?.toString()?.toLowerCase()?.contains(search) }
+                [it.code, it.name, it.ownerTeam, it.businessServiceName].any { value -> value?.toString()?.toLowerCase()?.contains(search) }
             } : products)
         }
         get('/api/products/code-suggestion') { RecordedRequest request ->
@@ -153,7 +141,7 @@ class BeadleStubApi extends StubApi {
 
     private Map stored(Map sent, int id, int version) {
         [id          : id, code: sent.code, name: sent.name, ownerTeam: sent.ownerTeam, contactEmail: sent.contactEmail,
-         departmentId: sent.departmentId, departmentName: departmentName(sent.departmentId), version: version,
+         businessServiceId: sent.businessServiceId, businessServiceName: businessServiceName(sent.businessServiceId), version: version,
          updatedAt   : SAVED_AT]
     }
 }

@@ -6,18 +6,22 @@ import groovy.transform.Canonical
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.regex.Matcher
+import java.util.regex.Pattern
 
 import static java.net.InetAddress.getLoopbackAddress
 import static java.nio.charset.StandardCharsets.UTF_8
 
 /**
- * A local HTTP server that stands for Beadle-Internal or Beadle-ProTech in the specs of their REST adapters: it
- * records every request with its headers and body and answers what the spec set for its method and path.
+ * A local HTTP server that stands for Beadle-Internal, Beadle-ProTech or Ping in the specs: it records every request
+ * with its headers and body and answers what the spec set for its method and path, either one fixed answer
+ * ({@link #answer}) or what a route makes of the request ({@link #route}).
  */
 class RecordingHttpServer implements AutoCloseable {
 
     final List<Recorded> requests = new CopyOnWriteArrayList<>()
     private final Map<String, Answer> answers = new ConcurrentHashMap<>()
+    private final List<Route> routes = new CopyOnWriteArrayList<>()
     private final HttpServer server = HttpServer.create(new InetSocketAddress(getLoopbackAddress(), 0), 0)
 
     RecordingHttpServer() {
@@ -31,8 +35,13 @@ class RecordingHttpServer implements AutoCloseable {
 
     RecordingHttpServer answer(String method, String path, int status, Object body = null,
                                String contentType = 'application/json') {
-        answers["$method $path".toString()] = new Answer(status, body instanceof String ? body as String
-                : body == null ? '' : Json.toJson(body), contentType)
+        answers["$method $path".toString()] = Answer.of(status, body, contentType)
+        this
+    }
+
+    /** Answers a {@code method} call to a path matching {@code path} with what {@code answer} makes of the call and the groups of the path. */
+    RecordingHttpServer route(String method, String path, Closure<Answer> answer) {
+        routes << new Route(method, Pattern.compile(path), answer)
         this
     }
 
@@ -52,9 +61,13 @@ class RecordingHttpServer implements AutoCloseable {
             [name.toLowerCase(Locale.ROOT), values.first()]
         } as Map<String, String>, text)
         requests << request
-        Answer answer = answers["$request.method $request.path".toString()] ?:
-                new Answer(404, '{"title":"Not Found","status":404,"detail":"No answer set"}',
-                        'application/problem+json')
+        Answer answer
+        try {
+            answer = answerTo(request)
+        } catch (RuntimeException e) {
+            answer = Answer.of(500, [title: 'Internal Server Error', status: 500, detail: e.toString()],
+                    'application/problem+json')
+        }
         byte[] bytes = answer.body.getBytes(UTF_8)
         if (answer.body) {
             exchange.responseHeaders.add('Content-Type', answer.contentType)
@@ -66,11 +79,37 @@ class RecordingHttpServer implements AutoCloseable {
         exchange.close()
     }
 
+    private Answer answerTo(Recorded request) {
+        Answer fixed = answers["$request.method $request.path".toString()]
+        if (fixed) {
+            return fixed
+        }
+        for (Route route : routes) {
+            Matcher matcher = route.path.matcher(request.path)
+            if (route.method == request.method && matcher.matches()) {
+                return route.answer.call(request, (1..<(matcher.groupCount() + 1)).collect { matcher.group(it) })
+            }
+        }
+        Answer.of(404, [title: 'Not Found', status: 404, detail: 'No answer set'], 'application/problem+json')
+    }
+
     @Canonical
     static class Answer {
         int status
         String body
         String contentType
+
+        static Answer of(int status, Object body = null, String contentType = 'application/json') {
+            new Answer(status, body instanceof String ? body as String : body == null ? '' : Json.toJson(body),
+                    contentType)
+        }
+    }
+
+    @Canonical
+    private static class Route {
+        String method
+        Pattern path
+        Closure<Answer> answer
     }
 
     @Canonical

@@ -2,7 +2,6 @@ package com.bbh.itss.beadle.adapter.in.web
 
 import org.springframework.context.annotation.AnnotatedBeanDefinitionReader
 import org.springframework.core.convert.support.DefaultConversionService
-import org.springframework.core.env.MapPropertySource
 import org.springframework.mock.web.MockServletContext
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.web.context.support.GenericWebApplicationContext
@@ -16,9 +15,9 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppC
 class SinglePageAppForwardingSpec extends Specification {
 
     @Shared
-    MockMvc mvc = mvcWithPages('reports, admin')
+    MockMvc mvc = mvc()
 
-    def "the app's page #path is served by the Angular index page"() {
+    def "the app's address #path is served by the Angular index page, an unknown one for the app's wildcard route"() {
         when:
         def response = mvc.perform(get(path)).andReturn().response
 
@@ -26,18 +25,8 @@ class SinglePageAppForwardingSpec extends Specification {
         response.forwardedUrl == '/index.html'
 
         where:
-        path << ['/reports', '/reports/7', '/admin', '/admin/products/12/edit']
-    }
-
-    def "an unknown address #path is served by the index page too, so that the app's wildcard route takes it"() {
-        when:
-        def response = mvc.perform(get(path)).andReturn().response
-
-        then:
-        response.forwardedUrl == '/index.html'
-
-        where:
-        path << ['/no-such-page', '/changes', '/new-change/product', '/a/b/c', '/pipelines.old/7', '/apis']
+        path << ['/changes', '/changes/7', '/admin/products/12/edit', '/new-change/product', '/no-such-page',
+                 '/a/b/c', '/pipelines.old/7', '/apis']
     }
 
     def "#path is left to the API, the actuator, the sign-in and the static resources"() {
@@ -66,9 +55,8 @@ class SinglePageAppForwardingSpec extends Specification {
         'DELETE' || false
     }
 
-    private static MockMvc mvcWithPages(String pages) {
+    private static MockMvc mvc() {
         def context = new GenericWebApplicationContext(new MockServletContext())
-        context.environment.propertySources.addFirst(new MapPropertySource('pages', ['beadle.gui.pages': pages]))
         context.registerBean('conversionService', DefaultConversionService)
         new AnnotatedBeanDefinitionReader(context).register(DelegatingWebMvcConfiguration, SinglePageAppForwarding)
         context.refresh()

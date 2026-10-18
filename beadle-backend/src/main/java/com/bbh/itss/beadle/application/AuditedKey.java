@@ -9,8 +9,8 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 /**
  * Marks the parameter of an {@link Audited} use-case method that holds the key of the action's object, such as the name
- * of a department to create. The row of a call whose result does not name its object, a refused call above all, takes
- * its {@code OBJECT_KEY} from it.
+ * of a business service to create. The row of a call whose result does not name its object, a refused call above all,
+ * takes its {@code OBJECT_KEY} from it.
  */
 @Documented
 @Target(PARAMETER)

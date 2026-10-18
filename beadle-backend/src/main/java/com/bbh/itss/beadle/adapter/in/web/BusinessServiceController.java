@@ -24,7 +24,7 @@ import static org.springframework.http.ResponseEntity.created;
 import static org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentRequestUri;
 
 @RestController
-@RequestMapping({"/api/business-services", "/api/departments"})
+@RequestMapping("/api/business-services")
 @RequiredArgsConstructor
 public class BusinessServiceController {
 

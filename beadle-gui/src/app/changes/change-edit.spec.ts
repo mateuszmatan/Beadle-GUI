@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { MyDepartment } from '../departments/my-department';
+import { MyBusinessService } from '../business-services/my-business-service';
 import { Notifier } from '../core/notifier';
 import {
   changeOptions,
@@ -42,8 +42,8 @@ describe('ChangeEdit', () => {
     fixture.detectChanges();
   }
 
-  async function show(change: ProductionChange = stored, departmentId: number | null = 3) {
-    TestBed.inject(MyDepartment).choose(departmentId);
+  async function show(change: ProductionChange = stored, businessServiceId: number | null = 3) {
+    TestBed.inject(MyBusinessService).choose(businessServiceId);
     fixture = TestBed.createComponent(ChangeEdit);
     fixture.componentRef.setInput('id', 7);
     await settle();
@@ -68,7 +68,7 @@ describe('ChangeEdit', () => {
   }
 
   async function publish() {
-    buttonOf(page(), 'Publish the update to ProTech').click();
+    buttonOf(page(), 'Publish update to ProTech').click();
     await settle();
   }
 
@@ -82,7 +82,7 @@ describe('ChangeEdit', () => {
 
   afterEach(() => {
     http.verify();
-    TestBed.inject(MyDepartment).choose(null);
+    TestBed.inject(MyBusinessService).choose(null);
   });
 
   it('publishes the edited texts, ProTech fields and change tasks to ProTech', async () => {
@@ -92,8 +92,8 @@ describe('ChangeEdit', () => {
     expect(text(page().querySelector('h1'))).toBe('Edit CHG0012345');
     expect(text(page().querySelector('.breadcrumb'))).toBe('Changes/CHG0012345/Edit');
     expect(text(page().querySelector('.page-header p'))).toBe(
-      'Change any value and publish it: the update goes to ProTech at once, and the change page ' +
-        'then shows whether ProTech applied it. Fields marked * are required.',
+      'Change any value and publish the update: it goes to ProTech immediately, and the change ' +
+        'page then shows whether ProTech applied it. Fields marked * are required.',
     );
     expect([...page().querySelectorAll('h2')].map(text)).toEqual([
       'ProTech fields',
@@ -127,7 +127,7 @@ describe('ChangeEdit', () => {
     expect(inputOf(page(), 'Downtime start').value).toBe(
       inputOf(page(), 'Installation start').value,
     );
-    buttonOf(page(), 'Add a change task').click();
+    buttonOf(page(), 'Add change task').click();
     await settle();
     await type('Assignment group', 'Release Management', taskRows()[2]);
     await type('Short description', 'Tell the users', taskRows()[2]);
@@ -139,7 +139,7 @@ describe('ChangeEdit', () => {
     expect(edit().hasUnsavedChanges()).toBe(true);
     expect(put.request.body).toEqual({
       version: 4,
-      departmentId: 3,
+      businessServiceId: 3,
       shortDescription: 'CertScanner 4.2',
       description: 'Production release of CertScanner (CERT).',
       schedule: {
@@ -175,7 +175,7 @@ describe('ChangeEdit', () => {
 
     expect(TestBed.inject(PublishedChange).take(7)).toEqual(saved);
     expect(success).toHaveBeenCalledWith(
-      'Your update of CHG0012345 is published to ProTech. This page shows when ProTech has applied it.',
+      'Your update of CHG0012345 has been published to ProTech. This page shows when ProTech has applied it.',
     );
     expect(navigate).toHaveBeenCalledWith(['/changes', 7]);
     expect(edit().hasUnsavedChanges()).toBe(false);
@@ -278,10 +278,10 @@ describe('ChangeEdit', () => {
     expect(http.expectOne({ method: 'PUT', url: '/api/changes/7' }).request.body.version).toBe(6);
   });
 
-  it('does not offer a closed change or the change of another department', async () => {
+  it('does not offer a closed change or the change of another business service', async () => {
     await show(productionChange({ state: 'CLOSED' }));
     expect(text(page().querySelector('.banner.refused'))).toBe(
-      'CHG0012345 is closed in ProTech and can no longer be changedBack to the change',
+      'CHG0012345 is closed in ProTech and can no longer be changedBack to change',
     );
     expect(page().querySelector('form')).toBeNull();
     fixture.destroy();

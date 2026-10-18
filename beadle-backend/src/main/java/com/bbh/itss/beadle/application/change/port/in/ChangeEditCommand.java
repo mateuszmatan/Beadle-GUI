@@ -8,7 +8,7 @@ import java.util.List;
 
 import static org.apache.commons.collections4.ListUtils.emptyIfNull;
 
-public record ChangeEditCommand(Long version, Long departmentId, String shortDescription, String description,
+public record ChangeEditCommand(Long version, Long businessServiceId, String shortDescription, String description,
                                 ChangeSchedule schedule, ChangeTemplate template, List<ChangeTask> tasks) {
 
     public ChangeEditCommand {

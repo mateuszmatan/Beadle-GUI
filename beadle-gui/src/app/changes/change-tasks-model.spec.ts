@@ -273,18 +273,18 @@ describe('change tasks model', () => {
 
   it('says in plain words where a task stands and its approval', () => {
     expect(taskStatus({ state: 'OPEN', approval: 'Not Approved' })).toBe(
-      'Not done yet; not approved yet.',
+      'Not started; not approved yet.',
     );
     expect(taskStatus({ state: 'OPEN', approval: 'Requested' })).toBe(
-      'Not done yet; approval requested.',
+      'Not started; approval requested.',
     );
     expect(taskStatus({ state: 'WORK_IN_PROGRESS', approval: 'Approved' })).toBe(
-      'Being carried out; approved.',
+      'In progress; approved.',
     );
     expect(taskStatus({ state: 'OPEN', approval: 'Escalated' })).toBe(
-      'Not done yet; approval Escalated.',
+      'Not started; approval Escalated.',
     );
-    expect(taskStatus({ state: 'CLOSED', approval: 'Approved' })).toBe('Done.');
+    expect(taskStatus({ state: 'CLOSED', approval: 'Approved' })).toBe('Completed.');
     expect(taskStatus({ state: 'CANCELED', approval: 'Not Approved' })).toBe(
       'Canceled; no longer part of the change.',
     );

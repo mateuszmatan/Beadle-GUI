@@ -77,7 +77,9 @@ export function openLookup(
           [formControl]="query"
           (keydown.enter)="pickFirst($event)"
         />
-        <beadle-hint>Searches ProTech as you type. Enter takes the first match.</beadle-hint>
+        <beadle-hint
+          >Searches ProTech as you type. Press Enter to choose the first match.</beadle-hint
+        >
       </beadle-form-field>
       @if (results.isLoading()) {
         <beadle-loading />
@@ -105,8 +107,8 @@ export function openLookup(
                 searched()
                   ? 'Nothing in ProTech matches "' +
                     searched() +
-                    '". Try other words, or close this and type the value into the field.'
-                  : 'Nothing to choose from.'
+                    '". Try other search terms, or close this dialog and enter the value in the field.'
+                  : 'No values are available.'
               }}
             </li>
           }

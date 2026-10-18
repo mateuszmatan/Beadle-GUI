@@ -35,12 +35,12 @@ export function ticketName(form: SecureCodingForm, applicationName: string): str
 export function secureCodingRequest(
   form: SecureCodingForm,
   change: ProductionChange,
-  departmentId: number,
+  businessServiceId: number,
 ): SecureCodingRequest {
   const value = form.getRawValue();
   return {
     version: change.version!,
-    departmentId,
+    businessServiceId,
     apoNumber: value.apoNumber.trim(),
     implementationDate: value.implementationDate,
     bitbucketUrl: value.bitbucketUrl.trim(),

@@ -1,9 +1,9 @@
 package com.bbh.itss.beadle.config;
 
+import com.bbh.itss.beadle.adapter.AuditInterceptor;
 import com.bbh.itss.beadle.application.UseCase;
-import com.bbh.itss.beadle.application.audit.port.out.ActionHistoryPort;
+import com.bbh.itss.beadle.application.audit.port.in.ActionHistoryUseCase;
 import com.bbh.itss.beadle.application.audit.port.out.ObjectKeyPort;
-import com.bbh.itss.beadle.application.user.port.out.SignedInUserPort;
 import org.springframework.aop.Advisor;
 import org.springframework.aop.support.DefaultPointcutAdvisor;
 import org.springframework.beans.factory.BeanFactory;
@@ -45,12 +45,12 @@ public class UseCaseConfiguration {
 
     @Bean
     @Role(ROLE_INFRASTRUCTURE)
-    static Advisor useCaseAuditAdvisor(ObjectProvider<ActionHistoryPort> history, ObjectProvider<ObjectKeyPort> keys,
-                                       ObjectProvider<SignedInUserPort> users, ObjectProvider<JsonMapper> json,
+    static Advisor useCaseAuditAdvisor(ObjectProvider<ActionHistoryUseCase> history,
+                                       ObjectProvider<ObjectKeyPort> keys, ObjectProvider<JsonMapper> json,
                                        ObjectProvider<PlatformTransactionManager> transactions,
                                        ObjectProvider<Clock> clock) {
         DefaultPointcutAdvisor advisor = new DefaultPointcutAdvisor(AuditInterceptor.pointcut(),
-                new AuditInterceptor(history, keys, users, json, transactions, clock));
+                new AuditInterceptor(history, keys, json, transactions, clock));
         advisor.setOrder(AUDIT_ORDER);
         return advisor;
     }

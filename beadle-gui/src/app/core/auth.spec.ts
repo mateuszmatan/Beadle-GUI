@@ -56,14 +56,16 @@ describe('authInterceptor', () => {
 
     http.post('/api/products', {}).subscribe();
     http.put('/api/products/2', {}).subscribe();
-    http.delete('/api/departments/3').subscribe();
+    http.delete('/api/business-services/3').subscribe();
     http.post('/logout', null).subscribe();
     http.get('/api/products').subscribe();
     http.head('/api/products').subscribe();
 
     expect(sent('POST', '/api/products').headers.get(XSRF_HEADER)).toBe('cookie-token');
     expect(sent('PUT', '/api/products/2').headers.get(XSRF_HEADER)).toBe('cookie-token');
-    expect(sent('DELETE', '/api/departments/3').headers.get(XSRF_HEADER)).toBe('cookie-token');
+    expect(sent('DELETE', '/api/business-services/3').headers.get(XSRF_HEADER)).toBe(
+      'cookie-token',
+    );
     expect(sent('POST', '/logout').headers.get(XSRF_HEADER)).toBe('cookie-token');
     expect(sent('GET', '/api/products').headers.has(XSRF_HEADER)).toBe(false);
     expect(sent('HEAD', '/api/products').headers.has(XSRF_HEADER)).toBe(false);

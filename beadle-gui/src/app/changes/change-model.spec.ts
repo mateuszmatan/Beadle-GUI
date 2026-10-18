@@ -133,17 +133,17 @@ describe('change model', () => {
     expect(activeTasks([changeTask(), canceled, closed])).toEqual([changeTask(), closed]);
   });
 
-  it('says why a change cannot be edited by the chosen department', () => {
+  it('says why a change cannot be edited by the chosen business service', () => {
     const change = productionChange();
 
     expect(editHint(change, 3)).toBeNull();
-    expect(editHint(change, null)).toBe('Choose your department in Changes to change it');
+    expect(editHint(change, null)).toBe('Choose your business service in Changes to change it');
     expect(editHint(change, 5)).toBe('Only Corporate Technology can change it');
-    expect(editHint({ ...change, departmentName: null }, 5)).toBe(
-      'Only its department can change it',
+    expect(editHint({ ...change, businessServiceName: null }, 5)).toBe(
+      'Only its business service can change it',
     );
-    expect(editHint({ ...change, departmentId: null }, 3)).toBe(
-      'No department owns CHG0012345, so nobody can change it in Beadle',
+    expect(editHint({ ...change, businessServiceId: null }, 3)).toBe(
+      'No business service owns CHG0012345, so nobody can change it in Beadle',
     );
     expect(editHint({ ...change, update: changeUpdate() }, 3)).toBe(
       'The last update is still waiting for ProTech; change it again once ProTech has applied it',

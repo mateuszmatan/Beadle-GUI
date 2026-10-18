@@ -13,14 +13,10 @@ export interface BusinessService {
   changeCount: number;
 }
 
-export type Department = BusinessService;
-
 export interface BusinessServiceRequest {
   name: string;
   version: number | null;
 }
-
-export type DepartmentRequest = BusinessServiceRequest;
 
 export interface LookupItem {
   value: string;
@@ -30,7 +26,6 @@ export interface LookupItem {
 export type LookupKind =
   | 'users'
   | 'business-services'
-  | 'departments'
   | 'assignment-groups'
   | 'releases'
   | 'configuration-items'
@@ -41,9 +36,6 @@ export type LookupKind =
 export interface SignedInUser {
   name: string;
   email: string | null;
-  roles?: string[];
-  departmentNames?: string[];
-  admin?: boolean;
 }
 
 /** What Beadle answers to signing out with Ping: where the browser ends its session at Ping too. */
@@ -57,8 +49,8 @@ export interface Product {
   name: string;
   ownerTeam: string | null;
   contactEmail: string | null;
-  departmentId: number | null;
-  departmentName: string | null;
+  businessServiceId: number | null;
+  businessServiceName: string | null;
   version: number;
   updatedAt: string;
 }
@@ -66,7 +58,7 @@ export interface Product {
 export interface ProductRequest {
   code: string | null;
   name: string;
-  departmentId: number | null;
+  businessServiceId: number | null;
   ownerTeam: string | null;
   contactEmail: string | null;
   version: number | null;

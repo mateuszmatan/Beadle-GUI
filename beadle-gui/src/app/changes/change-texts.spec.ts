@@ -63,15 +63,15 @@ describe('ChangeTexts', () => {
   it('offers the generated text again for a text the user changed', () => {
     fixture.componentInstance.generated.set(GENERATED);
     fixture.detectChanges();
-    expect(buttonOf(page(), 'Use the generated text')).toBeUndefined();
+    expect(buttonOf(page(), 'Use generated text')).toBeUndefined();
 
     type('Description', 'Mine');
-    expect(buttonOf(page(), 'Use the generated text for the short description')).toBeUndefined();
-    buttonOf(page(), 'Use the generated text for the description').click();
+    expect(buttonOf(page(), 'Use generated text for the short description')).toBeUndefined();
+    buttonOf(page(), 'Use generated text for the description').click();
     fixture.detectChanges();
 
     expect(fixture.componentInstance.description.value).toBe(GENERATED.description);
     expect(fixture.componentInstance.description.pristine).toBe(true);
-    expect(buttonOf(page(), 'Use the generated text')).toBeUndefined();
+    expect(buttonOf(page(), 'Use generated text')).toBeUndefined();
   });
 });

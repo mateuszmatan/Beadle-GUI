@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE;
 import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE;
 import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE_PROFILE;
-import static com.bbh.itss.beadle.domain.audit.ObjectType.DEPARTMENT;
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT;
 import static com.bbh.itss.beadle.domain.audit.ObjectType.TICKET;
 import static com.bbh.itss.beadle.domain.audit.ObjectType.USER;
@@ -34,10 +33,8 @@ public enum Action {
     BUSINESS_SERVICE_CREATED(BUSINESS_SERVICE, false),
     BUSINESS_SERVICE_RENAMED(BUSINESS_SERVICE, false),
     BUSINESS_SERVICE_DELETED(BUSINESS_SERVICE, true),
-    DEPARTMENT_CREATED(DEPARTMENT, false),
-    DEPARTMENT_RENAMED(DEPARTMENT, false),
-    DEPARTMENT_DELETED(DEPARTMENT, true),
     USER_SIGNED_IN(USER, false),
+    USER_SIGNED_OUT(USER, false),
     CALLBACK_PROTECH(CHANGE, false),
     CALLBACK_INTERNAL(TICKET, false);
 

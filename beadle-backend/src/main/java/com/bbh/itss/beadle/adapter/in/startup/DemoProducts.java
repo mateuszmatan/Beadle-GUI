@@ -2,7 +2,7 @@ package com.bbh.itss.beadle.adapter.in.startup;
 
 import com.bbh.itss.beadle.application.CallContext;
 import com.bbh.itss.beadle.application.CallContext.Scope;
-import com.bbh.itss.beadle.application.catalog.port.in.DepartmentsUseCase;
+import com.bbh.itss.beadle.application.catalog.port.in.BusinessServicesUseCase;
 import com.bbh.itss.beadle.application.catalog.port.in.ProductCommand;
 import com.bbh.itss.beadle.application.catalog.port.in.ProductsUseCase;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +35,7 @@ public class DemoProducts implements ApplicationRunner {
             new DemoProduct("NAVCALC", "NAV Calculator", "Fund Services", "Fund Accounting"));
 
     private final ProductsUseCase products;
-    private final DepartmentsUseCase departments;
+    private final BusinessServicesUseCase businessServices;
 
     @Override
     public void run(ApplicationArguments args) {
@@ -44,17 +44,17 @@ public class DemoProducts implements ApplicationRunner {
         }
         try (Scope startup = CallContext.actingAs(CallContext.STARTUP)) {
             CATALOGUE.forEach(demo -> products.create(new ProductCommand(demo.code(), demo.name(),
-                    department(demo.department()), demo.team(),
+                    businessService(demo.businessService()), demo.team(),
                     demo.team().toLowerCase(ROOT).replaceAll("[^a-z]+", "-") + "@bbh.com", null)));
         }
         log.info("Created the {} demo products", CATALOGUE.size());
     }
 
-    private long department(String name) {
-        return departments.list().stream().filter(department -> department.name().equalsIgnoreCase(name))
-                .findFirst().orElseGet(() -> departments.create(name)).id();
+    private long businessService(String name) {
+        return businessServices.list().stream().filter(businessService -> businessService.name().equalsIgnoreCase(name))
+                .findFirst().orElseGet(() -> businessServices.create(name)).id();
     }
 
-    record DemoProduct(String code, String name, String department, String team) {
+    record DemoProduct(String code, String name, String businessService, String team) {
     }
 }

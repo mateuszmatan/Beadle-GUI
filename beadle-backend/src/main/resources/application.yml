@@ -27,6 +27,10 @@ spring:
       cache:
         cachecontrol:
           no-cache: true
+  http:
+    clients:
+      connect-timeout: 5s
+      read-timeout: 30s
 
 server:
   port: ${PORT:8081}
@@ -43,15 +47,10 @@ management:
 logging:
   level:
     com.bbh.itss.beadle: INFO
-  pattern:
-    correlation: "[%X{correlationId:-}] "
 
 beadle:
-  gui:
-    pages: changes, new-change, admin, action-history
   auth:
-    mode: ${BEADLE_AUTH_MODE:oidc}
-  signed-in-user: ${BEADLE_SIGNED_IN_USER:Mateusz Matan}
+    mode: oidc
   services:
     token: ${BEADLE_SERVICE_TOKEN:}
     internal:
@@ -69,8 +68,7 @@ spring:
     username: ${DB_USERNAME:sa}
     password: ${DB_PASSWORD:}
   jpa:
-    hibernate:
-      ddl-auto: none
+    database-platform: com.bbh.itss.beadle.adapter.out.persistence.OracleModeH2Dialect
 management:
   endpoint:
     health:
@@ -78,7 +76,8 @@ management:
 beadle:
   demo-data: ${BEADLE_DEMO_DATA:true}
   auth:
-    mode: ${BEADLE_AUTH_MODE:local}
+    mode: local
+    user: ${BEADLE_SIGNED_IN_USER:Mateusz Matan}
   services:
     internal:
       url: ${BEADLE_INTERNAL_URL:http://localhost:8082}

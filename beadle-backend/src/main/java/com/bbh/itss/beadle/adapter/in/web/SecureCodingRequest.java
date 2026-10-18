@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record SecureCodingRequest(
         @NotNull Long version,
-        @NotNull Long departmentId,
+        @NotNull Long businessServiceId,
         String apoNumber,
         String implementationDate,
         String bitbucketUrl,
@@ -14,7 +14,7 @@ public record SecureCodingRequest(
         String qcApplicationLink) {
 
     SecureCodingCommand toCommand() {
-        return new SecureCodingCommand(version, departmentId,
+        return new SecureCodingCommand(version, businessServiceId,
                 new SecureCoding(apoNumber, bitbucketUrl, artifactLink, qcApplicationLink), implementationDate);
     }
 }

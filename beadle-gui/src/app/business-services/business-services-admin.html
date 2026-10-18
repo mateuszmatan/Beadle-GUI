@@ -1,0 +1,81 @@
+<section class="card business-services">
+  <header class="list-header">
+    <div class="list-title">
+      <h2>Business services</h2>
+      @if (businessServices.hasValue()) {
+        <span class="summary">{{ summary() }}</span>
+      }
+    </div>
+    @if (!empty()) {
+      <button type="button" class="btn btn-primary" (click)="add()">Add business service</button>
+    }
+  </header>
+  <p class="section-help">
+    Every product belongs to one business service, and people choose their business service to see
+    its changes. Only an empty business service can be deleted.
+  </p>
+
+  @if (businessServices.isLoading()) {
+    <beadle-loading />
+  }
+
+  @if (businessServices.error(); as error) {
+    <div class="banner" role="alert">
+      <span class="banner-text"
+        >The business services could not be loaded: {{ errorMessage(error) }}</span
+      >
+      <button type="button" class="btn btn-outline-primary" (click)="businessServices.reload()">
+        Try again
+      </button>
+    </div>
+  } @else if (businessServices.hasValue()) {
+    @if (empty()) {
+      <div class="empty-state">
+        <h3>No business services yet</h3>
+        <p>Add the first business service, then add its products on the Products tab.</p>
+        <button type="button" class="btn btn-primary" (click)="add()">Add business service</button>
+      </div>
+    } @else {
+      <beadle-grid
+        label="Business services"
+        [rows]="businessServices.value()"
+        [columns]="columns"
+        [rowId]="businessServiceId"
+      >
+        <ng-template beadleCell="name" let-businessService>
+          <span class="name">{{ businessService.name }}</span>
+        </ng-template>
+        <ng-template beadleCell="actions" let-businessService>
+          @let reason = deleteHint(businessService);
+          <span class="actions">
+            <button
+              type="button"
+              class="btn btn-link"
+              [attr.aria-label]="'Rename ' + businessService.name"
+              (click)="rename(businessService)"
+            >
+              Rename
+            </button>
+            <span class="delete" [attr.title]="reason">
+              <button
+                type="button"
+                class="btn btn-link danger"
+                [attr.aria-label]="'Delete ' + businessService.name"
+                [attr.aria-describedby]="reason ? 'delete-reason-' + businessService.id : null"
+                [disabled]="reason !== null"
+                (click)="delete(businessService)"
+              >
+                Delete
+              </button>
+              @if (reason) {
+                <span class="visually-hidden" [id]="'delete-reason-' + businessService.id">{{
+                  reason
+                }}</span>
+              }
+            </span>
+          </span>
+        </ng-template>
+      </beadle-grid>
+    }
+  }
+</section>

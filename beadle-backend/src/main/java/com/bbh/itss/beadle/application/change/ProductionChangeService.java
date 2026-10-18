@@ -17,7 +17,7 @@ import com.bbh.itss.beadle.application.change.port.out.JiraPort;
 import com.bbh.itss.beadle.application.change.port.out.ProTechPort;
 import com.bbh.itss.beadle.application.change.port.out.ProTechPort.RaisedChange;
 import com.bbh.itss.beadle.application.change.port.out.ProductionChangeRepositoryPort;
-import com.bbh.itss.beadle.application.user.port.in.SignedInUserUseCase;
+import com.bbh.itss.beadle.application.user.port.out.SignedInUserPort;
 import com.bbh.itss.beadle.domain.change.ApprovalRef;
 import com.bbh.itss.beadle.domain.change.ChangeProduct;
 import com.bbh.itss.beadle.domain.change.ChangeSchedule;
@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.UnaryOperator;
 
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_EDITED;
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_PREVIEWED;
@@ -84,15 +85,15 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     private final JiraPort jira;
     private final ProTechPort proTech;
     private final CyberTrackPort cyberTrack;
-    private final SignedInUserUseCase users;
+    private final SignedInUserPort users;
     private final Clock clock;
 
     @Override
     @WithoutTransaction
     @Audited(value = CHANGE_SYNCED, onlyWhenNoted = true)
-    public List<ProductionChange> list(Long departmentId) {
-        List<ProductionChange> stored = departmentId == null ? changes.findAll()
-                : changes.findByDepartment(departmentId);
+    public List<ProductionChange> list(Long businessServiceId) {
+        List<ProductionChange> stored = businessServiceId == null ? changes.findAll()
+                : changes.findByBusinessService(businessServiceId);
         List<ProductionChange> open = stored.stream().filter(change -> change.state().isOpen()).toList();
         if (open.isEmpty()) {
             return stored;
@@ -124,7 +125,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @WithoutTransaction
     @Audited(CHANGE_EDITED)
     public ProductionChange update(long id, ChangeEditCommand command) {
-        ProductionChange stored = editable(id, command.version(), command.departmentId());
+        ProductionChange stored = editable(id, command.version(), command.businessServiceId());
         Instant now = now(clock);
         ProductionChange edit = stored.edited(command.shortDescription(), command.description(), command.schedule(),
                 command.template(), command.tasks(), now);
@@ -135,8 +136,8 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @Override
     @WithoutTransaction
     public ChangeIntegrations integrations() {
-        return new ChangeIntegrations(jira.connected(), proTech.connected(), cyberTrack.connected(),
-                jira.reachable() && cyberTrack.reachable(), proTech.reachable());
+        return new ChangeIntegrations(jira.jiraConnected(), proTech.proTechConnected(),
+                cyberTrack.cyberTrackConnected(), jira.reachable() && cyberTrack.reachable(), proTech.reachable());
     }
 
     @Override
@@ -183,7 +184,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @WithoutTransaction
     @Audited(CHANGE_TASKS_CREATED)
     public ProductionChange createTasks(long id, ChangeTasksCommand command) {
-        ProductionChange stored = editable(id, command.version(), command.departmentId());
+        ProductionChange stored = editable(id, command.version(), command.businessServiceId());
         List<ChangeTask> planned = stored.plannedTasks(command.tasks());
         ProductionChange current = changeable(stored);
         List<ChangeTask> created = new ArrayList<>();
@@ -191,7 +192,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
             planned.forEach(task -> {
                 String number = proTech.createTask(current.number(), task);
                 AuditNotes.created(number);
-                created.add(task.numbered(number));
+                created.add(task.withNumber(number));
             });
         } catch (RuntimeException refused) {
             if (!created.isEmpty()) {
@@ -206,7 +207,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @WithoutTransaction
     @Audited(SECURE_CODING_TICKET_CREATED)
     public ProductionChange createSecureCodingTicket(long id, SecureCodingCommand command) {
-        ProductionChange stored = editable(id, command.version(), command.departmentId());
+        ProductionChange stored = editable(id, command.version(), command.businessServiceId());
         SecureCodingTicket ticket = SecureCodingTicket.of(stored, command.secureCoding(),
                 command.implementationDate());
         ProductionChange current = changeable(stored);
@@ -214,7 +215,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         if (existing != null) {
             throw new IllegalStateException(current.number() + " already has the secure coding ticket " + existing);
         }
-        String key = cyberTrack.create(ticket);
+        String key = cyberTrack.createTicket(ticket);
         AuditNotes.created(key);
         try {
             return published(current.withSecureCoding(command.secureCoding(), key), current, now(clock));
@@ -230,7 +231,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     @Audited(REMINDER_SENT)
     public ProductionChange remind(long id, ReminderCommand command) {
         ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
-        requireDepartment(stored, command.departmentId(), "remind the approvers of");
+        requireBusinessService(stored, command.businessServiceId(), "remind the approvers of");
         checkReminder(command.approval(), command.task());
         ProductionChange current = synced(stored);
         if (current.syncProblem() != null) {
@@ -266,17 +267,12 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private ProductionChange remembered(ProductionChange change, Map<ApprovalRef, Reminder> sent) {
-        try {
-            return changes.save(change.reminded(sent));
-        } catch (IllegalStateException stale) {
-            ProductionChange latest = changes.load(change.id()).orElseThrow(() -> stale);
-            return changes.save(latest.reminded(sent));
-        }
+        return savedOnLatest(change, latest -> latest.reminded(sent));
     }
 
-    private ProductionChange editable(long id, Long version, Long departmentId) {
+    private ProductionChange editable(long id, Long version, Long businessServiceId) {
         ProductionChange stored = changes.load(id).orElseThrow(() -> notFound("Change", id));
-        requireDepartment(stored, departmentId, "change");
+        requireBusinessService(stored, businessServiceId, "change");
         requireUnchangedSince(version, stored.editedVersion(), stored.version());
         return stored;
     }
@@ -288,7 +284,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private ProductionChange published(ProductionChange edit, ProductionChange current, Instant now) {
-        ProductionChange claimed = changes.save(edit.toBuilder().update(requested(now, current.departmentName()))
+        ProductionChange claimed = changes.save(edit.toBuilder().update(requested(now, current.businessServiceName()))
                 .build());
         publish(claimed, current);
         ProductionChange verified = verified(claimed, current, now);
@@ -298,8 +294,8 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     private ProductionChange draft(ChangeCommand command, Instant raisedAt) {
         ChangeProduct product = products.get(command.productId());
         ValidationProblems problems = new ValidationProblems();
-        problems.require("productId", product.departmentId(),
-                "the product must be placed in a department in Beadle Admin first");
+        problems.require("productId", product.businessServiceId(),
+                "the product must be placed in a business service in Beadle Admin first");
         String version = command.fixVersion();
         problems.require("fixVersion", version, "choose the FixVersion of the release")
                 .fits("fixVersion", version, FIX_VERSION_MAX);
@@ -329,7 +325,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         problems.fits("shortDescription", command.shortDescription(), SHORT_DESCRIPTION_MAX)
                 .fits("description", command.description(), DESCRIPTION_MAX);
         problems.throwIfAny();
-        return ProductionChange.draft(product, users.signedInUser().name(), version,
+        return ProductionChange.draft(product, users.name(), version,
                 getIfNull(schedule, UNPLANNED), template, epics, stories, command.shortDescription(),
                 command.description());
     }
@@ -404,11 +400,15 @@ public class ProductionChangeService implements ProductionChangesUseCase {
     }
 
     private ProductionChange recorded(ProductionChange change) {
+        return savedOnLatest(change, latest -> change.toBuilder().version(latest.version()).build());
+    }
+
+    /** Stores what {@code update} makes of the change, or of the latest version when someone stored one meanwhile. */
+    private ProductionChange savedOnLatest(ProductionChange change, UnaryOperator<ProductionChange> update) {
         try {
-            return changes.save(change);
+            return changes.save(update.apply(change));
         } catch (IllegalStateException stale) {
-            ProductionChange latest = changes.load(change.id()).orElseThrow(() -> stale);
-            return changes.save(change.toBuilder().version(latest.version()).build());
+            return changes.save(update.apply(changes.load(change.id()).orElseThrow(() -> stale)));
         }
     }
 
@@ -438,16 +438,17 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         }
     }
 
-    private static void requireDepartment(ProductionChange stored, Long departmentId, String action) {
-        if (departmentId == null) {
-            throw InvalidRequestException.of("departmentId", "choose your department");
+    private static void requireBusinessService(ProductionChange stored, Long businessServiceId, String action) {
+        if (businessServiceId == null) {
+            throw InvalidRequestException.of("businessServiceId", "choose your business service");
         }
-        if (stored.departmentId() == null) {
-            throw new SecurityException("No department owns " + stored.number()
+        if (stored.businessServiceId() == null) {
+            throw new SecurityException("No business service owns " + stored.number()
                     + ", so nobody can " + action + " it in Beadle");
         }
-        if (!stored.departmentId().equals(departmentId)) {
-            throw new SecurityException("Only " + stored.departmentName() + " can " + action + " " + stored.number());
+        if (!stored.businessServiceId().equals(businessServiceId)) {
+            throw new SecurityException(
+                    "Only " + stored.businessServiceName() + " can " + action + " " + stored.number());
         }
     }
 

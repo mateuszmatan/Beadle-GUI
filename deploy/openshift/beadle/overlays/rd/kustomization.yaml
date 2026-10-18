@@ -7,7 +7,7 @@ configMapGenerator:
     behavior: merge
     literals:
       - SPRING_PROFILES_ACTIVE=rd
-      # The Ping issuer of rd. Replace the placeholder before the first deployment (step 2 of "Containers and
-      # OpenShift" in the README): with it the pod does not start, since Beadle reads the Ping configuration from the
+      # The Ping issuer of rd. Replace the placeholder before the first deployment (step 1 of "Deployment" in
+      # the README): with it the pod does not start, since Beadle reads the Ping configuration from the
       # issuer and a host in the reserved domain .invalid never answers.
       - PING_ISSUER_URI=https://set-the-ping-issuer-of-rd.invalid

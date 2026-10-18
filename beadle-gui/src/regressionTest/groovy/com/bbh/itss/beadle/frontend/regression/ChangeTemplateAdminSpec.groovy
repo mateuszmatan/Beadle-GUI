@@ -27,7 +27,7 @@ class ChangeTemplateAdminSpec extends BeadleSpecification {
                                                                      'Schedule', 'Planning', 'Privileged access',
                                                                      'Risk assessment', 'Secure coding'] as String[])
         assertThat(input(defaults(), 'Change number')).hasCount(0)
-        hasValues(defaults(), ['Requested for'     : '', 'Department': '', 'Assignment group': 'Technology Architecture',
+        hasValues(defaults(), ['Requested for'     : '', 'Business service': '', 'Assignment group': 'Technology Architecture',
                                'Affected CI'       : 'CertScanner', 'Direct business service': 'Certificate Management',
                                'Risk'              : 'Moderate', 'Jira project': 'CERT', 'Business approver': 'Grace Turner',
                                'L1 approver'       : 'Olivia Bennett', 'L2 approver': 'James Carter',
@@ -35,7 +35,7 @@ class ChangeTemplateAdminSpec extends BeadleSpecification {
                                'Installation start': '18:00', 'Installation hours': '2', 'Validation hours': '1'])
         assertThat(hintOf(defaults(), 'Requested for')).hasText('If left empty: the user who opens the change')
         assertThat(hintOf(defaults(), 'Assigned to')).hasText('If left empty: the user who opens the change')
-        assertThat(hintOf(defaults(), 'Department')).hasText('If left empty: the department of the product')
+        assertThat(hintOf(defaults(), 'Business service')).hasText('If left empty: the business service of the product')
         assertThat(selected(defaults(), 'Downtime')).hasText('No')
         assertThat(selected(defaults(), 'How many privileged accounts')).hasText('None')
         assertThat(defaults().locator('.accounts')).hasCount(0)
@@ -81,7 +81,7 @@ class ChangeTemplateAdminSpec extends BeadleSpecification {
         choose(defaults(), 'How many privileged accounts', '2')
         fillIn(defaults(), ['Person 1': 'Jane Smith', 'Privileged access 1': 'adm_jsmith',
                             'Person 2': 'Tom Brown', 'Privileged access 2': 'adm_tbrown'])
-        button('Add a change task', true).click()
+        button('Add change task', true).click()
         input(taskRows().nth(2), 'Assignment group').fill('release management')
 
         then:
@@ -105,10 +105,10 @@ class ChangeTemplateAdminSpec extends BeadleSpecification {
         assertThat(input(taskRows().nth(0), 'Application')).isDisabled()
 
         when:
-        button('Save the template', true).click()
+        button('Save template', true).click()
 
         then:
-        assertThat(snackBar()).containsText('The change template of CertScanner is saved')
+        assertThat(snackBar()).containsText('The change template of CertScanner has been saved.')
         with(awaitRequest('PUT', '/api/products/1/change-profile').json()) {
             version == 2
             template.assignmentGroup == 'Certificate Services'
@@ -131,7 +131,7 @@ class ChangeTemplateAdminSpec extends BeadleSpecification {
         when:
         choose(defaults(), 'How many privileged accounts', '1')
         button('Remove change task 1', true).click()
-        button('Save the template', true).click()
+        button('Save template', true).click()
 
         then:
         with(awaitRequest('PUT', '/api/products/1/change-profile', 2).json()) {
@@ -181,7 +181,7 @@ class ChangeTemplateAdminSpec extends BeadleSpecification {
         input(defaults(), 'Installation start').fill('')
         choose(defaults(), 'How many privileged accounts', '1')
         input(taskRows().nth(1), 'Short description').fill(' ')
-        button('Save the template', true).click()
+        button('Save template', true).click()
 
         then:
         hasErrors(defaults(), ['Backout plan': 'Required', 'Installation start': 'Required', 'Person 1': 'Required',
@@ -196,10 +196,10 @@ class ChangeTemplateAdminSpec extends BeadleSpecification {
         input(defaults(), 'Privileged access 1').fill('alee')
         input(taskRows().nth(1), 'Short description').fill('Validate the gateway')
         saveFromAnotherTab('/admin/products/2')
-        button('Save the template', true).click()
+        button('Save template', true).click()
 
         then:
-        assertThat(saveError()).hasText(STALE)
+        assertThat(saveError()).hasText("The change template could not be saved: $STALE")
         awaitRequest('PUT', '/api/products/2/change-profile', 2).json().version == null
 
         when:
@@ -220,12 +220,12 @@ class ChangeTemplateAdminSpec extends BeadleSpecification {
         api.respond('PUT', '/api/products/2/change-profile', problem(400, 'Bad Request', '2 fields are invalid',
                 [problems: [[field: 'template.privilegedAccess.users[0].account', message: 'must be a privileged account'],
                           [field: 'tasks[1].assignedTo', message: 'is not a ProTech user']]]))
-        button('Save the template', true).click()
+        button('Save template', true).click()
 
         then:
         assertThat(errorOf(defaults(), 'Privileged access 1')).hasText('must be a privileged account')
         assertThat(errorOf(taskRows().nth(1), 'Assigned to')).hasText('is not a ProTech user')
-        assertThat(saveError()).hasText(~/(Beadle did not accept some values\. They are marked below\.|The change template could not be saved: 2 fields are invalid)/)
+        assertThat(saveError()).hasText('The change template could not be saved: 2 fields are invalid')
         with(awaitRequest('PUT', '/api/products/2/change-profile', 3).json()) {
             version == 0
             template.timing.installationStart == '19:30'
@@ -242,8 +242,8 @@ class ChangeTemplateAdminSpec extends BeadleSpecification {
     void saveFromAnotherTab(String path) {
         Page other = context.newPage()
         other.navigate(url(path))
-        other.getByRole(BUTTON, new Page.GetByRoleOptions().setName('Save the template').setExact(true)).click()
-        assertThat(other.locator('beadle-toast')).containsText('is saved')
+        other.getByRole(BUTTON, new Page.GetByRoleOptions().setName('Save template').setExact(true)).click()
+        assertThat(other.locator('beadle-toast')).containsText('has been saved')
         other.close()
     }
 }

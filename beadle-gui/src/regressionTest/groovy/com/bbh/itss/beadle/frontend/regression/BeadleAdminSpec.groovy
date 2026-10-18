@@ -12,8 +12,7 @@ import static java.time.temporal.ChronoUnit.DAYS
 
 class BeadleAdminSpec extends BeadleSpecification {
 
-    static final List<String> DEPARTMENTS = ['AI Lab', 'Capital Partners', 'Corporate Technology', 'Custody', 'Fund Services']
-    static final String NOT_REACHED = 'The database is not reachable at the moment.'
+    static final List<String> BUSINESS_SERVICES = ['AI Lab', 'Capital Partners', 'Corporate Technology', 'Custody', 'Fund Services']
 
     def setup() {
         api.get('/api/change-profiles') {
@@ -21,7 +20,7 @@ class BeadleAdminSpec extends BeadleSpecification {
         }
     }
 
-    def "Beadle Admin has a Departments and a Products tab, and its departments count their changes"() {
+    def "Beadle Admin has a Business services and a Products tab, and its business services count their changes"() {
         when:
         open('/')
         page.waitForURL('**/changes')
@@ -30,43 +29,43 @@ class BeadleAdminSpec extends BeadleSpecification {
 
         then:
         assertThat(page.locator('h1')).hasText('Beadle Admin')
-        assertThat(page.locator('nav.tab-bar a')).hasText(['Departments', 'Products'] as String[])
+        assertThat(page.locator('nav.tab-bar a')).hasText(['Business services', 'Products'] as String[])
         assertThat(page.locator('nav.tab-bar a.active')).hasText('Products')
 
         when:
-        link('Departments', true).click()
-        page.waitForURL('**/admin/departments')
+        link('Business services', true).click()
+        page.waitForURL('**/admin/business-services')
 
         then:
-        assertThat(gridHeaders()).hasText(['Department', 'Products', ''] as String[])
+        assertThat(gridHeaders()).hasText(['Business service', 'Products', ''] as String[])
         assertThat(page.locator('section.chart')).hasCount(0)
-        assertThat(page.locator('.list-header .summary')).hasText('5 departments with 2 products')
-        assertThat(page.locator('.departments .section-help')).hasText('Every product belongs to one department, and people ' +
-                'choose their department to see its changes. Only an empty department can be deleted.')
+        assertThat(page.locator('.list-header .summary')).hasText('5 business services with 2 products')
+        assertThat(page.locator('.business-services .section-help')).hasText('Every product belongs to one business service, and people ' +
+                'choose their business service to see its changes. Only an empty business service can be deleted.')
         assertThat(buttonIn(gridRow(page.locator('body'), 'Custody'), 'Delete Custody')).isEnabled()
         assertThat(buttonIn(gridRow(page.locator('body'), 'AI Lab'), 'Delete AI Lab')).isEnabled()
 
         when:
-        button('Add department', true).click()
+        button('Add business service', true).click()
         input(dialog(), 'Name').fill('Treasury')
-        dialogButton('Add department').click()
+        dialogButton('Add business service').click()
 
         then:
         assertThat(snackBar()).containsText('Treasury added')
-        awaitRequest('POST', '/api/departments').json() == [name: 'Treasury']
-        assertThat(gridRows().locator('.name')).hasText((DEPARTMENTS + 'Treasury') as String[])
+        awaitRequest('POST', '/api/business-services').json() == [name: 'Treasury']
+        assertThat(gridRows().locator('.name')).hasText((BUSINESS_SERVICES + 'Treasury') as String[])
         ownErrors().isEmpty()
     }
 
-    def "the Products tab lists the products by department with the state of their change template"() {
+    def "the Products tab lists the products by business service with the state of their change template"() {
         when:
         open('/admin/products')
 
         then:
-        assertThat(cardNames()).hasText(DEPARTMENTS as String[])
+        assertThat(cardNames()).hasText(BUSINESS_SERVICES as String[])
         assertThat(card('Corporate Technology').locator('.tally')).hasText('1 product')
         assertThat(card('Custody').locator('.no-products')).hasText('No products in Custody yet.')
-        assertThat(page.locator('.toolbar .count')).hasText('2 products in 5 departments')
+        assertThat(page.locator('.toolbar .count')).hasText('2 products in 5 business services')
         assertThat(gridHeaders(card('Fund Services'))).hasText(['Product', 'Owner team', 'Change template'] as String[])
         assertThat(productRow('CertScanner').locator('.ag-cell')).hasText(['CertScannerCERTSCANNER', 'Technology Architecture',
                                                                           'Filled in · saved 2 days ago'] as String[])
@@ -74,21 +73,20 @@ class BeadleAdminSpec extends BeadleSpecification {
         assertThat(gridCell(productRow('Payments Hub'), 'template')).hasText('Not filled in yet')
         assertThat(page.locator('.tab-help')).hasText('Open a product to see its details and fill in its change template. ' +
                 'Until then, its new changes start with values suggested from its name, code and owner team.')
-        !page.locator('beadle-products').textContent().contains('service')
 
         when:
         page.locator('input[aria-label="Search products"]').fill('pay')
 
         then:
         assertThat(cardNames()).hasText(['Fund Services'] as String[])
-        assertThat(page.locator('.toolbar .count')).hasText('1 product in 1 department')
+        assertThat(page.locator('.toolbar .count')).hasText('1 product in 1 business service')
 
         when:
         api.respond('GET', '/api/change-profiles', problem(503, 'Unavailable', 'The change templates are not available'))
         open('/admin/products')
 
         then:
-        assertThat(gridCell(productRow('CertScanner'), 'template')).hasText('Not known')
+        assertThat(gridCell(productRow('CertScanner'), 'template')).hasText('Unknown')
         assertThat(page.locator('.banner')).containsText('The products are listed, but the state of their change templates ' +
                 'could not be loaded. The change templates are not available')
 
@@ -118,10 +116,10 @@ class BeadleAdminSpec extends BeadleSpecification {
 
         then:
         assertThat(dialog().locator('h2')).hasText('Add product')
-        assertThat(dialog().locator('beadle-label')).hasText(['Product name', 'Product code', 'Department', 'Owner team',
+        assertThat(dialog().locator('beadle-label')).hasText(['Product name', 'Product code', 'Business service', 'Owner team',
                                                            'Contact e-mail'] as String[])
-        assertThat(hintOf(dialog(), 'Product code')).hasText('Short unique name used in reports, for example PAYHUB. Made from the name.')
-        assertThat(selected(dialog(), 'Department')).hasText('Custody')
+        assertThat(hintOf(dialog(), 'Product code')).hasText('A short unique name used in reports, for example PAYHUB. Suggested from the product name.')
+        assertThat(selected(dialog(), 'Business service')).hasText('Custody')
 
         when:
         dialogButton('Add product').click()
@@ -151,11 +149,11 @@ class BeadleAdminSpec extends BeadleSpecification {
 
         then:
         page.waitForURL('**/admin/products/3')
-        assertThat(snackBar()).containsText('Trade Archive added. Now fill in its change template.')
+        assertThat(snackBar()).containsText('Trade Archive added. Fill in its change template next.')
         def request = awaitRequest('POST', '/api/products', 2)
         request.params() == [:]
         request.json() == [code        : 'TRADEARCHIVE', name: 'Trade Archive', ownerTeam: 'Custody Technology',
-                           contactEmail: null, departmentId: 4, version: null]
+                           contactEmail: null, businessServiceId: 4, version: null]
         beadle.product(3).name == 'Trade Archive'
         assertThat(facts()).hasText(['TRADEARCHIVE', 'Custody', 'Custody Technology', '–'] as String[])
         assertThat(page.locator('section.defaults .banner.info')).containsText('Not saved yet')
@@ -165,11 +163,11 @@ class BeadleAdminSpec extends BeadleSpecification {
     }
 
     Locator cardNames() {
-        page.locator('section.department h2')
+        page.locator('section.business-service h2')
     }
 
     Locator card(String name) {
-        holding(page.locator('section.department'), "h2:text-is('${name}')")
+        holding(page.locator('section.business-service'), "h2:text-is('${name}')")
     }
 
     Locator productRow(String name) {

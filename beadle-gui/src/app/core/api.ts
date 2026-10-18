@@ -3,8 +3,8 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { SIGN_OUT_PATH } from './auth';
 import {
-  Department,
-  DepartmentRequest,
+  BusinessService,
+  BusinessServiceRequest,
   LookupItem,
   Product,
   ProductRequest,
@@ -13,23 +13,23 @@ import {
 } from './models';
 
 @Injectable({ providedIn: 'root' })
-export class DepartmentsApi {
+export class BusinessServicesApi {
   private readonly http = inject(HttpClient);
 
-  list(): Observable<Department[]> {
-    return this.http.get<Department[]>('/api/departments');
+  list(): Observable<BusinessService[]> {
+    return this.http.get<BusinessService[]>('/api/business-services');
   }
 
-  create(name: string): Observable<Department> {
-    return this.http.post<Department>('/api/departments', { name });
+  create(name: string): Observable<BusinessService> {
+    return this.http.post<BusinessService>('/api/business-services', { name });
   }
 
-  rename(id: number, request: DepartmentRequest): Observable<Department> {
-    return this.http.put<Department>(`/api/departments/${id}`, request);
+  rename(id: number, request: BusinessServiceRequest): Observable<BusinessService> {
+    return this.http.put<BusinessService>(`/api/business-services/${id}`, request);
   }
 
   delete(id: number): Observable<void> {
-    return this.http.delete<void>(`/api/departments/${id}`);
+    return this.http.delete<void>(`/api/business-services/${id}`);
   }
 }
 

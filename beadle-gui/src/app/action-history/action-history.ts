@@ -41,7 +41,7 @@ import {
 /** How long the page waits after the last key typed in the object key before it asks again. */
 export const TYPING_DELAY = 300;
 
-export const RANGE_PROBLEM = 'The last day comes before the first';
+export const RANGE_PROBLEM = 'The last day is before the first day';
 
 export interface ActionRow {
   record: ActionRecord;
@@ -297,7 +297,7 @@ export class ActionHistory {
     ),
     line('objectKey', 'Object key', '', 3, {
       placeholder: 'CHG0031001',
-      hint: 'the start of a change number, product code, ticket key or department name',
+      hint: 'the start of a change number, product code, ticket key or business service name',
     }),
     choice('outcome', 'Outcome', everything('Any', optionsOf(OUTCOMES)), '', 3),
     line('from', 'From', '', 3, { type: 'date', hint: 'the first day, in your time zone' }),

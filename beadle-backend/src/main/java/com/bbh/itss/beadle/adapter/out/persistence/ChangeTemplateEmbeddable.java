@@ -18,7 +18,7 @@ public record ChangeTemplateEmbeddable(
         String jiraProjectKey,
         String requestedFor,
         String requestedBy,
-        @Column(name = "REQUEST_DEPARTMENT") String department,
+        @Column(name = "REQUEST_BUSINESS_SERVICE") String businessService,
         String assignmentGroup,
         String category,
         String assignedTo,

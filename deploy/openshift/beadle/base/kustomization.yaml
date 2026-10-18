@@ -12,8 +12,7 @@ resources:
 configMapGenerator:
   - name: beadle-config
     literals:
-      - SPRING_PROFILES_ACTIVE=rd
       - BEADLE_INTERNAL_URL=http://beadle-internal:8082
       - BEADLE_PROTECH_URL=http://beadle-protech:8083
-      # PING_ISSUER_URI, the Ping issuer of the environment, is set in each overlay; the client id and secret are in
-      # the secret beadle-oidc.
+      # SPRING_PROFILES_ACTIVE and PING_ISSUER_URI, the Ping issuer of the environment, are set in each overlay; the
+      # client id and secret are in the secret beadle-oidc.

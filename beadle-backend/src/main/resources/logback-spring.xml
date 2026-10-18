@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<configuration scan="true" scanPeriod="30 seconds">
+<configuration>
 
-    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="beadle"/>
     <property name="LOG_PATH" value="${LOG_PATH:-./logs}"/>
     <property name="LOG_FILE" value="${LOG_FILE:-beadle}"/>
 
@@ -31,8 +30,6 @@
             <charset>UTF-8</charset>
         </encoder>
     </appender>
-
-    <logger name="com.bbh.itss" level="INFO"/>
 
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>

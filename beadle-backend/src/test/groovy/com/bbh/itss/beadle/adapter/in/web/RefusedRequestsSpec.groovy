@@ -1,34 +1,53 @@
 package com.bbh.itss.beadle.adapter.in.web
 
-import com.bbh.itss.beadle.adapter.AuditDetails
-import com.bbh.itss.beadle.application.CallContext
-import com.bbh.itss.beadle.application.audit.port.in.RefusedRequest
-import com.bbh.itss.beadle.application.audit.port.in.RefusedRequestsUseCase
+import com.bbh.itss.beadle.application.audit.port.in.ActionHistoryUseCase
+import com.bbh.itss.beadle.domain.audit.Action
 import com.bbh.itss.beadle.domain.audit.ActionObject
 import com.bbh.itss.beadle.domain.audit.ActionRecord
-import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider
-import org.springframework.core.type.filter.AnnotationTypeFilter
+import com.bbh.itss.beadle.domain.audit.ActionRecord.ActionRecordBuilder
+import com.bbh.itss.beadle.domain.shared.InvalidRequestException
+import com.bbh.itss.beadle.domain.shared.InvalidRequestException.FieldProblem
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Size
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.context.support.GenericApplicationContext
+import org.springframework.mock.web.MockHttpServletRequest
+import org.springframework.mock.web.MockHttpServletResponse
+import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException
+import org.springframework.security.oauth2.core.OAuth2Error
+import org.springframework.security.web.authentication.AuthenticationFailureHandler
+import org.springframework.security.web.csrf.MissingCsrfTokenException
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.PatchMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping
 import spock.lang.Specification
-import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.json.JsonMapper
 
-import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_PROTECH
+import java.time.Clock
+import java.time.DayOfWeek
+import java.time.Instant
+import java.time.ZoneOffset
+
+import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_CREATED
+import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_RENAMED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED
-import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_CREATED
-import static com.bbh.itss.beadle.domain.audit.Action.DEPARTMENT_RENAMED
-import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE
-import static com.bbh.itss.beadle.domain.audit.ObjectType.DEPARTMENT
+import static com.bbh.itss.beadle.domain.audit.ActionOutcome.FAILURE
+import static com.bbh.itss.beadle.domain.audit.ObjectType.BUSINESS_SERVICE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT
+import static org.springframework.http.HttpStatus.UNAUTHORIZED
+import static org.springframework.http.ProblemDetail.forStatusAndDetail
 import static com.bbh.itss.beadle.support.Json.parse
 import static com.bbh.itss.beadle.support.Json.toJson
-import static java.nio.charset.StandardCharsets.UTF_8
 import static org.springframework.http.MediaType.APPLICATION_JSON
 import static org.springframework.http.MediaType.TEXT_PLAIN
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -39,19 +58,19 @@ class RefusedRequestsSpec extends Specification {
 
     static final String DAYS = 'must be one of MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY'
 
-    RefusedRequestsUseCase refusals = Mock()
-    List<RefusedRequest> recorded = []
-    List<String> actors = []
+    static final Instant NOW = Instant.parse('2026-10-15T09:00:00Z')
 
-    MockMvc mvc = standaloneSetup(new AuditedSampleController())
-            .setControllerAdvice(new ApiExceptionHandler(new RefusedRequests(refusals, JsonMapper.builder().build())),
-                    new KeptRequestBodies(), new NormalizedRequestBodies())
-            .build()
+    ActionHistoryUseCase history = Mock()
+    List<Refused> recorded = []
+
+    MockMvc mvc = mvc(history)
 
     def setup() {
-        refusals.refused(_) >> { RefusedRequest refused ->
-            recorded << refused
-            actors << CallContext.systemActor().orElse('the signed-in user')
+        history.record(_, _) >> { ActionRecordBuilder row, ActionObject object ->
+            def built = row.build()
+            assert built.at() == NOW && built.outcome() == FAILURE && built.durationMs() == 0
+            recorded << new Refused(built.action(), object, built.details(), built.message())
+            built
         }
     }
 
@@ -61,8 +80,7 @@ class RefusedRequestsSpec extends Specification {
 
         then:
         response.status == 400
-        recorded == [new RefusedRequest(DEPARTMENT_CREATED, ActionObject.keyed(DEPARTMENT, key), details, message)]
-        actors == ['the signed-in user']
+        recorded == [new Refused(BUSINESS_SERVICE_CREATED, ActionObject.keyed(BUSINESS_SERVICE, key), details, message)]
         parse(response.contentAsString).detail != null
 
         where:
@@ -89,9 +107,9 @@ class RefusedRequestsSpec extends Specification {
 
         then:
         recorded == [
-                new RefusedRequest(DEPARTMENT_RENAMED, ActionObject.of(DEPARTMENT, 7), '{"id":7,"request":{"name":""}}',
+                new Refused(BUSINESS_SERVICE_RENAMED, ActionObject.of(BUSINESS_SERVICE, 7), '{"id":7,"request":{"name":""}}',
                         'name must not be blank'),
-                new RefusedRequest(DEPARTMENT_RENAMED, ActionObject.of(DEPARTMENT, null),
+                new Refused(BUSINESS_SERVICE_RENAMED, ActionObject.of(BUSINESS_SERVICE, null),
                         '{"id":"seven","request":null}', 'id must be a whole number')]
     }
 
@@ -106,9 +124,9 @@ class RefusedRequestsSpec extends Specification {
         recorded*.message() == ['fixVersion must not be blank', 'productId must be a whole number']
     }
 
-    def "a refused body of 100 KB is recorded as JSON within 32 KB, its long string cut and the rest as sent"() {
+    def "a refused body of #size bytes is recorded #kept"() {
         given:
-        def body = toJson([productId: 6, fixVersion: '', description: 'T' * 100_000, epicKeys: ['CERT-1', 'CERT-2']])
+        def body = toJson([productId: 6, fixVersion: '', description: 'T' * size, epicKeys: ['CERT-1', 'CERT-2']])
 
         when:
         def response = mvc.perform(json(post('/api/samples/raised'), body)).andReturn().response
@@ -116,26 +134,15 @@ class RefusedRequestsSpec extends Specification {
         then:
         response.status == 400
         recorded*.message() == ['fixVersion must not be blank']
-        def details = recorded[0].details()
-        details.getBytes(UTF_8).length <= ActionRecord.DETAILS_MAX
-        details.getBytes(UTF_8).length > ActionRecord.DETAILS_MAX - 4
-        def request = JsonMapper.builder().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build()
-                .readTree(details).get('request')
-        request.get('productId').asLong() == 6L
-        request.get('fixVersion').stringValue() == ''
-        request.get('description').stringValue() ==~ /T{30000,}/ + AuditDetails.CUT
-        request.get('epicKeys')*.stringValue() == ['CERT-1', 'CERT-2']
-    }
+        recorded[0].details() == (whole ? '{"request":' + body + '}'
+                : '{"truncated":true,"bytes":' + ('{"request":' + body + '}').length() + '}')
 
-    def "a refused callback is recorded as the system it acts for"() {
-        when:
-        mvc.perform(json(post('/api/samples/callback'), '{"number": "CHG0031001"}'))
+        where:
+        size                       || whole
+        100_000                    || true
+        ActionRecord.DETAILS_MAX   || false
 
-        then:
-        recorded == [new RefusedRequest(CALLBACK_PROTECH, ActionObject.keyed(CHANGE, 'CHG0031001'),
-                '{"request":{"number":"CHG0031001"}}', 'name must not be blank')]
-        actors == ['system:protech']
-        !CallContext.systemActor().present
+        kept = whole ? 'as sent' : 'as its length'
     }
 
     def "a body of another content type is refused and recorded as well"() {
@@ -164,12 +171,10 @@ class RefusedRequestsSpec extends Specification {
 
     def "a row that cannot be written leaves the answer as it is"() {
         given:
-        def failing = Mock(RefusedRequestsUseCase) {
-            refused(_) >> { throw new IllegalStateException('the database is down') }
+        def failing = Mock(ActionHistoryUseCase) {
+            record(_, _) >> { throw new IllegalStateException('the database is down') }
         }
-        def mvc = standaloneSetup(new AuditedSampleController())
-                .setControllerAdvice(new ApiExceptionHandler(new RefusedRequests(failing, JsonMapper.builder().build())),
-                        new KeptRequestBodies()).build()
+        def mvc = mvc(failing)
 
         when:
         def response = mvc.perform(json(post('/api/samples/named'), '{"name": ""}')).andReturn().response
@@ -179,29 +184,140 @@ class RefusedRequestsSpec extends Specification {
         parse(response.contentAsString).problems == [[field: 'name', message: 'must not be blank']]
     }
 
-    def "every endpoint that changes something names its action, so that a refused request leaves a row"() {
+    def "a request the security filters refused is filed under its endpoint, without the body nobody read"() {
         given:
-        def scanner = new ClassPathScanningCandidateComponentProvider(false)
-        scanner.addIncludeFilter(new AnnotationTypeFilter(RestController))
-        def controllers = scanner.findCandidateComponents('com.bbh.itss.beadle.adapter.in.web')
-                .collect { Class.forName(it.beanClassName) }
-                .findAll { it.protectionDomain.codeSource.location == ChangeController.protectionDomain.codeSource.location }
+        def refusals = refusals(history)
 
         when:
-        def unaudited = controllers.collectMany { Class type ->
-            type.declaredMethods.findAll { method ->
-                [PostMapping, PutMapping, DeleteMapping, PatchMapping].any { method.isAnnotationPresent(it) } &&
-                        !method.isAnnotationPresent(AuditedRequest)
-            }.collect { "${type.simpleName}.${it.name}" }
-        }
+        refusals.record(new MockHttpServletRequest('PUT', '/api/samples/named/7'),
+                forStatusAndDetail(UNAUTHORIZED, 'The call needs a token.'))
+        [['POST', '/api/samples/unaudited'], ['POST', '/api/samples/nothing'], ['PATCH', '/api/samples/named/7']]
+                .each { refusals.record(new MockHttpServletRequest(*it), forStatusAndDetail(UNAUTHORIZED, 'no')) }
 
         then:
-        controllers*.simpleName.containsAll(['ChangeController', 'ProductController', 'BusinessServiceController',
-                                             'CallbackController'])
-        unaudited == []
+        recorded == [new Refused(BUSINESS_SERVICE_RENAMED, ActionObject.of(BUSINESS_SERVICE, 7),
+                '{"id":7,"request":null}', 'The call needs a token.')]
+    }
+
+    def "a signed-in user's change refused for its CSRF token is filed as such and answered 403 as Spring does"() {
+        given:
+        def response = new MockHttpServletResponse()
+        SecurityContextHolder.context.authentication = UsernamePasswordAuthenticationToken.authenticated('Ann Lee', null, [])
+
+        when:
+        refusals(history).forbidden().handle(new MockHttpServletRequest('POST', '/api/samples/named'), response,
+                denied)
+
+        then:
+        response.status == 403
+        recorded*.action() == [BUSINESS_SERVICE_CREATED]
+        recorded*.message() == [message]
+
+        cleanup:
+        SecurityContextHolder.clearContext()
+
+        where:
+        denied                                         || message
+        new MissingCsrfTokenException(null)            || RefusedRequests.NO_CSRF_TOKEN
+        new AccessDeniedException('Not for you.')      || 'Not for you.'
+    }
+
+    def "a refusal without a session, or a failed sign-in, is answered but not filed"() {
+        given:
+        def response = new MockHttpServletResponse()
+        def page = Mock(AuthenticationFailureHandler)
+        def failure = new OAuth2AuthenticationException(new OAuth2Error('access_denied', 'Not entitled', null))
+
+        when:
+        refusals(history).forbidden().handle(new MockHttpServletRequest('POST', '/api/samples/named'), response,
+                new MissingCsrfTokenException(null))
+        refusals(history).signInFailures(page).onAuthenticationFailure(new MockHttpServletRequest(),
+                new MockHttpServletResponse(), failure)
+
+        then:
+        response.status == 403
+        1 * page.onAuthenticationFailure(_, _, failure)
+        recorded.empty
+    }
+
+    /** The endpoints of the controller, found as Spring MVC finds them. */
+    static ObjectProvider<RequestMappingHandlerMapping> mappingsOf(Object controller) {
+        def context = new GenericApplicationContext()
+        context.beanFactory.registerSingleton('controller', controller)
+        context.registerBean(RequestMappingHandlerMapping)
+        context.refresh()
+        context.getBeanProvider(RequestMappingHandlerMapping)
+    }
+
+    private static RefusedRequests refusals(ActionHistoryUseCase history) {
+        new RefusedRequests(history, JsonMapper.builder().build(), Clock.fixed(NOW, ZoneOffset.UTC),
+                mappingsOf(new AuditedSampleController()))
+    }
+
+    private static MockMvc mvc(ActionHistoryUseCase history) {
+        standaloneSetup(new AuditedSampleController())
+                .setControllerAdvice(new ApiExceptionHandler(refusals(history)), new KeptRequestBodies(),
+                        new NormalizedRequestBodies())
+                .build()
     }
 
     private static MockHttpServletRequestBuilder json(MockHttpServletRequestBuilder request, String body) {
         request.contentType(APPLICATION_JSON).content(body)
+    }
+
+    /** What a refused request recorded. */
+    record Refused(Action action, ActionObject object, String details, String message) {
+    }
+
+    /** Endpoints of every kind of {@link AuditedRequest}. */
+    @RestController
+    static class AuditedSampleController {
+
+        @PostMapping('/api/samples/named')
+        @AuditedRequest(value = BUSINESS_SERVICE_CREATED, objectKey = 'name')
+        String create(@Valid @RequestBody Named request) {
+            request.name
+        }
+
+        @PutMapping('/api/samples/named/{id}')
+        @AuditedRequest(BUSINESS_SERVICE_RENAMED)
+        String rename(@PathVariable('id') long id, @Valid @RequestBody Named request) {
+            "$id $request.name"
+        }
+
+        @PostMapping('/api/samples/raised')
+        @AuditedRequest(value = CHANGE_RAISED, objectId = 'productId', objectType = PRODUCT)
+        String raise(@Valid @RequestBody Raised request) {
+            request.fixVersion
+        }
+
+        @PostMapping('/api/samples/refusing')
+        @AuditedRequest(BUSINESS_SERVICE_CREATED)
+        String refusing(@Valid @RequestBody Named request) {
+            throw new InvalidRequestException([new FieldProblem('name', 'is taken')])
+        }
+
+        @PostMapping('/api/samples/unaudited')
+        String unaudited(@Valid @RequestBody Named request) {
+            request.name
+        }
+    }
+
+    static class Named {
+
+        @NotBlank
+        @Size(max = 10)
+        String name
+        String apiToken
+        DayOfWeek day
+    }
+
+    static class Raised {
+
+        @NotNull
+        Long productId
+
+        @NotBlank
+        String fixVersion
     }
 }

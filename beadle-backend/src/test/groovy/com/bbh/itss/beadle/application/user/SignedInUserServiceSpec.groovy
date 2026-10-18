@@ -22,12 +22,17 @@ class SignedInUserServiceSpec extends Specification {
                 new SignedInUser('Mateusz Matan', null)
     }
 
-    def "signing in answers the signed-in user, whose name is the key of the USER_SIGNED_IN row"() {
+    def "signing #inOrOut answers the signed-in user, whose name is the key of the row"() {
         when:
-        def user = new SignedInUserService({ -> 'Mateusz Matan' } as SignedInUserPort).signIn()
+        def user = signing(new SignedInUserService({ -> 'Mateusz Matan' } as SignedInUserPort))
 
         then:
-        user == new SignedInUser('Mateusz Matan')
+        user == new SignedInUser('Mateusz Matan', null)
         user.auditedObject() == ActionObject.keyed(USER, 'Mateusz Matan')
+
+        where:
+        inOrOut | signing
+        'in'    | { SignedInUserService users -> users.signIn() }
+        'out'   | { SignedInUserService users -> users.signOut() }
     }
 }

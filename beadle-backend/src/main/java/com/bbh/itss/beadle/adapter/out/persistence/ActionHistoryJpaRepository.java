@@ -21,7 +21,7 @@ public interface ActionHistoryJpaRepository extends Repository<ActionHistoryEnti
 
     Page<ActionHistoryEntity> findAll(Specification<ActionHistoryEntity> specification, Pageable pageable);
 
-    @Query("select distinct a.userName from ActionHistoryEntity a order by a.userName")
+    @Query("select distinct a.user from ActionHistoryEntity a order by a.user")
     List<String> findUserNames();
 
     @Query("select distinct a.action from ActionHistoryEntity a")

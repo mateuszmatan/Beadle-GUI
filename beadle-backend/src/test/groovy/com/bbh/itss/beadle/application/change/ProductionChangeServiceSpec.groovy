@@ -11,11 +11,10 @@ import com.bbh.itss.beadle.application.change.port.in.SecureCodingCommand
 import com.bbh.itss.beadle.application.change.port.out.ChangeProductsPort
 import com.bbh.itss.beadle.application.change.port.out.CyberTrackPort
 import com.bbh.itss.beadle.application.change.port.out.JiraPort
-import com.bbh.itss.beadle.application.change.port.out.ProductionChangeRepositoryPort
 import com.bbh.itss.beadle.application.change.port.out.ProTechPort
 import com.bbh.itss.beadle.application.change.port.out.ProTechPort.RaisedChange
-import com.bbh.itss.beadle.application.user.port.in.SignedInUser
-import com.bbh.itss.beadle.application.user.port.in.SignedInUserUseCase
+import com.bbh.itss.beadle.application.change.port.out.ProductionChangeRepositoryPort
+import com.bbh.itss.beadle.application.user.port.out.SignedInUserPort
 import com.bbh.itss.beadle.domain.audit.ActionObject
 import com.bbh.itss.beadle.domain.change.ApprovalRef
 import com.bbh.itss.beadle.domain.change.ChangeApproval
@@ -62,6 +61,7 @@ import static com.bbh.itss.beadle.domain.shared.Failures.staleVersion
 import static com.bbh.itss.beadle.support.ChangeFixtures.FIX_VERSION
 import static com.bbh.itss.beadle.support.ChangeFixtures.RAISED
 import static com.bbh.itss.beadle.support.ChangeFixtures.changeProduct
+import static com.bbh.itss.beadle.support.ChangeFixtures.changeUrl
 import static com.bbh.itss.beadle.support.ChangeFixtures.ctask
 import static com.bbh.itss.beadle.support.ChangeFixtures.details
 import static com.bbh.itss.beadle.support.ChangeFixtures.epic
@@ -90,17 +90,17 @@ class ProductionChangeServiceSpec extends Specification {
     JiraPort jira = Mock()
     ProTechPort proTech = Mock()
     CyberTrackPort cyberTrack = Mock()
-    SignedInUserUseCase users = Stub() {
-        signedInUser() >> new SignedInUser('Mateusz Matan')
+    SignedInUserPort users = Stub() {
+        name() >> 'Mateusz Matan'
     }
     def service = new ProductionChangeService(products, changes, jira, proTech, cyberTrack, users, fixed(NOW, UTC))
     def certScanner = changeProduct(jiraProjectKey: 'CSCAN')
 
     def setup() {
         products.get(1L) >> certScanner
-        products.get(2L) >> changeProduct(id: 2L, code: 'PAYHUB', name: 'PayHub', departmentId: 4L,
-                departmentName: 'Custody')
-        products.get(3L) >> changeProduct(id: 3L, departmentId: null, departmentName: null)
+        products.get(2L) >> changeProduct(id: 2L, code: 'PAYHUB', name: 'PayHub', businessServiceId: 4L,
+                businessServiceName: 'Custody')
+        products.get(3L) >> changeProduct(id: 3L, businessServiceId: null, businessServiceName: null)
         jira.versions('CERT') >> [new JiraVersion(FIX_VERSION, false, LocalDate.parse('2026-10-20')),
                                   new JiraVersion('CERT 4.1', true, LocalDate.parse('2026-09-01'))]
         jira.versions(_) >> []
@@ -110,17 +110,17 @@ class ProductionChangeServiceSpec extends Specification {
         }
     }
 
-    def "the preview drafts the change of the product's department with the chosen Jira issues and no tasks yet"() {
+    def "the preview drafts the change of the product's business service with the chosen Jira issues and no tasks yet"() {
         when:
         def draft = service.preview(command())
 
         then:
         draft == ProductionChange.draft(certScanner, 'Mateusz Matan', FIX_VERSION, schedule(), template(),
                 ISSUES.take(2), ISSUES.drop(2), null, null)
-        draft.departmentId() == 3L
+        draft.businessServiceId() == 3L
         draft.openedBy() == 'Mateusz Matan'
         [draft.template().requestedFor(), draft.template().requestedBy(), draft.template().assignedTo(),
-         draft.template().department()] == ['Mateusz Matan', 'Mateusz Matan', 'Mateusz Matan', 'Corporate Technology']
+         draft.template().businessService()] == ['Mateusz Matan', 'Mateusz Matan', 'Mateusz Matan', 'Corporate Technology']
         draft.tasks() == []
         draft.template().release() == FIX_VERSION
         draft.state() == DRAFT
@@ -129,7 +129,7 @@ class ProductionChangeServiceSpec extends Specification {
         0 * proTech._
     }
 
-    def "a product without stored ProTech defaults raises a change from the request in its department"() {
+    def "a product without stored ProTech defaults raises a change from the request in its business service"() {
         given:
         def payHub = template(jiraProjectKey: 'PAY', configurationItem: 'PayHub')
         jira.epics('PAY', 'PAY 1.0') >> [epic('PAY-1', 'Instant payments')]
@@ -140,8 +140,8 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         preview.productCode() == 'PAYHUB'
-        preview.departmentId() == 4L
-        preview.departmentName() == 'Custody'
+        preview.businessServiceId() == 4L
+        preview.businessServiceName() == 'Custody'
         preview.fixVersion() == 'PAY 1.0'
         preview.template() == payHub.releasedAs('PAY 1.0').openedBy('Mateusz Matan', 'Custody')
         preview.shortDescription() == 'PayHub PAY 1.0: Instant payments'
@@ -149,14 +149,14 @@ class ProductionChangeServiceSpec extends Specification {
         !preview.description().contains('Change tasks')
     }
 
-    def "a change of a product outside every department is refused on the product when it is #action"() {
+    def "a change of a product outside every business service is refused on the product when it is #action"() {
         when:
         call(service)
 
         then:
         def refused = thrown(InvalidRequestException)
         refused.problems() == [new FieldProblem('productId',
-                'the product must be placed in a department in Beadle Admin first')]
+                'the product must be placed in a business service in Beadle Admin first')]
         0 * proTech._
         0 * changes._
 
@@ -172,19 +172,19 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * proTech.raise({ it.number() == null && it.shortDescription() == 'Mine' && it.createdAt() == NOW }) >>
-                new RaisedChange('CHG0012345', 'https://bbh.service-now.com/CHG0012345')
+                new RaisedChange('CHG0012345', changeUrl('CHG0012345'))
         1 * changes.save({ it.number() == 'CHG0012345' }) >> { ProductionChange change -> change }
         0 * proTech._
         raised.number() == 'CHG0012345'
         raised.tasks() == []
-        raised.departmentId() == 3L
-        raised.departmentName() == 'Corporate Technology'
+        raised.businessServiceId() == 3L
+        raised.businessServiceName() == 'Corporate Technology'
         raised.state() == DRAFT
         raised.workflow() == [new WorkflowStep(DRAFT, NOW)]
         raised.syncedAt() == NOW
         raised.createdAt() == NOW
         raised.update() == null
-        raised.url() == 'https://bbh.service-now.com/CHG0012345'
+        raised.url() == changeUrl('CHG0012345')
         raised.fixVersion() == FIX_VERSION
         raised.schedule() == schedule()
     }
@@ -370,9 +370,9 @@ class ProductionChangeServiceSpec extends Specification {
         def integrations = service.integrations()
 
         then:
-        1 * jira.connected() >> false
-        1 * proTech.connected() >> true
-        1 * cyberTrack.connected() >> false
+        1 * jira.jiraConnected() >> false
+        1 * proTech.proTechConnected() >> true
+        1 * cyberTrack.cyberTrackConnected() >> false
         integrations == new ChangeIntegrations(false, true, false, internal, proTechAnswered)
 
         where:
@@ -395,7 +395,7 @@ class ProductionChangeServiceSpec extends Specification {
         def listed = service.list(3L)
 
         then:
-        1 * changes.findByDepartment(3L) >> [quiet, moved, unchanged, closed]
+        1 * changes.findByBusinessService(3L) >> [quiet, moved, unchanged, closed]
         1 * proTech.read([quiet, moved, unchanged]) >> [CHG0031001: unchanged, CHG0031002: progressed,
                                                            CHG0031003: quiet]
         1 * changes.save(progressed.toBuilder().syncedAt(NOW).build()) >>
@@ -425,91 +425,56 @@ class ProductionChangeServiceSpec extends Specification {
         listed == [closed]
     }
 
-    def "the listed open changes keep their stored values when ProTech #problem"() {
+    def "#action keeps the stored values when ProTech #problem"() {
         given:
-        def open = raised()
         def closed = raised(id: 6L, number: 'CHG0031000', state: CLOSED)
+        changes.findAll() >> [raised(), closed]
+        changes.load(7L) >> Optional.of(raised())
 
         when:
-        def listed = service.list(null)
+        def shown = shownBy(service)
 
         then:
-        1 * changes.findAll() >> [open, closed]
-        1 * proTech.read([open]) >> { reply() }
-        0 * changes._
-        listed == [open.withSyncProblem(message), closed]
+        1 * proTech.read([raised()]) >> { reply() }
+        0 * changes.save(_)
+        0 * changes.synced(*_)
+        shown == (listed ? [raised(syncProblem: message), closed] : raised(syncProblem: message))
 
         where:
-        problem             | reply                                                                       || message
-        'cannot be reached' | { throw new UncheckedIOException('Connection refused', new IOException()) } || 'ProTech could not be reached: Connection refused.'
-        'does not hold it'  | { [:] }                                                                     || 'ProTech has no change CHG0031001.'
+        action               | listed | shownBy                 | problem             | reply                                                                       || message
+        'the list'           | true   | { it.list(null) }       | 'cannot be reached' | { throw new UncheckedIOException('Connection refused', new IOException()) } || 'ProTech could not be reached: Connection refused.'
+        'the list'           | true   | { it.list(null) }       | 'does not hold it'  | { [:] }                                                                     || 'ProTech has no change CHG0031001.'
+        'an opened change'   | false  | { it.get(7L) }          | 'cannot be reached' | { throw new UncheckedIOException('Read timed out', new IOException()) }    || 'ProTech could not be reached: Read timed out.'
+        'an opened change'   | false  | { it.get(7L) }          | 'does not hold it'  | { [:] }                                                                     || 'ProTech has no change CHG0031001.'
     }
 
-    def "an opened change is read from ProTech even when closed and is saved only when ProTech #changed it"() {
+    def "a change #action is read from ProTech and saved only when ProTech #changed it"() {
         given:
-        def stored = raised(state: CLOSED)
+        changes.load(7L) >> Optional.of(stored)
+        changes.findByNumber('CHG0031001') >> Optional.of(stored)
 
         when:
-        def loaded = service.get(7L)
+        ProductionChange read = reading(service)
 
         then:
-        1 * changes.load(7L) >> Optional.of(stored)
         1 * proTech.read([stored]) >> [CHG0031001: remote]
         saves * changes.save(remote.toBuilder().syncedAt(NOW).build()) >>
                 { ProductionChange change -> change.toBuilder().version(1L).build() }
         (1 - saves) * changes.synced([7L], NOW)
-        loaded.shortDescription() == remote.shortDescription()
-        loaded.syncedAt() == NOW
-        loaded.syncProblem() == null
-        loaded.version() == saves
+        read.state() == remote.state()
+        read.shortDescription() == remote.shortDescription()
+        read.syncedAt() == NOW
+        read.syncProblem() == null
+        read.version() == saves
 
         where:
-        remote                                                          || saves
-        raised(state: CLOSED)                                           || 0
-        raised(state: CLOSED, shortDescription: 'Renamed in ProTech')   || 1
+        action                     | reading                                 | stored                | remote                                                        || saves
+        'opened, even when closed' | { it.get(7L) }                          | raised(state: CLOSED) | raised(state: CLOSED)                                         || 0
+        'opened, even when closed' | { it.get(7L) }                          | raised(state: CLOSED) | raised(state: CLOSED, shortDescription: 'Renamed in ProTech') || 1
+        'ProTech moved'            | { it.resync('CHG0031001').get() }       | raised()              | raised()                                                      || 0
+        'ProTech moved'            | { it.resync('CHG0031001').get() }       | raised()              | raised(state: BUSINESS_APPROVAL, workflow: [new WorkflowStep(DRAFT, RAISED), new WorkflowStep(BUSINESS_APPROVAL, NOW)]) || 1
 
         changed = saves ? 'changed' : 'did not change'
-    }
-
-    def "an opened change keeps its stored values when ProTech #problem"() {
-        when:
-        def loaded = service.get(7L)
-
-        then:
-        1 * changes.load(7L) >> Optional.of(raised())
-        1 * proTech.read(_) >> { reply() }
-        0 * changes._
-        loaded == raised(syncProblem: message)
-
-        where:
-        problem             | reply                                                                    || message
-        'cannot be reached' | { throw new UncheckedIOException('Read timed out', new IOException()) } || 'ProTech could not be reached: Read timed out.'
-        'does not hold it'  | { [:] }                                                                  || 'ProTech has no change CHG0031001.'
-    }
-
-    def "a change ProTech moved is read again by its number and saved when ProTech #changed it"() {
-        given:
-        def stored = raised()
-
-        when:
-        def reread = service.resync('CHG0031001')
-
-        then:
-        1 * changes.findByNumber('CHG0031001') >> Optional.of(stored)
-        1 * proTech.read([stored]) >> [CHG0031001: remote]
-        saves * changes.save(remote.toBuilder().syncedAt(NOW).build()) >>
-                { ProductionChange change -> change.toBuilder().version(1L).build() }
-        (1 - saves) * changes.synced([7L], NOW)
-        reread.get().state() == remote.state()
-        reread.get().version() == saves
-
-        where:
-        remote                                       || saves
-        raised()                                     || 0
-        raised(state: BUSINESS_APPROVAL, workflow: [new WorkflowStep(DRAFT, RAISED),
-                                                    new WorkflowStep(BUSINESS_APPROVAL, NOW)]) || 1
-
-        changed = saves ? 'moved' : 'did not move'
     }
 
     def "a change Beadle did not raise is not read again, and an unreachable ProTech fails the read"() {
@@ -587,11 +552,11 @@ class ProductionChangeServiceSpec extends Specification {
         'updated' | { ProductionChangeService it -> it.update(8L, edit()) }
     }
 
-    def "an update its department claims, publishes to ProTech, verifies as applied and stores"() {
+    def "an update its business service claims, publishes to ProTech, verifies as applied and stores"() {
         given:
         def stored = raised()
         def applied = raised(shortDescription: 'Renamed', state: BUSINESS_APPROVAL,
-                tasks: stored.tasks() + NEW_TASK.numbered('CTASK0041003'))
+                tasks: stored.tasks() + NEW_TASK.withNumber('CTASK0041003'))
 
         when:
         def updated = service.update(7L, edit(shortDescription: ' Renamed ', tasks: stored.tasks() + NEW_TASK))
@@ -702,7 +667,7 @@ class ProductionChangeServiceSpec extends Specification {
         changes.load(7L) >> Optional.of(stored)
 
         when:
-        service.update(7L, edit(departmentId: departmentId, version: version))
+        service.update(7L, edit(businessServiceId: businessServiceId, version: version))
 
         then:
         def refused = thrown(failure)
@@ -711,11 +676,11 @@ class ProductionChangeServiceSpec extends Specification {
         0 * changes.save(_)
 
         where:
-        refusal                          | stored                                              | departmentId | version || failure                 | message
-        'without a department'           | raised()                                            | null         | 0L      || InvalidRequestException | 'choose your department'
-        'of another department'          | raised()                                            | 4L           | 0L      || SecurityException       | 'Only Corporate Technology can change CHG0031001'
-        'of another department at an old version' | raised(version: 2L, editedVersion: 2L)     | 4L           | 1L      || SecurityException       | 'Only Corporate Technology can change CHG0031001'
-        'of a change without department' | raised(departmentId: null, departmentName: null)    | 3L           | 0L      || SecurityException       | 'No department owns CHG0031001, so nobody can change it in Beadle'
+        refusal                          | stored                                              | businessServiceId | version || failure                 | message
+        'without a business service'           | raised()                                            | null         | 0L      || InvalidRequestException | 'choose your business service'
+        'of another business service'          | raised()                                            | 4L           | 0L      || SecurityException       | 'Only Corporate Technology can change CHG0031001'
+        'of another business service at an old version' | raised(version: 2L, editedVersion: 2L)     | 4L           | 1L      || SecurityException       | 'Only Corporate Technology can change CHG0031001'
+        'of a change without business service' | raised(businessServiceId: null, businessServiceName: null)    | 3L           | 0L      || SecurityException       | 'No business service owns CHG0031001, so nobody can change it in Beadle'
         'at a stale version'             | raised(version: 2L, editedVersion: 2L)              | 3L           | 1L      || IllegalStateException   | STALE_VERSION
         'read before its last edit'      | raised(version: 4L, editedVersion: 3L)              | 3L           | 2L      || IllegalStateException   | STALE_VERSION
         'at a version it never had'      | raised(version: 2L)                                 | 3L           | 3L      || IllegalStateException   | STALE_VERSION
@@ -738,7 +703,7 @@ class ProductionChangeServiceSpec extends Specification {
         problem                  | reply                                                                     || failure               | message
         'has closed the change'  | { [CHG0031001: raised(state: CLOSED)] }                                   || IllegalStateException | 'CHG0031001 is closed in ProTech and can no longer be changed'
         'changed its texts'      | { [CHG0031001: raised(description: 'Edited in ProTech')] }               || IllegalStateException | STALE_VERSION
-        'added a change task'    | { [CHG0031001: raised(tasks: raised().tasks() + NEW_TASK.numbered('CTASK0041009'))] } || IllegalStateException | STALE_VERSION
+        'added a change task'    | { [CHG0031001: raised(tasks: raised().tasks() + NEW_TASK.withNumber('CTASK0041009'))] } || IllegalStateException | STALE_VERSION
         'no longer holds it'     | { [:] }                                                                   || IllegalStateException | 'ProTech has no change CHG0031001.'
         'cannot be reached'      | { throw new UncheckedIOException('Read timed out', new IOException()) }  || UncheckedIOException  | 'Read timed out'
     }
@@ -922,7 +887,9 @@ class ProductionChangeServiceSpec extends Specification {
 
         then:
         1 * proTech.read({ it*.version() == [1L] }) >> { [CHG0031001: recorded.toBuilder().tasks(
-                recorded.tasks().collect { it.withApproval(NOT_APPROVED, ['Rebecca Lawson', 'Thomas Ashby']) })
+                recorded.tasks().collect {
+                    it.withApproval(NOT_APPROVED).withApprovers(['Rebecca Lawson', 'Thomas Ashby'])
+                })
                 .build()] }
         1 * changes.save({ ProductionChange it -> it.tasks()*.approvers().every { it == ['Rebecca Lawson', 'Thomas Ashby'] } }) >>
                 { ProductionChange saved -> saved.toBuilder().version(2L).build() }
@@ -955,35 +922,43 @@ class ProductionChangeServiceSpec extends Specification {
         change.syncProblem() == 'ProTech could not be reached: Read timed out.'
     }
 
-    def "change tasks are not created when #problem"() {
+    def "#action is not created when #problem"() {
         given:
-        changes.load(7L) >> Optional.of(raised(tasks: []))
+        changes.load(7L) >> Optional.of(stored)
         changes.save(_) >> { ProductionChange it -> it }
         proTech.read(_) >> [CHG0031001: remote]
 
         when:
-        service.createTasks(7L, command)
+        creating(service)
 
         then:
         def refused = thrown(type)
         refused.message == message
         0 * proTech.createTask(*_)
+        0 * cyberTrack.createTicket(_)
+        0 * proTech.update(_)
 
         where:
-        problem                          | command                                           | remote                          || type                    | message
-        'another department asks'        | created(departmentId: 4L)                         | raised(tasks: [])               || SecurityException       | 'Only Corporate Technology can change CHG0031001'
-        'the change moved on meanwhile'  | created(version: 1L)                              | raised(tasks: [])               || IllegalStateException   | STALE_VERSION
-        'ProTech has closed the change'  | created()                                         | raised(tasks: [], state: CLOSED) || IllegalStateException  | 'CHG0031001 is closed in ProTech and can no longer be changed'
-        'a release task starts too late' | created(tasks: [releaseTask([:], '2026-10-10T10:01:00Z')]) | raised(tasks: [])      || InvalidRequestException | 'must not be after the installation end'
+        action                   | problem                          | stored                                             | remote                           | creating                                                                            || type                    | message
+        'a change task'          | 'another business service asks'  | raised(tasks: [])                                  | raised(tasks: [])                | { it.createTasks(7L, created(businessServiceId: 4L)) }                              || SecurityException       | 'Only Corporate Technology can change CHG0031001'
+        'a change task'          | 'the change moved on meanwhile'  | raised(tasks: [])                                  | raised(tasks: [])                | { it.createTasks(7L, created(version: 1L)) }                                        || IllegalStateException   | STALE_VERSION
+        'a change task'          | 'ProTech has closed the change'  | raised(tasks: [])                                  | raised(tasks: [], state: CLOSED) | { it.createTasks(7L, created()) }                                                   || IllegalStateException   | 'CHG0031001 is closed in ProTech and can no longer be changed'
+        'a change task'          | 'a release task starts too late' | raised(tasks: [])                                  | raised(tasks: [])                | { it.createTasks(7L, created(tasks: [releaseTask([:], '2026-10-10T10:01:00Z')])) } || InvalidRequestException | 'must not be after the installation end'
+        'a secure coding ticket' | 'another business service asks'  | raised()                                           | raised()                         | { it.createSecureCodingTicket(7L, ticket(businessServiceId: 4L)) }                  || SecurityException       | 'Only Corporate Technology can change CHG0031001'
+        'a secure coding ticket' | 'the change moved on meanwhile'  | raised()                                           | raised()                         | { it.createSecureCodingTicket(7L, ticket(version: 1L)) }                            || IllegalStateException   | STALE_VERSION
+        'a secure coding ticket' | 'ProTech has closed the change'  | raised(state: CLOSED)                              | raised(state: CLOSED)            | { it.createSecureCodingTicket(7L, ticket()) }                                       || IllegalStateException   | 'CHG0031001 is closed in ProTech and can no longer be changed'
+        'a secure coding ticket' | 'the change has its ticket'      | raised().withSecureCoding(secureCoding(), 'SCP-7') | stored                           | { it.createSecureCodingTicket(7L, ticket()) }                                       || IllegalStateException   | 'CHG0031001 already has the secure coding ticket SCP-7'
+        'a secure coding ticket' | 'an input is missing'            | raised()                                           | raised()                         | { it.createSecureCodingTicket(7L, ticket(apoNumber: ' ')) }                         || InvalidRequestException | 'is required'
     }
 
-    def "the tasks ProTech created before it refused one are stored and the refusal is passed on"() {
+    def "the tasks ProTech created before it refused one are stored, noted for the audit trail and the refusal is passed on"() {
         given:
         changes.load(7L) >> Optional.of(raised(tasks: []))
         proTech.read(_) >> [CHG0031001: raised(tasks: [])]
 
         when:
-        service.createTasks(7L, created())
+        def notes = AuditNotes.listen()
+        notes.withCloseable { service.createTasks(7L, created()) }
 
         then:
         1 * proTech.createTask('CHG0031001', _) >> 'CTASK0050001'
@@ -995,6 +970,7 @@ class ProductionChangeServiceSpec extends Specification {
         1 * changes.save({ ProductionChange it -> it.tasks()*.number() == ['CTASK0050001'] }) >> { it[0] }
         def refused = thrown(IllegalStateException)
         refused.message == CLOSED_REFUSAL
+        notes.created() == ['CTASK0050001']
     }
 
     def "a refusal of ProTech puts the stored change back and is passed on"() {
@@ -1032,7 +1008,8 @@ class ProductionChangeServiceSpec extends Specification {
         1 * changes.synced([7L], NOW)
 
         then:
-        1 * cyberTrack.create(new SecureCodingTicket('CHG0031001', 'CertScanner', '10102026', secureCoding())) >>
+        1 * cyberTrack.createTicket(new SecureCodingTicket('CHG0031001', 'CertScanner', LocalDate.parse('2026-10-10'),
+                secureCoding())) >>
                 'SCP-1001'
 
         then:
@@ -1055,30 +1032,6 @@ class ProductionChangeServiceSpec extends Specification {
         change.version() == 2L
     }
 
-    def "a secure coding ticket is not created when #problem"() {
-        given:
-        changes.load(7L) >> Optional.of(stored)
-        changes.save(_) >> { ProductionChange it -> it }
-        proTech.read(_) >> [CHG0031001: stored]
-
-        when:
-        service.createSecureCodingTicket(7L, command)
-
-        then:
-        def refused = thrown(type)
-        refused.message == message
-        0 * cyberTrack.create(_)
-        0 * proTech.update(_)
-
-        where:
-        problem                          | stored                                         | command                               || type                    | message
-        'another department asks'        | raised()                                       | ticket(departmentId: 4L)              || SecurityException       | 'Only Corporate Technology can change CHG0031001'
-        'the change moved on meanwhile'  | raised()                                       | ticket(version: 1L)                   || IllegalStateException   | STALE_VERSION
-        'ProTech has closed the change'  | raised(state: CLOSED)                          | ticket()                              || IllegalStateException   | 'CHG0031001 is closed in ProTech and can no longer be changed'
-        'the change has its ticket'      | raised().withSecureCoding(secureCoding(), 'SCP-7') | ticket()                          || IllegalStateException   | 'CHG0031001 already has the secure coding ticket SCP-7'
-        'an input is missing'            | raised()                                       | ticket(apoNumber: ' ')                || InvalidRequestException | 'is required'
-    }
-
     def "every missing or broken input of a secure coding ticket is refused against its field before CyberTrack is asked"() {
         given:
         changes.load(7L) >> Optional.of(raised())
@@ -1098,15 +1051,16 @@ class ProductionChangeServiceSpec extends Specification {
         0 * cyberTrack._
     }
 
-    def "a ticket CyberTrack created but ProTech refused is named in the refusal so it can be entered by hand"() {
+    def "a ticket CyberTrack created but ProTech refused is noted and named in the refusal so it can be entered by hand"() {
         given:
         changes.load(7L) >> Optional.of(raised())
         changes.save(_) >> { ProductionChange it -> it }
         proTech.read(_) >> [CHG0031001: raised()]
-        cyberTrack.create(_) >> 'SCP-1002'
+        cyberTrack.createTicket(_) >> 'SCP-1002'
 
         when:
-        service.createSecureCodingTicket(7L, ticket())
+        def notes = AuditNotes.listen()
+        notes.withCloseable { service.createSecureCodingTicket(7L, ticket()) }
 
         then:
         1 * proTech.update(_) >> { throw new IllegalStateException(CLOSED_REFUSAL) }
@@ -1114,6 +1068,7 @@ class ProductionChangeServiceSpec extends Specification {
         refused.message == 'SCP-1002 was created in CyberTrack, but CHG0031001 could not take it: ' + CLOSED_REFUSAL +
                 ' Enter SCP-1002 as the secure coding ticket with Edit the change.'
         refused.cause.message == CLOSED_REFUSAL
+        notes.created() == ['SCP-1002']
     }
 
     def "a CyberTrack failure is passed on and leaves the change as it was"() {
@@ -1125,7 +1080,7 @@ class ProductionChangeServiceSpec extends Specification {
         service.createSecureCodingTicket(7L, ticket())
 
         then:
-        1 * cyberTrack.create(_) >> { throw new UncheckedIOException('CyberTrack is down', new IOException()) }
+        1 * cyberTrack.createTicket(_) >> { throw new UncheckedIOException('CyberTrack is down', new IOException()) }
         0 * changes.save(_)
         0 * proTech.update(_)
         def refused = thrown(UncheckedIOException)
@@ -1204,9 +1159,9 @@ class ProductionChangeServiceSpec extends Specification {
         where:
         problem                        | id | stored                                         | command                                     | reply                               || type                    | message
         'the change is unknown'        | 8L | raised()                                       | new ReminderCommand(3L, null, null)         | { [:] }                             || NoSuchElementException  | 'Change 8 does not exist'
-        'no department is chosen'      | 7L | raised()                                       | new ReminderCommand(null, null, null)       | { [CHG0031001: awaiting()] }        || InvalidRequestException | 'choose your department'
-        'another department asks'      | 7L | raised()                                       | new ReminderCommand(4L, null, null)         | { [CHG0031001: awaiting()] }        || SecurityException       | 'Only Corporate Technology can remind the approvers of CHG0031001'
-        'no department owns it'        | 7L | raised(departmentId: null, departmentName: null) | new ReminderCommand(3L, null, null)       | { [CHG0031001: awaiting()] }        || SecurityException       | 'No department owns CHG0031001, so nobody can remind the approvers of it in Beadle'
+        'no business service is chosen'      | 7L | raised()                                       | new ReminderCommand(null, null, null)       | { [CHG0031001: awaiting()] }        || InvalidRequestException | 'choose your business service'
+        'another business service asks'      | 7L | raised()                                       | new ReminderCommand(4L, null, null)         | { [CHG0031001: awaiting()] }        || SecurityException       | 'Only Corporate Technology can remind the approvers of CHG0031001'
+        'no business service owns it'        | 7L | raised(businessServiceId: null, businessServiceName: null) | new ReminderCommand(3L, null, null)       | { [CHG0031001: awaiting()] }        || SecurityException       | 'No business service owns CHG0031001, so nobody can remind the approvers of it in Beadle'
         'ProTech cannot be read'       | 7L | raised()                                       | new ReminderCommand(3L, null, null)         | { throw new UncheckedIOException('Read timed out', new IOException()) } || UncheckedIOException | 'Read timed out'
         'ProTech closed it'            | 7L | raised()                                       | new ReminderCommand(3L, null, null)         | { [CHG0031001: raised(state: CLOSED)] } || IllegalStateException | 'CHG0031001 is closed in ProTech, so nobody is reminded to approve it'
         'the approver already approved' | 7L | raised()                                      | new ReminderCommand(3L, BUSINESS, null)     | { [CHG0031001: awaiting()] }        || IllegalStateException   | 'The business approver already approved CHG0031001'
@@ -1233,11 +1188,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         when:
         def notes = AuditNotes.listen()
-        try {
-            call(service)
-        } finally {
-            notes.close()
-        }
+        notes.withCloseable { call(service) }
 
         then:
         def refused = thrown(RuntimeException)
@@ -1263,11 +1214,7 @@ class ProductionChangeServiceSpec extends Specification {
 
         when:
         def notes = AuditNotes.listen()
-        try {
-            service.remind(7L, new ReminderCommand(3L, BUSINESS, null))
-        } finally {
-            notes.close()
-        }
+        notes.withCloseable { service.remind(7L, new ReminderCommand(3L, BUSINESS, null)) }
 
         then:
         def refused = thrown(RuntimeException)
@@ -1280,13 +1227,14 @@ class ProductionChangeServiceSpec extends Specification {
         'someone else stored the change meanwhile' | new IllegalStateException(STALE_VERSION)             || 'The business approver already approved CHG0031001'
     }
 
-    def "the reminders ProTech sent before it refused one are stored and the refusal is passed on"() {
+    def "the reminders ProTech sent before it refused one are stored, noted for the audit trail and the refusal is passed on"() {
         given:
         changes.load(7L) >> Optional.of(awaiting())
         proTech.read(_) >> [CHG0031001: awaiting()]
 
         when:
-        service.remind(7L, new ReminderCommand(3L, null, null))
+        def notes = AuditNotes.listen()
+        notes.withCloseable { service.remind(7L, new ReminderCommand(3L, null, null)) }
 
         then:
         1 * proTech.remind('CHG0031001', ApprovalRef.of(SUPPORT)) >> ['Jane Smith']
@@ -1300,6 +1248,8 @@ class ProductionChangeServiceSpec extends Specification {
                 && it.tasks()*.reminder() == [null, null] }) >> { ProductionChange it -> it }
         def refused = thrown(IllegalStateException)
         refused.message == 'ProTech has nobody to remind on CHG0031001'
+        notes.results() == [reminded: [[role: SUPPORT, task: null, people: ['Jane Smith']]]]
+        notes.created() == []
     }
 
     def "reminders are stored on the latest version when a sync stored the change in the meantime"() {
@@ -1328,79 +1278,11 @@ class ProductionChangeServiceSpec extends Specification {
 
         when:
         def notes = AuditNotes.listen()
-        try {
-            service.raise(command(storyKeys: []))
-        } finally {
-            notes.close()
-        }
+        notes.withCloseable { service.raise(command(storyKeys: [])) }
 
         then:
         thrown(IllegalStateException)
         notes.created() == ['CHG0012345']
-    }
-
-    def "the change tasks ProTech created before it refused one are noted for the audit trail"() {
-        given:
-        changes.load(7L) >> Optional.of(raised(tasks: []))
-        proTech.read(_) >> [CHG0031001: raised(tasks: [])]
-        changes.save(_) >> { it[0] }
-        proTech.createTask('CHG0031001', _) >> 'CTASK0050001' >> { throw new IllegalStateException(CLOSED_REFUSAL) }
-
-        when:
-        def notes = AuditNotes.listen()
-        try {
-            service.createTasks(7L, created())
-        } finally {
-            notes.close()
-        }
-
-        then:
-        thrown(IllegalStateException)
-        notes.created() == ['CTASK0050001']
-    }
-
-    def "the key of a secure coding ticket CyberTrack created is noted for the audit trail even when ProTech refuses it"() {
-        given:
-        changes.load(7L) >> Optional.of(raised())
-        changes.save(_) >> { ProductionChange it -> it }
-        proTech.read(_) >> [CHG0031001: raised()]
-        cyberTrack.create(_) >> 'SCP-1002'
-        proTech.update(_) >> { throw new IllegalStateException(CLOSED_REFUSAL) }
-
-        when:
-        def notes = AuditNotes.listen()
-        try {
-            service.createSecureCodingTicket(7L, ticket())
-        } finally {
-            notes.close()
-        }
-
-        then:
-        thrown(IllegalStateException)
-        notes.created() == ['SCP-1002']
-    }
-
-    def "the people ProTech reminded before it refused a reminder are noted for the audit trail"() {
-        given:
-        changes.load(7L) >> Optional.of(awaiting())
-        proTech.read(_) >> [CHG0031001: awaiting()]
-        changes.save(_) >> { ProductionChange it -> it }
-        proTech.remind('CHG0031001', ApprovalRef.of(SUPPORT)) >> ['Jane Smith', 'Ann Lee']
-        proTech.remind('CHG0031001', ApprovalRef.ofTask('CTASK0041002')) >>
-                { throw new IllegalStateException('ProTech has nobody to remind on CHG0031001') }
-
-        when:
-        def notes = AuditNotes.listen()
-        try {
-            service.remind(7L, new ReminderCommand(3L, null, null))
-        } finally {
-            notes.close()
-        }
-
-        then:
-        thrown(IllegalStateException)
-        notes.results() == [reminded: [[role: SUPPORT, task: null, people: ['Jane Smith', 'Ann Lee']]]]
-        notes.created() == []
     }
 
     static ProductionChange awaiting() {
@@ -1410,22 +1292,22 @@ class ProductionChangeServiceSpec extends Specification {
                 approvals: ChangeApproval.of(template().approvers()).withIndex().collect { approval, index ->
                     new ChangeApproval(approval.role(), approval.approver(), index < 3 ? APPROVED : REQUESTED, null)
                 },
-                tasks: [task(1).withApproval(APPROVED, ['Ann Lee']),
-                        task(2).withApproval(NOT_APPROVED, ['Ann Lee', 'Grace Turner'])])
+                tasks: [task(1).withApproval(APPROVED).withApprovers(['Ann Lee']),
+                        task(2).withApproval(NOT_APPROVED).withApprovers(['Ann Lee', 'Grace Turner'])])
     }
 
     static ChangeTasksCommand created(Map changes = [:]) {
-        Map values = [version: 0L, departmentId: 3L, tasks: [releaseTask([:], null), ChangeTask.of(details(2))]] +
+        Map values = [version: 0L, businessServiceId: 3L, tasks: [releaseTask([:], null), ChangeTask.of(details(2))]] +
                 changes
-        new ChangeTasksCommand(values.version as Long, values.departmentId as Long, values.tasks as List)
+        new ChangeTasksCommand(values.version as Long, values.businessServiceId as Long, values.tasks as List)
     }
 
     static SecureCodingCommand ticket(Map changes = [:]) {
         SecureCoding inputs = secureCoding()
-        Map values = [version: 0L, departmentId: 3L, implementationDate: '10102026', apoNumber: inputs.apoNumber(),
+        Map values = [version: 0L, businessServiceId: 3L, implementationDate: '10102026', apoNumber: inputs.apoNumber(),
                       bitbucketUrl: inputs.bitbucketUrl(), artifactLink: inputs.artifactLink(),
                       qcApplicationLink: inputs.qcApplicationLink()] + changes
-        new SecureCodingCommand(values.version as Long, values.departmentId as Long,
+        new SecureCodingCommand(values.version as Long, values.businessServiceId as Long,
                 new SecureCoding(values.apoNumber as String, values.bitbucketUrl as String,
                         values.artifactLink as String, values.qcApplicationLink as String),
                 values.implementationDate as String)
@@ -1433,10 +1315,10 @@ class ProductionChangeServiceSpec extends Specification {
 
     static ChangeEditCommand edit(Map changes = [:]) {
         ProductionChange stored = raised()
-        Map values = [version: 0L, departmentId: 3L, shortDescription: stored.shortDescription(),
+        Map values = [version: 0L, businessServiceId: 3L, shortDescription: stored.shortDescription(),
                       description: stored.description(), schedule: stored.schedule(), template: stored.template(),
                       tasks: stored.tasks()] + changes
-        new ChangeEditCommand(values.version as Long, values.departmentId as Long, values.shortDescription as String,
+        new ChangeEditCommand(values.version as Long, values.businessServiceId as Long, values.shortDescription as String,
                 values.description as String, values.schedule as ChangeSchedule, values.template as ChangeTemplate,
                 values.tasks as List)
     }

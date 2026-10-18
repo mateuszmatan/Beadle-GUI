@@ -44,15 +44,7 @@ public class KeptRequestBodies extends RequestBodyAdviceAdapter {
         return new KeptBody(inputMessage.getHeaders(), body);
     }
 
-    private static final class KeptBody implements HttpInputMessage {
-
-        private final HttpHeaders headers;
-        private final byte[] body;
-
-        private KeptBody(HttpHeaders headers, byte[] body) {
-            this.headers = headers;
-            this.body = body;
-        }
+    private record KeptBody(HttpHeaders headers, byte[] body) implements HttpInputMessage {
 
         @Override
         public InputStream getBody() {

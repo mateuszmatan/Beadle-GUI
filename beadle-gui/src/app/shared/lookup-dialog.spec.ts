@@ -88,7 +88,7 @@ describe('LookupDialog', () => {
   it('picks the first entry on Enter, says when nothing matches and why the search failed, and searches again', async () => {
     found(null).flush([]);
     await settle();
-    expect(text(page().querySelector('.results .empty'))).toBe('Nothing to choose from.');
+    expect(text(page().querySelector('.results .empty'))).toBe('No values are available.');
     search().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     expect(close).not.toHaveBeenCalled();
 
@@ -96,7 +96,7 @@ describe('LookupDialog', () => {
     found('zz').flush([]);
     await settle();
     expect(text(page().querySelector('.results .empty'))).toBe(
-      'Nothing in ProTech matches "zz". Try other words, or close this and type the value into the field.',
+      'Nothing in ProTech matches "zz". Try other search terms, or close this dialog and enter the value in the field.',
     );
 
     await type('cert');
