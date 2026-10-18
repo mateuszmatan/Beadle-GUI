@@ -10,7 +10,7 @@ const DEMO_CYBERTRACK =
   'CyberTrack is not connected yet, so a secure coding ticket gets an example number and does not reach the real Jira project SCP.';
 
 const UNREACHABLE_PROTECH =
-  'Beadle-ProTech cannot be reached, so no change can be raised, changed or reminded in ProTech, and the changes show what Beadle stored last, until it is reachable again.';
+  'Beadle-ProTech cannot be reached, so no change can be created, changed or reminded in ProTech, and the changes show what Beadle stored last, until it is reachable again.';
 
 const UNREACHABLE_INTERNAL =
   'Beadle-Internal cannot be reached, so the Jira FixVersions, epics and stories cannot be read and no secure coding ticket can be created, until it is reachable again.';

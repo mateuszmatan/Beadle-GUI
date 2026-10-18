@@ -77,7 +77,7 @@ class MigrationSpec extends Specification {
         liquibase.update('')
 
         expect:
-        audit('CHANGE_RAISED', 'CHANGE', 'SUCCESS') + audit('BUSINESS_SERVICE_CREATED', 'BUSINESS_SERVICE', 'FAILURE') == 2
+        audit('CHANGE_CREATED', 'CHANGE', 'SUCCESS') + audit('BUSINESS_SERVICE_CREATED', 'BUSINESS_SERVICE', 'FAILURE') == 2
 
         when:
         audit(action, objectType, outcome)
@@ -88,10 +88,11 @@ class MigrationSpec extends Specification {
         where:
         action               | objectType         | outcome
         'CHANGE_VIEWED'      | 'CHANGE'           | 'SUCCESS'
-        'CHANGE_RAISED'      | 'INVOICE'          | 'SUCCESS'
-        'CHANGE_RAISED'      | 'CHANGE'           | 'UNKNOWN'
+        'CHANGE_RAISED'      | 'CHANGE'           | 'SUCCESS'
+        'CHANGE_CREATED'     | 'INVOICE'          | 'SUCCESS'
+        'CHANGE_CREATED'     | 'CHANGE'           | 'UNKNOWN'
         'DEPARTMENT_CREATED' | 'BUSINESS_SERVICE' | 'SUCCESS'
-        'CHANGE_RAISED'      | 'DEPARTMENT'       | 'SUCCESS'
+        'CHANGE_CREATED'     | 'DEPARTMENT'       | 'SUCCESS'
     }
 
     def "003 turns the departments of an existing database into business services, keeping their data, and rolls back"() {
@@ -133,7 +134,7 @@ class MigrationSpec extends Specification {
         audit('CHANGE_RAISED', 'CHANGE')
 
         when:
-        liquibase.update('')
+        updateBefore('005-')
 
         then:
         jdbc.queryForObject('SELECT REQUEST_BUSINESS_SERVICE FROM BEADLE_CHANGE_PROFILE', String) == 'Custody'
@@ -188,6 +189,30 @@ class MigrationSpec extends Specification {
 
         then:
         thrown(DataIntegrityViolationException)
+    }
+
+    def "006 files the changes created in ProTech as CHANGE_CREATED, keeping their rows, and rolls back"() {
+        given: 'a database at 005 with a change raised under the old name'
+        updateBefore('006-')
+        audit('CHANGE_RAISED', 'CHANGE')
+
+        when:
+        liquibase.update('')
+
+        then:
+        actions() == ['CHANGE_CREATED/CHANGE']
+
+        when:
+        audit('CHANGE_RAISED', 'CHANGE')
+
+        then:
+        thrown(DataIntegrityViolationException)
+
+        when:
+        rollBackSince('006-')
+
+        then:
+        actions() == ['CHANGE_RAISED/CHANGE']
     }
 
     private void updateBefore(String id) {

@@ -23,7 +23,7 @@ export const NEW_CHANGE: AppSection = {
   label: 'New Change',
   heading: 'New ProTech Change',
   description:
-    "Raise a ProTech change for a production release in guided steps. The product's change template fills in the answers and Jira provides the scope.",
+    "Create a ProTech change for a production release in guided steps. The product's change template fills in the answers and Jira provides the scope.",
 };
 
 export const ADMIN: AppSection = {

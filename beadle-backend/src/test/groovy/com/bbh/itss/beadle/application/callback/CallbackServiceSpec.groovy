@@ -10,7 +10,7 @@ import java.time.Instant
 import static com.bbh.itss.beadle.domain.callback.InternalSystem.CYBERTRACK
 import static com.bbh.itss.beadle.domain.callback.ProTechEvent.APPROVAL_CHANGED
 import static com.bbh.itss.beadle.domain.change.ChangeState.SUPPORT_APPROVAL
-import static com.bbh.itss.beadle.support.ChangeFixtures.raised
+import static com.bbh.itss.beadle.support.ChangeFixtures.issued
 
 class CallbackServiceSpec extends Specification {
 
@@ -19,9 +19,9 @@ class CallbackServiceSpec extends Specification {
     ProductionChangesUseCase changes = Mock()
     def service = new CallbackService(changes)
 
-    def "a ProTech callback reads the change again, if Beadle raised it"() {
+    def "a ProTech callback reads the change again, if Beadle created it"() {
         given:
-        def change = raised(state: SUPPORT_APPROVAL)
+        def change = issued(state: SUPPORT_APPROVAL)
 
         when:
         def read = service.proTech(new ProTechCallback(number, APPROVAL_CHANGED, SUPPORT_APPROVAL, AT))

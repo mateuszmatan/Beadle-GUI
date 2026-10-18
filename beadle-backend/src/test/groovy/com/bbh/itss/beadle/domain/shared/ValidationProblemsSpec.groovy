@@ -39,7 +39,7 @@ class ValidationProblemsSpec extends Specification {
         outcome = fields.size() == 1 ? 'says it' : 'counts them'
     }
 
-    def "a request without problems passes and a single field problem can be raised directly"() {
+    def "a request without problems passes and a single field problem can be created directly"() {
         when:
         problems.throwIfAny()
         def e = InvalidRequestException.of('range', 'use 30d')

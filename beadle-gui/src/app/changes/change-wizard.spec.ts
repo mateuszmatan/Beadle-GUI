@@ -255,7 +255,7 @@ describe('ChangeWizard', () => {
     expect(page().querySelector('.defaults-note a')?.getAttribute('href')).toBe(
       '/admin/products/1',
     );
-    expect(inputOf(page(), 'Change number').placeholder).toBe('Given by ProTech when raised');
+    expect(inputOf(page(), 'Change number').placeholder).toBe('Given by ProTech when created');
     const facts = [
       'Approval',
       'Opened by',
@@ -355,31 +355,31 @@ describe('ChangeWizard', () => {
     expect(preview.request.body).toMatchObject({ productId: 1, storyKeys: ['CERT-2', 'CERT-3'] });
     preview.flush(DRAFT);
     await settle();
-    expect(heading()).toBe('Check the change and raise it in ProTech');
+    expect(heading()).toBe('Check the change and create it in ProTech');
     expect(shown('.scope')).toBe('1 epic and 1 story of FixVersion CERT 4.2');
-    expect(shown('beadle-change-summary')).toContain('Change numberGiven by ProTech when raised');
+    expect(shown('beadle-change-summary')).toContain('Change numberGiven by ProTech when created');
   });
 
-  it('raises the change with the texts of the review and offers the default change tasks', async () => {
+  it('creates the change with the texts of the review and offers the default change tasks', async () => {
     await toReview();
-    expect(nextLabel()).toBe('Raise change in ProTech');
+    expect(nextLabel()).toBe('Create change in ProTech');
     expect(page().querySelector('beadle-change-tasks-form')).toBeNull();
     await type('Short description', 'CertScanner 4.2');
 
     await next();
-    const raised = http.expectOne({ method: 'POST', url: '/api/changes' });
-    expect(raised.request.body).toMatchObject({
+    const created = http.expectOne({ method: 'POST', url: '/api/changes' });
+    expect(created.request.body).toMatchObject({
       fixVersion: 'CERT 4.2',
       shortDescription: 'CertScanner 4.2',
     });
-    expect(raised.request.body).not.toHaveProperty('tasks');
+    expect(created.request.body).not.toHaveProperty('tasks');
     const template = changeTemplate({ configurationItem: 'Payments Hub' });
-    raised.flush(productionChange({ template, tasks: [] }));
+    created.flush(productionChange({ template, tasks: [] }));
     await settle();
 
     expect(heading()).toBe('Change tasks of CHG0012345');
-    expect(shown('.raised-note')).toBe(
-      'CHG0012345 has been raised in ProTech. Add its change tasks next.',
+    expect(shown('.created-note')).toBe(
+      'CHG0012345 has been created in ProTech. Add its change tasks next.',
     );
     expect(stepCount()).toBe('Step 9 of 10');
     expect(shown('.step-actions .btn-outline-primary')).toBe('Add change tasks later');
@@ -442,7 +442,7 @@ describe('ChangeWizard', () => {
     ticket.flush(productionChange({ template, tasks: [changeTask()] }));
     await settle();
 
-    expect(heading()).toBe('CHG0012345 has been raised');
+    expect(heading()).toBe('CHG0012345 has been created');
     expect(stepCount()).toBe('Step 11 of 11');
     expect(value('Secure coding ticket number')).toBe('SCP-1234');
     expect(shown('.review-list')).toBe(
@@ -452,7 +452,7 @@ describe('ChangeWizard', () => {
     expect(page().querySelector('.step-actions a')?.getAttribute('href')).toBe('/changes/7');
     expect(wizard().hasUnsavedChanges()).toBe(false);
 
-    await click(buttonOf(page(), 'Raise another change'));
+    await click(buttonOf(page(), 'Create another change'));
     expect(stepCount()).toBe('Step 1 of 8');
     expect(selectOf(page(), 'Product').value).toBe('');
   });
@@ -466,8 +466,8 @@ describe('ChangeWizard', () => {
       epicKeys: 'CERT-1 is not in Jira project CERT',
     });
 
-    expect(heading()).toBe('Check the change and raise it in ProTech');
-    expect(saveProblem()).toBe('The change could not be raised: 3 fields are invalid');
+    expect(heading()).toBe('Check the change and create it in ProTech');
+    expect(saveProblem()).toBe('The change could not be created: 3 fields are invalid');
     expect(problems()).toEqual([
       'Installation end: must be after the start',
       'Backout plan: must not be blank',
@@ -528,7 +528,7 @@ describe('ChangeWizard', () => {
     );
 
     await click(buttonOf(page(), 'Create ticket later'));
-    expect(heading()).toBe('CHG0012345 has been raised');
+    expect(heading()).toBe('CHG0012345 has been created');
     expect(page().querySelector('.save-problem')).toBeNull();
     expect(shown('.review-list')).toBe('None yet. Add them with Edit change on the change page.');
     expect(inputOf(page(), 'Secure coding ticket number').placeholder).toBe(
@@ -604,16 +604,16 @@ describe('ChangeWizard', () => {
     }
     fail(http.expectOne('/api/changes/preview'), 'Jira is down');
     await settle();
-    const raise = () => buttonOf(page(), 'Raise change in ProTech');
+    const create = () => buttonOf(page(), 'Create change in ProTech');
     expect(saveProblem()).toBe('The change could not be previewed: Jira is down');
-    expect(raise().disabled).toBe(true);
+    expect(create().disabled).toBe(true);
 
     await click(buttonOf(page(), 'Try again'));
     http.expectOne('/api/changes/preview').flush(DRAFT);
     await settle();
     expect(page().querySelector('.save-problem')).toBeNull();
     expect(value('Short description')).toBe('CertScanner CERT 4.2: Expiry alerts');
-    expect(raise().disabled).toBe(false);
+    expect(create().disabled).toBe(false);
   });
 
   it('asks Jira about the project of the product and keeps the epics found until they are found again', async () => {
@@ -855,7 +855,7 @@ describe('ChangeWizard', () => {
     expect(value('Description')).toBe('Mine');
   });
 
-  it('comes back to the change tasks of the change it raised, without raising it again', async () => {
+  it('comes back to the change tasks of the change it created, without creating it again', async () => {
     await toTasks();
     await type('Short description', 'Deploy CertScanner 4.2 with care', rows()[0]);
 

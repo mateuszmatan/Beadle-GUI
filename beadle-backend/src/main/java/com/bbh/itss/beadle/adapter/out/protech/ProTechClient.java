@@ -23,7 +23,7 @@ import static org.apache.commons.collections4.MapUtils.emptyIfNull;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 /**
- * Beadle-ProTech, {@code /api/protech} (docs/CONTRACTS.md): the changes in ProTech as Beadle raises, reads, updates
+ * Beadle-ProTech, {@code /api/protech} (docs/CONTRACTS.md): the changes in ProTech as Beadle creates, reads, updates
  * and reminds them, and the lookups of ProTech; ProTech counts as connected while Beadle-ProTech answers its status as
  * live. The bodies are the JSON of {@link ProductionChange} and {@link ChangeTask}.
  */
@@ -53,10 +53,10 @@ public class ProTechClient extends BeadleServiceClient<ProTechClient.Status> imp
     }
 
     @Override
-    public RaisedChange raise(ProductionChange draft) {
-        return required(call("raise the change", client -> client.post().uri("/api/protech/changes")
-                        .contentType(APPLICATION_JSON).body(draft).retrieve().body(RaisedChange.class)),
-                RaisedChange::number, "number of the new change");
+    public CreatedChange create(ProductionChange draft) {
+        return required(call("create the change", client -> client.post().uri("/api/protech/changes")
+                        .contentType(APPLICATION_JSON).body(draft).retrieve().body(CreatedChange.class)),
+                CreatedChange::number, "number of the new change");
     }
 
     @Override

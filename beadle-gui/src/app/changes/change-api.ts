@@ -409,7 +409,7 @@ export class ChangesApi {
     return this.http.post<ProductionChange>('/api/changes/preview', request);
   }
 
-  raise(request: ChangeRequest): Observable<ProductionChange> {
+  create(request: ChangeRequest): Observable<ProductionChange> {
     return this.http.post<ProductionChange>('/api/changes', request);
   }
 

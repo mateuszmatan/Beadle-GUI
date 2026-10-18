@@ -102,24 +102,24 @@ public record ProductionChange(Long id, String number, Long productId, String pr
     public static ProductionChange draft(ChangeProduct product, String openedBy, String fixVersion,
                                          ChangeSchedule schedule, ChangeTemplate template, List<JiraIssue> epics,
                                          List<JiraIssue> stories, String shortDescription, String description) {
-        ChangeTemplate raised = template.releasedAs(fixVersion).openedBy(openedBy, product.businessServiceName())
+        ChangeTemplate released = template.releasedAs(fixVersion).openedBy(openedBy, product.businessServiceName())
                 .toBuilder().secureCodingTicket(null).build();
         String summary = isBlank(shortDescription) ? shortDescriptionOf(product, fixVersion, epics)
                 : shortDescription.trim();
         String text = isBlank(description)
-                ? descriptionOf(product, fixVersion, schedule, raised, epics, stories)
+                ? descriptionOf(product, fixVersion, schedule, released, epics, stories)
                 : description.trim();
         return builder().productId(product.id()).productCode(product.code()).productName(product.name())
                 .businessServiceId(product.businessServiceId()).businessServiceName(product.businessServiceName())
                 .openedBy(openedBy)
                 .fixVersion(fixVersion)
-                .schedule(schedule).shortDescription(summary).description(text).template(raised)
+                .schedule(schedule).shortDescription(summary).description(text).template(released)
                 .epicKeys(epics.stream().map(JiraIssue::key).toList())
                 .storyKeys(stories.stream().map(JiraIssue::key).toList())
                 .tasks(List.of()).build();
     }
 
-    public ProductionChange raisedAt(Instant at) {
+    public ProductionChange created(Instant at) {
         return toBuilder().state(DRAFT).workflow(List.of(new WorkflowStep(DRAFT, at)))
                 .approvals(ChangeApproval.of(template.approvers())).syncedAt(at).createdAt(at).build();
     }
@@ -261,7 +261,7 @@ public record ProductionChange(Long id, String number, Long productId, String pr
         return toBuilder().update(update.waitingFor(unappliedIn(stored))).syncProblem(problem).build();
     }
 
-    /** A raised change is filed in the audit trail under its number; a draft under the product it is drafted for. */
+    /** A created change is filed in the audit trail under its number; a draft under the product it is drafted for. */
     @Override
     public ActionObject auditedObject() {
         return number == null ? new ActionObject(PRODUCT, productId, productCode)

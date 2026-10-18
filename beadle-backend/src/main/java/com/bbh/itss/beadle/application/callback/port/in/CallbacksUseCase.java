@@ -9,7 +9,7 @@ import java.util.Optional;
 /** The callbacks of Beadle-ProTech and Beadle-Internal. */
 public interface CallbacksUseCase {
 
-    /** Reads the change again from ProTech; empty when Beadle did not raise the change. */
+    /** Reads the change again from ProTech; empty when Beadle did not create the change. */
     Optional<ProductionChange> proTech(ProTechCallback callback);
 
     /** Takes note of the new status of an item Beadle-Internal created. */

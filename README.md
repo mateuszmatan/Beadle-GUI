@@ -1,9 +1,9 @@
 # Beadle-GUI
 
-Beadle raises ProTech changes for production releases at BBH, with their change tasks and their CyberTrack secure
+Beadle creates ProTech changes for production releases at BBH, with their change tasks and their CyberTrack secure
 coding ticket, from the change template of each product. Beadle-GUI is the Angular interface and the Spring Boot
-service behind it: the system of record of business services, products, change templates and raised changes, and the
-audit trail of what every user did. It packs into one jar and one container image.
+service behind it: the system of record of business services, products, change templates and the changes Beadle
+created, and the audit trail of what every user did. It packs into one jar and one container image.
 
 ## How it fits with the other two services
 

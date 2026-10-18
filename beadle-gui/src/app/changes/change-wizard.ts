@@ -81,14 +81,14 @@ import { IntegrationNote } from './integration-note';
 import { SecureCodingFields } from './secure-coding-form';
 import { SecureCodingForm, secureCodingForm, secureCodingRequest } from './secure-coding-model';
 
-type StepKey = SectionKey | 'review' | 'tasks' | 'ticket' | 'raised';
+type StepKey = SectionKey | 'review' | 'tasks' | 'ticket' | 'created';
 
 const STEP_KEYS: readonly StepKey[] = [
   ...WIZARD_SECTIONS.map((section) => section.key),
   'review',
   'tasks',
   'ticket',
-  'raised',
+  'created',
 ];
 
 export const STEPS = [
@@ -102,10 +102,10 @@ export const STEPS = [
 const REVIEW = STEP_KEYS.indexOf('review');
 const TASKS = STEP_KEYS.indexOf('tasks');
 const TICKET = STEP_KEYS.indexOf('ticket');
-const RAISED = STEP_KEYS.indexOf('raised');
+const CREATED = STEP_KEYS.indexOf('created');
 
 const NEXT_LABELS: Partial<Record<StepKey, string>> = {
-  review: 'Raise change in ProTech',
+  review: 'Create change in ProTech',
   tasks: 'Create change tasks in ProTech',
   ticket: 'Create secure coding ticket in CyberTrack',
 };
@@ -119,7 +119,7 @@ const LATER_LABELS: Partial<Record<StepKey, string>> = {
 export const WIZARD_DRAFT = 'new-change';
 
 /**
- * What the wizard keeps in the tab when the session ends before the change is raised, or before its change tasks and
+ * What the wizard keeps in the tab when the session ends before the change is created, or before its change tasks and
  * its secure coding ticket are created: enough to open it again on the same step with the same entries.
  */
 export interface WizardDraft {
@@ -138,7 +138,7 @@ export interface WizardDraft {
   /** The texts the user wrote over the generated ones; null keeps the generated text. */
   shortDescription: string | null;
   description: string | null;
-  raised: ProductionChange | null;
+  created: ProductionChange | null;
   tasks: TaskRequest[] | null;
   secureCoding: ReturnType<SecureCodingForm['getRawValue']> | null;
 }
@@ -330,12 +330,12 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
       ? [...this.epicKeys(), ...this.storyKeys()].join()
       : null,
   );
-  protected readonly raising = signal(false);
+  protected readonly creating = signal(false);
   protected readonly problem = signal<string | null>(null);
   protected readonly problems = signal<string[]>([]);
-  protected readonly raised = signal<ProductionChange | null>(null);
+  protected readonly created = signal<ProductionChange | null>(null);
   protected readonly steps = computed(() =>
-    STEPS.slice(0, Math.max(this.step(), this.raised() ? TICKET : REVIEW) + 1),
+    STEPS.slice(0, Math.max(this.step(), this.created() ? TICKET : REVIEW) + 1),
   );
   private filledRelease: string | null = null;
   private filledStart: string | null = null;
@@ -430,7 +430,7 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
       filledStart: this.filledStart,
       shortDescription: this.shortDescription.dirty ? this.shortDescription.value : null,
       description: this.description.dirty ? this.description.value : null,
-      raised: this.raised(),
+      created: this.created(),
       tasks: tasks ? toTaskRequests(tasks) : null,
       secureCoding: this.secureCoding()?.getRawValue() ?? null,
     };
@@ -440,12 +440,12 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
     return (
       this.step() === TASKS ||
       this.step() === TICKET ||
-      (!this.raised() && (this.step() > 0 || this.searched() !== null || !!this.details()?.dirty))
+      (!this.created() && (this.step() > 0 || this.searched() !== null || !!this.details()?.dirty))
     );
   }
 
   protected canRevisit(index: number): boolean {
-    return index < this.step() && !this.raised() && !this.raising() && !this.previewing();
+    return index < this.step() && !this.created() && !this.creating() && !this.previewing();
   }
 
   protected goTo(index: number): void {
@@ -469,7 +469,7 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
     }
     const leaving = this.stepKey();
     if (leaving === 'review') {
-      this.raise();
+      this.create();
       return;
     }
     if (leaving === 'tasks') {
@@ -515,7 +515,7 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
         return this.tasks()!.invalid ? 'Check the change tasks' : null;
       case 'ticket':
         return this.secureCoding()!.invalid ? ATTENTION : null;
-      case 'raised':
+      case 'created':
         return null;
       default:
         return this.sectionProblem(key);
@@ -610,7 +610,7 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
   }
 
   protected restart(): void {
-    this.raised.set(null);
+    this.created.set(null);
     this.tasks.set(null);
     this.secureCoding.set(null);
     this.productId.setValue(null);
@@ -648,14 +648,14 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
       this.schedule()!.patchValue(draft.schedule);
     }
     this.filledStart = draft.filledStart;
-    const raised = draft.raised;
-    if (raised) {
-      const ticket = secureCodingForm(raised);
+    const created = draft.created;
+    if (created) {
+      const ticket = secureCodingForm(created);
       if (draft.secureCoding) {
         ticket.patchValue(draft.secureCoding);
       }
-      this.raised.set(raised);
-      this.tasks.set(tasksForm(draft.tasks ?? [], taskWindow(raised.number, raised.schedule)));
+      this.created.set(created);
+      this.tasks.set(tasksForm(draft.tasks ?? [], taskWindow(created.number, created.schedule)));
       this.secureCoding.set(ticket);
       this.step.set(Math.min(Math.max(draft.step, TASKS), TICKET));
       return;
@@ -704,7 +704,7 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
       this.tasks()!.markAllAsTouched();
     } else if (key === 'ticket') {
       this.secureCoding()!.markAllAsTouched();
-    } else if (key !== 'review' && key !== 'raised' && this.details()) {
+    } else if (key !== 'review' && key !== 'created' && this.details()) {
       sectionControls(this.details()!, key).forEach((control) => control.markAllAsTouched());
     }
   }
@@ -814,29 +814,29 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
     );
   }
 
-  private raise(): void {
-    this.raising.set(true);
+  private create(): void {
+    this.creating.set(true);
     this.problem.set(null);
     this.problems.set([]);
     this.changesApi
-      .raise({
+      .create({
         ...this.request(),
         shortDescription: this.shortDescription.value,
         description: this.description.value,
       })
       .pipe(
-        finalize(() => this.raising.set(false)),
+        finalize(() => this.creating.set(false)),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
         next: (change) => {
-          this.raised.set(change);
+          this.created.set(change);
           this.tasks.set(this.draftTasks(change));
           this.secureCoding.set(secureCodingForm(change));
           this.checked.set(false);
           this.step.set(TASKS);
         },
-        error: (error) => this.fail(error, 'The change could not be raised: '),
+        error: (error) => this.fail(error, 'The change could not be created: '),
       });
   }
 
@@ -852,8 +852,8 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
   }
 
   private createTasks(): void {
-    const change = this.raised()!;
-    this.raising.set(true);
+    const change = this.created()!;
+    this.creating.set(true);
     this.problem.set(null);
     this.problems.set([]);
     this.changesApi
@@ -863,12 +863,12 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
         tasks: toTaskRequests(this.tasks()!),
       })
       .pipe(
-        finalize(() => this.raising.set(false)),
+        finalize(() => this.creating.set(false)),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
         next: (tasked) => {
-          this.raised.set(tasked);
+          this.created.set(tasked);
           this.tasks()!.markAsPristine();
           this.checked.set(false);
           this.step.set(TICKET);
@@ -878,8 +878,8 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
   }
 
   private createTicket(): void {
-    const change = this.raised()!;
-    this.raising.set(true);
+    const change = this.created()!;
+    this.creating.set(true);
     this.problem.set(null);
     this.problems.set([]);
     this.changesApi
@@ -892,15 +892,15 @@ export class ChangeWizard implements HasUnsavedChanges, KeepsDraft {
         ),
       )
       .pipe(
-        finalize(() => this.raising.set(false)),
+        finalize(() => this.creating.set(false)),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
         next: (ticketed) => {
-          this.raised.set(ticketed);
+          this.created.set(ticketed);
           this.secureCoding()!.markAsPristine();
           this.checked.set(false);
-          this.step.set(RAISED);
+          this.step.set(CREATED);
         },
         error: (error) => this.fail(error, 'The secure coding ticket could not be created: '),
       });

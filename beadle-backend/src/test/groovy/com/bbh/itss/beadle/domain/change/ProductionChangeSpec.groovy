@@ -38,7 +38,7 @@ import static com.bbh.itss.beadle.domain.change.TaskState.OPEN
 import static com.bbh.itss.beadle.domain.change.TaskState.WORK_IN_PROGRESS
 import static com.bbh.itss.beadle.domain.shared.Text.bytes
 import static com.bbh.itss.beadle.support.ChangeFixtures.FIX_VERSION
-import static com.bbh.itss.beadle.support.ChangeFixtures.RAISED
+import static com.bbh.itss.beadle.support.ChangeFixtures.CREATED
 import static com.bbh.itss.beadle.support.ChangeFixtures.at
 import static com.bbh.itss.beadle.support.ChangeFixtures.changeProduct
 import static com.bbh.itss.beadle.support.ChangeFixtures.changeUrl
@@ -46,7 +46,7 @@ import static com.bbh.itss.beadle.support.ChangeFixtures.ctask
 import static com.bbh.itss.beadle.support.ChangeFixtures.details
 import static com.bbh.itss.beadle.support.ChangeFixtures.epic
 import static com.bbh.itss.beadle.support.ChangeFixtures.privileged
-import static com.bbh.itss.beadle.support.ChangeFixtures.raised
+import static com.bbh.itss.beadle.support.ChangeFixtures.issued
 import static com.bbh.itss.beadle.support.ChangeFixtures.releaseTask
 import static com.bbh.itss.beadle.support.ChangeFixtures.schedule
 import static com.bbh.itss.beadle.support.ChangeFixtures.secureCoding
@@ -196,25 +196,25 @@ class ProductionChangeSpec extends Specification {
         text.endsWith('Business impact: Low')
     }
 
-    def "a raised change is a draft of its raise time with its number and its link"() {
+    def "a created change is a draft of its create time with its number and its link"() {
         given:
         def drafted = draft(changeProduct(businessServiceName: null), null, FIX_VERSION, schedule(), template(),
                 epics, [], null, null)
 
         when:
-        def raised = drafted.raisedAt(RAISED).numbered('CHG0001', changeUrl('CHG0001'))
+        def created = drafted.created(CREATED).numbered('CHG0001', changeUrl('CHG0001'))
 
         then:
-        raised.number() == 'CHG0001'
-        raised.url() == changeUrl('CHG0001')
-        raised.tasks() == []
-        [raised.state(), raised.workflow(), raised.syncedAt(), raised.createdAt()] ==
-                [DRAFT, [new WorkflowStep(DRAFT, RAISED)], RAISED, RAISED]
-        [raised.fixVersion(), raised.schedule(), raised.template()] ==
+        created.number() == 'CHG0001'
+        created.url() == changeUrl('CHG0001')
+        created.tasks() == []
+        [created.state(), created.workflow(), created.syncedAt(), created.createdAt()] ==
+                [DRAFT, [new WorkflowStep(DRAFT, CREATED)], CREATED, CREATED]
+        [created.fixVersion(), created.schedule(), created.template()] ==
                 [drafted.fixVersion(), drafted.schedule(), drafted.template()]
-        raised.shortDescription() == drafted.shortDescription()
-        raised.description() == drafted.description()
-        raised.approvals() == [new ChangeApproval(BUSINESS, 'Rebecca Lawson', NOT_APPROVED, null),
+        created.shortDescription() == drafted.shortDescription()
+        created.description() == drafted.description()
+        created.approvals() == [new ChangeApproval(BUSINESS, 'Rebecca Lawson', NOT_APPROVED, null),
                                new ChangeApproval(L1, 'Olivia Bennett', NOT_APPROVED, null),
                                new ChangeApproval(L2, 'James Carter', NOT_APPROVED, null),
                                new ChangeApproval(SUPPORT, 'Jane Smith', NOT_APPROVED, null)]
@@ -222,7 +222,7 @@ class ProductionChangeSpec extends Specification {
 
     def "a secure coding ticket is stored with the inputs it was created from and changes nothing else"() {
         given:
-        def change = raised()
+        def change = issued()
         def inputs = secureCoding(apoNumber: 'APO-777')
 
         when:
@@ -235,8 +235,8 @@ class ProductionChangeSpec extends Specification {
 
     def "#path is what ProTech has not applied when it holds another value"() {
         expect:
-        raised().unappliedIn(raised(edit)) == [path]
-        raised(edit).unappliedIn(raised()) == [path]
+        issued().unappliedIn(issued(edit)) == [path]
+        issued(edit).unappliedIn(issued()) == [path]
 
         where:
         path                               | edit
@@ -268,21 +268,21 @@ class ProductionChangeSpec extends Specification {
         'template.privilegedAccess'        | [template: template(release: FIX_VERSION, privilegedAccess: privileged(1))]
         'template.riskAssessment'          | [template: template(release: FIX_VERSION, riskAssessment: RiskAssessment.DEFAULTS)]
         'template.secureCodingTicket'      | [template: template(release: FIX_VERSION, secureCodingTicket: 'APPSEC-1')]
-        'tasks'                            | [tasks: raised().tasks().take(1)]
-        'tasks'                            | [tasks: raised().tasks().reverse()]
-        'tasks'                            | [tasks: [raised().tasks()[0], ctask('CTASK0041002', 'Other', 'Step 2 of the CertScanner release.', OPEN)]]
+        'tasks'                            | [tasks: issued().tasks().take(1)]
+        'tasks'                            | [tasks: issued().tasks().reverse()]
+        'tasks'                            | [tasks: [issued().tasks()[0], ctask('CTASK0041002', 'Other', 'Step 2 of the CertScanner release.', OPEN)]]
     }
 
     def "the paths are listed in their order, and the fixed template fields, task states and canceled tasks never differ"() {
         given:
-        def mine = raised()
-        def all = raised(shortDescription: 'S', description: 'D',
+        def mine = issued()
+        def all = issued(shortDescription: 'S', description: 'D',
                 schedule: new ChangeSchedule(*(1..7).collect { at("2026-11-0${it}T08:00:00Z") }),
                 template: new ChangeTemplate('OTHER', 'RF', 'RB', 'DE', 'G', 'C', 'AT', EMERGENCY, 'R', 'CI', 'I',
                         'DBS', 'P', 'High', 'A', 'UA', Approvers.NONE, true, new Timing('06:00', 1, 0), PLANNING,
                         privileged(1), RiskAssessment.DEFAULTS, 'SCT', secureCoding()),
                 tasks: [])
-        def same = raised(template: template(release: FIX_VERSION, jiraProjectKey: 'OTHER', type: EMERGENCY,
+        def same = issued(template: template(release: FIX_VERSION, jiraProjectKey: 'OTHER', type: EMERGENCY,
                 timing: new Timing('06:00', 1, 0)),
                 tasks: mine.tasks().collect { it.withState(WORK_IN_PROGRESS) } + ctask('CTASK9', 'Gone', 'Gone.', CANCELED))
 
@@ -302,8 +302,8 @@ class ProductionChangeSpec extends Specification {
 
     def "without an update in flight ProTech's values, tasks, state, workflow and link replace the stored ones"() {
         given:
-        def applied = new ChangeUpdate(APPLIED, RAISED, 'Custody', [], null, RAISED)
-        def stored = raised(update: applied, syncProblem: 'old problem')
+        def applied = new ChangeUpdate(APPLIED, CREATED, 'Custody', [], null, CREATED)
+        def stored = issued(update: applied, syncProblem: 'old problem')
         def remote = remote(shortDescription: 'Changed in ProTech', id: null, businessServiceId: null, epicKeys: [],
                 template: template(release: 'R 9', jiraProjectKey: 'OTHER', type: EMERGENCY))
 
@@ -316,13 +316,13 @@ class ProductionChangeSpec extends Specification {
                 .syncedAt(NOW).syncProblem(null).build()
         synced.update() == applied
         synced.differsFrom(stored)
-        !stored.synced(raised(), NOW).differsFrom(stored)
-        stored.synced(raised(), NOW).syncedAt() == NOW
+        !stored.synced(issued(), NOW).differsFrom(stored)
+        stored.synced(issued(), NOW).syncedAt() == NOW
     }
 
     def "an update ProTech #outcome is #status with the paths it did not apply, checked now"() {
         given:
-        def stored = raised(shortDescription: 'Requested', update: requested(NOW.minusSeconds(age), 'Custody'))
+        def stored = issued(shortDescription: 'Requested', update: requested(NOW.minusSeconds(age), 'Custody'))
         def remote = remote(shortDescription: holds)
 
         when:
@@ -344,7 +344,7 @@ class ProductionChangeSpec extends Specification {
 
     def "a pending update checked again differs only when more than its check time changed"() {
         given:
-        def stored = raised(shortDescription: 'Requested', update: requested(NOW.minusSeconds(10), 'Custody'))
+        def stored = issued(shortDescription: 'Requested', update: requested(NOW.minusSeconds(10), 'Custody'))
                 .synced(remote(shortDescription: 'Old'), NOW.minusSeconds(5))
 
         expect:
@@ -354,12 +354,12 @@ class ProductionChangeSpec extends Specification {
         stored.synced(remote(shortDescription: 'Old', description: 'Other'), NOW).differsFrom(stored)
         stored.synced(remote(shortDescription: 'Requested'), NOW).differsFrom(stored)
         stored.synced(remote(shortDescription: 'Old', state: BUSINESS_APPROVAL), NOW).differsFrom(stored)
-        !raised().synced(raised(), NOW).differsFrom(raised())
+        !issued().synced(issued(), NOW).differsFrom(issued())
     }
 
     def "a pending update keeps the requested tasks with the states ProTech gives the tasks it knows"() {
         given:
-        def requested = raised(update: requested(NOW, 'Custody'), tasks: raised().tasks().take(1) +
+        def requested = issued(update: requested(NOW, 'Custody'), tasks: issued().tasks().take(1) +
                 ctask(null, 'New task', 'A new task.', OPEN))
 
         when:
@@ -367,7 +367,7 @@ class ProductionChangeSpec extends Specification {
 
         then:
         synced.update().fields() == ['tasks']
-        synced.tasks() == [raised().tasks()[0].withState(WORK_IN_PROGRESS).withApproval(APPROVED)
+        synced.tasks() == [issued().tasks()[0].withState(WORK_IN_PROGRESS).withApproval(APPROVED)
                                    .withApprovers(['Daniel Foster']),
                            ctask(null, 'New task', 'A new task.', OPEN)]
         synced.state() == CTASK_APPROVAL
@@ -375,8 +375,8 @@ class ProductionChangeSpec extends Specification {
 
     def "a change ProTech holds in Implementation is In Progress in Beadle only when #tasks"() {
         expect:
-        raised().synced(remote(tasks: tasks), NOW).state() == state
-        raised().synced(remote(state: ChangeState.CLOSED, tasks: []), NOW).state() == ChangeState.CLOSED
+        issued().synced(remote(tasks: tasks), NOW).state() == state
+        issued().synced(remote(state: ChangeState.CLOSED, tasks: []), NOW).state() == ChangeState.CLOSED
 
         where:
         tasks                                                              || state
@@ -390,8 +390,8 @@ class ProductionChangeSpec extends Specification {
 
     def "an update that could not be checked waits with every path it changed and says why"() {
         given:
-        def stored = raised()
-        def published = raised(description: 'New', update: requested(NOW, 'Custody'),
+        def stored = issued()
+        def published = issued(description: 'New', update: requested(NOW, 'Custody'),
                 schedule: schedule(firstUsage: '2026-10-13T08:00:00Z'))
 
         expect:
@@ -400,12 +400,12 @@ class ProductionChangeSpec extends Specification {
                         ['description', 'schedule.firstUsage'], null, null))
                         .syncProblem('ProTech could not be reached: down').build()
         stored.withSyncProblem('gone').syncProblem() == 'gone'
-        !raised(state: ChangeState.CLOSED).state().isOpen()
+        !issued(state: ChangeState.CLOSED).state().isOpen()
     }
 
     def "an edit takes the texts, the schedule, the editable ProTech fields and the tasks with their ProTech states"() {
         given:
-        def stored = raised(tasks: [ctask('CTASK1', 'One', 'First.', WORK_IN_PROGRESS),
+        def stored = issued(tasks: [ctask('CTASK1', 'One', 'First.', WORK_IN_PROGRESS),
                                     ctask('CTASK2', 'Two', 'Second.', CANCELED),
                                     ctask('CTASK3', 'Three', 'Third.', CLOSED)])
         def edit = template(jiraProjectKey: 'OTHER', type: EMERGENCY, timing: new Timing('06:00', 1, 0),
@@ -428,7 +428,7 @@ class ProductionChangeSpec extends Specification {
 
     def "an edit with #problem is refused against its field"() {
         given:
-        def stored = raised(tasks: [ctask('CTASK1', 'One', 'First.', OPEN),
+        def stored = issued(tasks: [ctask('CTASK1', 'One', 'First.', OPEN),
                                     ctask('CTASK2', 'Two', 'Second.', CANCELED),
                                     ctask('CTASK3', 'Three', 'Third.', CLOSED)])
         def values = [shortDescription: 'Short', description: 'Text', schedule: schedule(), template: template(),
@@ -469,12 +469,12 @@ class ProductionChangeSpec extends Specification {
 
     def "an open change without change tasks yet can be edited"() {
         expect:
-        raised(tasks: []).edited('Short', 'Text', schedule(), template(), [], NOW).tasks() == []
+        issued(tasks: []).edited('Short', 'Text', schedule(), template(), [], NOW).tasks() == []
     }
 
-    def "the tasks created on a raised change are planned in its window, take its affected CI and stay open"() {
+    def "the tasks created on a created change are planned in its window, take its affected CI and stay open"() {
         given:
-        def change = raised(tasks: [task(1)])
+        def change = issued(tasks: [task(1)])
 
         when:
         def planned = change.plannedTasks([releaseTask([configurationItem: null], null).withNumber('CTASK9')
@@ -488,9 +488,9 @@ class ProductionChangeSpec extends Specification {
                 [task(1)] + planned.collect { it.withNumber('CTASK7') }
     }
 
-    def "the tasks created on a raised change are refused when #problem"() {
+    def "the tasks created on a created change are refused when #problem"() {
         when:
-        raised(tasks: [task(1)] * held).plannedTasks(requested)
+        issued(tasks: [task(1)] * held).plannedTasks(requested)
 
         then:
         def refused = thrown(InvalidRequestException)
@@ -505,7 +505,7 @@ class ProductionChangeSpec extends Specification {
 
     def "an edit is checked against the tasks ProTech holds now and takes the rest of the change from there"() {
         given:
-        def stored = raised(tasks: [ctask('CTASK1', 'One', 'First.', OPEN)])
+        def stored = issued(tasks: [ctask('CTASK1', 'One', 'First.', OPEN)])
         def current = stored.toBuilder().state(IMPLEMENTATION).version(3L)
                 .tasks([ctask('CTASK1', 'One', 'First.', CLOSED)]).build()
         def kept = stored.edited('New', 'Text', schedule(), template(), [ctask('CTASK1', 'One', 'First.', null)],
@@ -531,19 +531,19 @@ class ProductionChangeSpec extends Specification {
 
     def "an edit without a release releases the change as its FixVersion"() {
         expect:
-        raised().edited('Short', 'Text', schedule(), template(release: ' '), raised().tasks(), NOW)
-                .template().release() == raised().fixVersion()
+        issued().edited('Short', 'Text', schedule(), template(release: ' '), issued().tasks(), NOW)
+                .template().release() == issued().fixVersion()
     }
 
     def "an edit keeps an installation start that has passed when it does not move it"() {
         expect:
-        raised().edited('Short', 'Text', schedule(), template(), raised().tasks(), Instant.parse('2026-10-11T00:00:00Z'))
+        issued().edited('Short', 'Text', schedule(), template(), issued().tasks(), Instant.parse('2026-10-11T00:00:00Z'))
                 .schedule() == schedule()
     }
 
     def "a reminder to everyone goes to each named approver of the change and of each active task who has not approved yet"() {
         given:
-        def change = raised(state: CTASK_APPROVAL, approvals: [
+        def change = issued(state: CTASK_APPROVAL, approvals: [
                 new ChangeApproval(BUSINESS, 'Rebecca Lawson', APPROVED, null),
                 new ChangeApproval(L1, 'Olivia Bennett', REQUESTED, null),
                 new ChangeApproval(L2, null, NOT_APPROVED, null),
@@ -563,7 +563,7 @@ class ProductionChangeSpec extends Specification {
 
     def "a reminder is refused when #refusal"() {
         given:
-        def change = raised(state: state, approvals: [new ChangeApproval(BUSINESS, 'Rebecca Lawson', APPROVED, null),
+        def change = issued(state: state, approvals: [new ChangeApproval(BUSINESS, 'Rebecca Lawson', APPROVED, null),
                                                       new ChangeApproval(L1, null, REQUESTED, null)],
                 tasks: [task(1).withApproval(APPROVED).withApprovers(['Ann Lee']),
                         ctask('CTASK2', 'Two', 'Second.', CANCELED).withApproval(REQUESTED).withApprovers(['Ann Lee']),
@@ -594,13 +594,13 @@ class ProductionChangeSpec extends Specification {
         given:
         def sent = new Reminder(NOW, ['Olivia Bennett'])
         def toTask = new Reminder(NOW, ['Ann Lee', 'Grace Turner'])
-        def change = raised(tasks: [task(1), task(2)])
+        def change = issued(tasks: [task(1), task(2)])
 
         when:
         def reminded = change.reminded([(ApprovalRef.of(L1)): sent, (ApprovalRef.ofTask('CTASK0041002')): toTask])
         def synced = reminded.synced(remote(approvals: ChangeApproval.of(template().approvers()).collect {
             new ChangeApproval(it.role(), it.approver(), APPROVED, null)
-        }, tasks: raised().tasks().collect { it.withApproval(APPROVED).withApprovers(['Ann Lee']) }), NOW)
+        }, tasks: issued().tasks().collect { it.withApproval(APPROVED).withApprovers(['Ann Lee']) }), NOW)
 
         then:
         reminded.approvals()*.reminder() == [null, sent, null, null]
@@ -624,10 +624,10 @@ class ProductionChangeSpec extends Specification {
     }
 
     static ProductionChange remote(Map changes = [:]) {
-        raised([url: 'https://protech/CHG', state: IMPLEMENTATION,
-                workflow: [new WorkflowStep(DRAFT, RAISED), new WorkflowStep(BUSINESS_APPROVAL, RAISED.plusSeconds(120)),
-                           new WorkflowStep(IMPLEMENTATION, RAISED.plusSeconds(600))],
-                tasks: raised().tasks().collect {
+        issued([url: 'https://protech/CHG', state: IMPLEMENTATION,
+                workflow: [new WorkflowStep(DRAFT, CREATED), new WorkflowStep(BUSINESS_APPROVAL, CREATED.plusSeconds(120)),
+                           new WorkflowStep(IMPLEMENTATION, CREATED.plusSeconds(600))],
+                tasks: issued().tasks().collect {
                     it.withState(WORK_IN_PROGRESS).withApproval(APPROVED).withApprovers(['Daniel Foster'])
                 }] + changes)
     }

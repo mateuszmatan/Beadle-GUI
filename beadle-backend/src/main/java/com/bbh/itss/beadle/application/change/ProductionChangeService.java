@@ -15,7 +15,7 @@ import com.bbh.itss.beadle.application.change.port.out.ChangeProductsPort;
 import com.bbh.itss.beadle.application.change.port.out.CyberTrackPort;
 import com.bbh.itss.beadle.application.change.port.out.JiraPort;
 import com.bbh.itss.beadle.application.change.port.out.ProTechPort;
-import com.bbh.itss.beadle.application.change.port.out.ProTechPort.RaisedChange;
+import com.bbh.itss.beadle.application.change.port.out.ProTechPort.CreatedChange;
 import com.bbh.itss.beadle.application.change.port.out.ProductionChangeRepositoryPort;
 import com.bbh.itss.beadle.application.user.port.out.SignedInUserPort;
 import com.bbh.itss.beadle.domain.change.ApprovalRef;
@@ -45,7 +45,7 @@ import java.util.function.UnaryOperator;
 
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_EDITED;
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_PREVIEWED;
-import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED;
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_CREATED;
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_SYNCED;
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_TASKS_CREATED;
 import static com.bbh.itss.beadle.domain.audit.Action.REMINDER_SENT;
@@ -171,13 +171,13 @@ public class ProductionChangeService implements ProductionChangesUseCase {
 
     @Override
     @WithoutTransaction
-    @Audited(CHANGE_RAISED)
-    public ProductionChange raise(ChangeCommand command) {
+    @Audited(CHANGE_CREATED)
+    public ProductionChange create(ChangeCommand command) {
         Instant now = now(clock);
-        ProductionChange draft = draft(command, now).raisedAt(now);
-        RaisedChange raised = proTech.raise(draft);
-        AuditNotes.created(raised.number());
-        return changes.save(draft.numbered(raised.number(), raised.url()));
+        ProductionChange draft = draft(command, now).created(now);
+        CreatedChange created = proTech.create(draft);
+        AuditNotes.created(created.number());
+        return changes.save(draft.numbered(created.number(), created.url()));
     }
 
     @Override
@@ -291,7 +291,7 @@ public class ProductionChangeService implements ProductionChangesUseCase {
         return recorded(verified).withSyncProblem(verified.syncProblem());
     }
 
-    private ProductionChange draft(ChangeCommand command, Instant raisedAt) {
+    private ProductionChange draft(ChangeCommand command, Instant createdAt) {
         ChangeProduct product = products.get(command.productId());
         ValidationProblems problems = new ValidationProblems();
         problems.require("productId", product.businessServiceId(),
@@ -301,10 +301,10 @@ public class ProductionChangeService implements ProductionChangesUseCase {
                 .fits("fixVersion", version, FIX_VERSION_MAX);
         ChangeTemplate template = command.template();
         ChangeSchedule schedule = command.schedule();
-        if (raisedAt == null) {
+        if (createdAt == null) {
             checkTemplate(template, problems);
         } else {
-            checkTemplateAndSchedule(template, schedule, raisedAt, problems);
+            checkTemplateAndSchedule(template, schedule, createdAt, problems);
         }
         problems.require("epicKeys", command.epicKeys(), "choose at least one epic");
         String project = template == null ? null : template.jiraProjectKey();

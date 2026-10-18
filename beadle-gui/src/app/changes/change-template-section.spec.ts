@@ -61,7 +61,7 @@ describe('ChangeTemplateSection', () => {
       changeTemplate({ requestedFor: 'Grace Turner', directBusinessService: 'Certificates' }),
       {
         facts: [
-          { label: 'Change number', value: null, placeholder: 'Given by ProTech when raised' },
+          { label: 'Change number', value: null, placeholder: 'Given by ProTech when created' },
           { label: 'Approval', value: 'Not Approved' },
         ],
       },
@@ -86,7 +86,7 @@ describe('ChangeTemplateSection', () => {
       'Affected clients',
       'Users affected',
     ]);
-    expect(inputOf(page(), 'Change number').placeholder).toBe('Given by ProTech when raised');
+    expect(inputOf(page(), 'Change number').placeholder).toBe('Given by ProTech when created');
     expect(inputOf(page(), 'Approval').readOnly).toBe(true);
     expect(inputOf(page(), 'Approval').value).toBe('Not Approved');
     expect(inputOf(page(), 'Requested for').value).toBe('Grace Turner');

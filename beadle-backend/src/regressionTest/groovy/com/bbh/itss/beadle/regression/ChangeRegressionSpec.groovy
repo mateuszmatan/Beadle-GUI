@@ -45,7 +45,7 @@ class ChangeRegressionSpec extends ChangeRegressionSpecification {
                 [productId: created.id, productName: created.name, version: 1, updatedAt: changed.json.updatedAt]
     }
 
-    def "a change is previewed, raised from a FixVersion's epics, gets its change tasks in ProTech and is listed for its business service"() {
+    def "a change is previewed, created from a FixVersion's epics, gets its change tasks in ProTech and is listed for its business service"() {
         given:
         def created = createProduct(product(code: uniqueCode(), name: "Payments ${uniqueCode()}"))
         def key = 'PAY' + created.id
@@ -74,21 +74,21 @@ class ChangeRegressionSpec extends ChangeRegressionSpecification {
         stories.every { preview.json.description.contains("- $it.key $it.summary") }
 
         when:
-        def raised = api.post('/api/changes', request)
-        def tasked = createTasks(raised.json as Map, [
+        def posted = api.post('/api/changes', request)
+        def tasked = createTasks(posted.json as Map, [
                 changeTaskJson(assignmentGroup: 'Release Management', application: 'Payments',
                         packages: 'payments-4.2.jar'),
                 changeTaskJson(assignmentGroup: 'Service Desk', shortDescription: 'Tell the users')])
 
         then:
-        raised.status == 201
-        raised.header('Location') == "$api.baseUrl/api/changes/${raised.json.id}"
-        raised.json.number ==~ /CHG\d{7}/
-        raised.json.url == "https://protech.bbh.com/$raised.json.number"
-        raised.json.shortDescription == preview.json.shortDescription
-        raised.json.epicKeys == epics*.key
-        raised.json.storyKeys == stories*.key
-        raised.json.workflow == [[state: 'DRAFT', enteredAt: raised.json.createdAt]]
+        posted.status == 201
+        posted.header('Location') == "$api.baseUrl/api/changes/${posted.json.id}"
+        posted.json.number ==~ /CHG\d{7}/
+        posted.json.url == "https://protech.bbh.com/$posted.json.number"
+        posted.json.shortDescription == preview.json.shortDescription
+        posted.json.epicKeys == epics*.key
+        posted.json.storyKeys == stories*.key
+        posted.json.workflow == [[state: 'DRAFT', enteredAt: posted.json.createdAt]]
         tasked.tasks*.number.every { it ==~ /CTASK\d{7}/ }
         tasked.tasks*.subMap('start', 'approval', 'approvers', 'state') ==
                 [[start: START.plus(1, MINUTES).toString(), approval: 'NOT_APPROVED', approvers: RELEASE_APPROVERS,
@@ -96,23 +96,23 @@ class ChangeRegressionSpec extends ChangeRegressionSpecification {
                  [start: null, approval: 'NOT_APPROVED', approvers: TASK_APPROVERS, state: 'OPEN']]
         tasked.tasks[0].details.subMap('platform', 'application', 'configurationItem') ==
                 [platform: 'None', application: 'Payments', configurationItem: 'CertScanner']
-        SERVICES.proTechChange(raised.json.number as String).tasks*.number == tasked.tasks*.number
+        SERVICES.proTechChange(posted.json.number as String).tasks*.number == tasked.tasks*.number
 
         expect:
-        api.get("/api/changes/$raised.json.id").json.findAll { it.key != 'syncedAt' } ==
+        api.get("/api/changes/$posted.json.id").json.findAll { it.key != 'syncedAt' } ==
                 tasked.findAll { it.key != 'syncedAt' }
-        api.get('/api/changes?businessServiceId=3').json.find { it.id == raised.json.id }.tasks == tasked.tasks
-        !(raised.json.id in api.get('/api/changes?businessServiceId=4').json*.id)
+        api.get('/api/changes?businessServiceId=3').json.find { it.id == posted.json.id }.tasks == tasked.tasks
+        !(posted.json.id in api.get('/api/changes?businessServiceId=4').json*.id)
     }
 
     def "a secure coding ticket is created in CyberTrack through Beadle-Internal and shown on the change"() {
         given:
-        def raised = raise(createProduct(product(code: uniqueCode(), name: "Secure ${uniqueCode()}")))
-        def request = [version: raised.version, businessServiceId: raised.businessServiceId, implementationDate: '10202026'] +
+        def created = create(createProduct(product(code: uniqueCode(), name: "Secure ${uniqueCode()}")))
+        def request = [version: created.version, businessServiceId: created.businessServiceId, implementationDate: '10202026'] +
                 secureCodingJson()
 
         when:
-        def ticketed = api.post("/api/changes/$raised.id/secure-coding", request)
+        def ticketed = api.post("/api/changes/$created.id/secure-coding", request)
         def sent = SERVICES.requests.findAll { it.path == '/api/internal/cybertrack/tickets' }.last()
 
         then:
@@ -120,32 +120,32 @@ class ChangeRegressionSpec extends ChangeRegressionSpecification {
         def key = ticketed.json.template.secureCodingTicket as String
         key ==~ /SCP-\d+/
         ticketed.json.template.secureCoding == secureCodingJson()
-        sent.json == [changeNumber: raised.number, applicationName: raised.productName,
+        sent.json == [changeNumber: created.number, applicationName: created.productName,
                       implementationDate: '2026-10-20', inputs: secureCodingJson()]
-        SERVICES.proTechChange(raised.number as String).template.secureCodingTicket == key
-        api.get("/api/changes/$raised.id").json.template.secureCodingTicket == key
+        SERVICES.proTechChange(created.number as String).template.secureCodingTicket == key
+        api.get("/api/changes/$created.id").json.template.secureCodingTicket == key
 
         when:
-        def second = api.post("/api/changes/$raised.id/secure-coding", request + [version: ticketed.json.version])
+        def second = api.post("/api/changes/$created.id/secure-coding", request + [version: ticketed.json.version])
 
         then:
         second.status == 409
-        second.json.detail == "$raised.number already has the secure coding ticket $key"
+        second.json.detail == "$created.number already has the secure coding ticket $key"
     }
 
     def "its business service updates an open change and ProTech applies it"() {
         given:
-        def raised = raise(createProduct(product(code: uniqueCode(), name: "Update ${uniqueCode()}")))
+        def created = create(createProduct(product(code: uniqueCode(), name: "Update ${uniqueCode()}")))
         def later = scheduleJson(START.plus(1, DAYS))
-        def edit = editOf(raised, [shortDescription: ' Renamed release ', schedule: later,
-                                   template: raised.template + [usersAffected: 'Ledger operators'],
-                                   tasks: [raised.tasks[0] + [details: raised.tasks[0].details +
+        def edit = editOf(created, [shortDescription: ' Renamed release ', schedule: later,
+                                   template: created.template + [usersAffected: 'Ledger operators'],
+                                   tasks: [created.tasks[0] + [details: created.tasks[0].details +
                                                                        [shortDescription: 'Deploy it all']],
                                            changeTaskJson(assignmentGroup: 'Service Desk',
                                                    shortDescription: 'Check the audit trail')]])
 
         when:
-        def updated = api.put("/api/changes/$raised.id", edit)
+        def updated = api.put("/api/changes/$created.id", edit)
 
         then:
         updated.status == 200
@@ -153,29 +153,29 @@ class ChangeRegressionSpec extends ChangeRegressionSpecification {
         updated.json.schedule == later
         updated.json.template.usersAffected == 'Ledger operators'
         updated.json.tasks*.details*.shortDescription == ['Deploy it all', 'Check the audit trail',
-                                                          raised.tasks[1].details.shortDescription]
+                                                          created.tasks[1].details.shortDescription]
         updated.json.tasks*.state == ['OPEN', 'OPEN', 'CANCELED']
-        updated.json.tasks*.number == [raised.tasks[0].number, updated.json.tasks[1].number, raised.tasks[1].number]
+        updated.json.tasks*.number == [created.tasks[0].number, updated.json.tasks[1].number, created.tasks[1].number]
         updated.json.update.subMap('status', 'businessServiceName', 'fields') ==
                 [status: 'APPLIED', businessServiceName: 'Corporate Technology', fields: []]
-        SERVICES.proTechChange(raised.number as String).shortDescription == 'Renamed release'
+        SERVICES.proTechChange(created.number as String).shortDescription == 'Renamed release'
 
         expect:
-        api.get("/api/changes/$raised.id").json.findAll { it.key != 'syncedAt' } ==
+        api.get("/api/changes/$created.id").json.findAll { it.key != 'syncedAt' } ==
                 updated.json.findAll { it.key != 'syncedAt' }
-        api.put("/api/changes/$raised.id", edit).status == 409
-        api.put("/api/changes/$raised.id", editOf(updated.json as Map, [businessServiceId: 4])).status == 403
+        api.put("/api/changes/$created.id", edit).status == 409
+        api.put("/api/changes/$created.id", editOf(updated.json as Map, [businessServiceId: 4])).status == 403
     }
 
     def "the approvers who have not approved yet are reminded"() {
         given:
-        def raised = raise(createProduct(product(code: uniqueCode(), name: "Remind ${uniqueCode()}")),
+        def created = create(createProduct(product(code: uniqueCode(), name: "Remind ${uniqueCode()}")),
                 [changeTaskJson(assignmentGroup: 'Release Management'), changeTaskJson(assignmentGroup: 'Service Desk')])
-        SERVICES.proTechChange(raised.number as String).approvals[0].state = 'APPROVED'
+        SERVICES.proTechChange(created.number as String).approvals[0].state = 'APPROVED'
 
         when:
-        def everyone = api.post("/api/changes/$raised.id/reminders", [businessServiceId: 3])
-        def one = api.post("/api/changes/$raised.id/reminders", [businessServiceId: 3, task: raised.tasks[1].number])
+        def everyone = api.post("/api/changes/$created.id/reminders", [businessServiceId: 3])
+        def one = api.post("/api/changes/$created.id/reminders", [businessServiceId: 3, task: created.tasks[1].number])
 
         then:
         everyone.status == 200
@@ -184,7 +184,7 @@ class ChangeRegressionSpec extends ChangeRegressionSpecification {
         one.status == 200
         Instant.parse(one.json.tasks[1].reminder.sentAt).isAfter(Instant.parse(everyone.json.tasks[1].reminder.sentAt))
         one.json.tasks[0].reminder == everyone.json.tasks[0].reminder
-        api.get("/api/changes/$raised.id").json.tasks*.reminder == one.json.tasks*.reminder
-        api.post("/api/changes/$raised.id/reminders", [businessServiceId: 3, approval: 'BUSINESS']).status == 409
+        api.get("/api/changes/$created.id").json.tasks*.reminder == one.json.tasks*.reminder
+        api.post("/api/changes/$created.id/reminders", [businessServiceId: 3, approval: 'BUSINESS']).status == 409
     }
 }

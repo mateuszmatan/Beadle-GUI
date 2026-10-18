@@ -106,13 +106,13 @@ class ChangeTemplateSpec extends Specification {
         problems(multibyte) == []
     }
 
-    def "a raised template takes the FixVersion as its release unless it names one"() {
+    def "a created template takes the FixVersion as its release unless it names one"() {
         expect:
         template().releasedAs('CERT 4.2') == template(release: 'CERT 4.2')
         template(release: 'R42').releasedAs('CERT 4.2') == template(release: 'R42')
     }
 
-    def "a raised template names the signed-in user for its empty people and the product's business service"() {
+    def "a created template names the signed-in user for its empty people and the product's business service"() {
         expect:
         template().openedBy('Mateusz Matan', 'Custody') == template(requestedFor: 'Mateusz Matan',
                 requestedBy: 'Mateusz Matan', businessService: 'Custody', assignedTo: 'Mateusz Matan')
@@ -183,18 +183,18 @@ class ChangeTemplateSpec extends Specification {
         version << [1L, null]
     }
 
-    def "an edit of a raised template keeps its Jira project, its type and its timing"() {
+    def "an edit of a created template keeps its Jira project, its type and its timing"() {
         given:
-        def raised = template(release: 'CERT 4.2')
+        def created = template(release: 'CERT 4.2')
         def edits = template(jiraProjectKey: 'OTHER', type: EMERGENCY, timing: new Timing('20:00', 5, 5),
                 category: 'Hardware', release: 'CERT 4.3', downtime: true, requestedFor: 'Ann Lee',
                 usersAffected: 'Operators', secureCodingTicket: 'APPSEC-7', riskAssessment: risk(businessImpact: 'High'))
 
         expect:
-        raised.edited(edits) == template(category: 'Hardware', release: 'CERT 4.3', downtime: true,
+        created.edited(edits) == template(category: 'Hardware', release: 'CERT 4.3', downtime: true,
                 requestedFor: 'Ann Lee', usersAffected: 'Operators', secureCodingTicket: 'APPSEC-7',
                 riskAssessment: risk(businessImpact: 'High'))
-        raised.edited(edits).risk() == 'High'
+        created.edited(edits).risk() == 'High'
     }
 
     def "a schedule is checked for presence and order: #expected"() {

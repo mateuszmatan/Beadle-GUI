@@ -12,7 +12,7 @@ import java.time.Instant
 import static com.bbh.itss.beadle.domain.audit.Action.BUSINESS_SERVICE_RENAMED
 import static com.bbh.itss.beadle.domain.audit.Action.CALLBACK_INTERNAL
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_EDITED
-import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_RAISED
+import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_TASKS_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.PRODUCT_CREATED
 import static com.bbh.itss.beadle.domain.audit.Action.SECURE_CODING_TICKET_CREATED
@@ -24,7 +24,7 @@ import static com.bbh.itss.beadle.domain.audit.ObjectType.CHANGE_PROFILE
 import static com.bbh.itss.beadle.domain.audit.ObjectType.PRODUCT
 import static com.bbh.itss.beadle.domain.audit.ObjectType.TICKET
 import static com.bbh.itss.beadle.domain.audit.ObjectType.USER
-import static com.bbh.itss.beadle.support.ChangeFixtures.raised
+import static com.bbh.itss.beadle.support.ChangeFixtures.issued
 
 class ActionHistoryPersistenceAdapterSpec extends PersistenceSpecification {
 
@@ -59,7 +59,7 @@ class ActionHistoryPersistenceAdapterSpec extends PersistenceSpecification {
         stored.id() != null
         jdbc.queryForMap('''SELECT USER_NAME, ACTION, OBJECT_TYPE, OBJECT_ID, OBJECT_KEY, OUTCOME, MESSAGE,
                 CORRELATION_ID, DURATION_MS FROM BEADLE_ACTION_HISTORY WHERE ID = ?''', stored.id()) == [
-                USER_NAME: 'Mateusz Matan', ACTION: 'CHANGE_RAISED', OBJECT_TYPE: 'CHANGE', OBJECT_ID: 7L,
+                USER_NAME: 'Mateusz Matan', ACTION: 'CHANGE_CREATED', OBJECT_TYPE: 'CHANGE', OBJECT_ID: 7L,
                 OBJECT_KEY: 'CHG0031001', OUTCOME: 'FAILURE', MESSAGE: 'Beadle-ProTech did not answer',
                 CORRELATION_ID: CORRELATION_ID, DURATION_MS: 120L]
         stored.details().startsWith('{"command":{"name":"éé')
@@ -84,7 +84,7 @@ class ActionHistoryPersistenceAdapterSpec extends PersistenceSpecification {
         expect:
         found() == [fifth, fourth, third, second, first]
         found(user: 'Ann Lee') == [fifth, first]
-        found(action: CHANGE_RAISED) == [third, second]
+        found(action: CHANGE_CREATED) == [third, second]
         found(objectType: TICKET) == [fourth]
         found(objectKey: 'chg003') == [third, second]
         found(objectKey: 'CHG0031002') == [third]
@@ -114,7 +114,7 @@ class ActionHistoryPersistenceAdapterSpec extends PersistenceSpecification {
                 details: '{"id":7,"command":{"version":3},"result":{"created":["SCP-123"]}}'))
         def mentioned = adapter.record(row(at: '2026-10-15T09:02:00Z', action: CHANGE_EDITED, objectKey: 'CHG0031002',
                 details: '{"id":8,"command":{"shortDescription":"After CTASK0041003 and SCP-123"}}'))
-        def raise = adapter.record(row(at: '2026-10-15T09:03:00Z', objectId: null, objectKey: null,
+        def create = adapter.record(row(at: '2026-10-15T09:03:00Z', objectId: null, objectKey: null,
                 outcome: FAILURE, details: '{"command":{"epicKeys":["SCP-9"]},"result":{"created":["CHG0031009"]}}'))
 
         expect:
@@ -123,9 +123,9 @@ class ActionHistoryPersistenceAdapterSpec extends PersistenceSpecification {
         found(objectKey: 'CTASK0099999') == []
         found(objectKey: 'SCP-123') == [ticket]
         found(objectKey: 'SCP-9') == []
-        found(objectKey: 'CHG0031009') == [raise]
+        found(objectKey: 'CHG0031009') == [create]
         found(objectKey: 'CHG0031002') == [mentioned]
-        found(objectKey: 'CHG003100') == [raise, mentioned, ticket, tasks]
+        found(objectKey: 'CHG003100') == [create, mentioned, ticket, tasks]
         found(objectKey: '%') == []
     }
 
@@ -138,7 +138,7 @@ class ActionHistoryPersistenceAdapterSpec extends PersistenceSpecification {
 
         expect:
         adapter.users() == ['Ann Lee', 'Mateusz Matan', 'system:protech']
-        adapter.actions() == [BUSINESS_SERVICE_RENAMED, CHANGE_RAISED, PRODUCT_CREATED]
+        adapter.actions() == [BUSINESS_SERVICE_RENAMED, CHANGE_CREATED, PRODUCT_CREATED]
     }
 
     def "a stored row is never updated"() {
@@ -185,7 +185,7 @@ class ActionHistoryPersistenceAdapterSpec extends PersistenceSpecification {
         jdbc.update('''INSERT INTO BEADLE_PRODUCT (CODE, NAME, BUSINESS_SERVICE_ID, CREATED_AT, UPDATED_AT)
                 VALUES ('AUDITED', 'Audited Product', 3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)''')
         long productId = jdbc.queryForObject("SELECT ID FROM BEADLE_PRODUCT WHERE CODE = 'AUDITED'", Long)
-        long changeId = changes.save(raised(id: null, version: null, number: 'CHG0077001', productId: productId))
+        long changeId = changes.save(issued(id: null, version: null, number: 'CHG0077001', productId: productId))
                 .id()
 
         expect:
@@ -205,7 +205,7 @@ class ActionHistoryPersistenceAdapterSpec extends PersistenceSpecification {
     }
 
     private static ActionRecord row(Map changes = [:]) {
-        Map values = [at: '2026-10-15T09:00:00Z', user: 'Mateusz Matan', action: CHANGE_RAISED, objectType: CHANGE,
+        Map values = [at: '2026-10-15T09:00:00Z', user: 'Mateusz Matan', action: CHANGE_CREATED, objectType: CHANGE,
                       objectId: 7L, objectKey: 'CHG0031001', details: '{"command":{}}', outcome: SUCCESS,
                       message: null, correlationId: CORRELATION_ID, durationMs: 120L] + changes
         ActionRecord.builder().at(Instant.parse(values.at)).user(values.user).action(values.action)

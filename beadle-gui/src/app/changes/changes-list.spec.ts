@@ -196,8 +196,8 @@ describe('ChangesList', () => {
       'No ProTech changes for Fund Services yet',
     );
     expect(page().querySelector('.empty-state a')?.getAttribute('href')).toBe('/new-change');
-    expect(text(page().querySelector('.empty-state a'))).toBe('Raise change');
-    expect(text(page().querySelector('.page-header .btn-primary'))).toBe('Raise change');
+    expect(text(page().querySelector('.empty-state a'))).toBe('Create change');
+    expect(text(page().querySelector('.page-header .btn-primary'))).toBe('Create change');
     expect(page().querySelector('beadle-grid')?.closest('section')?.hidden).toBe(true);
   });
 
@@ -215,7 +215,7 @@ describe('ChangesList', () => {
       'Installation',
       'Short description',
       'Tasks',
-      'Raised',
+      'Created',
       '',
     ]);
     const [first, second] = gridRows(page());
@@ -292,13 +292,13 @@ describe('ChangesList', () => {
     expect(gridRows(page())).toEqual([]);
   });
 
-  it('sorts in the header the state by the workflow and the installation and raise by time', async () => {
+  it('sorts in the header the state by the workflow and the installation and create by time', async () => {
     await listed();
 
     expect(await sort('state')).toEqual(['CHG0012347', 'CHG0012345', 'CHG0012346']);
     expect(await sort('state')).toEqual(['CHG0012346', 'CHG0012345', 'CHG0012347']);
     expect(await sort('state')).toEqual(['CHG0012345', 'CHG0012346', 'CHG0012347']);
-    expect(await sort('raised', 2)).toEqual(['CHG0012347', 'CHG0012345', 'CHG0012346']);
+    expect(await sort('created', 2)).toEqual(['CHG0012347', 'CHG0012345', 'CHG0012346']);
     expect(await sort('product', 2)).toEqual(['CHG0012346', 'CHG0012345', 'CHG0012347']);
     expect(await sort('installation')).toEqual(['CHG0012346', 'CHG0012345', 'CHG0012347']);
   });

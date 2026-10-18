@@ -172,7 +172,7 @@ final class ChangeStubs {
                     .collect { jiraIssue(it) }
         }
         api.on('POST', '/api/changes/preview') { RecordedRequest request -> draft(request.json() as Map) }
-        api.on('POST', '/api/changes') { RecordedRequest request -> json(protech.raise(request.json() as Map), 201) }
+        api.on('POST', '/api/changes') { RecordedRequest request -> json(protech.create(request.json() as Map), 201) }
         api.on('POST', '/api/changes/(\\d+)/tasks') { RecordedRequest request, List<String> ids ->
             def found = protech.find(ids[0])
             found ? protech.createTasks(found, request.json() as Map) : problem(404, 'Not found', "Change ${ids[0]} does not exist")
@@ -554,22 +554,22 @@ final class ChangeStubs {
             change.version = (change.version as int) + 1
         }
 
-        Map raise(Map asked) {
+        Map create(Map asked) {
             def number = "CHG00${changeNumbers.incrementAndGet()}".toString()
             def drafted = draft(asked)
-            def raisedAt = stamp()
+            def createdAt = stamp()
             def change = drafted + [
-                    id              : (changes*.id.max() as int) + 1, number: number, createdAt: raisedAt,
+                    id              : (changes*.id.max() as int) + 1, number: number, createdAt: createdAt,
                     shortDescription: asked.shortDescription ?: drafted.shortDescription,
                     description     : asked.description ?: drafted.description,
                     tasks           : [],
-                    workflow        : [[state: 'DRAFT', enteredAt: raisedAt]], approvals: approvals(drafted.template as Map, 'DRAFT'),
-                    syncedAt        : raisedAt, version: 0, editedVersion: 0]
+                    workflow        : [[state: 'DRAFT', enteredAt: createdAt]], approvals: approvals(drafted.template as Map, 'DRAFT'),
+                    syncedAt        : createdAt, version: 0, editedVersion: 0]
             changes << change
             change
         }
 
-        private static Map seed(int id, String number, int productId, String fixVersion, Instant raisedAt, Instant start,
+        private static Map seed(int id, String number, int productId, String fixVersion, Instant createdAt, Instant start,
                                 List<String> stages, String taskState, int version) {
             def product = product(productId)
             def template = productId == 1 ? CERT_TEMPLATE : suggested(productId)
@@ -582,16 +582,16 @@ final class ChangeStubs {
                                  storyKeys: [], schedule: schedule, template: template])
             def entered = stages.withIndex().collect { stage, index ->
                 [state    : stage,
-                 enteredAt: stamp(stage == 'CLOSED' ? start.plus(3, HOURS) : raisedAt.plus(2 * index, MINUTES))]
+                 enteredAt: stamp(stage == 'CLOSED' ? start.plus(3, HOURS) : createdAt.plus(2 * index, MINUTES))]
             }
-            drafted + [id      : id, number: number, createdAt: stamp(raisedAt), state: stages.last(), workflow: entered,
+            drafted + [id      : id, number: number, createdAt: stamp(createdAt), state: stages.last(), workflow: entered,
                        approvals: approvals(drafted.template as Map, stages.last()),
                        template: (drafted.template as Map) + [secureCodingTicket: id == 4 ? null : "SCP-${4100 + id}".toString()],
                        tasks   : texts.withIndex().collect { text, index ->
                            task(format('CTASK%07d', (number.drop(3) as int) * 10 + index + 1), plannedIn(drafted, text),
                                    earliest(schedule), taskState, approvalOf(stages.last()))
                        },
-                       syncedAt: stamp(raisedAt), version: version, editedVersion: version]
+                       syncedAt: stamp(createdAt), version: version, editedVersion: version]
         }
     }
 }

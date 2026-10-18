@@ -39,14 +39,14 @@ class CatalogRegressionSpec extends ChangeRegressionSpecification {
         when:
         api.put("/api/products/$created.json.id/change-profile", [version: null, template: templateJson(),
                                                                   tasks: tasksJson()])
-        def raised = raise(renamed.json as Map)
+        def change = create(renamed.json as Map)
         def deleted = api.delete("/api/products/$created.json.id")
 
         then:
         deleted.status == 204
         api.get("/api/products/$created.json.id").status == 404
         !(created.json.id in api.get('/api/change-profiles').json*.productId)
-        api.get("/api/changes/$raised.id").json.subMap('productId', 'productName') ==
+        api.get("/api/changes/$change.id").json.subMap('productId', 'productName') ==
                 [productId: null, productName: "Renamed $code".toString()]
         api.delete("/api/products/$created.json.id").status == 404
     }
@@ -57,10 +57,10 @@ class CatalogRegressionSpec extends ChangeRegressionSpecification {
         def products = (1..2).collect {
             createProduct(product(code: uniqueCode(), name: "Product ${uniqueCode()}", businessServiceId: businessService.id))
         }
-        def raised = raise(products[0])
+        def created = create(products[0])
 
         expect:
-        [raised.businessServiceId, raised.businessServiceName] == [businessService.id, businessService.name]
+        [created.businessServiceId, created.businessServiceName] == [businessService.id, businessService.name]
         api.get('/api/business-services').json.find { it.id == businessService.id } ==
                 businessService + [productCount: 2, changeCount: 1]
         api.delete("/api/business-services/$businessService.id").json.detail ==

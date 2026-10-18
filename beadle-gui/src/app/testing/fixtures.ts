@@ -32,7 +32,7 @@ export function actionRecord(overrides: Partial<ActionRecord> = {}): ActionRecor
     id: 41,
     at: '2026-10-15T09:00:05Z',
     user: 'Mateusz Matan',
-    action: 'CHANGE_RAISED',
+    action: 'CHANGE_CREATED',
     objectType: 'CHANGE',
     objectId: 7,
     objectKey: 'CHG0031001',

@@ -8,7 +8,7 @@ import static com.bbh.itss.beadle.support.RecordingHttpServer.Answer.of as reply
  * Beadle-Internal and Beadle-ProTech at the level of docs/CONTRACTS.md, as far as Beadle-GUI calls them: one local
  * HTTP server per test JVM ({@link #SHARED}) answers {@code /api/internal} with a Jira of two FixVersions per project,
  * two epics and two stories per FixVersion, and a CyberTrack that numbers its tickets; and {@code /api/protech} with a
- * ProTech that keeps the changes raised on it, numbers their tasks, applies an update at once and reminds the people
+ * ProTech that keeps the changes created on it, numbers their tasks, applies an update at once and reminds the people
  * it names. A spec moves a change in ProTech through {@link #proTechChange}. The Spring specs reach it through
  * {@code beadle.services.internal.url} and {@code beadle.services.protech.url} set to {@code ${beadle.stand-in.url}},
  * the system property {@link #SHARED} sets.
@@ -76,7 +76,7 @@ class StandInServices extends RecordingHttpServer {
 
     private void proTech() {
         route('GET', '/api/protech/status') { request, groups -> reply(200, [connected: true, mode: 'live']) }
-        route('POST', '/api/protech/changes') { request, groups -> reply(201, raised(request.json as Map)) }
+        route('POST', '/api/protech/changes') { request, groups -> reply(201, issued(request.json as Map)) }
         route('POST', '/api/protech/changes/read') { request, groups ->
             reply(200, read((request.json as List<Map>)*.number))
         }
@@ -125,7 +125,7 @@ class StandInServices extends RecordingHttpServer {
         ++tickets
     }
 
-    private synchronized Map raised(Map draft) {
+    private synchronized Map issued(Map draft) {
         String number = 'CHG' + String.format('%07d', ++numbers)
         String link = ChangeFixtures.changeUrl(number)
         changes[number] = draft + [number: number, url: link]

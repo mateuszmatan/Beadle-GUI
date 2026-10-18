@@ -38,7 +38,7 @@ import static com.bbh.itss.beadle.domain.change.TaskState.WORK_IN_PROGRESS
 import static com.bbh.itss.beadle.domain.shared.Failures.STALE_VERSION
 import static com.bbh.itss.beadle.support.CatalogFixtures.details
 import static com.bbh.itss.beadle.support.ChangeFixtures.FIX_VERSION
-import static com.bbh.itss.beadle.support.ChangeFixtures.RAISED
+import static com.bbh.itss.beadle.support.ChangeFixtures.CREATED
 import static com.bbh.itss.beadle.support.ChangeFixtures.changeUrl
 import static com.bbh.itss.beadle.support.ChangeFixtures.ctask
 import static com.bbh.itss.beadle.support.ChangeFixtures.details as taskDetails
@@ -64,7 +64,7 @@ class ChangePersistenceAdaptersSpec extends PersistenceSpecification {
             new PrivilegedUser('Jane Smith', 'adm_jsmith'), new PrivilegedUser('Ann Lee', 'adm_alee')]),
             riskAssessment: risk(bbhUsers: 'All users', backoutTesting: 'Unable to test'),
             secureCodingTicket: 'SCP-1234', secureCoding: secureCoding())
-    static final ChangeTemplate RAISED_TEMPLATE = FULL.releasedAs(FIX_VERSION).toBuilder()
+    static final ChangeTemplate CREATED_TEMPLATE = FULL.releasedAs(FIX_VERSION).toBuilder()
             .secureCodingTicket('SCP-2001').build()
     static final ChangeSchedule DOWNTIME = schedule(downtimeStart: '2026-10-10T06:00:00Z',
             downtimeEnd: '2026-10-10T08:30:00Z')
@@ -199,13 +199,13 @@ class ChangePersistenceAdaptersSpec extends PersistenceSpecification {
         missing.message == 'Product 99999 does not exist'
     }
 
-    def "a raised change is stored with its business service, its draft stage, its Jira keys and its tasks in order"() {
+    def "a created change is stored with its business service, its draft stage, its Jira keys and its tasks in order"() {
         given:
-        def raised = raise('CHG0001001', 'CTASK0002001', 'CTASK0002002')
+        def created = create('CHG0001001', 'CTASK0002001', 'CTASK0002002')
 
         when:
-        def saved = changes.save(raised)
-        def later = changes.save(raise('CHG0001002', 'CTASK0002003', 'CTASK0002004'))
+        def saved = changes.save(created)
+        def later = changes.save(create('CHG0001002', 'CTASK0002003', 'CTASK0002004'))
         entities.clear()
         def loaded = changes.load(saved.id()).get()
 
@@ -213,17 +213,17 @@ class ChangePersistenceAdaptersSpec extends PersistenceSpecification {
         saved.id() != null
         saved.version() == 0
         loaded == saved
-        loaded == raised.toBuilder().id(saved.id()).version(0L).build()
+        loaded == created.toBuilder().id(saved.id()).version(0L).build()
         [loaded.productId(), loaded.productCode(), loaded.productName(), loaded.businessServiceId(),
          loaded.businessServiceName(), loaded.openedBy()] == [product.id(), 'CERT', 'CertScanner', 3L,
                                                          'Corporate Technology', 'Mateusz Matan']
         loaded.schedule() == DOWNTIME
-        loaded.createdAt() == RAISED
+        loaded.createdAt() == CREATED
         loaded.state() == DRAFT
-        loaded.workflow() == [new WorkflowStep(DRAFT, RAISED)]
-        loaded.syncedAt() == RAISED
+        loaded.workflow() == [new WorkflowStep(DRAFT, CREATED)]
+        loaded.syncedAt() == CREATED
         loaded.update() == null
-        loaded.template() == RAISED_TEMPLATE
+        loaded.template() == CREATED_TEMPLATE
         loaded.template().privilegedAccess().users()*.user() == ['Jane Smith', 'Ann Lee']
         [loaded.epicKeys(), loaded.storyKeys()] == [['CERT-1'], ['CERT-2']]
         loaded.tasks() == [ctask('CTASK0002001', 'Task 1 of the CertScanner release',
@@ -231,7 +231,7 @@ class ChangePersistenceAdaptersSpec extends PersistenceSpecification {
                 'Task 2 of the CertScanner release', 'Step 2 of the CertScanner release.', OPEN)]
         loaded.url() == changeUrl('CHG0001001')
         changes.findAll()*.number() == ['CHG0001002', 'CHG0001001']
-        changes.findAll()*.template().every { it == RAISED_TEMPLATE }
+        changes.findAll()*.template().every { it == CREATED_TEMPLATE }
         changes.load(later.id()).get().tasks()*.number() == ['CTASK0002003', 'CTASK0002004']
         changes.load(9999L) == Optional.empty()
         jdbc.queryForObject('SELECT COUNT(*) FROM BEADLE_PRODUCTION_CHANGE_PRIVILEGED_USER WHERE CHANGE_ID = ?', Integer,
@@ -250,9 +250,9 @@ class ChangePersistenceAdaptersSpec extends PersistenceSpecification {
                  RISK_BBH_USERS: 'All users', RISK_BACKOUT_TESTING: 'Unable to test']
     }
 
-    def "a raised change is found by its ProTech number with its tasks"() {
+    def "a created change is found by its ProTech number with its tasks"() {
         given:
-        def saved = changes.save(raise('CHG0001003', 'CTASK0002005'))
+        def saved = changes.save(create('CHG0001003', 'CTASK0002005'))
         entities.clear()
 
         expect:
@@ -261,14 +261,14 @@ class ChangePersistenceAdaptersSpec extends PersistenceSpecification {
         changes.findByNumber('CHG0009999') == Optional.empty()
     }
 
-    def "a change raised with the empty people of its template names the signed-in user and its business service"() {
+    def "a change created with the empty people of its template names the signed-in user and its business service"() {
         given:
         def bare = template(riskAssessment: RiskAssessment.DEFAULTS)
 
         when:
         def saved = changes.save(ProductionChange.draft(changeProducts.get(product.id()), 'Mateusz Matan',
                 FIX_VERSION, schedule(), bare, [epic('CERT-1', 'Expiry alerts')], [], null, null)
-                .raisedAt(RAISED).numbered('CHG0001009', null).withTasks([task(1).withNumber('CTASK0002019')]))
+                .created(CREATED).numbered('CHG0001009', null).withTasks([task(1).withNumber('CTASK0002019')]))
         entities.clear()
 
         then:
@@ -283,17 +283,17 @@ class ChangePersistenceAdaptersSpec extends PersistenceSpecification {
 
     def "a synced change is stored at a new version with its stages, its task states and its update status"() {
         given:
-        def saved = changes.save(raise('CHG0001001', 'CTASK0002001', 'CTASK0002002'))
+        def saved = changes.save(create('CHG0001001', 'CTASK0002001', 'CTASK0002002'))
         entities.clear()
         def before = taskIds(saved.id())
-        def update = new ChangeUpdate(NOT_APPLIED, RAISED.plusSeconds(600), 'Corporate Technology',
-                ['schedule.installationEnd', 'tasks'], NOT_APPLIED_MESSAGE, RAISED.plusSeconds(660))
+        def update = new ChangeUpdate(NOT_APPLIED, CREATED.plusSeconds(600), 'Corporate Technology',
+                ['schedule.installationEnd', 'tasks'], NOT_APPLIED_MESSAGE, CREATED.plusSeconds(660))
         def synced = saved.toBuilder().shortDescription('Renamed in ProTech')
                 .schedule(schedule(firstUsage: '2026-10-13T08:00:00Z')).state(BUSINESS_APPROVAL)
-                .workflow(saved.workflow() + new WorkflowStep(BUSINESS_APPROVAL, RAISED.plusSeconds(120)))
+                .workflow(saved.workflow() + new WorkflowStep(BUSINESS_APPROVAL, CREATED.plusSeconds(120)))
                 .tasks([saved.tasks()[1].withState(WORK_IN_PROGRESS), ctask('CTASK0002009', 'Check the audit trail',
                         'Open the audit trail.', OPEN), saved.tasks()[0].withState(CANCELED)])
-                .update(update).syncedAt(RAISED.plusSeconds(660)).build()
+                .update(update).syncedAt(CREATED.plusSeconds(660)).build()
 
         when:
         def stored = changes.save(synced)
@@ -321,12 +321,12 @@ class ChangePersistenceAdaptersSpec extends PersistenceSpecification {
 
     def "a sync that only moved the workflow and the task states keeps the version its fields were edited at"() {
         given:
-        def saved = changes.save(raise('CHG0001001', 'CTASK0002001', 'CTASK0002002'))
+        def saved = changes.save(create('CHG0001001', 'CTASK0002001', 'CTASK0002002'))
         entities.clear()
         def moved = saved.toBuilder().state(BUSINESS_APPROVAL)
-                .workflow(saved.workflow() + new WorkflowStep(BUSINESS_APPROVAL, RAISED.plusSeconds(120)))
+                .workflow(saved.workflow() + new WorkflowStep(BUSINESS_APPROVAL, CREATED.plusSeconds(120)))
                 .tasks([saved.tasks()[0].withState(WORK_IN_PROGRESS), saved.tasks()[1]])
-                .syncedAt(RAISED.plusSeconds(120))
+                .syncedAt(CREATED.plusSeconds(120))
                 .build()
 
         when:
@@ -351,7 +351,7 @@ class ChangePersistenceAdaptersSpec extends PersistenceSpecification {
 
     def "a claimed edit put back after ProTech refused it returns to the version its fields were edited at"() {
         given:
-        def stored = changes.save(raise('CHG0001001', 'CTASK0002001'))
+        def stored = changes.save(create('CHG0001001', 'CTASK0002001'))
         entities.clear()
 
         when:
@@ -372,11 +372,11 @@ class ChangePersistenceAdaptersSpec extends PersistenceSpecification {
                                    platform       : 'Distributed', packages: 'cert-4.2.tar\ncert-ui-4.2.tar',
                                    backoutPackages: 'cert-4.1.tar', additionalComments: 'Call the owner first.'])
                 .withNumber('CTASK0002031').withApproval(REQUESTED).withApprovers(['Rebecca Lawson', 'Thomas Ashby'])
-                .withReminder(new Reminder(RAISED, ['Rebecca Lawson', 'Thomas Ashby']))
+                .withReminder(new Reminder(CREATED, ['Rebecca Lawson', 'Thomas Ashby']))
         def other = ChangeTask.of(taskDetails(2, [assignmentGroup  : 'Cloud Engineering', importance: '2 - High',
                                                   configurationItem: 'CertScanner']))
-        def saved = changes.save(raise('CHG0001031').withTasks([release, other])
-                .reminded([(ApprovalRef.of(SUPPORT)): new Reminder(RAISED, ['Jane Smith'])]))
+        def saved = changes.save(create('CHG0001031').withTasks([release, other])
+                .reminded([(ApprovalRef.of(SUPPORT)): new Reminder(CREATED, ['Jane Smith'])]))
         profiles.save(ChangeProfile.create(product.id(), FULL, [release.details(), other.details()]))
         entities.clear()
 
@@ -384,7 +384,7 @@ class ChangePersistenceAdaptersSpec extends PersistenceSpecification {
         changes.load(saved.id()).get().tasks() == [release, other]
         changes.load(saved.id()).get().approvals() == saved.approvals()
         saved.approvals()*.role() == [BUSINESS, L1, L2, SUPPORT]
-        saved.approvals()*.reminder() == [null, null, null, new Reminder(RAISED, ['Jane Smith'])]
+        saved.approvals()*.reminder() == [null, null, null, new Reminder(CREATED, ['Jane Smith'])]
         profiles.find(product.id()).get().tasks() == [release.details(), other.details()]
         jdbc.queryForMap('''SELECT ASSIGNMENT_GROUP, PLATFORM, APPLICATION, IMPORTANCE, APPROVAL, APPROVERS,
                 REMINDER_SENT_TO FROM BEADLE_PRODUCTION_CHANGE_TASK WHERE CHANGE_ID = ? AND TASK_NUMBER = ?''',
@@ -399,7 +399,7 @@ class ChangePersistenceAdaptersSpec extends PersistenceSpecification {
 
     def "a change task added in Beadle is stored without a number, then with the number ProTech gave it"() {
         given:
-        def saved = changes.save(raise('CHG0001001', 'CTASK0002001'))
+        def saved = changes.save(create('CHG0001001', 'CTASK0002001'))
         def added = ctask(null, 'Notify the users', 'Send the release notes.', OPEN)
         entities.clear()
 
@@ -419,30 +419,30 @@ class ChangePersistenceAdaptersSpec extends PersistenceSpecification {
 
     def "a sync that found nothing new only records its time on all the changes it read and keeps their version"() {
         given:
-        def saved = changes.save(raise('CHG0001001', 'CTASK0002001'))
-        def other = changes.save(raise('CHG0001002', 'CTASK0002002'))
-        def untouched = changes.save(raise('CHG0001003', 'CTASK0002003'))
+        def saved = changes.save(create('CHG0001001', 'CTASK0002001'))
+        def other = changes.save(create('CHG0001002', 'CTASK0002002'))
+        def untouched = changes.save(create('CHG0001003', 'CTASK0002003'))
         entities.clear()
 
         when:
-        changes.synced([saved.id(), other.id()], RAISED.plusSeconds(3600))
+        changes.synced([saved.id(), other.id()], CREATED.plusSeconds(3600))
         entities.clear()
         def loaded = changes.load(saved.id()).get()
 
         then:
-        loaded.syncedAt() == RAISED.plusSeconds(3600)
+        loaded.syncedAt() == CREATED.plusSeconds(3600)
         loaded.version() == 0
-        loaded == saved.toBuilder().syncedAt(RAISED.plusSeconds(3600)).build()
-        changes.load(other.id()).get() == other.toBuilder().syncedAt(RAISED.plusSeconds(3600)).build()
+        loaded == saved.toBuilder().syncedAt(CREATED.plusSeconds(3600)).build()
+        changes.load(other.id()).get() == other.toBuilder().syncedAt(CREATED.plusSeconds(3600)).build()
         changes.load(untouched.id()).get() == untouched
     }
 
     def "the changes of a business service are listed newest first and counted per business service with its products"() {
         given:
         def custody = save('CUST', 'Custody Ledger', 4L)
-        def first = changes.save(raise('CHG0001001', 'CTASK0002001'))
-        changes.save(raise('CHG0001002', 'CTASK0002002', custody))
-        def last = changes.save(raise('CHG0001003', 'CTASK0002003'))
+        def first = changes.save(create('CHG0001001', 'CTASK0002001'))
+        changes.save(create('CHG0001002', 'CTASK0002002', custody))
+        def last = changes.save(create('CHG0001003', 'CTASK0002003'))
         entities.clear()
 
         expect:
@@ -453,10 +453,10 @@ class ChangePersistenceAdaptersSpec extends PersistenceSpecification {
         usage.perBusinessService() == [3L: new ChangeUsage(1, 2), 4L: new ChangeUsage(1, 1)]
     }
 
-    def "deleting a product deletes its template and keeps its raised changes"() {
+    def "deleting a product deletes its template and keeps its created changes"() {
         given:
         profiles.save(ChangeProfile.create(product.id(), FULL, tasks()))
-        def saved = changes.save(raise('CHG0001003', 'CTASK0002005'))
+        def saved = changes.save(create('CHG0001003', 'CTASK0002005'))
         entities.clear()
 
         when:
@@ -471,24 +471,24 @@ class ChangePersistenceAdaptersSpec extends PersistenceSpecification {
             productName() == 'CertScanner'
             businessServiceId() == 3L
             it.tasks()*.details()*.shortDescription() == ['Task 1 of the CertScanner release']
-            it.workflow() == [new WorkflowStep(DRAFT, RAISED)]
+            it.workflow() == [new WorkflowStep(DRAFT, CREATED)]
             it.template().privilegedAccess().users().size() == 2
         }
     }
 
-    private ProductionChange raise(String number, String... taskNumbers) {
-        raise(number, taskNumbers.toList(), product)
+    private ProductionChange create(String number, String... taskNumbers) {
+        create(number, taskNumbers.toList(), product)
     }
 
-    private ProductionChange raise(String number, String taskNumber, Product owner) {
-        raise(number, [taskNumber], owner)
+    private ProductionChange create(String number, String taskNumber, Product owner) {
+        create(number, [taskNumber], owner)
     }
 
-    private ProductionChange raise(String number, List<String> taskNumbers, Product owner) {
+    private ProductionChange create(String number, List<String> taskNumbers, Product owner) {
         ProductionChange.draft(changeProducts.get(owner.id()), 'Mateusz Matan', FIX_VERSION, DOWNTIME, FULL,
                 [epic('CERT-1', 'Expiry alerts')], [story('CERT-2', 'E-mail', 'CERT-1')], null, null)
                 .withSecureCoding(FULL.secureCoding(), 'SCP-2001')
-                .raisedAt(RAISED).numbered(number, changeUrl(number))
+                .created(CREATED).numbered(number, changeUrl(number))
                 .withTasks(taskNumbers.withIndex().collect { String taskNumber, int index ->
                     task(index + 1).withNumber(taskNumber)
                 })

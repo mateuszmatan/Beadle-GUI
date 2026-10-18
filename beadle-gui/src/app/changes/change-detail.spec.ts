@@ -571,7 +571,7 @@ describe('ChangeSummary', () => {
       render(productionChange({ state, number: null }))('Request details').slice(0, 2);
 
     expect(approval('DRAFT')).toEqual([
-      'Change number: Given by ProTech when raised',
+      'Change number: Given by ProTech when created',
       'Approval: Not Approved',
     ]);
     TestBed.resetTestingModule();

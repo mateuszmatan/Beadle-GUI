@@ -32,7 +32,7 @@ through running them together and deploying them.
 - Names:
   - BBH's ServiceNow instance is **ProTech** in code, configuration, documentation and the interface. The word
     ServiceNow appears only where its REST API is meant.
-  - **CyberTrack** is the Cybersecurity team's Jira, where secure coding tickets are raised. **Jira** alone is the
+  - **CyberTrack** is the Cybersecurity team's Jira, where secure coding tickets are created. **Jira** alone is the
     delivery teams' Jira (versions, epics, stories). The two never share a package, a client or a configuration block.
   - **Business Service** is Beadle's grouping of products, one name everywhere: `businessServiceId`,
     `businessServiceName`, `/api/business-services`, the lookup kind `business-services`, the table
@@ -112,7 +112,7 @@ both repositories and this file together. Which ProTech table and field holds ea
 `docs/PROTECH-MAPPING.md`, and each is a property under `beadle.protech.fields.*` (for example
 `beadle.protech.fields.change.business-service`, default `u_department`).
 
-Every change raised or read is followed until it is closed. Beadle-ProTech asks ProTech what moved every
+Every change created or read is followed until it is closed. Beadle-ProTech asks ProTech what moved every
 `beadle.protech.poll` (default `PT1M`); the webhook makes it look at one change at once. ProTech calls the webhook from
 a business rule with its own token, `PROTECH_WEBHOOK_TOKEN` (`beadle.protech.webhook-token`), which opens that path
 alone, so the service token never leaves the OpenShift project. The demo adapter moves its changes on its own clock.
@@ -169,7 +169,7 @@ secrets masked; above 256 KB `{"truncated": true, "bytes": n, ...}`), `OUTCOME` 
 Every use case that changes something or calls another system records exactly one row, in its transaction when it
 has one, and a `FAILURE` row when it throws or its request is refused before it runs (a field problem, a missing CSRF
 token of a signed-in user, a callback with the service token but a correlation id that is too long). A caller who
-proved nothing, without a session or the service token, or whose sign-in at Ping failed, is only logged. Actions: `CHANGE_PREVIEWED`, `CHANGE_RAISED`, `CHANGE_EDITED`,
+proved nothing, without a session or the service token, or whose sign-in at Ping failed, is only logged. Actions: `CHANGE_PREVIEWED`, `CHANGE_CREATED`, `CHANGE_EDITED`,
 `CHANGE_TASKS_CREATED`, `SECURE_CODING_TICKET_CREATED`, `REMINDER_SENT`, `CHANGE_SYNCED`, `PRODUCT_CREATED`,
 `PRODUCT_UPDATED`, `PRODUCT_DELETED`, `CHANGE_PROFILE_UPDATED`, `BUSINESS_SERVICE_CREATED`, `BUSINESS_SERVICE_RENAMED`,
 `BUSINESS_SERVICE_DELETED`, `USER_SIGNED_IN` (the first API call of a session), `USER_SIGNED_OUT`, `CALLBACK_PROTECH`,

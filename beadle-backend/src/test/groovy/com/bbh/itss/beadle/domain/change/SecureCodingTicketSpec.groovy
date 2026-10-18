@@ -7,14 +7,14 @@ import spock.lang.Specification
 import java.time.LocalDate
 
 import static com.bbh.itss.beadle.domain.change.SecureCodingTicket.DATE_MESSAGE
-import static com.bbh.itss.beadle.support.ChangeFixtures.raised
+import static com.bbh.itss.beadle.support.ChangeFixtures.issued
 import static com.bbh.itss.beadle.support.ChangeFixtures.secureCoding
 
 class SecureCodingTicketSpec extends Specification {
 
     def "a ticket carries the change number, the product name, the trimmed date and the inputs"() {
         when:
-        def ticket = SecureCodingTicket.of(raised(), secureCoding(), ' 10152026 ')
+        def ticket = SecureCodingTicket.of(issued(), secureCoding(), ' 10152026 ')
 
         then:
         ticket == new SecureCodingTicket('CHG0031001', 'CertScanner', LocalDate.parse('2026-10-15'), secureCoding())
@@ -22,7 +22,7 @@ class SecureCodingTicketSpec extends Specification {
 
     def "the implementation date #date is refused"() {
         when:
-        SecureCodingTicket.of(raised(), secureCoding(), date)
+        SecureCodingTicket.of(issued(), secureCoding(), date)
 
         then:
         def refused = thrown(InvalidRequestException)
@@ -42,7 +42,7 @@ class SecureCodingTicketSpec extends Specification {
 
     def "every input of a ticket is required and every link must be one"() {
         when:
-        SecureCodingTicket.of(raised(), new SecureCoding(' ', 'https://bitbucket', null, 'cert.qc.bbh.com'), '10152026')
+        SecureCodingTicket.of(issued(), new SecureCoding(' ', 'https://bitbucket', null, 'cert.qc.bbh.com'), '10152026')
 
         then:
         def refused = thrown(InvalidRequestException)

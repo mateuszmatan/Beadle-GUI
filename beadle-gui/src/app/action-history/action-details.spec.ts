@@ -35,7 +35,7 @@ describe('ActionDetails', () => {
   it('shows who did what to which object, how it ended and the request as JSON', async () => {
     await render(actionRecord());
 
-    expect(text(page().querySelector('h2'))).toBe('Change raised: Change CHG0031001');
+    expect(text(page().querySelector('h2'))).toBe('Change created: Change CHG0031001');
     expect(rows()).toEqual({
       When: expect.stringMatching(/^15 Oct 2026, \d\d:00:05 in your time zone, /),
       User: 'Mateusz Matan',
