@@ -141,6 +141,6 @@ public class ChangeController {
     @PutMapping("/products/{id}/change-profile")
     @AuditedRequest(CHANGE_PROFILE_UPDATED)
     public ChangeProfileView saveProfile(@PathVariable long id, @Valid @RequestBody ChangeProfileRequest request) {
-        return profiles.save(id, request.version(), request.toTemplate(), request.toTasks());
+        return profiles.save(id, request.version(), request.template(), request.tasks());
     }
 }

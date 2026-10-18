@@ -1,12 +1,11 @@
 package com.bbh.itss.beadle.adapter.in.web;
 
 import com.bbh.itss.beadle.adapter.Mirrors;
-import com.bbh.itss.beadle.adapter.in.web.ChangeProfileRequest.TaskDetailsDto;
-import com.bbh.itss.beadle.adapter.in.web.ChangeProfileRequest.TemplateDto;
 import com.bbh.itss.beadle.application.change.port.in.ChangeEditCommand;
 import com.bbh.itss.beadle.domain.change.ChangeSchedule;
 import com.bbh.itss.beadle.domain.change.ChangeTask;
 import com.bbh.itss.beadle.domain.change.ChangeTemplate;
+import com.bbh.itss.beadle.domain.change.TaskDetails;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -27,19 +26,19 @@ public record ChangeEditRequest(
         @NotBlank @Size(max = SHORT_DESCRIPTION_MAX) String shortDescription,
         @NotBlank @Size(max = DESCRIPTION_MAX) String description,
         @NotNull ChangeSchedule schedule,
-        @NotNull @Valid TemplateDto template,
+        @NotNull ChangeTemplate template,
         @NotNull @Size(max = MAX_TASKS) List<@NotNull @Valid TaskDto> tasks) {
 
     ChangeEditCommand toCommand() {
-        return new ChangeEditCommand(version, businessServiceId, shortDescription, description, schedule,
-                map(template, ChangeTemplate.class), tasksOf(tasks));
+        return new ChangeEditCommand(version, businessServiceId, shortDescription, description, schedule, template,
+                tasksOf(tasks));
     }
 
     static List<ChangeTask> tasksOf(List<TaskDto> tasks) {
         return tasks.stream().map(task -> map(task, ChangeTask.class)).toList();
     }
 
-    public record TaskDto(@Size(max = NUMBER_MAX) String number, @NotNull @Valid TaskDetailsDto details,
-                          Instant start) implements Mirrors<ChangeTask> {
+    public record TaskDto(@Size(max = NUMBER_MAX) String number, @NotNull TaskDetails details, Instant start)
+            implements Mirrors<ChangeTask> {
     }
 }
