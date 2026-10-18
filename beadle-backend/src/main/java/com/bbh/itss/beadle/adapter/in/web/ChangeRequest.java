@@ -1,5 +1,6 @@
 package com.bbh.itss.beadle.adapter.in.web;
 
+import com.bbh.itss.beadle.adapter.Mirrors;
 import com.bbh.itss.beadle.application.change.port.in.ChangeCommand;
 import com.bbh.itss.beadle.domain.change.ChangeSchedule;
 import com.bbh.itss.beadle.domain.change.ChangeTemplate;
@@ -21,10 +22,5 @@ public record ChangeRequest(
         @NotNull ChangeSchedule schedule,
         @NotNull ChangeTemplate template,
         @Size(max = SHORT_DESCRIPTION_MAX) String shortDescription,
-        @Size(max = DESCRIPTION_MAX) String description) {
-
-    ChangeCommand toCommand() {
-        return new ChangeCommand(productId, fixVersion, epicKeys, storyKeys, schedule, template, shortDescription,
-                description);
-    }
+        @Size(max = DESCRIPTION_MAX) String description) implements Mirrors<ChangeCommand> {
 }

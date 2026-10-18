@@ -1,10 +1,13 @@
 package com.bbh.itss.beadle.adapter.in.web;
 
+import com.bbh.itss.beadle.application.change.port.in.ChangeCommand;
+import com.bbh.itss.beadle.application.change.port.in.ChangeEditCommand;
 import com.bbh.itss.beadle.application.change.port.in.ChangeIntegrations;
 import com.bbh.itss.beadle.application.change.port.in.ChangeOptions;
 import com.bbh.itss.beadle.application.change.port.in.ChangeOptionsUseCase;
 import com.bbh.itss.beadle.application.change.port.in.ChangeProfileView;
 import com.bbh.itss.beadle.application.change.port.in.ChangeProfilesUseCase;
+import com.bbh.itss.beadle.application.change.port.in.ChangeTasksCommand;
 import com.bbh.itss.beadle.application.change.port.in.LookupsUseCase;
 import com.bbh.itss.beadle.application.change.port.in.ProductionChangesUseCase;
 import com.bbh.itss.beadle.domain.change.ChangeProfileSummary;
@@ -26,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+import static com.bbh.itss.beadle.adapter.RecordMapper.map;
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_EDITED;
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_PREVIEWED;
 import static com.bbh.itss.beadle.domain.audit.Action.CHANGE_PROFILE_UPDATED;
@@ -60,7 +64,7 @@ public class ChangeController {
     @PutMapping("/changes/{id}")
     @AuditedRequest(CHANGE_EDITED)
     public ProductionChange update(@PathVariable long id, @Valid @RequestBody ChangeEditRequest request) {
-        return changes.update(id, request.toCommand());
+        return changes.update(id, map(request, ChangeEditCommand.class));
     }
 
     @GetMapping("/changes/integrations")
@@ -81,20 +85,20 @@ public class ChangeController {
     @PostMapping("/changes/preview")
     @AuditedRequest(value = CHANGE_PREVIEWED, objectId = "productId")
     public ProductionChange preview(@Valid @RequestBody ChangeRequest request) {
-        return changes.preview(request.toCommand());
+        return changes.preview(map(request, ChangeCommand.class));
     }
 
     @PostMapping("/changes")
     @AuditedRequest(value = CHANGE_CREATED, objectId = "productId", objectType = PRODUCT)
     public ResponseEntity<ProductionChange> create(@Valid @RequestBody ChangeRequest request) {
-        ProductionChange created = changes.create(request.toCommand());
+        ProductionChange created = changes.create(map(request, ChangeCommand.class));
         return created(fromCurrentRequest().path("/{id}").buildAndExpand(created.id()).toUri()).body(created);
     }
 
     @PostMapping("/changes/{id}/tasks")
     @AuditedRequest(CHANGE_TASKS_CREATED)
     public ProductionChange createTasks(@PathVariable long id, @Valid @RequestBody ChangeTasksRequest request) {
-        return changes.createTasks(id, request.toCommand());
+        return changes.createTasks(id, map(request, ChangeTasksCommand.class));
     }
 
     @PostMapping("/changes/{id}/secure-coding")
