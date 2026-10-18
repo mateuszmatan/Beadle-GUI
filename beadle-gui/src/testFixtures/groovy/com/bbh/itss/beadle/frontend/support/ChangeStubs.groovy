@@ -6,7 +6,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
 import static com.bbh.itss.beadle.frontend.support.BeadleStubApi.SIGNED_IN_USER
-import static com.bbh.itss.beadle.frontend.support.StubApi.fixture
+import static com.bbh.itss.beadle.frontend.support.BeadleStubApi.fixture
 import static com.bbh.itss.beadle.frontend.support.StubResponse.json
 import static com.bbh.itss.beadle.frontend.support.StubResponse.problem
 import static java.lang.String.format
@@ -106,7 +106,7 @@ final class ChangeStubs {
     private ChangeStubs() {
     }
 
-    static ProTech install(StubApi api) {
+    static ProTech install(BeadleStubApi api) {
         def profiles = new ConcurrentHashMap<Integer, Map>([1: [version: 2, template: CERT_TEMPLATE, tasks: CERT_TASKS]])
         def protech = new ProTech()
         def projectOf = { RecordedRequest request, String id ->

@@ -27,9 +27,9 @@ class GuiServer implements AutoCloseable {
     private final HttpServer server
     private final ExecutorService executor
     private final Path dist
-    private final StubApi api
+    private final BeadleStubApi api
 
-    private GuiServer(Path dist, StubApi api) {
+    private GuiServer(Path dist, BeadleStubApi api) {
         this.dist = dist.toAbsolutePath().normalize()
         this.api = api
         this.executor = newFixedThreadPool(8)
@@ -38,7 +38,7 @@ class GuiServer implements AutoCloseable {
         server.createContext('/') { HttpExchange exchange -> serve(exchange) }
     }
 
-    static GuiServer start(Path dist, StubApi api) {
+    static GuiServer start(Path dist, BeadleStubApi api) {
         if (!isRegularFile(dist.resolve('index.html'))) {
             throw new IllegalStateException("No built gui in $dist; run ./gradlew :beadle-gui:buildAngular")
         }

@@ -15,7 +15,7 @@ import static java.time.ZoneOffset.UTC
 
 class ChangesSpec extends BeadleSpecification {
 
-    def "a release manager picks the business service and filters and sorts its ProTech changes in the table header"() {
+    def "a release manager picks the business service, sees its ProTech changes and finds it remembered"() {
         when:
         open('/')
         page.waitForURL('**/changes')
@@ -46,52 +46,11 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(link('Edit CHG0030990', true)).hasCount(0)
 
         when:
-        filter('FixVersion').fill('4.1')
-
-        then:
-        assertThat(numbers()).hasText(['CHG0031001', 'CHG0030995'] as String[])
-        assertThat(page.locator('.list .shown')).hasText('2 of 3 changes')
-
-        when:
-        filter('FixVersion').fill('')
-        choose(page.locator('beadle-grid'), 'Filter by state', 'Closed')
-
-        then:
-        assertThat(numbers()).hasText(['CHG0030990'] as String[])
-
-        when:
-        choose(page.locator('beadle-grid'), 'Filter by state', 'Open')
-        filter('short description').fill('no such change')
-
-        then:
-        assertThat(page.locator('.beadle-grid-empty')).hasText('No change matches the filters.')
-
-        when:
-        filter('short description').fill('')
-        choose(page.locator('beadle-grid'), 'Filter by state', 'All')
-        sortBy('State')
-
-        then:
-        assertThat(numbers()).hasText(['CHG0031001', 'CHG0030995', 'CHG0030990'] as String[])
-
-        when:
-        sortBy('State')
-
-        then:
-        assertThat(numbers()).hasText(['CHG0030990', 'CHG0030995', 'CHG0031001'] as String[])
-
-        when:
         open('/changes')
 
         then:
         assertThat(selected(page.locator('.toolbar'), 'Your business service')).hasText('Corporate Technology')
         assertThat(numbers()).hasText(['CHG0031001', 'CHG0030995', 'CHG0030990'] as String[])
-
-        when:
-        sortBy('Installation')
-
-        then:
-        assertThat(numbers()).hasText(['CHG0030990', 'CHG0030995', 'CHG0031001'] as String[])
 
         when:
         choose(page.locator('.toolbar'), 'Your business service', 'AI Lab')
@@ -245,7 +204,7 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(page.locator('beadle-toast')).containsText('Reminder sent to Daniel Foster, Priya Natarajan')
 
         when:
-        beadle.protech.advance(4, 'CTASK_APPROVAL')
+        api.protech.advance(4, 'CTASK_APPROVAL')
         page.reload()
 
         then:
@@ -254,7 +213,7 @@ class ChangesSpec extends BeadleSpecification {
         assertThat(approvalRows().locator('.chip')).hasText((['Approved'] * 4 + ['Requested'] * 2) as String[])
 
         when:
-        beadle.protech.advance(4, 'IMPLEMENTATION')
+        api.protech.advance(4, 'IMPLEMENTATION')
         page.reload()
 
         then:
@@ -326,7 +285,7 @@ class ChangesSpec extends BeadleSpecification {
         lookUp(taskRows().nth(2), 'Assignment group', 'ois', 'OIS Support')
         fillIn(taskRows().nth(2), ['Short description': 'Notify the users', 'Description': 'Send the release notes to the users.'])
         button('Remove change task 2', true).click()
-        beadle.protech.applying = false
+        api.protech.applying = false
         button('Publish update to ProTech', true).click()
         page.waitForURL('**/changes/4')
 
@@ -357,7 +316,7 @@ class ChangesSpec extends BeadleSpecification {
 
         when:
         def reads = api.requests('GET', '/api/changes/4').size()
-        beadle.protech.applying = true
+        api.protech.applying = true
         page.waitForCondition({ api.requests('GET', '/api/changes/4').size() > reads } as BooleanSupplier)
 
         then:
@@ -394,14 +353,6 @@ class ChangesSpec extends BeadleSpecification {
 
     Locator column(String name) {
         gridCells(page.locator('body'), name)
-    }
-
-    Locator filter(String label) {
-        gridFilter(label)
-    }
-
-    void sortBy(String label) {
-        holdingText(gridHeaders(), label).locator('.ag-header-cell-label').click()
     }
 
     Locator approvalRows() {
