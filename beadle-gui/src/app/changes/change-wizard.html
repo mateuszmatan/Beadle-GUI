@@ -238,6 +238,9 @@
           <p class="empty">Choose an epic to see its stories.</p>
         }
         @if (epicKeys().length) {
+          @if (textsProblem(); as error) {
+            <p class="choice-error">The text sent to ProTech could not be written: {{ error }}</p>
+          }
           @if (preview(); as draft) {
             <div class="texts">
               <div>
@@ -272,9 +275,9 @@
       @case ('review') {
         <h2>Check the change and create it in ProTech</h2>
         <p class="lead">
-          Check every value, then create the change: ProTech gives it its change number
-          (CHG). Two steps follow: adding its change tasks (CTASKs), which carry that number,
-          and creating its secure coding ticket in CyberTrack.
+          Check every value, then create the change: ProTech gives it its change number (CHG). Two
+          steps follow: adding its change tasks (CTASKs), which carry that number, and creating its
+          secure coding ticket in CyberTrack.
         </p>
         @if (previewing()) {
           <beadle-loading />
@@ -307,8 +310,8 @@
         @if (created(); as change) {
           <div class="banner success created-note" role="status">
             <span
-              ><strong>{{ change.number }} has been created in ProTech.</strong> Add its change tasks
-              next.</span
+              ><strong>{{ change.number }} has been created in ProTech.</strong> Add its change
+              tasks next.</span
             >
           </div>
           <h2>Change tasks of {{ change.number }}</h2>
