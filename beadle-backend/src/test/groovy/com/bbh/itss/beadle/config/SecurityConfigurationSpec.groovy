@@ -33,6 +33,7 @@ import static com.bbh.itss.beadle.support.Json.parse
 import static com.bbh.itss.beadle.support.Json.toJson
 import static org.springframework.http.MediaType.APPLICATION_JSON
 import static org.springframework.http.MediaType.TEXT_HTML
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -174,6 +175,19 @@ class SecurityConfigurationSpec extends Specification {
                 [id_token_hint: 'id-token', post_logout_redirect_uri: 'http://localhost/']
         answer(oidc, get('/api/me').session(session)).status == 401
         latest(oidcContext, 'USER_SIGNED_OUT', 'SUCCESS') == ['Ann Lee', null]
+    }
+
+    def "with Ping a POST /logout after the session ended, as after a redeployment, records no sign-out"() {
+        given:
+        int signedOutBefore = count(oidcContext, 'USER_SIGNED_OUT', 'SUCCESS')
+
+        when:
+        def signedOut = answer(oidc, post('/logout').with(csrf()))
+
+        then:
+        signedOut.status == 200
+        parse(signedOut.contentAsString) == [redirectUrl: '/']
+        count(oidcContext, 'USER_SIGNED_OUT', 'SUCCESS') == signedOutBefore
     }
 
     def "with Ping a sign-in that fails on its way back from Ping is only logged, and the sign-in page says it failed"() {
