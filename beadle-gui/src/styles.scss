@@ -332,6 +332,7 @@ h3 {
 
 .card {
   display: block;
+  flex-direction: row;
   background: var(--beadle-card);
   border: 1px solid var(--beadle-border);
 }
